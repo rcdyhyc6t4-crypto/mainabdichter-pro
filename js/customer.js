@@ -1,28 +1,18 @@
-(function(){"use strict";
-const $=id=>document.getElementById(id);
-const eur=v=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v||0);
-const num=v=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:2}).format(v||0);
-const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-let data=null;
-try{data=JSON.parse(localStorage.getItem("mainabdichter_customer_snapshot")||"null")}catch{}
-if(!data){
-  document.getElementById("customerDocument").innerHTML="<h1>Keine Angebotsdaten vorhanden</h1><p>Bitte die Kundenansicht erneut aus der mainabdichter-App öffnen.</p>";
-  return;
+import { $, eur, num, esc } from "./utils.js";
+let data = null;
+try { data = JSON.parse(localStorage.getItem("mainabdichter_v10_customer") || "null"); } catch {}
+if (!data) {
+  $("document").innerHTML = "<h1>Keine Angebotsdaten vorhanden</h1>";
+} else {
+  $("cName").textContent = [data.customerName,data.company].filter(Boolean).join(" – ") || "–";
+  $("cAddress").textContent = data.address || "–";
+  $("cRecommendation").textContent = data.recommendation || "–";
+  $("cMeasures").innerHTML = data.measures.map(item => `<div class="result"><strong>${esc(item.areaName)} – ${esc(item.title)}</strong>${item.description?`<div class="article-description">${esc(item.description)}</div>`:""}<div class="metric"><span>Umfang</span><strong>${esc(item.scope)}</strong></div></div>`).join("");
+  $("cExtras").innerHTML = data.extras.map(item => `<div class="result"><strong>${esc(item.title)}</strong>${item.description?`<div class="article-description">${esc(item.description)}</div>`:""}<div class="metric"><span>Menge</span><strong>${num(item.quantity)} ${esc(item.unitName)}</strong></div></div>`).join("");
+  if (data.specialAmount > 0) { $("cNormalRow").classList.remove("hidden"); $("cSpecialRow").classList.remove("hidden"); $("cNormal").textContent = eur(data.normalGross); $("cSpecialLabel").textContent = data.specialLabel; $("cSpecial").textContent = "− " + eur(data.specialAmount); }
+  $("cOffer").textContent = eur(data.offerGross);
+  if (data.skontoPct > 0) { $("cSkontoRow").classList.remove("hidden"); $("cSkontoLabel").textContent = `${num(data.skontoPct)} % Skonto bei Zahlung innerhalb von 3 Werktagen`; $("cSkonto").textContent = eur(data.skontoGross); }
+  $("cPhotos").innerHTML = data.photos.map(photo => `<div class="photo-card"><img src="${photo.src}"><strong>${esc(photo.areaName)}</strong>${photo.caption?`<p>${esc(photo.caption)}</p>`:""}</div>`).join("");
 }
-$("cpCustomer").textContent=[data.customer.name,data.customer.company].filter(Boolean).join(" – ")||"–";
-$("cpAddress").textContent=data.customer.address||"–";
-$("cpRecommendation").textContent=data.recommendation||"–";
-$("cpMeasures").innerHTML=data.measures.map(m=>`<div class="result"><strong>${esc(m.area)} – ${esc(m.title)}</strong>${m.description?`<div class="article-description">${esc(m.description)}</div>`:""}<div class="metric"><span>Umfang</span><strong>${esc(m.scope)}</strong></div></div>`).join("");
-$("cpExtras").innerHTML=data.extras.map(e=>`<div class="result"><strong>${esc(e.title)}</strong>${e.description?`<div class="article-description">${esc(e.description)}</div>`:""}<div class="metric"><span>Menge</span><strong>${num(e.quantity)} ${esc(e.unitName)}</strong></div></div>`).join("");
-if(data.specialAmount>0){
- $("cpNormalRow").classList.remove("hidden");$("cpSpecialRow").classList.remove("hidden");
- $("cpNormal").textContent=eur(data.normalGross);$("cpSpecialLabel").textContent=data.specialLabel;$("cpSpecial").textContent="− "+eur(data.specialAmount);
-}
-$("cpOffer").textContent=eur(data.offerGross);
-if(data.skontoPct>0){
- $("cpSkontoRow").classList.remove("hidden");$("cpSkontoLabel").textContent=`${num(data.skontoPct)} % Skonto bei Zahlung innerhalb von 3 Werktagen`;$("cpSkonto").textContent=eur(data.skontoGross);
-}
-$("cpPhotos").innerHTML=data.photos.map(p=>`<div class="photo-card"><img src="${p.src}"><strong>${esc(p.area)}</strong>${p.caption?`<p>${esc(p.caption)}</p>`:""}</div>`).join("");
-$("cpPrint").onclick=()=>window.print();
-$("cpClose").onclick=()=>window.close();
-})();
+$("print").onclick = () => window.print();
+$("close").onclick = () => window.close();
