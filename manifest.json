@@ -1,0 +1,16 @@
+{
+  "name": "mainabdichter Pro",
+  "short_name": "mainabdichter",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#78be20",
+  "icons": [
+    {
+      "src": "bkm-mannesmann-logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
