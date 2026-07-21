@@ -3,7 +3,7 @@
   "short_name": "Mainabdichter",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f4f7fb",
+  "background_color": "#eef3f8",
   "theme_color": "#17365D",
   "icons": []
 }
