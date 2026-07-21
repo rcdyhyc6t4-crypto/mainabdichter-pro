@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#76b82a">
-  <title>mainabdichter - BKM.MANNESMANN Fachbetrieb</title>
+  <title>mainabdichter V8 - BKM.MANNESMANN Fachbetrieb</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
 </head>
@@ -166,7 +166,7 @@
   <div class="section-actions no-print">
     <button id="printCustomerPdf" class="primary">Kunden-PDF erstellen</button>
     <button id="printReportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
-    <button id="sendLexware" class="secondary">Kunde an Lexware</button>
+    <button id="sendLexwareQuotation" class="secondary">Angebot als Lexware-Entwurf</button>
   </div>
   <div id="offerStatus" class="status"></div>
 </section>
@@ -178,42 +178,63 @@
   </div>
 
   <details class="card" open>
-    <summary>Aktive BKM-Preisliste</summary>
+    <summary>Kalkulationsbasis</summary>
+    <p class="hint">Diese Werte werden einmal gespeichert und gelten anschließend für alle Kunden.</p>
     <div class="grid">
-      <div><label>Bezeichnung</label><input id="priceListName"></div>
+      <div><label>Bezeichnung der Preisbasis</label><input id="priceListName"></div>
       <div><label>Gültig ab</label><input id="priceListDate" type="date"></div>
-    </div>
-    <h3>Wandstärken-Aufschläge</h3>
-    <div id="wallSurcharges"></div>
-    <h3>Horizontalsperre - Bruttopreise</h3><div id="hsPrices"></div>
-    <h3>Flächensperre - Bruttopreise</h3><div id="fsPrices"></div>
-    <h3>Harzverpressung - Bruttopreise</h3><div id="resinPrices"></div>
-  </details>
 
-  <details class="card">
-    <summary>Material- und Arbeitskosten</summary>
-    <div class="grid">
-      <div><label>HZ Einkauf netto / Liter</label><input id="adminMaterialEK" type="number" step=".01"></div>
-      <div><label>Personalkosten netto / Stunde / Mitarbeiter</label><input id="adminPersonnelCost" type="number" step=".01"></div>
-      <div><label>Anzahl Mitarbeiter</label><input id="adminWorkers" type="number" step="1"></div>
-      <div><label>Bohrleistung Löcher / Stunde</label><input id="adminDrill" type="number"></div>
-      <div><label>Injektionsleistung Löcher / Stunde</label><input id="adminFill" type="number"></div>
-      <div><label>Verschlussleistung Löcher / Stunde</label><input id="adminClose" type="number"></div>
-      <div><label>Rüstzeit Stunden</label><input id="adminSetupHours" type="number" step=".25"></div>
-      <div><label>Materialreserve %</label><input id="adminReserve" type="number" step=".1"></div>
-      <div><label>Kleinmaterial netto / Baustelle</label><input id="adminSmallCost" type="number" step=".01"></div>
-      <div><label>Fixkostenanteil netto / Baustelle</label><input id="adminFixedCost" type="number" step=".01"></div>
-      <div><label>Harz-Materialkosten netto / lfm</label><input id="adminResinCost" type="number" step=".01"></div>
-      <div><label>Flächensperre-Materialkosten netto / m²</label><input id="adminAreaCost" type="number" step=".01"></div>
-      <div><label>Wand-Sohlen-Materialkosten netto / lfm</label><input id="adminWallSoleCost" type="number" step=".01"></div>
-      <div><label>Wand-Sohlen-Anschluss brutto / lfm</label><input id="adminWallSolePrice" type="number" step=".01"></div>
+      <div><label>HZ 250 Pro Einkauf netto je Liter</label><input id="adminHzPurchase" type="number" step="0.01"></div>
+      <div><label>HZ 250 Pro Verkauf netto je Liter</label><input id="adminHzSale" type="number" step="0.01"></div>
+      <div><label>Materialreserve %</label><input id="adminReserve" type="number" step="0.1"></div>
+
+      <div><label>Bohrleistung Löcher/Stunde</label><input id="adminDrill" type="number" step="1"></div>
+      <div><label>Injektionsleistung Löcher/Stunde</label><input id="adminFill" type="number" step="1"></div>
+      <div><label>Verschlussleistung Löcher/Stunde</label><input id="adminClose" type="number" step="1"></div>
+      <div><label>Rüstzeit Stunden</label><input id="adminSetupHours" type="number" step="0.25"></div>
+
+      <div><label>Kleinbaustellenregel aktiv</label>
+        <select id="adminSmallJobEnabled"><option value="true">Ja</option><option value="false">Nein</option></select>
+      </div>
+      <div><label>Grenze Horizontalsperre in lfm</label><input id="adminSmallJobThreshold" type="number" step="0.1"></div>
+      <div><label>Art des Aufschlags</label>
+        <select id="adminSmallJobType"><option value="amount">fester Betrag brutto</option><option value="percent">Prozent</option></select>
+      </div>
+      <div><label>Aufschlag</label><input id="adminSmallJobValue" type="number" step="0.01"></div>
+      <div><label>In Kundenansicht separat anzeigen</label>
+        <select id="adminSmallJobVisible"><option value="false">Nein, nur einrechnen</option><option value="true">Ja</option></select>
+      </div>
+
+      <div><label>Wand-Sohlen-Anschluss brutto je lfm</label><input id="adminWallSolePrice" type="number" step="0.01"></div>
+      <div><label>Zusätzliches Harz netto je kg</label><input id="adminExtraResinKgPrice" type="number" step="0.01"></div>
     </div>
+
+    <h3>Harzverpressung – Bruttopreise laut Preisliste</h3>
+    <div id="resinPrices"></div>
   </details>
 
   <details class="card">
     <summary>Standard-Zusatzleistungen</summary>
+    <p class="hint">Diese Positionen werden einmal angelegt. Beim Kunden wird nur die Menge eingetragen.</p>
     <div id="adminExtras"></div>
     <button id="addAdminExtra" class="primary">+ Standardleistung</button>
+  </details>
+
+  <details class="card">
+    <summary>Lexware-Artikelzuordnung</summary>
+    <p class="hint">Optional. Ohne Zuordnung werden die Positionen als freie Leistungen an Lexware übertragen.</p>
+    <div class="section-actions">
+      <button id="loadLexwareArticles" class="secondary">Lexware-Artikel laden</button>
+      <button id="clearArticleMappings" class="secondary">Zuordnungen löschen</button>
+    </div>
+    <div id="articleMappingStatus" class="status"></div>
+    <div class="grid">
+      <div><label>Horizontalsperre</label><select id="mapHorizontalsperre"><option value="">freie Position</option></select></div>
+      <div><label>Flächensperre</label><select id="mapFlächensperre"><option value="">freie Position</option></select></div>
+      <div><label>Harzverpressung</label><select id="mapHarzverpressung"><option value="">freie Position</option></select></div>
+      <div><label>Wand-Sohlen-Anschluss</label><select id="mapWandSohlen"><option value="">freie Position</option></select></div>
+      <div><label>Kleinbaustellenzuschlag</label><select id="mapSmallJob"><option value="">freie Position</option></select></div>
+    </div>
   </details>
 
   <details class="card">

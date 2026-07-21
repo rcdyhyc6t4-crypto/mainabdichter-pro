@@ -1,46 +1,30 @@
-mainabdichter Version 7.0
+mainabdichter Version 8.0
 
-STRUKTUR
-- Dashboard
-- Besichtigung
-- Angebot
-- Einstellungen
+KERNLOGIK
+- HZ 250 Pro Einkaufspreis netto je Liter wird einmal im Adminbereich gespeichert.
+- Gewünschter HZ-Verkaufspreis netto je Liter wird einmal gespeichert.
+- Horizontalsperre und Flächensperre berechnen den Literbedarf automatisch:
+  - Faktor 14 für Horizontalsperre bzw. erste Reihe
+  - Faktor 10 für weitere Reihen
+  - horizontal 12,5 oder 25 cm
+  - vertikal immer 25 cm
+  - Materialreserve frei einstellbar
+- Kleinbaustellen-Aufschlag unter 12 lfm:
+  - fest oder prozentual
+  - optional separat in Kundenansicht
+- Harzverpressung:
+  - Grundpreis aus der dauerhaften Preisliste
+  - zusätzlicher kg-Mehraufwand separat
 
-PREISE
-Die BKM-Preislisten sind einmalig als aktive Preisbasis hinterlegt:
-- Horizontalsperre, Stand 01.01.2017
-- Flächensperre, Stand 01.01.2017
-- Harzverpressung, Stand 01.01.2017
-- Wandstärken-Aufschläge für 24/30/36/42/48/60 cm
-
-Die Preise werden beim Kunden NICHT bearbeitet.
-Änderungen erfolgen nur unter Einstellungen und gelten danach für alle neuen Kalkulationen.
-
-ARBEITSMODUS
-- Kunde manuell oder aus Pipedrive
-- Gebäude- und Raumdaten
-- Schadensbereiche
-- Messwerte
-- Fotos
-- Maßnahmen
-- Mengen der Standard-Zusatzleistungen
-- keine Preisfelder
-
-ANGEBOT
-- interne Kalkulation ein-/ausblendbar
-- Materialkosten
-- Personalkosten
-- Bohrlöcher
-- Arbeitszeit
-- Preis pro lfm / m²
-- Angebotssumme
-- Skonto
-- Sonderaktion
-- Kunden-PDF
-- Besichtigungsprotokoll als PDF
+LEXWARE
+- Kunde wird angelegt, sofern noch keine Lexware-Kontakt-ID gespeichert ist.
+- Das vollständige Angebot wird als Lexware-Entwurf erstellt.
+- Alle Positionen, Mengen, Preise, MwSt., Skonto und Objektanschrift werden übertragen.
+- Optional können vorhandene Lexware-Artikel einmalig den Maßnahmen zugeordnet werden.
+- Ohne Artikelzuordnung werden freie Leistungspositionen angelegt.
 
 GITHUB
-Gesamten Inhalt hochladen:
+Gesamte Ordnerstruktur hochladen:
 - index.html
 - styles.css
 - js/app.js
@@ -48,4 +32,10 @@ Gesamten Inhalt hochladen:
 - manifest.json
 
 CLOUDFLARE
-cloudflare-worker.js in den Worker-Editor kopieren und Deploy drücken.
+Die neue cloudflare-worker.js ist zwingend erforderlich:
+- vorhandenen Worker-Code vollständig ersetzen
+- Deploy drücken
+
+WICHTIG
+Falls der Lexware-API-Key vor Einführung des Angebots-Endpunkts erstellt wurde und Lexware den Zugriff verweigert,
+muss in Lexware ein neuer Public-API-Key erzeugt und in Cloudflare bei LEXOFFICE_API_KEY rotiert werden.
