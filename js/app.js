@@ -37,6 +37,10 @@ function newArea(name="Vorderwand"){return{name,wallMaterial:"HBL / Hohlblockste
 function newVisit(){return{customer:{salutation:"",firstName:"",lastName:"",phone:"",email:"",company:"",street:"",zip:"",city:"",objectAddress:"",pipedriveId:"",lexwareContactId:""},building:{yearBuilt:"",buildingType:"freistehendes Einfamilienhaus",floor:"Keller",roomUse:"Kellerraum",foundationType:"Streifenfundament",roomHeight:"",floorCover:"",roomTemp:"",humidity:"",surfaceTemp:"",dewPoint:""},damageDescription:"",customerDescription:"",areas:[newArea()],extraQuantities:{}}}
 
 let admin=load("v8_admin",DEFAULT_ADMIN);
+const savedWorkerUrl=localStorage.getItem("mainabdichter_worker_url");
+const savedAppSecret=localStorage.getItem("mainabdichter_app_secret");
+if(savedWorkerUrl)admin.workerUrl=savedWorkerUrl;
+if(savedAppSecret)admin.appSecret=savedAppSecret;
 admin.smallJob=Object.assign(clone(DEFAULT_ADMIN.smallJob),admin.smallJob||{});
 admin.articleMappings=admin.articleMappings||{};
 admin.lexwareArticles=admin.lexwareArticles||[];
@@ -254,16 +258,15 @@ function renderAdmin(){
  $("adminDrill").value=admin.drill;$("adminFill").value=admin.fill;$("adminClose").value=admin.close;$("adminSetupHours").value=admin.setupHours;
  $("adminSmallJobEnabled").value=String(admin.smallJob.enabled);$("adminSmallJobThreshold").value=admin.smallJob.threshold;$("adminSmallJobType").value=admin.smallJob.type;$("adminSmallJobValue").value=admin.smallJob.value;$("adminSmallJobVisible").value=String(admin.smallJob.visible);
  $("adminWallSolePrice").value=admin.wallSoleGross;$("adminExtraResinKgPrice").value=admin.extraResinKgNet;
- $("workerUrl").value=admin.workerUrl;$("appSecret").value=admin.appSecret;
+ $("workerUrl").value=admin.workerUrl||localStorage.getItem("mainabdichter_worker_url")||"";
+ $("appSecret").value=admin.appSecret||localStorage.getItem("mainabdichter_app_secret")||"";
  renderResinPrices();renderAdminExtras();renderArticleMappings();
 }
 function renderResinPrices(){const b=$("resinPrices");b.innerHTML="";Object.entries(admin.resin.tiers).forEach(([k,v])=>b.innerHTML+=`<div class="catalog-row"><div class="grid"><div><label>bis ${k} lfm</label><input value="${v}" data-resin-tier="${k}"></div><div><label>brutto €</label><input value="${v}" readonly></div></div></div>`);b.innerHTML+=`<div class="catalog-row"><label>ab ${admin.resin.threshold} lfm je weiterer lfm</label><input id="resinAdditional" value="${admin.resin.additional}"></div>`;b.querySelectorAll("[data-resin-tier]").forEach(x=>x.oninput=()=>admin.resin.tiers[x.dataset.resinTier]=+x.value||0);$("resinAdditional").oninput=()=>admin.resin.additional=+$("resinAdditional").value||0}
 function articleOptions(selected){
  return '<option value="">freie Leistung</option>'+admin.lexwareArticles.map(a=>`<option value="${a.id}" ${selected===a.id?"selected":""}>${esc(a.articleNumber?`${a.articleNumber} – `:"")}${esc(a.title)}</option>`).join("");
 }
-function articleOptions(selected){
- return '<option value="">freie Leistung</option>'+admin.lexwareArticles.map(a=>`<option value="${a.id}" ${selected===a.id?"selected":""}>${esc(a.articleNumber?`${a.articleNumber} – `:"")}${esc(a.title)}</option>`).join("");
-}
+
 function renderAdminExtras(){
  const b=$("adminExtras");b.innerHTML="";
  admin.extras.forEach((e,i)=>{
@@ -308,6 +311,143 @@ function renderAdminExtras(){
   renderAdminExtras();
  });
 };
+
+function readConnectionFields(){
+  return{
+    url:String($("workerUrl").value||"").trim().replace(/\/+$/,""),
+    secret:String($("appSecret").value||"").trim()
+  };
+}
+
+function saveConnectionSettings(showMessage=true){
+  const values=readConnectionFields();
+
+  if(!values.url){
+    status("connectionStatus","Bitte die Worker-URL eintragen.",false);
+    return false;
+  }
+
+  if(!/^https:\/\//i.test(values.url)){
+    status("connectionStatus","Die Worker-URL muss mit https:// beginnen.",false);
+    return false;
+  }
+
+  if(!values.secret){
+    status("connectionStatus","Bitte das APP_SECRET eintragen.",false);
+    return false;
+  }
+
+  admin.workerUrl=values.url;
+  admin.appSecret=values.secret;
+  save();
+
+  // Direkte separate Sicherung, damit die Verbindung auch nach
+  // Änderungen an anderen Einstellungen zuverlässig erhalten bleibt.
+  localStorage.setItem("mainabdichter_worker_url",values.url);
+  localStorage.setItem("mainabdichter_app_secret",values.secret);
+
+  if(showMessage){
+    status("connectionStatus","Worker-URL und APP_SECRET wurden auf diesem Gerät gespeichert.",true);
+  }
+  return true;
+}
+
+function saveAllAdminSettings(){
+  admin.priceListName=$("priceListName").value;
+  admin.priceListDate=$("priceListDate").value;
+  admin.hzPurchaseNet=+$("adminHzPurchase").value||0;
+  admin.hzSaleNet=+$("adminHzSale").value||0;
+  admin.reservePct=+$("adminReserve").value||0;
+  admin.drill=+$("adminDrill").value||1;
+  admin.fill=+$("adminFill").value||1;
+  admin.close=+$("adminClose").value||1;
+  admin.setupHours=+$("adminSetupHours").value||0;
+  admin.smallJob={
+    enabled:$("adminSmallJobEnabled").value==="true",
+    threshold:+$("adminSmallJobThreshold").value||12,
+    type:$("adminSmallJobType").value,
+    value:+$("adminSmallJobValue").value||0,
+    visible:$("adminSmallJobVisible").value==="true"
+  };
+  admin.wallSoleGross=+$("adminWallSolePrice").value||0;
+  admin.extraResinKgNet=+$("adminExtraResinKgPrice").value||0;
+  admin.articleMappings={
+    Horizontalsperre:$("mapHorizontalsperre").value,
+    Flächensperre:$("mapFlächensperre").value,
+    Harzverpressung:$("mapHarzverpressung").value,
+    "Wand-Sohlen-Anschluss":$("mapWandSohlen").value,
+    smallJob:$("mapSmallJob").value
+  };
+
+  if(!saveConnectionSettings(false))return false;
+
+  save();
+  renderWorkExtras();
+  calculate();
+  status("adminStatus","Alle Einstellungen wurden dauerhaft gespeichert.",true);
+  return true;
+}
+
+$("saveConnectionOnly").onclick=()=>{
+  saveConnectionSettings(true);
+};
+
+$("saveAdmin").onclick=()=>{
+  saveAllAdminSettings();
+};
+
+function setConnectionState(id,label,state,message){
+  const el=$(id);
+  el.className="connection-state "+state;
+  el.textContent=`${label}: ${message}`;
+}
+
+$("testConnections").onclick=async()=>{
+  if(!saveConnectionSettings(false))return;
+
+  setConnectionState("cloudflareConnection","Cloudflare","","wird geprüft …");
+  setConnectionState("lexwareConnection","Lexware","","wird geprüft …");
+  setConnectionState("pipedriveConnection","Pipedrive","","wird geprüft …");
+  status("connectionStatus","Verbindungen werden geprüft …",true);
+
+  let allOk=true;
+
+  try{
+    const root=await fetch(admin.workerUrl+"/");
+    const rootData=await root.json();
+    if(!root.ok||!rootData.ok)throw new Error("Worker antwortet nicht korrekt");
+    setConnectionState("cloudflareConnection","Cloudflare","ok","verbunden");
+  }catch(error){
+    allOk=false;
+    setConnectionState("cloudflareConnection","Cloudflare","err","nicht erreichbar");
+  }
+
+  try{
+    await api("/profile");
+    setConnectionState("lexwareConnection","Lexware","ok","verbunden");
+  }catch(error){
+    allOk=false;
+    setConnectionState("lexwareConnection","Lexware","err",String(error.message||error));
+  }
+
+  try{
+    await api("/pipedrive/test");
+    setConnectionState("pipedriveConnection","Pipedrive","ok","verbunden");
+  }catch(error){
+    allOk=false;
+    setConnectionState("pipedriveConnection","Pipedrive","err",String(error.message||error));
+  }
+
+  status(
+    "connectionStatus",
+    allOk
+      ?"Alle drei Verbindungen funktionieren."
+      :"Mindestens eine Verbindung ist noch fehlerhaft.",
+    allOk
+  );
+};
+
+
 $("resetAdmin").onclick=()=>{if(confirm("Standardwerte laden?")){admin=clone(DEFAULT_ADMIN);save();renderAdmin();status("adminStatus","Standardwerte geladen.",true)}};
 
 function renderArticleMappings(){
@@ -343,6 +483,14 @@ $("clearArticleMappings").onclick=()=>{admin.articleMappings={};renderArticleMap
 function bindSpeech(){document.querySelectorAll("[data-speech-target]").forEach(b=>b.onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return alert("Nutze die Mikrofontaste der iPhone-Tastatur.");const r=new SR();r.lang="de-DE";r.onresult=e=>{$(b.dataset.speechTarget).value+=($(b.dataset.speechTarget).value?" ":"")+e.results[0][0].transcript};r.start()})}
 function cfg(){return{url:admin.workerUrl,secret:admin.appSecret}}
 function ensureConnection(){
+  if($("workerUrl")&&$("appSecret")){
+    const current=readConnectionFields();
+    if(current.url&&current.secret){
+      admin.workerUrl=current.url;
+      admin.appSecret=current.secret;
+    }
+  }
+
   const c=cfg();
   if(!c.url||!c.secret){
     alert("Bitte zuerst unter Einstellungen die Worker-URL und das APP_SECRET speichern.");
