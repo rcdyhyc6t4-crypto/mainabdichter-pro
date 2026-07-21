@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#17365D">
+<title>Mainabdichter Pro V1</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --blue:#17365D; --blue2:#2F75B5; --bg:#f4f7fb; --card:#fff;
+  --yellow:#fff2cc; --green:#e2f0d9; --border:#d7dee8; --text:#1f2937;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:10;background:var(--blue);color:#fff;padding:16px 18px;padding-top:calc(16px + env(safe-area-inset-top));box-shadow:0 2px 10px rgba(0,0,0,.15)}
+header h1{font-size:20px;margin:0} header p{font-size:12px;margin:4px 0 0;opacity:.85}
+main{padding:14px;max-width:760px;margin:auto;padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 12px rgba(23,54,93,.08)}
+.card h2{font-size:17px;margin:0 0 14px;color:var(--blue)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.full{grid-column:1/-1}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:#4b5563}
+input,select,textarea{width:100%;font-size:16px;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--yellow)}
+textarea{min-height:80px}
+button{border:none;border-radius:12px;padding:13px 15px;font-size:15px;font-weight:700}
+.primary{background:var(--blue2);color:white;width:100%}
+.secondary{background:#e8eef6;color:var(--blue)}
+.danger{background:#fee2e2;color:#991b1b}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #edf0f4}
+.metric:last-child{border-bottom:none}
+.metric strong{color:var(--blue);text-align:right}
+.price{font-size:22px;color:#1f6b2b!important}
+.badge{display:inline-block;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.green{background:#dcfce7;color:#166534}.yellow{background:#fef3c7;color:#92400e}.red{background:#fee2e2;color:#991b1b}
+.hidden{display:none}
+.note{font-size:12px;color:#6b7280;line-height:1.4}
+.wall{padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:10px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.actions{grid-template-columns:1fr}}
+@media print{
+  header,.no-print{display:none!important}
+  body{background:#fff}
+  .card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mainabdichter Pro V1</h1>
+  <p>Baustellenerfassung und Kalkulation</p>
+</header>
+
+<main>
+<section class="card">
+<h2>1. Kunde und Objekt</h2>
+<div class="grid">
+  <div><label>Kunde</label><input id="kunde" placeholder="z. B. Herr Müller"></div>
+  <div><label>Telefon</label><input id="telefon" type="tel"></div>
+  <div class="full"><label>Objektanschrift</label><input id="adresse" placeholder="Straße, PLZ Ort"></div>
+  <div class="full actions no-print">
+    <button class="secondary" onclick="gps()">📍 Standort übernehmen</button>
+    <button class="secondary" onclick="openMaps()">🗺️ In Karten öffnen</button>
+  </div>
+  <div class="full"><label>Notizen</label><textarea id="notizen" placeholder="Schadensbild, Messwerte, Besonderheiten"></textarea></div>
+</div>
+</section>
+
+<section class="card">
+<h2>2. Maßnahme</h2>
+<div class="grid">
+  <div><label>Art</label>
+    <select id="massnahme" onchange="toggleMode();calc()">
+      <option>Horizontalsperre</option>
+      <option>Flächensperre</option>
+    </select>
+  </div>
+  <div><label>Wandstärke (cm)</label><input id="wandstaerke" type="number" inputmode="decimal" value="30" oninput="calc()"></div>
+</div>
+
+<div id="hsBox" style="margin-top:12px">
+  <div class="grid">
+    <div><label>Gesamtlänge (m)</label><input id="hsLaenge" type="number" inputmode="decimal" value="12" step="0.01" oninput="calc()"></div>
+  </div>
+</div>
+
+<div id="fsBox" class="hidden" style="margin-top:12px">
+  <div class="wall grid">
+    <div><label>Wand A Länge (m)</label><input id="aL" type="number" step="0.001" oninput="calc()"></div>
+    <div><label>Wand A Höhe (m)</label><input id="aH" type="number" step="0.001" oninput="calc()"></div>
+  </div>
+  <div class="wall grid">
+    <div><label>Wand B Länge (m)</label><input id="bL" type="number" step="0.001" oninput="calc()"></div>
+    <div><label>Wand B Höhe (m)</label><input id="bH" type="number" step="0.001" oninput="calc()"></div>
+  </div>
+  <div class="wall grid">
+    <div><label>Wand C Länge (m)</label><input id="cL" type="number" step="0.001" oninput="calc()"></div>
+    <div><label>Wand C Höhe (m)</label><input id="cH" type="number" step="0.001" oninput="calc()"></div>
+  </div>
+</div>
+</section>
+
+<section class="card">
+<h2>3. Technische Berechnung</h2>
+<div class="metric"><span>Bohrlöcher gesamt</span><strong id="holes">–</strong></div>
+<div class="metric"><span>Bohrreihen gesamt</span><strong id="rows">–</strong></div>
+<div class="metric"><span>Material rechnerisch</span><strong id="liters">–</strong></div>
+<div class="metric"><span>Material inkl. 10 % Reserve</span><strong id="reserve">–</strong></div>
+<div class="metric"><span>Arbeitszeit gesamt</span><strong id="hours">–</strong></div>
+</section>
+
+<section class="card">
+<h2>4. Kalkulation</h2>
+<div class="metric"><span>Material-Einkauf</span><strong id="matcost">–</strong></div>
+<div class="metric"><span>Arbeitszeit</span><strong id="labor">–</strong></div>
+<div class="metric"><span>Baustelleneinrichtung inkl. An-/Abfahrt</span><strong>269,00 €</strong></div>
+<div class="metric"><span>Kleinmaterial / Verschlussmaterial</span><strong id="small">–</strong></div>
+<div class="metric"><span>Fixkostenanteil</span><strong id="fixed">–</strong></div>
+<div class="metric"><span>Selbstkosten</span><strong id="selfcost">–</strong></div>
+<hr>
+<div class="metric"><span>Mindestpreis brutto</span><strong id="minprice">–</strong></div>
+<div class="metric"><span>Empfohlener Preis brutto</span><strong id="offer" class="price">–</strong></div>
+<div class="metric"><span>Optimalpreis brutto</span><strong id="optprice">–</strong></div>
+<div class="metric"><span>Verhandlungsgrenze brutto</span><strong id="negprice">–</strong></div>
+<div class="metric"><span>Marktcheck</span><strong><span id="market" class="badge yellow">–</span></strong></div>
+</section>
+
+<section class="card no-print">
+<h2>5. Speichern und Ausgabe</h2>
+<div class="actions">
+  <button class="primary" onclick="saveCase()">💾 Baustelle speichern</button>
+  <button class="secondary" onclick="window.print()">📄 Drucken / PDF</button>
+  <button class="secondary" onclick="loadLast()">↩️ Letzte Baustelle laden</button>
+  <button class="danger" onclick="clearForm()">🗑️ Eingaben löschen</button>
+</div>
+<p class="note">Die Daten werden ausschließlich lokal auf diesem Gerät gespeichert. GPS benötigt beim ersten Mal eine Standortfreigabe.</p>
+</section>
+</main>
+
+<script>
+const SETTINGS={
+  hourly:85, materialEK:30, spacing:.25, factorHS:14, factorFS:10,
+  drillingRate:60, fillingRate:30, closingRate:40, setupHours:1,
+  setupTravel:269, small:200, fixed:250,
+  minMarkup:.18, offerMarkup:.30, optMarkup:.40
+};
+const $=id=>document.getElementById(id);
+const n=id=>parseFloat($(id).value)||0;
+const eur=v=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(v);
+const num=v=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:2}).format(v);
+
+function toggleMode(){
+  const fs=$('massnahme').value==='Flächensperre';
+  $('hsBox').classList.toggle('hidden',fs);
+  $('fsBox').classList.toggle('hidden',!fs);
+}
+function calcWall(L,H,th){
+  if(!L||!H) return {holes:0,rows:0,liters:0};
+  const holesRow=Math.ceil(L/SETTINGS.spacing);
+  const rows=Math.ceil(H/SETTINGS.spacing);
+  const first=holesRow*th*SETTINGS.factorHS/1000;
+  const upper=Math.max(rows-1,0)*holesRow*th*SETTINGS.factorFS/1000;
+  return {holes:holesRow*rows,rows,liters:first+upper};
+}
+function calc(){
+  const th=n('wandstaerke');
+  let holes=0,rows=0,liters=0;
+  if($('massnahme').value==='Horizontalsperre'){
+    holes=Math.ceil(n('hsLaenge')/SETTINGS.spacing);
+    rows=holes?1:0;
+    liters=holes*th*SETTINGS.factorHS/1000;
+  } else {
+    [['aL','aH'],['bL','bH'],['cL','cH']].forEach(p=>{
+      const w=calcWall(n(p[0]),n(p[1]),th);
+      holes+=w.holes; rows+=w.rows; liters+=w.liters;
+    });
+  }
+  const reserve=Math.ceil(liters*1.10);
+  const hours=Math.ceil(
+    holes/SETTINGS.drillingRate+
+    holes/SETTINGS.fillingRate+
+    holes/SETTINGS.closingRate+
+    SETTINGS.setupHours
+  );
+  const matcost=reserve*SETTINGS.materialEK;
+  const labor=hours*SETTINGS.hourly;
+  const selfcost=matcost+labor+SETTINGS.setupTravel+SETTINGS.small+SETTINGS.fixed;
+  const minNet=Math.ceil(selfcost*(1+SETTINGS.minMarkup)/10)*10;
+  const offerNet=Math.ceil(selfcost*(1+SETTINGS.offerMarkup)/10)*10;
+  const optNet=Math.ceil(selfcost*(1+SETTINGS.optMarkup)/10)*10;
+  const minGross=minNet*1.19, offerGross=offerNet*1.19, optGross=optNet*1.19;
+  const negGross=Math.ceil((minGross+(offerGross-minGross)*.35)/10)*10;
+
+  $('holes').textContent=holes;
+  $('rows').textContent=rows;
+  $('liters').textContent=num(liters)+' l';
+  $('reserve').textContent=reserve+' l';
+  $('hours').textContent=hours+' Std.';
+  $('matcost').textContent=eur(matcost);
+  $('labor').textContent=eur(labor);
+  $('small').textContent=eur(SETTINGS.small);
+  $('fixed').textContent=eur(SETTINGS.fixed);
+  $('selfcost').textContent=eur(selfcost);
+  $('minprice').textContent=eur(minGross);
+  $('offer').textContent=eur(offerGross);
+  $('optprice').textContent=eur(optGross);
+  $('negprice').textContent=eur(negGross);
+
+  const ratio=offerNet/selfcost;
+  const market=$('market');
+  market.className='badge '+(ratio<1.25?'green':ratio<=1.38?'yellow':'red');
+  market.textContent=ratio<1.25?'🟢 sehr wettbewerbsfähig':ratio<=1.38?'🟡 wirtschaftlich / gut vermittelbar':'🔴 oberes Preisniveau';
+}
+function gps(){
+  if(!navigator.geolocation){alert('GPS wird von diesem Browser nicht unterstützt.');return;}
+  $('adresse').value='Standort wird ermittelt …';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude,longitude}=pos.coords;
+    let address=`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,{headers:{'Accept-Language':'de'}});
+      const d=await r.json();
+      if(d.display_name) address=d.display_name;
+    }catch(e){}
+    $('adresse').value=address;
+  },err=>{
+    $('adresse').value='';
+    alert('Standort konnte nicht ermittelt werden. Bitte Standortfreigabe prüfen.');
+  },{enableHighAccuracy:true,timeout:10000});
+}
+function openMaps(){
+  const q=encodeURIComponent($('adresse').value);
+  if(q) location.href=`https://maps.apple.com/?q=${q}`;
+}
+function formData(){
+  const ids=['kunde','telefon','adresse','notizen','massnahme','wandstaerke','hsLaenge','aL','aH','bL','bH','cL','cH'];
+  const d={}; ids.forEach(id=>d[id]=$(id).value); return d;
+}
+function saveCase(){
+  localStorage.setItem('mainabdichter_last',JSON.stringify(formData()));
+  alert('Baustelle wurde lokal gespeichert.');
+}
+function loadLast(){
+  const raw=localStorage.getItem('mainabdichter_last');
+  if(!raw){alert('Noch keine Baustelle gespeichert.');return;}
+  const d=JSON.parse(raw); Object.keys(d).forEach(id=>{if($(id))$(id).value=d[id]});
+  toggleMode();calc();
+}
+function clearForm(){
+  if(!confirm('Alle Eingaben löschen?'))return;
+  document.querySelectorAll('input,textarea').forEach(el=>el.value='');
+  $('wandstaerke').value=30;$('hsLaenge').value=12;$('massnahme').value='Horizontalsperre';
+  toggleMode();calc();
+}
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+toggleMode();calc();
+</script>
+</body>
+</html>
