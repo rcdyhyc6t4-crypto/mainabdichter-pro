@@ -31,3 +31,10 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);borde
 .mapping-warning.visible{display:block}
 .setup-notice{padding:12px;background:#fff3cd;border-left:5px solid #d8a800;margin-bottom:12px}
 @media(max-width:720px){.customer-source-actions{grid-template-columns:1fr}}
+
+.connection-actions{margin-top:12px}
+.connection-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.connection-state{padding:10px;border-radius:6px;background:#eceee9;font-weight:700;font-size:13px}
+.connection-state.ok{background:#e4f4d3;color:#315d0b}
+.connection-state.err{background:#f4dddd;color:#8d1b1b}
+@media(max-width:720px){.connection-grid{grid-template-columns:1fr}}

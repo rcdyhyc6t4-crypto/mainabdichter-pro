@@ -1,50 +1,28 @@
-mainabdichter Version 9.0 – getrennte Kundenansicht
+mainabdichter Version 9.1 – Speicherung und Verbindungstest
 
-WICHTIGE ÄNDERUNGEN
-- Separate customer.html für die Kundenansicht.
-- Der Kunde kann nicht in Besichtigung, Messwerte, Kalkulation oder Einstellungen hochscrollen.
-- Die Kundenansicht wird in einem neuen Browserfenster/Tab geöffnet.
-- PDF-Erstellung erfolgt direkt aus der getrennten Kundenansicht.
+BEHOBEN
+- Worker-URL und APP_SECRET werden zuverlässig gespeichert.
+- Die Werte werden zusätzlich separat im Browser gespeichert.
+- Nach einem Neuladen werden beide Felder automatisch wiederhergestellt.
+- Der allgemeine Button 'Einstellungen speichern' speichert ebenfalls die Schnittstellen.
+- Bereits eingetragene, aber noch nicht gespeicherte Zugangsdaten können beim Verbindungstest direkt verwendet werden.
 
-KUNDENDATEN
-- Kunde aus Pipedrive laden.
-- Bestehenden Kunden aus Lexware laden.
-- Lexware-Suche nach Name, E-Mail oder Kundennummer.
-- Lexware-Kontakt-ID wird gespeichert und beim Angebot wiederverwendet.
+NEU
+- Button 'Zugangsdaten speichern'
+- Button 'Verbindungen testen'
+- getrennte Statusanzeigen für:
+  - Cloudflare Worker
+  - Lexware Office
+  - Pipedrive
+- Lexware-Artikel können erst nach erfolgreicher Speicherung zuverlässig geladen werden.
+- Bei falschem APP_SECRET wird der Fehler direkt angezeigt.
 
-LEXWARE-ARTIKEL
-Einmalige Zuordnung unter Einstellungen:
-- Horizontalsperre
-- Flächensperre
-- Harzverpressung
-- Wand-Sohlen-Anschluss
-- Kleinbaustellenzuschlag
-- Standard-Zusatzleistungen wie Baustelleneinrichtung und Sauberkeitspaket
-
-Aus Lexware bleiben erhalten:
-- Artikel-ID und Artikelnummer
-- Artikelname
-- vollständiger Artikeltext
-- Einheit
-- Steuersatz
-
-Nur der Preis wird aus der Berechnung bzw. den App-Einstellungen übernommen.
-Die abweichenden Angebotsdaten verändern den Lexware-Stammartikel nicht.
-
-NICHT AUTORISIERT
-Wenn APP_SECRET oder Worker-URL fehlen bzw. nicht stimmen, öffnet die App die Einstellungen.
-APP_SECRET in der App muss exakt dem Cloudflare-Secret APP_SECRET entsprechen.
-
-GITHUB – KOMPLETTE STRUKTUR
+GITHUB
+Die vollständige Struktur kann hochgeladen werden.
+Bei bereits installierter V9 reichen:
 - index.html
-- customer.html
 - styles.css
-- customer.css
-- manifest.json
-- assets/bkm-logo.png
 - js/app.js
-- js/customer.js
 
 CLOUDFLARE
-- cloudflare-worker.js vollständig ersetzen
-- Deploy drücken
+Der Worker ist gegenüber V9 inhaltlich unverändert und liegt vollständig im Paket.

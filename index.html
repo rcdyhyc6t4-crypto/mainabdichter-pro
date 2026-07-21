@@ -233,10 +233,25 @@
     </div>
   </details>
 
-  <details class="card">
+  <details class="card" open>
     <summary>Schnittstellen</summary>
-    <label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev">
-    <label>APP_SECRET</label><input id="appSecret" type="password">
+    <label>Worker-URL</label>
+    <input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev" autocomplete="url">
+
+    <label>APP_SECRET</label>
+    <input id="appSecret" type="password" autocomplete="off">
+
+    <div class="section-actions connection-actions">
+      <button id="saveConnectionOnly" class="primary">Zugangsdaten speichern</button>
+      <button id="testConnections" class="secondary">Verbindungen testen</button>
+    </div>
+
+    <div class="connection-grid">
+      <div id="cloudflareConnection" class="connection-state">Cloudflare: nicht geprüft</div>
+      <div id="lexwareConnection" class="connection-state">Lexware: nicht geprüft</div>
+      <div id="pipedriveConnection" class="connection-state">Pipedrive: nicht geprüft</div>
+    </div>
+    <div id="connectionStatus" class="status"></div>
   </details>
 
   <div class="sticky-actions">
