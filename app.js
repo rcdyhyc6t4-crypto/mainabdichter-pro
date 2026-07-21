@@ -8,7 +8,7 @@ function newArea(name){return{name,wallMaterial:"HBL / Hohlblockstein",wallMater
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));$(b.dataset.page).classList.add("active");b.classList.add("active")});
 $("openPipedrive").onclick=()=>document.querySelector('[data-page="systems"]').click();
 $("newCustomer").onclick=()=>{["salutation","firstName","lastName","phone","email","company","street","zip","city","objectAddress","pipedriveId"].forEach(id=>$(id).value="");calc()};
-["salutation","firstName","lastName","phone","email","company","street","zip","city","objectAddress","yearBuilt","floorCount","floor","roomUse","roomHeight","floorCover","roomTemp","humidity","surfaceTemp","damageDescription","customerDescription"].forEach(id=>$(id).oninput=calc);
+["salutation","firstName","lastName","phone","email","company","street","zip","city","objectAddress","yearBuilt","buildingType","floor","roomUse","foundationType","roomHeight","floorCover","roomTemp","humidity","surfaceTemp","damageDescription","customerDescription"].forEach(id=>$(id).oninput=calc);
 $("roomTemp").oninput=$("humidity").oninput=()=>{dew();calc()};
 function dew(){const t=+$("roomTemp").value,rh=+$("humidity").value;if(!Number.isFinite(t)||!rh){$("dewPoint").value="";return}const a=17.62,b=243.12,g=Math.log(rh/100)+a*t/(b+t);$("dewPoint").value=(b*g/(a-g)).toFixed(1)}
 function save(){localStorage.setItem("v6_areas",JSON.stringify(areas));localStorage.setItem("v6_extras",JSON.stringify(extras))}

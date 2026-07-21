@@ -2,10 +2,10 @@
 :root{--green:#78be20;--green-dark:#5d9416;--black:#171717;--gray:#f2f3f1;--border:#d7d9d3;--white:#fff;--yellow:#fff9d9}
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--gray);color:var(--black)}
-.brand-header{background:#000;color:#fff;padding:14px 18px;border-bottom:6px solid var(--green)}
+.brand-header{background:#fff;color:#171717;padding:14px 18px;border-bottom:6px solid var(--green);box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .bkm-word{font-size:22px;font-weight:900;letter-spacing:.5px}.bkm-word span,.customer-brand span{color:var(--green)}
-.main-word{font-size:20px;margin-top:4px}.main-word b{color:var(--green)}
-.subline{font-size:11px;color:#d8d8d8;margin-top:3px}
+.main-word{font-size:22px;margin-top:0;color:#171717;font-weight:800}.main-word b{color:var(--green)}
+.subline{font-size:12px;color:#555;margin-top:5px}
 nav{display:flex;gap:7px;overflow:auto;padding:9px;background:#fff;position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border)}
 button{border:0;border-radius:5px;padding:11px 13px;font-weight:800;font-size:14px}
 nav button{white-space:nowrap;background:#e9eae6;color:#222}
@@ -29,14 +29,14 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--border);bor
 .brand-wrap{display:flex;align-items:center;gap:18px;max-width:980px;margin:0 auto}
 .brand-logo{display:block;width:min(420px,52vw);height:auto;max-height:105px;object-fit:contain;object-position:left center}
 .brand-text{min-width:0}
-.main-word{font-size:22px;margin-top:0;color:#fff;white-space:nowrap}
+.main-word{font-size:22px;margin-top:0;color:#171717;font-weight:800}
 .main-word b{color:var(--green)}
-.subline{font-size:12px;color:#d8d8d8;margin-top:5px}
+.subline{font-size:12px;color:#555;margin-top:5px}
 .customer-logo{display:block;width:min(420px,90%);height:auto;margin:0 0 12px}
 .customer-view h2{margin-top:4px}
 @media(max-width:700px){
   .brand-wrap{gap:10px;align-items:flex-start;flex-direction:column}
   .brand-logo{width:min(360px,92vw);max-height:88px}
-  .main-word{font-size:20px}
-  .subline{font-size:11px}
+  .main-word{font-size:22px;margin-top:0;color:#171717;font-weight:800}
+  .subline{font-size:12px;color:#555;margin-top:5px}
 }

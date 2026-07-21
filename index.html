@@ -13,8 +13,8 @@
   <div class="brand-wrap">
     <img class="brand-logo" src="bkm-mannesmann-logo.png" alt="BKM MANNESMANN – Fachbetriebe für ein trockenes Zuhause">
     <div class="brand-text">
-      <div class="main-word">mainabdichter <b>Pro</b></div>
-      <div class="subline">zertifizierter BKM-Fachbetrieb · Bauwerksabdichtung mit System</div>
+      <div class="main-word">mainabdichter – BKM.MANNESMANN Fachbetrieb</div>
+      <div class="subline">Bauwerksabdichtung mit System</div>
     </div>
   </div>
 </header>
@@ -55,11 +55,38 @@
     <h2>2. Gebäude und Raum</h2>
     <div class="grid">
       <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
-      <div><label>Anzahl Geschosse</label><input id="floorCount" type="number"></div>
-      <div><label>Geschoss</label><select id="floor"><option>Kellergeschoss</option><option>Erdgeschoss</option><option>Obergeschoss</option><option>Dachgeschoss</option><option>Sonstiges</option></select></div>
+      <div><label>Bauart</label><select id="buildingType">
+        <option>freistehendes Einfamilienhaus</option>
+        <option>Doppelhaushälfte</option>
+        <option>Reihenmittelhaus</option>
+        <option>Reihenendhaus</option>
+        <option>Mehrfamilienhaus</option>
+        <option>Bungalow</option>
+        <option>Gewerbeobjekt</option>
+        <option>Sonstiges</option>
+      </select></div>
+      <div><label>Geschoss</label><select id="floor">
+        <option>Keller</option>
+        <option>Erdgeschoss</option>
+        <option>Hochparterre</option>
+      </select></div>
       <div><label>Raumnutzung</label><select id="roomUse"><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
+      <div><label>Fundamentart</label><select id="foundationType">
+        <option>Streifenfundament</option>
+        <option>durchgehende Bodenplatte</option>
+        <option>nicht bekannt</option>
+        <option>Sonstiges</option>
+      </select></div>
       <div><label>Raumhöhe m</label><input id="roomHeight" type="number" step=".01"></div>
-      <div><label>Bodenbelag</label><select id="floorCover"><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
+      <div><label>Bodenbelag (optional)</label><select id="floorCover">
+        <option value="">– keine Angabe –</option>
+        <option>Estrich</option>
+        <option>Fliesen</option>
+        <option>Beton</option>
+        <option>Gussasphalt</option>
+        <option>Unbekannt</option>
+        <option>Sonstiges</option>
+      </select></div>
       <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
       <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
       <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
