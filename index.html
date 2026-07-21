@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#76b82a">
-  <title>mainabdichter V8 - BKM.MANNESMANN Fachbetrieb</title>
+  <title>mainabdichter V9 - BKM.MANNESMANN Fachbetrieb</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
 </head>
@@ -146,26 +146,16 @@
     </div>
   </div>
 
-  <div class="card customer-offer" id="customerOffer">
-    <div class="pdf-header">
-      <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
-      <div><strong>mainabdichter - BKM.MANNESMANN Fachbetrieb</strong><small>Bauwerksabdichtung mit System</small></div>
-    </div>
-    <h2>Angebot / Maßnahmenübersicht</h2>
+  <div class="card">
+    <h2>Angebotsübersicht</h2>
     <div class="metric"><span>Kunde</span><strong id="offerCustomer">-</strong></div>
     <div class="metric"><span>Objekt</span><strong id="offerAddress">-</strong></div>
-    <div class="metric"><span>Empfehlung</span><strong id="offerDescription">-</strong></div>
-    <div id="offerMeasures"></div>
-    <div id="offerExtras"></div>
-    <div id="normalPriceRow" class="metric hidden"><span>Normalpreis</span><strong id="normalPrice">-</strong></div>
-    <div id="specialRow" class="metric hidden"><span id="specialRowLabel">Sonderaktion</span><strong id="specialAmount">-</strong></div>
-    <div class="pricebox"><span>Angebotssumme</span><strong id="offerPrice">-</strong><small>inkl. gesetzlicher Umsatzsteuer</small></div>
-    <div id="skontoRow" class="metric hidden"><span id="skontoText">Skonto</span><strong id="skontoPrice">-</strong></div>
-    <div id="offerPhotos" class="photo-grid"></div>
+    <div class="metric"><span>Angebotssumme</span><strong id="offerPrice" class="offer-total">-</strong></div>
+    <p class="hint">Die Kundenansicht wird in einer vollständig getrennten Seite geöffnet. Dort sind keine internen Daten oder Einstellungen sichtbar.</p>
   </div>
 
   <div class="section-actions no-print">
-    <button id="printCustomerPdf" class="primary">Kunden-PDF erstellen</button>
+    <button id="openCustomerPage" class="primary">Separate Kundenansicht öffnen</button>
     <button id="printReportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
     <button id="sendLexwareQuotation" class="secondary">Angebot als Lexware-Entwurf</button>
   </div>
@@ -233,6 +223,7 @@
       <button id="clearArticleMappings" class="secondary">Zuordnungen löschen</button>
     </div>
     <div id="articleMappingStatus" class="status"></div>
+    <div id="measureMappingWarning" class="mapping-warning"></div>
     <div class="grid">
       <div><label>Horizontalsperre</label><select id="mapHorizontalsperre"><option value="">freie Position</option></select></div>
       <div><label>Flächensperre</label><select id="mapFlächensperre"><option value="">freie Position</option></select></div>

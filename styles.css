@@ -24,3 +24,10 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);borde
 .customer-source-actions{grid-template-columns:repeat(3,1fr)}
 .article-description{font-size:12px;color:var(--muted);white-space:pre-wrap;margin-top:5px}
 @media(max-width:720px){.customer-source-actions{grid-template-columns:1fr}}
+
+.customer-source-actions{grid-template-columns:repeat(3,1fr)}
+.offer-total{font-size:28px;color:var(--green-dark)}
+.mapping-warning{margin:10px 0;padding:10px;border-radius:6px;background:#fff3cd;color:#6d5200;display:none}
+.mapping-warning.visible{display:block}
+.setup-notice{padding:12px;background:#fff3cd;border-left:5px solid #d8a800;margin-bottom:12px}
+@media(max-width:720px){.customer-source-actions{grid-template-columns:1fr}}

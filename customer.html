@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#76b82a">
+<title>Angebot – mainabdichter</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="customer.css">
+</head>
+<body class="customer-only-page">
+<header class="customer-page-header">
+  <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
+  <div><strong>mainabdichter – BKM.MANNESMANN Fachbetrieb</strong><small>Bauwerksabdichtung mit System</small></div>
+</header>
+<main class="customer-page-main">
+  <section id="customerDocument" class="customer-document">
+    <h1>Angebot / Maßnahmenübersicht</h1>
+    <div class="metric"><span>Kunde</span><strong id="cpCustomer">–</strong></div>
+    <div class="metric"><span>Objekt</span><strong id="cpAddress">–</strong></div>
+    <div class="metric"><span>Empfehlung</span><strong id="cpRecommendation">–</strong></div>
+    <h2>Vorgesehene Maßnahmen</h2>
+    <div id="cpMeasures"></div>
+    <div id="cpExtras"></div>
+    <div id="cpNormalRow" class="metric hidden"><span>Normalpreis</span><strong id="cpNormal">–</strong></div>
+    <div id="cpSpecialRow" class="metric hidden"><span id="cpSpecialLabel">Sonderaktion</span><strong id="cpSpecial">–</strong></div>
+    <div class="pricebox"><span>Angebotssumme</span><strong id="cpOffer">–</strong><small>inkl. gesetzlicher Umsatzsteuer</small></div>
+    <div id="cpSkontoRow" class="metric hidden"><span id="cpSkontoLabel">Skonto</span><strong id="cpSkonto">–</strong></div>
+    <div id="cpPhotos" class="photo-grid"></div>
+  </section>
+  <div class="customer-page-actions no-print">
+    <button id="cpPrint" class="primary">PDF erstellen / drucken</button>
+    <button id="cpClose" class="secondary">Kundenansicht schließen</button>
+  </div>
+</main>
+<script src="js/customer.js"></script>
+</body>
+</html>

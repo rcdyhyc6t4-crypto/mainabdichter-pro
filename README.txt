@@ -1,36 +1,50 @@
-mainabdichter Version 8.3
+mainabdichter Version 9.0 – getrennte Kundenansicht
 
-KORRIGIERTE LEXWARE-ARTIKELLOGIK
+WICHTIGE ÄNDERUNGEN
+- Separate customer.html für die Kundenansicht.
+- Der Kunde kann nicht in Besichtigung, Messwerte, Kalkulation oder Einstellungen hochscrollen.
+- Die Kundenansicht wird in einem neuen Browserfenster/Tab geöffnet.
+- PDF-Erstellung erfolgt direkt aus der getrennten Kundenansicht.
 
-Von Lexware werden unverändert übernommen:
-- Artikel-ID
-- Artikelnummer
+KUNDENDATEN
+- Kunde aus Pipedrive laden.
+- Bestehenden Kunden aus Lexware laden.
+- Lexware-Suche nach Name, E-Mail oder Kundennummer.
+- Lexware-Kontakt-ID wird gespeichert und beim Angebot wiederverwendet.
+
+LEXWARE-ARTIKEL
+Einmalige Zuordnung unter Einstellungen:
+- Horizontalsperre
+- Flächensperre
+- Harzverpressung
+- Wand-Sohlen-Anschluss
+- Kleinbaustellenzuschlag
+- Standard-Zusatzleistungen wie Baustelleneinrichtung und Sauberkeitspaket
+
+Aus Lexware bleiben erhalten:
+- Artikel-ID und Artikelnummer
 - Artikelname
-- Artikeltext / Beschreibung
+- vollständiger Artikeltext
 - Einheit
 - Steuersatz
 
-Nicht aus Lexware übernommen wird der Preis.
+Nur der Preis wird aus der Berechnung bzw. den App-Einstellungen übernommen.
+Die abweichenden Angebotsdaten verändern den Lexware-Stammartikel nicht.
 
-Der Preis stammt immer aus:
-- der Berechnung der App bei Horizontalsperre, Flächensperre, Harz und Wand-Sohlen-Anschluss
-- dem in der App gespeicherten Standardpreis bei Baustelleneinrichtung, Sauberkeitspaket und anderen Zusatzleistungen
+NICHT AUTORISIERT
+Wenn APP_SECRET oder Worker-URL fehlen bzw. nicht stimmen, öffnet die App die Einstellungen.
+APP_SECRET in der App muss exakt dem Cloudflare-Secret APP_SECRET entsprechen.
 
-Damit kann beispielsweise der Lexware-Artikel 'Baustelleneinrichtung' verwendet werden,
-während der Preis in der App dauerhaft auf den gewünschten Betrag eingestellt wird.
-Der Lexware-Artikeltext bleibt vollständig unverändert.
-
-SONDERAKTION UND SKONTO
-- Eine Sonderaktion verändert den aus der App kommenden Positionspreis anteilig.
-- Skonto bleibt eine Zahlungsbedingung des Gesamtangebots.
-- Titel, Text, Einheit und Steuersatz des Lexware-Artikels bleiben unverändert.
-
-GITHUB
-Zu ersetzen:
+GITHUB – KOMPLETTE STRUKTUR
+- index.html
+- customer.html
+- styles.css
+- customer.css
+- manifest.json
+- assets/bkm-logo.png
 - js/app.js
-
-Die übrigen Dateien können unverändert bleiben.
+- js/customer.js
 
 CLOUDFLARE
-Keine Änderung am Worker gegenüber Version 8.2 erforderlich.
-Die Worker-Datei ist trotzdem im Paket enthalten.
+- cloudflare-worker.js vollständig ersetzen
+- Deploy drücken
