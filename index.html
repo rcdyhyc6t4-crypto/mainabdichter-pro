@@ -3,157 +3,136 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#17365D">
-<title>Mainabdichter Pro V5</title>
+<title>Mainabdichter Pro V5.1</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header>
-  <div>
-    <h1>Mainabdichter Pro V5</h1>
-    <p>Besichtigung, Kalkulation und Übergabe</p>
-  </div>
-</header>
-
-<nav id="nav">
-  <button data-page="besichtigung" class="active">Besichtigung</button>
-  <button data-page="massnahmen">Maßnahmen</button>
-  <button data-page="zusatz">Zusatzleistungen</button>
-  <button data-page="kalkulation">Kalkulation</button>
-  <button data-page="kunde">Kundenansicht</button>
-  <button data-page="systeme">Pipedrive & Lexware</button>
+<header><h1>Mainabdichter Pro V5.1</h1><p>Kunde · Messung · Maßnahmen · Kalkulation</p></header>
+<nav>
+<button class="active" data-page="visit">Besichtigung</button>
+<button data-page="measures">Maßnahmen</button>
+<button data-page="photos">Fotos</button>
+<button data-page="calc">Kalkulation</button>
+<button data-page="customer">Kundenansicht</button>
+<button data-page="systems">Pipedrive & Lexware</button>
 </nav>
-
 <main>
-<section id="besichtigung" class="page active">
-  <div class="card">
-    <h2>Kundendaten</h2>
-    <div class="actions">
-      <button id="openPipedrive" class="secondary">Kunde aus Pipedrive laden</button>
-      <button id="newCustomer" class="secondary">Neuen Kunden erfassen</button>
-    </div>
-    <div class="grid">
-      <div><label>Anrede</label><select id="salutation"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
-      <div><label>Vorname</label><input id="firstName"></div>
-      <div><label>Nachname</label><input id="lastName"></div>
-      <div><label>Telefon</label><input id="phone"></div>
-      <div><label>E-Mail</label><input id="email" type="email"></div>
-      <div><label>Firma / Rechnungsempfänger</label><input id="company"></div>
-      <div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
-      <div><label>PLZ</label><input id="zip"></div>
-      <div><label>Ort</label><input id="city"></div>
-      <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
-      <div class="full"><label>Pipedrive-ID</label><input id="pipedriveId" readonly></div>
-    </div>
-  </div>
 
-  <div class="card">
-    <h2>Objekt und Raumklima</h2>
-    <div class="grid">
-      <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
-      <div><label>Mauerwerk</label><select id="masonry"><option>HBL</option><option>Ziegel</option><option>Kalksandstein</option><option>Naturstein</option><option>Beton</option><option>Unbekannt</option></select></div>
-      <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
-      <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
-      <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
-      <div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
-      <div class="full"><label>Schadensbeschreibung</label><textarea id="damageDescription"></textarea></div>
-      <div class="full"><label>Kundenbeschreibung / Empfehlung</label><textarea id="customerDescription"></textarea></div>
-    </div>
-  </div>
+<section id="visit" class="page active">
+<div class="card">
+<h2>Kundendaten</h2>
+<div class="actions"><button id="gotoPd" class="secondary">Aus Pipedrive laden</button><button id="clearCustomer" class="secondary">Neuer Kunde</button></div>
+<div class="grid">
+<div><label>Anrede</label><select id="salutation"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
+<div><label>Vorname</label><input id="firstName"></div>
+<div><label>Nachname</label><input id="lastName"></div>
+<div><label>Telefon</label><input id="phone"></div>
+<div><label>E-Mail</label><input id="email"></div>
+<div><label>Firma/Rechnungsempfänger</label><input id="company"></div>
+<div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
+<div><label>PLZ</label><input id="zip"></div>
+<div><label>Ort</label><input id="city"></div>
+<div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
+<div class="full"><label>Pipedrive-ID</label><input id="pipedriveId" readonly></div>
+</div>
+</div>
 
-  <div class="card">
-    <h2>Messwerte</h2>
-    <div id="measurementList"></div>
-    <button id="addMeasurement" class="primary">+ Messpunkt hinzufügen</button>
-  </div>
+<div class="card">
+<h2>Raumklima</h2>
+<div class="grid">
+<div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
+<div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
+<div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
+<div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
+</div>
+</div>
 
-  <div class="card">
-    <h2>Fotos</h2>
-    <input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
-    <div id="photoGrid" class="photo-grid"></div>
-  </div>
+<div class="card">
+<h2>Messwerte</h2>
+<div id="measurementList"></div>
+<button id="addMeasurement" class="primary">+ Messpunkt</button>
+</div>
+
+<div class="card">
+<h2>Beschreibung</h2>
+<label>Schadensbeschreibung</label>
+<div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
+<label>Empfehlung für den Kunden</label>
+<div class="speech-row"><textarea id="customerDescription"></textarea><button class="speech" data-speech-target="customerDescription">🎤</button></div>
+</div>
 </section>
 
-<section id="massnahmen" class="page">
-  <div class="card">
-    <h2>Maßnahmen</h2>
-    <div id="measureList"></div>
-    <button id="addMeasure" class="primary">+ Maßnahme hinzufügen</button>
-    <p class="hint">Flächensperren werden aus Breite × Höhe berechnet. Beim Wand-Sohlen-Anschluss wird automatisch eine Horizontalsperre über dieselbe Länge berücksichtigt.</p>
-  </div>
+<section id="measures" class="page">
+<div class="card">
+<h2>Maßnahmen</h2>
+<div id="measureList"></div>
+<button id="addMeasure" class="primary">+ Maßnahme</button>
+<p class="hint">Flächensperre: Breite × Höhe. Wand-Sohlen-Anschluss enthält automatisch eine Horizontalsperre.</p>
+</div>
 </section>
 
-<section id="zusatz" class="page">
-  <div class="card">
-    <h2>Zusatzleistungen</h2>
-    <div id="extraList"></div>
-    <button id="addExtra" class="primary">+ Zusatzleistung hinzufügen</button>
-    <p class="hint">Jede Position kann direkt geändert werden. Verkaufspreis und interne Kosten bleiben getrennt.</p>
-  </div>
+<section id="photos" class="page">
+<div class="card">
+<h2>Fotos der Maßnahmen</h2>
+<input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
+<div id="photoGrid" class="photo-grid"></div>
+<p class="hint">Jedes Foto kann einer Maßnahme zugeordnet und per Sprache beschrieben werden.</p>
+</div>
 </section>
 
-<section id="kalkulation" class="page">
-  <div class="card">
-    <h2>Interne Kalkulation</h2>
-    <div id="internalMeasures"></div>
-    <div class="metric"><span>Maßnahmen brutto</span><strong id="measureTotal">–</strong></div>
-    <div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraTotal">–</strong></div>
-    <div class="metric"><span>Baustelleneinrichtung brutto</span><strong id="setupTotal">–</strong></div>
-    <div class="metric"><span>Gesamtpreis brutto</span><strong id="grandTotal" class="price">–</strong></div>
-    <div class="metric"><span>5 % Skonto-Endpreis</span><strong id="skontoTotal">–</strong></div>
-    <div class="metric"><span>Interne Selbstkosten netto</span><strong id="selfCost">–</strong></div>
-    <div class="metric"><span>Deckungsbeitrag netto</span><strong id="margin">–</strong></div>
-  </div>
+<section id="calc" class="page">
+<div class="card">
+<h2>Material und Kalkulation</h2>
+<div id="calcMeasures"></div>
+<div class="metric"><span>Gesamtmaterial HZ</span><strong id="totalHz">–</strong></div>
+<div class="metric"><span>Gesamtarbeitszeit</span><strong id="totalHours">–</strong></div>
+<div class="metric"><span>Maßnahmen brutto</span><strong id="measureGross">–</strong></div>
+</div>
+<div class="card">
+<h2>Zusatzleistungen</h2>
+<div id="extraList"></div>
+<button id="addExtra" class="primary">+ Zusatzleistung</button>
+</div>
+<div class="card">
+<div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraGross">–</strong></div>
+<div class="metric"><span>Gesamtpreis brutto</span><strong id="grandGross" class="price">–</strong></div>
+<div class="metric"><span>5 % Skonto</span><strong id="skontoGross">–</strong></div>
+<div class="metric"><span>Selbstkosten netto</span><strong id="selfNet">–</strong></div>
+<div class="metric"><span>Deckungsbeitrag netto</span><strong id="marginNet">–</strong></div>
+</div>
 </section>
 
-<section id="kunde" class="page">
-  <div class="card customer-card">
-    <h2>Mainabdichter</h2>
-    <div class="metric"><span>Kunde</span><strong id="cName">–</strong></div>
-    <div class="metric"><span>Objekt</span><strong id="cAddress">–</strong></div>
-    <div class="metric"><span>Empfehlung</span><strong id="cDescription">–</strong></div>
-    <div id="cMeasures"></div>
-    <div id="cExtras"></div>
-    <div class="pricebox">
-      <div>Empfohlener Gesamtpreis</div>
-      <strong id="cPrice" class="price">–</strong>
-      <small>inklusive gesetzlicher Umsatzsteuer</small>
-    </div>
-    <div class="metric"><span>5 % Skonto bei Zahlung innerhalb von 3 Werktagen</span><strong id="cSkonto">–</strong></div>
-    <div id="cPhotos" class="photo-grid"></div>
-  </div>
-  <button onclick="window.print()" class="primary">Kundenansicht drucken / PDF</button>
+<section id="customer" class="page">
+<div class="card">
+<h2>Mainabdichter</h2>
+<div class="metric"><span>Kunde</span><strong id="cName">–</strong></div>
+<div class="metric"><span>Objekt</span><strong id="cAddress">–</strong></div>
+<div class="metric"><span>Empfehlung</span><strong id="cDescription">–</strong></div>
+<div id="cMeasures"></div>
+<div id="cExtras"></div>
+<div class="pricebox"><div>Empfohlener Gesamtpreis</div><strong id="cPrice" class="price">–</strong><small>inkl. MwSt.</small></div>
+<div class="metric"><span>5 % Skonto</span><strong id="cSkonto">–</strong></div>
+<div id="cPhotos" class="photo-grid"></div>
+</div>
 </section>
 
-<section id="systeme" class="page">
-  <div class="card">
-    <h2>Pipedrive</h2>
-    <div class="grid">
-      <div class="full"><label>Suche</label><input id="pdSearch" placeholder="Name, E-Mail oder Telefonnummer"></div>
-    </div>
-    <div class="actions">
-      <button id="pdTest" class="secondary">Verbindung testen</button>
-      <button id="pdSearchBtn" class="primary">Kunden suchen</button>
-    </div>
-    <div id="pdStatus" class="status"></div>
-    <div id="pdResults"></div>
-  </div>
-
-  <div class="card">
-    <h2>Lexware Office</h2>
-    <div class="grid">
-      <div class="full"><label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev"></div>
-      <div class="full"><label>APP_SECRET</label><input id="appSecret" type="password"></div>
-    </div>
-    <div class="actions">
-      <button id="lexTest" class="secondary">Verbindung testen</button>
-      <button id="lexSend" class="primary">Kunde an Lexware senden</button>
-    </div>
-    <div id="lexStatus" class="status"></div>
-  </div>
+<section id="systems" class="page">
+<div class="card">
+<h2>Pipedrive</h2>
+<label>Suche nach Name, E-Mail oder Telefon</label>
+<input id="pdSearch">
+<div class="actions"><button id="pdTest" class="secondary">Verbindung testen</button><button id="pdSearchBtn" class="primary">Suchen</button></div>
+<div id="pdStatus" class="status"></div><div id="pdResults"></div>
+</div>
+<div class="card">
+<h2>Lexware Office</h2>
+<label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev">
+<label>APP_SECRET</label><input id="appSecret" type="password">
+<div class="actions"><button id="lexTest" class="secondary">Verbindung testen</button><button id="lexSend" class="primary">Kunde an Lexware senden</button></div>
+<div id="lexStatus" class="status"></div>
+</div>
 </section>
+
 </main>
-
 <script src="app.js"></script>
-</body>
-</html>
+</body></html>
