@@ -166,24 +166,87 @@ function collectLineItems(){
 }
 function calculate(){
  collectVisit();const totals=collectLineItems();const p=pricing(totals.baseGross);
- $("internalAreas").innerHTML="";$("offerMeasures").innerHTML="";$("offerExtras").innerHTML="";$("offerPhotos").innerHTML="";
+ $("internalAreas").innerHTML="";
+const offerMeasuresEl=$("offerMeasures"),offerExtrasEl=$("offerExtras"),offerPhotosEl=$("offerPhotos");
+if(offerMeasuresEl)offerMeasuresEl.innerHTML="";
+if(offerExtrasEl)offerExtrasEl.innerHTML="";
+if(offerPhotosEl)offerPhotosEl.innerHTML="";
  totals.lineItems.forEach(item=>{
-  if(item.kind==="extra"||item.kind==="smallJob"){if(!item.hidden)$("offerExtras").innerHTML+=`<div class="metric"><span>${esc(item.name)}</span><strong>${eur(item.totalGross)}</strong></div>`;return}
+  if(item.kind==="extra"||item.kind==="smallJob"){if(!item.hidden)if(offerExtrasEl)offerExtrasEl.innerHTML+=`<div class="metric"><span>${esc(item.name)}</span><strong>${eur(item.totalGross)}</strong></div>`;return}
   $("internalAreas").innerHTML+=`<div class="result"><strong>${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.description.split("\n")[0])}</strong></div><div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Preis brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`;
-  $("offerMeasures").innerHTML+=`<div class="metric"><span>${esc(item.name)}</span><strong>${esc(item.description.split("\n")[0])}</strong></div>`;
+  if(offerMeasuresEl)offerMeasuresEl.innerHTML+=`<div class="metric"><span>${esc(item.name)}</span><strong>${esc(item.description.split("\n")[0])}</strong></div>`;
  });
- visit.areas.forEach(a=>a.photos.filter(p=>p.show).forEach(p=>$("offerPhotos").innerHTML+=`<div class="photo-card"><img src="${p.src}"><strong>${esc(a.name)}</strong>${p.caption?`<p>${esc(p.caption)}</p>`:""}</div>`));
+ visit.areas.forEach(a=>a.photos.filter(p=>p.show).forEach(p=>{if(offerPhotosEl)offerPhotosEl.innerHTML+=`<div class="photo-card"><img src="${p.src}"><strong>${esc(a.name)}</strong>${p.caption?`<p>${esc(p.caption)}</p>`:""}</div>`;}));
  const remaining=totals.baseGross/1.19-totals.totalMaterial;
  $("totalHz").textContent=totals.totalHz+" l";$("totalHours").textContent=num(totals.totalHours)+" Std.";$("materialCost").textContent=eur(totals.totalMaterial);$("personnelCost").textContent="nicht berücksichtigt";$("selfCost").textContent=eur(totals.totalMaterial);$("margin").textContent=eur(remaining);
  $("offerCustomer").textContent=[visit.customer.salutation,visit.customer.firstName,visit.customer.lastName].filter(Boolean).join(" ")||"-";
  $("offerAddress").textContent=visit.customer.objectAddress||[visit.customer.street,visit.customer.zip,visit.customer.city].filter(Boolean).join(", ")||"-";
- $("offerDescription").textContent=visit.customerDescription||"-";
- $("normalPrice").textContent=eur(totals.baseGross);$("specialRowLabel").textContent=discount.specialLabel||"Sonderaktion";$("specialAmount").textContent="− "+eur(p.special);$("normalPriceRow").classList.toggle("hidden",p.special<=0);$("specialRow").classList.toggle("hidden",p.special<=0);$("offerPrice").textContent=eur(p.offer);$("skontoText").textContent=`${num(p.pct)} % Skonto bei Zahlung innerhalb von 3 Werktagen`;$("skontoPrice").textContent=eur(p.skonto);$("skontoRow").classList.toggle("hidden",p.pct<=0);
+ if($("offerDescription"))$("offerDescription").textContent=visit.customerDescription||"-";
+ if($("normalPrice"))$("normalPrice").textContent=eur(totals.baseGross);
+ if($("specialRowLabel"))$("specialRowLabel").textContent=discount.specialLabel||"Sonderaktion";
+ if($("specialAmount"))$("specialAmount").textContent="− "+eur(p.special);
+ if($("normalPriceRow"))$("normalPriceRow").classList.toggle("hidden",p.special<=0);
+ if($("specialRow"))$("specialRow").classList.toggle("hidden",p.special<=0);
+ $("offerPrice").textContent=eur(p.offer);
+ if($("skontoText"))$("skontoText").textContent=`${num(p.pct)} % Skonto bei Zahlung innerhalb von 3 Werktagen`;
+ if($("skontoPrice"))$("skontoPrice").textContent=eur(p.skonto);
+ if($("skontoRow"))$("skontoRow").classList.toggle("hidden",p.pct<=0);
  $("dashboardOffer").textContent=eur(p.offer);$("dashboardCustomer").textContent=[visit.customer.firstName,visit.customer.lastName].filter(Boolean).join(" ")||"-";$("dashboardPriceList").textContent=admin.priceListName;
  return{...totals,pricing:p};
 }
 ["discountType","discountCustom","specialType","specialValue","specialLabel"].forEach(id=>$(id).oninput=()=>{discount={type:$("discountType").value,custom:+$("discountCustom").value||0,specialType:$("specialType").value,specialValue:+$("specialValue").value||0,specialLabel:$("specialLabel").value};save();calculate()});
 $("toggleInternal").onclick=()=>$("internalCalculation").classList.toggle("hidden");
+
+
+function buildCustomerSnapshot(){
+  const totals=calculate();
+  const measures=[];
+  const photos=[];
+  visit.areas.forEach(area=>{
+    area.measures.forEach(m=>{
+      const r=calcMeasure(m);
+      const articleId=admin.articleMappings[m.type]||"";
+      const article=articleId?admin.lexwareArticles.find(a=>a.id===articleId):null;
+      measures.push({
+        area:area.name,
+        type:m.type,
+        title:article&&article.title?article.title:m.type,
+        description:article&&article.description?article.description:(m.note||""),
+        quantity:r.unit||1,
+        unitName:r.unitLabel,
+        scope:r.label,
+        totalGross:r.gross
+      });
+    });
+    area.photos.filter(p=>p.show).forEach(p=>photos.push({area:area.name,src:p.src,caption:p.caption||""}));
+  });
+  const extras=totals.lineItems.filter(i=>i.kind==="extra"||i.kind==="smallJob").filter(i=>!i.hidden).map(i=>({
+    title:i.name,description:i.description||"",quantity:i.quantity,unitName:i.unitName,totalGross:i.totalGross
+  }));
+  return{
+    generatedAt:new Date().toISOString(),
+    customer:{
+      name:[visit.customer.salutation,visit.customer.firstName,visit.customer.lastName].filter(Boolean).join(" "),
+      company:visit.customer.company||"",
+      address:visit.customer.objectAddress||[visit.customer.street,visit.customer.zip,visit.customer.city].filter(Boolean).join(", ")
+    },
+    recommendation:visit.customerDescription||"",
+    measures,extras,photos,
+    normalGross:totals.baseGross,
+    specialLabel:discount.specialLabel||"Sonderaktion",
+    specialAmount:totals.pricing.special,
+    offerGross:totals.pricing.offer,
+    skontoPct:totals.pricing.pct,
+    skontoGross:totals.pricing.skonto
+  };
+}
+$("openCustomerPage").onclick=()=>{
+  collectVisit();
+  const snapshot=buildCustomerSnapshot();
+  localStorage.setItem("mainabdichter_customer_snapshot",JSON.stringify(snapshot));
+  const win=window.open("customer.html","_blank");
+  if(!win)alert("Bitte Pop-ups für diese Seite erlauben, damit die separate Kundenansicht geöffnet werden kann.");
+};
 
 function renderAdmin(){
  $("priceListName").value=admin.priceListName;$("priceListDate").value=admin.priceListDate;
@@ -248,17 +311,58 @@ function renderAdminExtras(){
 $("resetAdmin").onclick=()=>{if(confirm("Standardwerte laden?")){admin=clone(DEFAULT_ADMIN);save();renderAdmin();status("adminStatus","Standardwerte geladen.",true)}};
 
 function renderArticleMappings(){
- const mappings=[["mapHorizontalsperre","Horizontalsperre"],["mapFlächensperre","Flächensperre"],["mapHarzverpressung","Harzverpressung"],["mapWandSohlen","Wand-Sohlen-Anschluss"],["mapSmallJob","smallJob"]];
- mappings.forEach(([id,key])=>{const s=$(id);const selected=admin.articleMappings[key]||"";s.innerHTML='<option value="">freie Position</option>'+admin.lexwareArticles.map(a=>`<option value="${a.id}" ${selected===a.id?"selected":""}>${esc(a.articleNumber?`${a.articleNumber} – `:"")}${esc(a.title)}</option>`).join("")});
+ const mappings=[
+  ["mapHorizontalsperre","Horizontalsperre"],
+  ["mapFlächensperre","Flächensperre"],
+  ["mapHarzverpressung","Harzverpressung"],
+  ["mapWandSohlen","Wand-Sohlen-Anschluss"],
+  ["mapSmallJob","smallJob"]
+ ];
+ mappings.forEach(([id,key])=>{
+  const s=$(id);
+  const selected=admin.articleMappings[key]||"";
+  s.innerHTML='<option value="">nicht zugeordnet</option>'+admin.lexwareArticles.map(a=>`<option value="${a.id}" ${selected===a.id?"selected":""}>${esc(a.articleNumber?`${a.articleNumber} – `:"")}${esc(a.title)}</option>`).join("");
+ });
+ const missing=[
+  ["Horizontalsperre","Horizontalsperre"],
+  ["Flächensperre","Flächensperre"],
+  ["Harzverpressung","Harzverpressung"],
+  ["Wand-Sohlen-Anschluss","Wand-Sohlen-Anschluss"]
+ ].filter(([label,key])=>!admin.articleMappings[key]).map(([label])=>label);
+ const warning=$("measureMappingWarning");
+ if(warning){
+  warning.classList.toggle("visible",missing.length>0);
+  warning.textContent=missing.length
+   ? "Noch nicht mit Lexware verknüpft: "+missing.join(", ")+". Ohne Zuordnung werden diese Positionen als freie Leistungen übertragen."
+   : "Alle vier Hauptmaßnahmen sind mit Lexware-Artikeln verknüpft.";
+ }
 }
-$("loadLexwareArticles").onclick=async()=>{try{const d=await api("/articles");admin.lexwareArticles=d.articles||[];renderArticleMappings();save();status("articleMappingStatus",`${admin.lexwareArticles.length} Artikel geladen.`,true)}catch(e){status("articleMappingStatus",e.message,false)}};
+$("loadLexwareArticles").onclick=async()=>{if(!ensureConnection())return;try{const d=await api("/articles");admin.lexwareArticles=d.articles||[];renderArticleMappings();save();status("articleMappingStatus",`${admin.lexwareArticles.length} Artikel geladen.`,true)}catch(e){status("articleMappingStatus",e.message,false)}};
 $("clearArticleMappings").onclick=()=>{admin.articleMappings={};renderArticleMappings();save();status("articleMappingStatus","Zuordnungen gelöscht.",true)};
 
 function bindSpeech(){document.querySelectorAll("[data-speech-target]").forEach(b=>b.onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return alert("Nutze die Mikrofontaste der iPhone-Tastatur.");const r=new SR();r.lang="de-DE";r.onresult=e=>{$(b.dataset.speechTarget).value+=($(b.dataset.speechTarget).value?" ":"")+e.results[0][0].transcript};r.start()})}
 function cfg(){return{url:admin.workerUrl,secret:admin.appSecret}}
+function ensureConnection(){
+  const c=cfg();
+  if(!c.url||!c.secret){
+    alert("Bitte zuerst unter Einstellungen die Worker-URL und das APP_SECRET speichern.");
+    show("admin");
+    return false;
+  }
+  return true;
+}
+function handleApiError(error){
+  const text=String(error&&error.message||error);
+  if(text.toLowerCase().includes("nicht autorisiert")){
+    alert("Das gespeicherte APP_SECRET stimmt nicht mit Cloudflare überein. Bitte unter Einstellungen neu speichern.");
+    show("admin");
+    return;
+  }
+  alert(text);
+}
 async function api(path,opt={}){const c=cfg(),r=await fetch(c.url+path,{...opt,headers:{...(opt.headers||{}),"X-App-Secret":c.secret}}),d=await r.json();if(!r.ok)throw new Error(d.error+(d.details?` – ${JSON.stringify(d.details)}`:""));return d}
 
-async function pipedriveDialog(){const term=prompt("Kunde in Pipedrive suchen:");if(!term)return;try{const d=await api("/pipedrive/persons/search?term="+encodeURIComponent(term));if(!d.people.length)return alert("Kein Treffer.");const labels=d.people.map((p,i)=>`${i+1}: ${p.name} ${p.email||""}`).join("\n");const nr=+prompt(labels+"\n\nNummer auswählen:");const selected=d.people[nr-1];if(!selected)return;const detail=await api("/pipedrive/persons/"+selected.id),p=detail.person;visit.customer={...visit.customer,pipedriveId:p.id||"",firstName:p.firstName||"",lastName:p.lastName||p.name||"",email:p.email||"",phone:p.phone||"",street:p.street||"",zip:p.zip||"",city:p.city||"",objectAddress:p.objectAddress||""};save();renderVisit()}catch(e){alert(e.message)}}
+async function pipedriveDialog(){const term=prompt("Kunde in Pipedrive suchen:");if(!term)return;try{const d=await api("/pipedrive/persons/search?term="+encodeURIComponent(term));if(!d.people.length)return alert("Kein Treffer.");const labels=d.people.map((p,i)=>`${i+1}: ${p.name} ${p.email||""}`).join("\n");const nr=+prompt(labels+"\n\nNummer auswählen:");const selected=d.people[nr-1];if(!selected)return;const detail=await api("/pipedrive/persons/"+selected.id),p=detail.person;visit.customer={...visit.customer,pipedriveId:p.id||"",firstName:p.firstName||"",lastName:p.lastName||p.name||"",email:p.email||"",phone:p.phone||"",street:p.street||"",zip:p.zip||"",city:p.city||"",objectAddress:p.objectAddress||""};save();renderVisit()}catch(e){handleApiError(e)}}
 
 async function lexwareCustomerDialog(){
   const term=prompt("Bestehenden Kunden in Lexware suchen:\nName, E-Mail oder Kundennummer");
@@ -356,7 +460,6 @@ $("sendLexwareQuotation").onclick=async()=>{try{collectVisit();const d=await api
 function reportRow(l,v){return v?`<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>`:""}
 function buildReport(){calculate();let h=`<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table">${reportRow("Kunde",[visit.customer.salutation,visit.customer.firstName,visit.customer.lastName].filter(Boolean).join(" "))}${reportRow("Objekt",visit.customer.objectAddress||[visit.customer.street,visit.customer.zip,visit.customer.city].filter(Boolean).join(", "))}${reportRow("Baujahr",visit.building.yearBuilt)}${reportRow("Bauart",visit.building.buildingType)}${reportRow("Geschoss",visit.building.floor)}${reportRow("Fundamentart",visit.building.foundationType)}${reportRow("Raumtemperatur",visit.building.roomTemp?visit.building.roomTemp+" °C":"")}${reportRow("Luftfeuchtigkeit",visit.building.humidity?visit.building.humidity+" %":"")}${reportRow("Oberflächentemperatur",visit.building.surfaceTemp?visit.building.surfaceTemp+" °C":"")}${reportRow("Taupunkt",visit.building.dewPoint?visit.building.dewPoint+" °C":"")}</table></div><div class="report-section"><h2>Schadensbild</h2><p>${esc(visit.damageDescription)}</p><h2>Empfehlung</h2><p>${esc(visit.customerDescription)}</p></div>`;visit.areas.forEach((a,i)=>{h+=`<div class="report-section"><h2>${i+1}. ${esc(a.name)}</h2><table class="report-table">${reportRow("Wandmaterial",a.wallMaterialOther||a.wallMaterial)}${reportRow("Wandstärke",a.wallThickness+" cm")}${reportRow("Erdkontakt",a.earthContact)}${reportRow("Wandbelag",a.wallCover)}${reportRow("Notizen",a.notes)}</table><h3>Messwerte</h3><table class="report-table"><tr><th>Gerät</th><th>Wert</th><th>Höhe</th><th>Position</th><th>Bemerkung</th></tr>${a.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value+" "+m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td><td>${esc(m.note)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${a.measures.map(m=>{const r=calcMeasure(m);return`<tr><th>${esc(m.type)}</th><td>${r.label}</td></tr>`}).join("")}</table><div class="photo-grid">${a.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`});$("reportContent").innerHTML=h}
 function printMode(mode){document.body.classList.add(mode);window.print();setTimeout(()=>document.body.classList.remove(mode),400)}
-$("printCustomerPdf").onclick=()=>{calculate();printMode("print-offer")};
 $("printReportPdf").onclick=()=>{buildReport();printMode("print-report")};
 
 $("discountType").value=discount.type;$("discountCustom").value=discount.custom;$("specialType").value=discount.specialType;$("specialValue").value=discount.specialValue;$("specialLabel").value=discount.specialLabel;
