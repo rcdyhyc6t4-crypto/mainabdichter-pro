@@ -3,151 +3,157 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Mainabdichter Pro – Komplett</title>
-<style>
-:root{--blue:#17365D;--blue2:#2F75B5;--bg:#eef3f8;--border:#d7dee8;--yellow:#fff2cc}
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;background:var(--bg);color:#1f2937}
-header{background:var(--blue);color:#fff;padding:16px}header h1{margin:0;font-size:20px}
-nav{display:flex;gap:8px;overflow:auto;padding:10px;background:#fff;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border)}
-button{border:0;border-radius:10px;padding:11px 13px;font-weight:700;font-size:15px}nav button{white-space:nowrap;background:#e8eef6;color:var(--blue)}
-nav button.active,.primary{background:var(--blue2);color:#fff}.secondary{background:#e8eef6;color:var(--blue)}.danger{background:#fee2e2;color:#991b1b}
-main{max-width:900px;margin:auto;padding:14px}.page{display:none}.page.active{display:block}.card{background:#fff;border-radius:15px;padding:15px;margin:12px 0;box-shadow:0 2px 10px rgba(23,54,93,.08)}
-h2{font-size:17px;color:var(--blue);margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
-label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}input,select,textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--yellow);font-size:16px}
-textarea{min-height:75px}.metric{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf0f4}.metric strong{color:var(--blue);text-align:right}
-.price{font-size:30px;color:#1f6b2b!important}.measure,.extra{border:1px solid var(--border);border-radius:12px;padding:12px;margin:10px 0}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.status{padding:10px;border-radius:10px;margin-top:10px;display:none}.ok{display:block;background:#dcfce7;color:#166534}.err{display:block;background:#fee2e2;color:#991b1b}
-.result{border:1px solid var(--border);border-radius:12px;padding:12px;margin:9px 0;background:#fbfdff}.result h3{margin:0 0 6px;font-size:16px;color:var(--blue)}.muted{font-size:13px;color:#667085}
-.extra-grid{display:grid;grid-template-columns:1.5fr .55fr .7fr .7fr auto;gap:8px;align-items:end}
-@media(max-width:700px){.grid,.actions{grid-template-columns:1fr}.extra-grid{grid-template-columns:1fr 1fr}.extra-grid .wide{grid-column:1/-1}}
-</style>
+<meta name="theme-color" content="#17365D">
+<title>Mainabdichter Pro V5</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header><h1>Mainabdichter Pro</h1></header>
-<nav>
-<button class="active" data-page="kunde">Kundenansicht</button>
-<button data-page="pipedrive">Pipedrive</button>
-<button data-page="daten">Kundendaten</button>
-<button data-page="massnahmen">Maßnahmen</button>
-<button data-page="zusatz">Zusatzleistungen</button>
-<button data-page="kalkulation">Kalkulation</button>
-<button data-page="lexware">Lexware</button>
+<header>
+  <div>
+    <h1>Mainabdichter Pro V5</h1>
+    <p>Besichtigung, Kalkulation und Übergabe</p>
+  </div>
+</header>
+
+<nav id="nav">
+  <button data-page="besichtigung" class="active">Besichtigung</button>
+  <button data-page="massnahmen">Maßnahmen</button>
+  <button data-page="zusatz">Zusatzleistungen</button>
+  <button data-page="kalkulation">Kalkulation</button>
+  <button data-page="kunde">Kundenansicht</button>
+  <button data-page="systeme">Pipedrive & Lexware</button>
 </nav>
+
 <main>
+<section id="besichtigung" class="page active">
+  <div class="card">
+    <h2>Kundendaten</h2>
+    <div class="actions">
+      <button id="openPipedrive" class="secondary">Kunde aus Pipedrive laden</button>
+      <button id="newCustomer" class="secondary">Neuen Kunden erfassen</button>
+    </div>
+    <div class="grid">
+      <div><label>Anrede</label><select id="salutation"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
+      <div><label>Vorname</label><input id="firstName"></div>
+      <div><label>Nachname</label><input id="lastName"></div>
+      <div><label>Telefon</label><input id="phone"></div>
+      <div><label>E-Mail</label><input id="email" type="email"></div>
+      <div><label>Firma / Rechnungsempfänger</label><input id="company"></div>
+      <div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
+      <div><label>PLZ</label><input id="zip"></div>
+      <div><label>Ort</label><input id="city"></div>
+      <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
+      <div class="full"><label>Pipedrive-ID</label><input id="pipedriveId" readonly></div>
+    </div>
+  </div>
 
-<section id="kunde" class="page active"><div class="card">
-<h2>Kundenansicht</h2>
-<div class="metric"><span>Kunde</span><strong id="outName">–</strong></div>
-<div class="metric"><span>Objekt</span><strong id="outAdresse">–</strong></div>
-<div id="outMeasures"></div>
-<div id="outExtras"></div>
-<div class="metric"><span>Beschreibung</span><strong id="outText">–</strong></div>
-<div class="metric"><span>Gesamtpreis brutto</span><strong id="outPrice" class="price">–</strong></div>
-<div class="metric"><span>5 % Skonto</span><strong id="outSkonto">–</strong></div>
-</div></section>
+  <div class="card">
+    <h2>Objekt und Raumklima</h2>
+    <div class="grid">
+      <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
+      <div><label>Mauerwerk</label><select id="masonry"><option>HBL</option><option>Ziegel</option><option>Kalksandstein</option><option>Naturstein</option><option>Beton</option><option>Unbekannt</option></select></div>
+      <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
+      <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
+      <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
+      <div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
+      <div class="full"><label>Schadensbeschreibung</label><textarea id="damageDescription"></textarea></div>
+      <div class="full"><label>Kundenbeschreibung / Empfehlung</label><textarea id="customerDescription"></textarea></div>
+    </div>
+  </div>
 
-<section id="pipedrive" class="page"><div class="card">
-<h2>Kunde aus Pipedrive laden</h2>
-<div class="grid"><div class="full"><label>Suche nach Name, E-Mail oder Telefonnummer</label><input id="pdSearch" placeholder="mindestens 2 Zeichen"></div></div>
-<div class="actions" style="margin-top:12px"><button id="pdSearchBtn" class="primary">Pipedrive durchsuchen</button><button id="pdTestBtn" class="secondary">Verbindung testen</button></div>
-<div id="pdStatus" class="status"></div><div id="pdResults"></div>
-</div></section>
+  <div class="card">
+    <h2>Messwerte</h2>
+    <div id="measurementList"></div>
+    <button id="addMeasurement" class="primary">+ Messpunkt hinzufügen</button>
+  </div>
 
-<section id="daten" class="page"><div class="card">
-<h2>Kundendaten</h2>
-<div class="grid">
-<div><label>Anrede</label><select id="anrede"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
-<div><label>Vorname</label><input id="vorname"></div><div><label>Nachname</label><input id="nachname"></div><div><label>Telefon</label><input id="telefon"></div>
-<div><label>E-Mail</label><input id="email"></div><div><label>Straße</label><input id="strasse"></div><div><label>PLZ</label><input id="plz"></div><div><label>Ort</label><input id="ort"></div>
-<div class="full"><label>Objektanschrift abweichend</label><input id="objekt"></div><div class="full"><label>Beschreibung</label><textarea id="beschreibung"></textarea></div>
-<div class="full"><label>Pipedrive Personen-ID</label><input id="pipedriveId" readonly></div>
-</div></div></section>
+  <div class="card">
+    <h2>Fotos</h2>
+    <input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
+    <div id="photoGrid" class="photo-grid"></div>
+  </div>
+</section>
 
-<section id="massnahmen" class="page"><div class="card">
-<h2>Maßnahmen</h2><div id="measureList"></div><button id="addMeasure" class="primary">+ Maßnahme hinzufügen</button>
-</div></section>
+<section id="massnahmen" class="page">
+  <div class="card">
+    <h2>Maßnahmen</h2>
+    <div id="measureList"></div>
+    <button id="addMeasure" class="primary">+ Maßnahme hinzufügen</button>
+    <p class="hint">Flächensperren werden aus Breite × Höhe berechnet. Beim Wand-Sohlen-Anschluss wird automatisch eine Horizontalsperre über dieselbe Länge berücksichtigt.</p>
+  </div>
+</section>
 
-<section id="zusatz" class="page"><div class="card">
-<h2>Zusatzleistungen</h2>
-<div id="extraList"></div>
-<button id="addExtra" class="primary">+ Zusatzleistung hinzufügen</button>
-<p class="muted">Baustelleneinrichtung ist standardmäßig separat mit 269 € netto aktiviert.</p>
-</div></section>
+<section id="zusatz" class="page">
+  <div class="card">
+    <h2>Zusatzleistungen</h2>
+    <div id="extraList"></div>
+    <button id="addExtra" class="primary">+ Zusatzleistung hinzufügen</button>
+    <p class="hint">Jede Position kann direkt geändert werden. Verkaufspreis und interne Kosten bleiben getrennt.</p>
+  </div>
+</section>
 
-<section id="kalkulation" class="page"><div class="card">
-<h2>Interne Kalkulation</h2>
-<div class="metric"><span>Maßnahmen brutto</span><strong id="measureTotal">–</strong></div>
-<div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraTotal">–</strong></div>
-<div class="metric"><span>Baustelleneinrichtung brutto</span><strong id="setupTotal">–</strong></div>
-<div class="metric"><span>Gesamtpreis brutto</span><strong id="grandTotal" class="price">–</strong></div>
-<div class="metric"><span>5 % Skonto-Endpreis</span><strong id="grandSkonto">–</strong></div>
-<div class="metric"><span>Interne Zusatzkosten netto</span><strong id="extraCostTotal">–</strong></div>
-</div></section>
+<section id="kalkulation" class="page">
+  <div class="card">
+    <h2>Interne Kalkulation</h2>
+    <div id="internalMeasures"></div>
+    <div class="metric"><span>Maßnahmen brutto</span><strong id="measureTotal">–</strong></div>
+    <div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraTotal">–</strong></div>
+    <div class="metric"><span>Baustelleneinrichtung brutto</span><strong id="setupTotal">–</strong></div>
+    <div class="metric"><span>Gesamtpreis brutto</span><strong id="grandTotal" class="price">–</strong></div>
+    <div class="metric"><span>5 % Skonto-Endpreis</span><strong id="skontoTotal">–</strong></div>
+    <div class="metric"><span>Interne Selbstkosten netto</span><strong id="selfCost">–</strong></div>
+    <div class="metric"><span>Deckungsbeitrag netto</span><strong id="margin">–</strong></div>
+  </div>
+</section>
 
-<section id="lexware" class="page"><div class="card">
-<h2>Verbindungen</h2>
-<div class="grid"><div class="full"><label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev"></div><div class="full"><label>APP_SECRET</label><input id="appSecret" type="password"></div></div>
-<div class="actions" style="margin-top:12px"><button id="testLex" class="secondary">Lexware testen</button><button id="sendLex" class="primary">Kunde an Lexware senden</button></div>
-<div id="lexStatus" class="status"></div>
-</div></section>
+<section id="kunde" class="page">
+  <div class="card customer-card">
+    <h2>Mainabdichter</h2>
+    <div class="metric"><span>Kunde</span><strong id="cName">–</strong></div>
+    <div class="metric"><span>Objekt</span><strong id="cAddress">–</strong></div>
+    <div class="metric"><span>Empfehlung</span><strong id="cDescription">–</strong></div>
+    <div id="cMeasures"></div>
+    <div id="cExtras"></div>
+    <div class="pricebox">
+      <div>Empfohlener Gesamtpreis</div>
+      <strong id="cPrice" class="price">–</strong>
+      <small>inklusive gesetzlicher Umsatzsteuer</small>
+    </div>
+    <div class="metric"><span>5 % Skonto bei Zahlung innerhalb von 3 Werktagen</span><strong id="cSkonto">–</strong></div>
+    <div id="cPhotos" class="photo-grid"></div>
+  </div>
+  <button onclick="window.print()" class="primary">Kundenansicht drucken / PDF</button>
+</section>
 
+<section id="systeme" class="page">
+  <div class="card">
+    <h2>Pipedrive</h2>
+    <div class="grid">
+      <div class="full"><label>Suche</label><input id="pdSearch" placeholder="Name, E-Mail oder Telefonnummer"></div>
+    </div>
+    <div class="actions">
+      <button id="pdTest" class="secondary">Verbindung testen</button>
+      <button id="pdSearchBtn" class="primary">Kunden suchen</button>
+    </div>
+    <div id="pdStatus" class="status"></div>
+    <div id="pdResults"></div>
+  </div>
+
+  <div class="card">
+    <h2>Lexware Office</h2>
+    <div class="grid">
+      <div class="full"><label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev"></div>
+      <div class="full"><label>APP_SECRET</label><input id="appSecret" type="password"></div>
+    </div>
+    <div class="actions">
+      <button id="lexTest" class="secondary">Verbindung testen</button>
+      <button id="lexSend" class="primary">Kunde an Lexware senden</button>
+    </div>
+    <div id="lexStatus" class="status"></div>
+  </div>
+</section>
 </main>
-<script>
-(function(){
-"use strict";
-const C={spacing:.25,rowSpacing:.25,factorHS:14,factorFS:10,reservePct:10,hsSellNet:98,wallSoleGross:300,resinGross:495,areaGross:690,setupNet:269,vat:19,skontoPct:5};
-let measures=JSON.parse(localStorage.getItem("ma_measures")||"[]");
-let extras=JSON.parse(localStorage.getItem("ma_extras")||"[]");
-if(!Array.isArray(measures)||!measures.length)measures=[{type:"Horizontalsperre",length:8,width:0,height:0,wall:30}];
-if(!Array.isArray(extras)||!extras.length)extras=[
- {name:"Bauschutt entsorgen",qty:0,sellGross:0,costNet:0,show:true},
- {name:"Heizkörper demontieren und montieren",qty:0,sellGross:0,costNet:0,show:true},
- {name:"Vorarbeiten / Freilegen",qty:0,sellGross:0,costNet:0,show:true},
- {name:"Putz abschlagen",qty:0,sellGross:0,costNet:0,show:true}
-];
-const $=id=>document.getElementById(id),eur=v=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v),num=v=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:2}).format(v);
 
-document.querySelectorAll("nav button").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));$(btn.dataset.page).classList.add("active");btn.classList.add("active")}));
-["anrede","vorname","nachname","telefon","email","strasse","plz","ort","objekt","beschreibung"].forEach(id=>$(id).addEventListener("input",calculate));
-function saveMeasures(){localStorage.setItem("ma_measures",JSON.stringify(measures))}
-function saveExtras(){localStorage.setItem("ma_extras",JSON.stringify(extras))}
-function hs(l,w){const holes=Math.ceil((+l||0)/C.spacing);return{liters:holes*(+w||0)*C.factorHS/1000}}
-function fs(w,h,t){const hr=Math.ceil((+w||0)/C.spacing),rows=Math.ceil((+h||0)/C.rowSpacing);return{area:(+w||0)*(+h||0),liters:hr*(+t||0)*C.factorHS/1000+Math.max(rows-1,0)*hr*(+t||0)*C.factorFS/1000}}
-function calcM(m){let gross=0,label="";if(m.type==="Horizontalsperre"){const r=hs(m.length,m.wall);gross=Math.ceil(r.liters*1.1)*C.hsSellNet*1.19;label=num(m.length)+" lfm"}if(m.type==="Flächensperre"){const r=fs(m.width,m.height,m.wall);gross=r.area*C.areaGross;label=num(m.width)+" × "+num(m.height)+" m = "+num(r.area)+" m²"}if(m.type==="Harzverpressung"){gross=(+m.length||0)*C.resinGross;label=num(m.length)+" lfm"}if(m.type==="Wand-Sohlen-Anschluss"){const r=hs(m.length,m.wall);gross=(+m.length||0)*C.wallSoleGross+Math.ceil(r.liters*1.1)*C.hsSellNet*1.19;label=num(m.length)+" lfm inkl. Horizontalsperre"}return{gross,label}}
-function renderMeasures(){const box=$("measureList");box.innerHTML="";measures.forEach((m,i)=>{const area=m.type==="Flächensperre",d=document.createElement("div");d.className="measure";d.innerHTML='<div class="grid"><div><label>Art</label><select data-i="'+i+'" data-f="type"><option'+(m.type==="Horizontalsperre"?" selected":"")+'>Horizontalsperre</option><option'+(m.type==="Flächensperre"?" selected":"")+'>Flächensperre</option><option'+(m.type==="Harzverpressung"?" selected":"")+'>Harzverpressung</option><option'+(m.type==="Wand-Sohlen-Anschluss"?" selected":"")+'>Wand-Sohlen-Anschluss</option></select></div><div><label>Wandstärke cm</label><input type="number" value="'+(m.wall||30)+'" data-i="'+i+'" data-f="wall"></div>'+(area?'<div><label>Breite m</label><input type="number" step=".01" value="'+(m.width||0)+'" data-i="'+i+'" data-f="width"></div><div><label>Höhe m</label><input type="number" step=".01" value="'+(m.height||0)+'" data-i="'+i+'" data-f="height"></div>':'<div><label>Länge lfm</label><input type="number" step=".01" value="'+(m.length||0)+'" data-i="'+i+'" data-f="length"></div>')+'</div><div id="mr'+i+'"></div><button class="danger" data-del="'+i+'">Löschen</button>';box.appendChild(d)});
- box.querySelectorAll("[data-f]").forEach(el=>el.addEventListener("input",()=>{measures[+el.dataset.i][el.dataset.f]=el.value;saveMeasures();if(el.dataset.f==="type")renderMeasures();calculate()}));
- box.querySelectorAll("[data-del]").forEach(el=>el.addEventListener("click",()=>{measures.splice(+el.dataset.del,1);saveMeasures();renderMeasures();calculate()}));
-}
-$("addMeasure").addEventListener("click",()=>{measures.push({type:"Horizontalsperre",length:0,width:0,height:0,wall:30});saveMeasures();renderMeasures();calculate()});
-
-function renderExtras(){const box=$("extraList");box.innerHTML="";extras.forEach((e,i)=>{const d=document.createElement("div");d.className="extra";d.innerHTML='<div class="extra-grid"><div class="wide"><label>Leistung</label><input value="'+esc(e.name||"")+'" data-ei="'+i+'" data-ef="name"></div><div><label>Menge</label><input type="number" step=".01" value="'+(e.qty||0)+'" data-ei="'+i+'" data-ef="qty"></div><div><label>VK brutto je Einheit</label><input type="number" step=".01" value="'+(e.sellGross||0)+'" data-ei="'+i+'" data-ef="sellGross"></div><div><label>EK netto je Einheit</label><input type="number" step=".01" value="'+(e.costNet||0)+'" data-ei="'+i+'" data-ef="costNet"></div><button class="danger" data-edel="'+i+'">×</button></div><label><input type="checkbox" data-eshow="'+i+'" '+(e.show!==false?"checked":"")+'> In Kundenansicht anzeigen</label></div>';box.appendChild(d)});
- box.querySelectorAll("[data-ef]").forEach(el=>el.addEventListener("input",()=>{extras[+el.dataset.ei][el.dataset.ef]=el.value;saveExtras();calculate()}));
- box.querySelectorAll("[data-eshow]").forEach(el=>el.addEventListener("change",()=>{extras[+el.dataset.eshow].show=el.checked;saveExtras();calculate()}));
- box.querySelectorAll("[data-edel]").forEach(el=>el.addEventListener("click",()=>{extras.splice(+el.dataset.edel,1);saveExtras();renderExtras();calculate()}));
-}
-$("addExtra").addEventListener("click",()=>{extras.push({name:"",qty:1,sellGross:0,costNet:0,show:true});saveExtras();renderExtras();calculate()});
-
-function calculate(){let measureSum=0,extraSum=0,extraCost=0;$("outMeasures").innerHTML="";$("outExtras").innerHTML="";
- measures.forEach((m,i)=>{const r=calcM(m);measureSum+=r.gross;const mr=$("mr"+i);if(mr)mr.textContent=r.label+" · "+eur(r.gross);const row=document.createElement("div");row.className="metric";row.innerHTML="<span>"+m.type+"</span><strong>"+r.label+"</strong>";$("outMeasures").appendChild(row)});
- extras.forEach(e=>{const total=(+e.qty||0)*(+e.sellGross||0),cost=(+e.qty||0)*(+e.costNet||0);extraSum+=total;extraCost+=cost;if(e.show!==false && total>0){const row=document.createElement("div");row.className="metric";row.innerHTML="<span>"+esc(e.name)+"</span><strong>"+eur(total)+"</strong>";$("outExtras").appendChild(row)}});
- const setupGross=C.setupNet*1.19,total=measureSum+extraSum+setupGross;
- $("outName").textContent=[$("anrede").value,$("vorname").value,$("nachname").value].filter(Boolean).join(" ")||"–";
- $("outAdresse").textContent=$("objekt").value||[$("strasse").value,$("plz").value,$("ort").value].filter(Boolean).join(", ")||"–";
- $("outText").textContent=$("beschreibung").value||"–";$("outPrice").textContent=eur(total);$("outSkonto").textContent=eur(total*.95);
- $("measureTotal").textContent=eur(measureSum);$("extraTotal").textContent=eur(extraSum);$("setupTotal").textContent=eur(setupGross);$("grandTotal").textContent=eur(total);$("grandSkonto").textContent=eur(total*.95);$("extraCostTotal").textContent=eur(extraCost);
-}
-function config(){let url=$("workerUrl").value.trim();if(url.endsWith("/"))url=url.slice(0,-1);const secret=$("appSecret").value;localStorage.setItem("ma_worker",url);localStorage.setItem("ma_secret",secret);return{url,secret}}
-function status(id,msg,ok){const s=$(id);s.className="status "+(ok?"ok":"err");s.textContent=msg}
-async function call(path,options={}){const c=config();const r=await fetch(c.url+path,{...options,headers:{...(options.headers||{}),"X-App-Secret":c.secret}});const d=await r.json();if(!r.ok)throw new Error(d.error+(d.details?" – "+JSON.stringify(d.details):""));return d}
-$("pdTestBtn").addEventListener("click",async()=>{try{await call("/pipedrive/test");status("pdStatus","Pipedrive-Verbindung erfolgreich.",true)}catch(e){status("pdStatus",e.message,false)}});
-$("pdSearchBtn").addEventListener("click",async()=>{const term=$("pdSearch").value.trim();if(term.length<2)return status("pdStatus","Bitte mindestens 2 Zeichen eingeben.",false);try{const d=await call("/pipedrive/persons/search?term="+encodeURIComponent(term));renderPd(d.people||[]);status("pdStatus",(d.people||[]).length+" Treffer gefunden.",true)}catch(e){status("pdStatus",e.message,false)}});
-function renderPd(people){const box=$("pdResults");box.innerHTML="";people.forEach(p=>{const d=document.createElement("div");d.className="result";d.innerHTML="<h3>"+esc(p.name||"Unbenannt")+"</h3><div class='muted'>"+esc(p.email||"")+" "+esc(p.phone||"")+"</div><div class='muted'>"+esc(p.address||"")+"</div><button class='primary' data-id='"+p.id+"'>Übernehmen</button>";box.appendChild(d)});box.querySelectorAll("[data-id]").forEach(b=>b.addEventListener("click",async()=>{try{const d=await call("/pipedrive/persons/"+b.dataset.id);fillPerson(d.person);status("pdStatus","Kundendaten wurden übernommen.",true)}catch(e){status("pdStatus",e.message,false)}}))}
-function fillPerson(p){$("pipedriveId").value=p.id||"";$("vorname").value=p.firstName||"";$("nachname").value=p.lastName||p.name||"";$("email").value=p.email||"";$("telefon").value=p.phone||"";if(p.street)$("strasse").value=p.street;if(p.zip)$("plz").value=p.zip;if(p.city)$("ort").value=p.city;if(p.objectAddress)$("objekt").value=p.objectAddress;calculate();document.querySelector('[data-page="daten"]').click()}
-function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-$("testLex").addEventListener("click",async()=>{try{await call("/profile");status("lexStatus","Lexware-Verbindung erfolgreich.",true)}catch(e){status("lexStatus",e.message,false)}});
-$("sendLex").addEventListener("click",async()=>{if(!$("nachname").value.trim())return status("lexStatus","Nachname fehlt.",false);try{await call("/contacts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({salutation:$("anrede").value,firstName:$("vorname").value,lastName:$("nachname").value,street:$("strasse").value,zip:$("plz").value,city:$("ort").value,email:$("email").value,phone:$("telefon").value,note:"Pipedrive-ID: "+$("pipedriveId").value})});status("lexStatus","Kunde wurde an Lexware übertragen.",true)}catch(e){status("lexStatus",e.message,false)}});
-$("workerUrl").value=localStorage.getItem("ma_worker")||$("workerUrl").value;$("appSecret").value=localStorage.getItem("ma_secret")||"";
-renderMeasures();renderExtras();calculate();
-})();
-</script>
-</body></html>
+<script src="app.js"></script>
+</body>
+</html>
