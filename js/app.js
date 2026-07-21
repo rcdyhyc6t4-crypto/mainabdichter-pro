@@ -20,10 +20,10 @@ const DEFAULT_ADMIN={
   extraResinKgNet:98,
   resin:{tiers:{"2":1180,"3":1750,"4":2310,"5":2860,"6":3400,"7":3930,"8":4450,"9":4960,"10":5460},threshold:10,additional:495},
   extras:[
-    {name:"Baustelleneinrichtung inkl. An- und Abfahrt",unit:"pauschal",gross:320.11,cost:269,active:true},
-    {name:"Heizkörper demontieren und montieren",unit:"Stück",gross:150,cost:40,active:true},
-    {name:"Bauschutt entsorgen",unit:"pauschal",gross:350,cost:80,active:true},
-    {name:"Vorarbeiten / Freilegen",unit:"Stunden",gross:101.15,cost:35,active:true}
+    {name:"Baustelleneinrichtung inkl. An- und Abfahrt",unit:"pauschal",gross:320.11,cost:269,active:true,articleId:""},
+    {name:"Heizkörper demontieren und montieren",unit:"Stück",gross:150,cost:40,active:true,articleId:""},
+    {name:"Bauschutt entsorgen",unit:"pauschal",gross:350,cost:80,active:true,articleId:""},
+    {name:"Vorarbeiten / Freilegen",unit:"Stunden",gross:101.15,cost:35,active:true,articleId:""}
   ],
   articleMappings:{},
   lexwareArticles:[],
@@ -54,6 +54,7 @@ $("continueVisit").onclick=()=>{renderVisit();show("visit")};
 $("openOffer").onclick=()=>show("offer");
 $("openAdmin").onclick=()=>show("admin");
 $("loadPipedrive").onclick=()=>pipedriveDialog();
+$("loadLexwareCustomer").onclick=()=>lexwareCustomerDialog();
 $("clearVisit").onclick=()=>{if(confirm("Aktuelle Besichtigung wirklich löschen?")){visit=newVisit();save();renderVisit()}};
 $("saveVisit").onclick=()=>{collectVisit();save();status("offerStatus","Besichtigung gespeichert.",true)};
 $("toOffer").onclick=()=>{collectVisit();save();show("offer")};
@@ -114,31 +115,17 @@ function renderMeasures(ai){
 function renderPhotos(ai){const box=$("photos"+ai);box.innerHTML="";visit.areas[ai].photos.forEach((p,pi)=>{box.innerHTML+=`<div class="photo-card"><img src="${p.src}"><input data-p="${ai}-${pi}" data-pf="caption" value="${esc(p.caption)}" placeholder="Beschreibung"><label><input type="checkbox" data-ps="${ai}-${pi}" ${p.show?"checked":""}> Kunden-PDF</label><button class="danger" data-pdel="${ai}-${pi}">Löschen</button></div>`});box.querySelectorAll("[data-pf]").forEach(x=>x.oninput=()=>{const [a,p]=x.dataset.p.split("-").map(Number);visit.areas[a].photos[p][x.dataset.pf]=x.value;save()});box.querySelectorAll("[data-ps]").forEach(x=>x.onchange=()=>{const [a,p]=x.dataset.ps.split("-").map(Number);visit.areas[a].photos[p].show=x.checked;save()});box.querySelectorAll("[data-pdel]").forEach(x=>x.onclick=()=>{const [a,p]=x.dataset.pdel.split("-").map(Number);visit.areas[a].photos.splice(p,1);renderAreas();save()})}
 $("addArea").onclick=()=>{visit.areas.push(newArea("Neuer Schadensbereich"));renderAreas();save()};
 
-function renderWorkExtras(){const box=$("workExtras");box.innerHTML="";admin.extras.filter(e=>e.active).forEach(e=>{const qty=visit.extraQuantities[e.name]||0;box.innerHTML+=`<div class="catalog-row"><div class="grid"><div><strong>${esc(e.name)}</strong><small>${esc(e.unit)}</small></div><div><label>Menge</label><input type="number" step=".01" data-workextra="${esc(e.name)}" value="${qty}"></div></div></div>`});box.querySelectorAll("[data-workextra]").forEach(x=>x.oninput=()=>{visit.extraQuantities[x.dataset.workextra]=+x.value||0;save()})}
-
-function resinTier(amount){const cfg=admin.resin,keys=Object.keys(cfg.tiers).map(Number).sort((a,b)=>a-b);for(const k of keys)if(amount<=k)return cfg.tiers[k];return cfg.tiers[cfg.threshold]+(amount-cfg.threshold)*cfg.additional}
-function calcMeasure(m){
- const wall=+m.wall||30,spacing=+m.spacing||.25,reserve=admin.reservePct/100;
- let holes=0,liters=0,hours=0,gross=0,materialCost=0,label="",unit=0,unitLabel="lfm",smallEligibleLength=0;
- if(m.type==="Horizontalsperre"){
-  unit=+m.length||0;smallEligibleLength=unit;holes=Math.ceil(unit/spacing);liters=holes*wall*14/1000;
-  const saleLiters=Math.ceil(liters*(1+reserve));gross=saleLiters*admin.hzSaleNet*1.19;materialCost=saleLiters*admin.hzPurchaseNet;label=`${num(unit)} lfm`;
- }
- if(m.type==="Flächensperre"){
-  const width=+m.width||0,height=+m.height||0;unit=width*height;unitLabel="m²";
-  const perRow=Math.ceil(width/spacing),rows=Math.ceil(height/.25);holes=perRow*rows;
-  liters=perRow*wall*14/1000+Math.max(0,rows-1)*perRow*wall*10/1000;
-  const saleLiters=Math.ceil(liters*(1+reserve));gross=saleLiters*admin.hzSaleNet*1.19;materialCost=saleLiters*admin.hzPurchaseNet;label=`${num(width)} × ${num(height)} m = ${num(unit)} m²`;
- }
- if(m.type==="Harzverpressung"){
-  unit=+m.length||0;const extraKg=+m.extraResinKg||0;gross=resinTier(unit)+extraKg*admin.extraResinKgNet*1.19;materialCost=0;label=`${num(unit)} lfm${extraKg?` + ${num(extraKg)} kg Mehraufwand`:""}`;
- }
- if(m.type==="Wand-Sohlen-Anschluss"){
-  unit=+m.length||0;smallEligibleLength=unit;holes=Math.ceil(unit/spacing);liters=holes*wall*14/1000;
-  const saleLiters=Math.ceil(liters*(1+reserve));gross=unit*admin.wallSoleGross+saleLiters*admin.hzSaleNet*1.19;materialCost=saleLiters*admin.hzPurchaseNet;label=`${num(unit)} lfm inkl. Horizontalsperre`;
- }
- if(holes)hours=holes/admin.drill+holes/admin.fill+holes/admin.close+admin.setupHours;
- return{gross,holes,liters,reserveLiters:Math.ceil(liters*(1+reserve)),hours,materialCost,label,unit,unitLabel,unitPrice:unit?gross/unit:0,smallEligibleLength};
+function renderWorkExtras(){
+ const box=$("workExtras");box.innerHTML="";
+ admin.extras.filter(e=>e.active).forEach(e=>{
+  const qty=visit.extraQuantities[e.name]||0;
+  const article=e.articleId?admin.lexwareArticles.find(a=>a.id===e.articleId):null;
+  const shownName=article?article.title:e.name;
+  const shownUnit=article?(article.unitName||e.unit):e.unit;
+  const description=article&&article.description?`<div class="article-description">${esc(article.description)}</div>`:"";
+  box.innerHTML+=`<div class="catalog-row"><div class="grid"><div><strong>${esc(shownName)}</strong><small>${esc(shownUnit)}</small>${description}</div><div><label>Menge</label><input type="number" step=".01" data-workextra="${esc(e.name)}" value="${qty}"></div></div></div>`;
+ });
+ box.querySelectorAll("[data-workextra]").forEach(x=>x.oninput=()=>{visit.extraQuantities[x.dataset.workextra]=+x.value||0;save()});
 }
 function pricing(normal){const pct=discount.type==="custom"?+discount.custom||0:discount.type==="none"?0:+discount.type||0;let special=0;if(discount.specialType==="percent")special=normal*(+discount.specialValue||0)/100;if(discount.specialType==="amount")special=+discount.specialValue||0;special=Math.max(0,Math.min(normal,special));const offer=normal-special;return{pct,special,offer,skonto:offer*(1-pct/100)}}
 function smallJobSurcharge(hsLength,baseGross){
@@ -151,7 +138,28 @@ function collectLineItems(){
   const r=calcMeasure(m);baseGross+=r.gross;totalMaterial+=r.materialCost;totalHours+=r.hours;totalHz+=r.reserveLiters;hsLength+=r.smallEligibleLength;
   lineItems.push({kind:m.type,name:`${a.name} – ${m.type}`,description:[r.label,m.note].filter(Boolean).join("\n"),quantity:r.unit||1,unitName:r.unitLabel==="m²"?"m²":"lfm",grossUnit:r.unit?r.gross/r.unit:r.gross,totalGross:r.gross,articleId:admin.articleMappings[m.type]||""});
  }));
- admin.extras.filter(e=>e.active).forEach(e=>{const qty=visit.extraQuantities[e.name]||0;if(qty>0){baseGross+=qty*e.gross;lineItems.push({kind:"extra",name:e.name,description:"",quantity:qty,unitName:e.unit,grossUnit:e.gross,totalGross:qty*e.gross,articleId:e.articleId||""})}});
+ admin.extras.filter(e=>e.active).forEach(e=>{
+  const qty=visit.extraQuantities[e.name]||0;
+  if(qty>0){
+    const article=e.articleId?admin.lexwareArticles.find(a=>a.id===e.articleId):null;
+    const grossUnit=+e.gross||0;
+    const unitName=article&&article.unitName?article.unitName:e.unit;
+    const name=article&&article.title?article.title:e.name;
+    const description=article&&article.description?article.description:"";
+    baseGross+=qty*grossUnit;
+    lineItems.push({
+      kind:"extra",
+      name,
+      description,
+      quantity:qty,
+      unitName,
+      grossUnit,
+      totalGross:qty*grossUnit,
+      articleId:article?article.id:"",
+      articleType:article?article.type:""
+    });
+  }
+ });
  const small=smallJobSurcharge(hsLength,baseGross);
  if(small>0){baseGross+=small;lineItems.push({kind:"smallJob",name:"Kleinbaustellenzuschlag",description:`für Horizontalsperren unter ${num(admin.smallJob.threshold)} lfm`,quantity:1,unitName:"pauschal",grossUnit:small,totalGross:small,articleId:admin.articleMappings.smallJob||"",hidden:!admin.smallJob.visible})}
  return{lineItems,baseGross,totalMaterial,totalHours,totalHz,small};
@@ -187,17 +195,55 @@ function renderAdmin(){
  renderResinPrices();renderAdminExtras();renderArticleMappings();
 }
 function renderResinPrices(){const b=$("resinPrices");b.innerHTML="";Object.entries(admin.resin.tiers).forEach(([k,v])=>b.innerHTML+=`<div class="catalog-row"><div class="grid"><div><label>bis ${k} lfm</label><input value="${v}" data-resin-tier="${k}"></div><div><label>brutto €</label><input value="${v}" readonly></div></div></div>`);b.innerHTML+=`<div class="catalog-row"><label>ab ${admin.resin.threshold} lfm je weiterer lfm</label><input id="resinAdditional" value="${admin.resin.additional}"></div>`;b.querySelectorAll("[data-resin-tier]").forEach(x=>x.oninput=()=>admin.resin.tiers[x.dataset.resinTier]=+x.value||0);$("resinAdditional").oninput=()=>admin.resin.additional=+$("resinAdditional").value||0}
-function renderAdminExtras(){const b=$("adminExtras");b.innerHTML="";admin.extras.forEach((e,i)=>b.innerHTML+=`<div class="catalog-row"><div class="item-grid"><div class="wide"><label>Leistung</label><input data-ae="${i}" data-aef="name" value="${esc(e.name)}"></div><div><label>Einheit</label><input data-ae="${i}" data-aef="unit" value="${esc(e.unit)}"></div><div><label>VK brutto</label><input data-ae="${i}" data-aef="gross" value="${e.gross}"></div><div><label>interne Kosten netto</label><input data-ae="${i}" data-aef="cost" value="${e.cost||0}"></div><label><input type="checkbox" data-aactive="${i}" ${e.active?"checked":""}> aktiv</label><button class="danger" data-aedel="${i}">Löschen</button></div></div>`);b.querySelectorAll("[data-aef]").forEach(x=>x.oninput=()=>admin.extras[+x.dataset.ae][x.dataset.aef]=x.value);b.querySelectorAll("[data-aactive]").forEach(x=>x.onchange=()=>admin.extras[+x.dataset.aactive].active=x.checked);b.querySelectorAll("[data-aedel]").forEach(x=>x.onclick=()=>{admin.extras.splice(+x.dataset.aedel,1);renderAdminExtras()})}
-$("addAdminExtra").onclick=()=>{admin.extras.push({name:"Neue Leistung",unit:"pauschal",gross:0,cost:0,active:true});renderAdminExtras()};
-$("saveAdmin").onclick=()=>{
- admin.priceListName=$("priceListName").value;admin.priceListDate=$("priceListDate").value;
- admin.hzPurchaseNet=+$("adminHzPurchase").value||0;admin.hzSaleNet=+$("adminHzSale").value||0;admin.reservePct=+$("adminReserve").value||0;
- admin.drill=+$("adminDrill").value||1;admin.fill=+$("adminFill").value||1;admin.close=+$("adminClose").value||1;admin.setupHours=+$("adminSetupHours").value||0;
- admin.smallJob={enabled:$("adminSmallJobEnabled").value==="true",threshold:+$("adminSmallJobThreshold").value||12,type:$("adminSmallJobType").value,value:+$("adminSmallJobValue").value||0,visible:$("adminSmallJobVisible").value==="true"};
- admin.wallSoleGross=+$("adminWallSolePrice").value||0;admin.extraResinKgNet=+$("adminExtraResinKgPrice").value||0;
- admin.workerUrl=$("workerUrl").value.trim().replace(/\/$/,"");admin.appSecret=$("appSecret").value;
- admin.articleMappings={Horizontalsperre:$("mapHorizontalsperre").value,Flächensperre:$("mapFlächensperre").value,Harzverpressung:$("mapHarzverpressung").value,"Wand-Sohlen-Anschluss":$("mapWandSohlen").value,smallJob:$("mapSmallJob").value};
- save();renderWorkExtras();status("adminStatus","Einstellungen dauerhaft gespeichert.",true);calculate();
+function articleOptions(selected){
+ return '<option value="">freie Leistung</option>'+admin.lexwareArticles.map(a=>`<option value="${a.id}" ${selected===a.id?"selected":""}>${esc(a.articleNumber?`${a.articleNumber} – `:"")}${esc(a.title)}</option>`).join("");
+}
+function articleOptions(selected){
+ return '<option value="">freie Leistung</option>'+admin.lexwareArticles.map(a=>`<option value="${a.id}" ${selected===a.id?"selected":""}>${esc(a.articleNumber?`${a.articleNumber} – `:"")}${esc(a.title)}</option>`).join("");
+}
+function renderAdminExtras(){
+ const b=$("adminExtras");b.innerHTML="";
+ admin.extras.forEach((e,i)=>{
+  const article=e.articleId?admin.lexwareArticles.find(a=>a.id===e.articleId):null;
+  b.innerHTML+=`<div class="catalog-row">
+   <div class="grid">
+    <div class="full"><label>Lexware-Artikel</label><select data-extra-article="${i}">${articleOptions(e.articleId||"")}</select></div>
+    ${article?`
+      <div class="full">
+        <strong>${esc(article.title)}</strong>
+        <div class="article-description">${esc(article.description||"")}</div>
+      </div>
+      <div><label>Einheit aus Lexware</label><input value="${esc(article.unitName||e.unit||"")}" readonly></div>
+      <div><label>Steuersatz aus Lexware</label><input value="${article.price&&article.price.taxRate!=null?article.price.taxRate+" %":"19 %"}" readonly></div>
+    `:`
+      <div><label>Leistung</label><input data-ae="${i}" data-aef="name" value="${esc(e.name)}"></div>
+      <div><label>Einheit</label><input data-ae="${i}" data-aef="unit" value="${esc(e.unit)}"></div>
+    `}
+    <div><label>Preis brutto aus der App</label><input data-ae="${i}" data-aef="gross" value="${e.gross}"></div>
+    <div><label>interne Kosten netto</label><input data-ae="${i}" data-aef="cost" value="${e.cost||0}"></div>
+    <label><input type="checkbox" data-aactive="${i}" ${e.active?"checked":""}> aktiv</label>
+    <button class="danger" data-aedel="${i}">Löschen</button>
+   </div>
+  </div>`;
+ });
+ b.querySelectorAll("[data-aef]").forEach(x=>x.oninput=()=>{
+  admin.extras[+x.dataset.ae][x.dataset.aef]=x.value;
+ });
+ b.querySelectorAll("[data-extra-article]").forEach(x=>x.onchange=()=>{
+  const e=admin.extras[+x.dataset.extraArticle];
+  e.articleId=x.value;
+  const article=admin.lexwareArticles.find(a=>a.id===x.value);
+  if(article){
+    e.name=article.title;
+    e.unit=article.unitName||e.unit;
+  }
+  renderAdminExtras();
+ });
+ b.querySelectorAll("[data-aactive]").forEach(x=>x.onchange=()=>admin.extras[+x.dataset.aactive].active=x.checked);
+ b.querySelectorAll("[data-aedel]").forEach(x=>x.onclick=()=>{
+  admin.extras.splice(+x.dataset.aedel,1);
+  renderAdminExtras();
+ });
 };
 $("resetAdmin").onclick=()=>{if(confirm("Standardwerte laden?")){admin=clone(DEFAULT_ADMIN);save();renderAdmin();status("adminStatus","Standardwerte geladen.",true)}};
 
@@ -214,20 +260,77 @@ async function api(path,opt={}){const c=cfg(),r=await fetch(c.url+path,{...opt,h
 
 async function pipedriveDialog(){const term=prompt("Kunde in Pipedrive suchen:");if(!term)return;try{const d=await api("/pipedrive/persons/search?term="+encodeURIComponent(term));if(!d.people.length)return alert("Kein Treffer.");const labels=d.people.map((p,i)=>`${i+1}: ${p.name} ${p.email||""}`).join("\n");const nr=+prompt(labels+"\n\nNummer auswählen:");const selected=d.people[nr-1];if(!selected)return;const detail=await api("/pipedrive/persons/"+selected.id),p=detail.person;visit.customer={...visit.customer,pipedriveId:p.id||"",firstName:p.firstName||"",lastName:p.lastName||p.name||"",email:p.email||"",phone:p.phone||"",street:p.street||"",zip:p.zip||"",city:p.city||"",objectAddress:p.objectAddress||""};save();renderVisit()}catch(e){alert(e.message)}}
 
+async function lexwareCustomerDialog(){
+  const term=prompt("Bestehenden Kunden in Lexware suchen:\nName, E-Mail oder Kundennummer");
+  if(!term)return;
+
+  try{
+    const data=await api("/lexware/contacts/search?term="+encodeURIComponent(term));
+
+    if(!data.contacts||!data.contacts.length){
+      alert("Kein passender Lexware-Kunde gefunden.");
+      return;
+    }
+
+    const labels=data.contacts.map((contact,index)=>{
+      const number=contact.customerNumber?` [${contact.customerNumber}]`:"";
+      const email=contact.email?` – ${contact.email}`:"";
+      return `${index+1}: ${contact.name}${number}${email}`;
+    }).join("\n");
+
+    const selectedNumber=+prompt(labels+"\n\nNummer auswählen:");
+    const selected=data.contacts[selectedNumber-1];
+    if(!selected)return;
+
+    const detail=await api("/lexware/contacts/"+encodeURIComponent(selected.id));
+    const customer=detail.contact;
+
+    visit.customer={
+      ...visit.customer,
+      lexwareContactId:customer.id||"",
+      salutation:customer.salutation||"",
+      firstName:customer.firstName||"",
+      lastName:customer.lastName||customer.name||"",
+      company:customer.company||"",
+      email:customer.email||"",
+      phone:customer.phone||"",
+      street:customer.street||"",
+      zip:customer.zip||"",
+      city:customer.city||""
+    };
+
+    save();
+    renderVisit();
+    alert("Lexware-Kundendaten wurden übernommen.");
+  }catch(error){
+    alert(error.message);
+  }
+}
+
+
 function lexwarePayload(){
  const totals=calculate(),customer=visit.customer;
  const visibleItems=totals.lineItems.filter(i=>!i.hidden);
  const factor=totals.pricing.offer/totals.baseGross || 1;
  const lineItems=visibleItems.map(item=>{
+  const mappedArticle=item.articleId?admin.lexwareArticles.find(a=>a.id===item.articleId):null;
   const grossUnit=item.grossUnit*factor;
-  const mapped=item.articleId;
+  const lineType=mappedArticle
+    ? (String(mappedArticle.type).toUpperCase()==="PRODUCT"?"material":"service")
+    : "custom";
   return{
-    ...(mapped?{id:mapped,type:"service"}:{type:"custom"}),
-    name:item.name,
-    description:item.description||"",
+    ...(mappedArticle?{id:mappedArticle.id,type:lineType}:{type:"custom"}),
+    name:mappedArticle?mappedArticle.title:item.name,
+    description:mappedArticle?(mappedArticle.description||""):(item.description||""),
     quantity:item.quantity,
-    unitName:item.unitName,
-    unitPrice:{currency:"EUR",grossAmount:+grossUnit.toFixed(2),taxRatePercentage:19},
+    unitName:mappedArticle?(mappedArticle.unitName||item.unitName):item.unitName,
+    unitPrice:{
+      currency:"EUR",
+      grossAmount:+grossUnit.toFixed(2),
+      taxRatePercentage:mappedArticle&&mappedArticle.price&&mappedArticle.price.taxRate!=null
+        ? +mappedArticle.price.taxRate
+        : 19
+    },
     discountPercentage:0
   };
  });
