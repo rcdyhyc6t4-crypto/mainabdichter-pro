@@ -1,43 +1,61 @@
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#78be20">
-<title>mainabdichter Pro V6</title>
-<link rel="stylesheet" href="styles.css">
-<link rel="manifest" href="manifest.json">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#76b82a">
+  <title>mainabdichter - BKM.MANNESMANN Fachbetrieb</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
-<header class="brand-header">
-  <div class="brand-wrap">
-    <img class="brand-logo" src="bkm-mannesmann-logo.png" alt="BKM MANNESMANN – Fachbetriebe für ein trockenes Zuhause">
-    <div class="brand-text">
-      <div class="main-word">mainabdichter – BKM.MANNESMANN Fachbetrieb</div>
-      <div class="subline">Bauwerksabdichtung mit System</div>
-    </div>
+<header class="app-header">
+  <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN Fachbetriebe">
+  <div>
+    <strong>mainabdichter - BKM.MANNESMANN Fachbetrieb</strong>
+    <small>Bauwerksabdichtung mit System</small>
   </div>
 </header>
 
-<nav>
-  <button class="active" data-page="visit">Besichtigung</button>
-  <button data-page="areas">Schadensbereiche</button>
-  <button data-page="calc">Kalkulation</button>
-  <button data-page="customer">Kundenansicht</button>
-  <button data-page="systems">Systeme</button>
-  <button data-page="settings">Einstellungen</button>
+<nav class="main-nav">
+  <button data-page="dashboard" class="active">Dashboard</button>
+  <button data-page="visit">Besichtigung</button>
+  <button data-page="offer">Angebot</button>
+  <button data-page="admin">Einstellungen</button>
 </nav>
 
 <main>
-<section id="visit" class="page active">
+<section id="dashboard" class="page active">
+  <div class="card">
+    <h1>Dashboard</h1>
+    <div class="dashboard-grid">
+      <button id="startVisit" class="dashboard-button primary">Neue Besichtigung</button>
+      <button id="continueVisit" class="dashboard-button secondary">Besichtigung fortsetzen</button>
+      <button id="openOffer" class="dashboard-button secondary">Angebot öffnen</button>
+      <button id="openAdmin" class="dashboard-button secondary">Einstellungen</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Aktuelle Preisbasis</h2>
+    <div class="metric"><span>Preisliste</span><strong id="dashboardPriceList">-</strong></div>
+    <div class="metric"><span>Letzter Kunde</span><strong id="dashboardCustomer">-</strong></div>
+    <div class="metric"><span>Aktuelle Angebotssumme</span><strong id="dashboardOffer">-</strong></div>
+  </div>
+</section>
+
+<section id="visit" class="page">
+  <div class="card">
+    <h1>Besichtigung</h1>
+    <div class="section-actions">
+      <button id="loadPipedrive" class="primary">Kunde aus Pipedrive</button>
+      <button id="clearVisit" class="secondary">Neue Besichtigung</button>
+    </div>
+  </div>
+
   <div class="card">
     <h2>1. Kunde</h2>
-    <div class="actions">
-      <button id="openPipedrive" class="primary">Aus Pipedrive laden</button>
-      <button id="newCustomer" class="secondary">Neuen Kunden erfassen</button>
-    </div>
     <div class="grid">
-      <div><label>Anrede</label><select id="salutation"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
+      <div><label>Anrede</label><select id="salutation"><option value="">-</option><option>Herr</option><option>Frau</option></select></div>
       <div><label>Vorname</label><input id="firstName"></div>
       <div><label>Nachname</label><input id="lastName"></div>
       <div><label>Telefon</label><input id="phone"></div>
@@ -47,7 +65,7 @@
       <div><label>PLZ</label><input id="zip"></div>
       <div><label>Ort</label><input id="city"></div>
       <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
-      <div class="full"><label>Pipedrive-ID</label><input id="pipedriveId" readonly></div>
+      <input id="pipedriveId" type="hidden">
     </div>
   </div>
 
@@ -56,37 +74,16 @@
     <div class="grid">
       <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
       <div><label>Bauart</label><select id="buildingType">
-        <option>freistehendes Einfamilienhaus</option>
-        <option>Doppelhaushälfte</option>
-        <option>Reihenmittelhaus</option>
-        <option>Reihenendhaus</option>
-        <option>Mehrfamilienhaus</option>
-        <option>Bungalow</option>
-        <option>Gewerbeobjekt</option>
-        <option>Sonstiges</option>
+        <option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option>
+        <option>Reihenmittelhaus</option><option>Reihenendhaus</option>
+        <option>Mehrfamilienhaus</option><option>Bungalow</option>
+        <option>Gewerbeobjekt</option><option>Sonstiges</option>
       </select></div>
-      <div><label>Geschoss</label><select id="floor">
-        <option>Keller</option>
-        <option>Erdgeschoss</option>
-        <option>Hochparterre</option>
-      </select></div>
+      <div><label>Geschoss</label><select id="floor"><option>Keller</option><option>Erdgeschoss</option><option>Hochparterre</option></select></div>
       <div><label>Raumnutzung</label><select id="roomUse"><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
-      <div><label>Fundamentart</label><select id="foundationType">
-        <option>Streifenfundament</option>
-        <option>durchgehende Bodenplatte</option>
-        <option>nicht bekannt</option>
-        <option>Sonstiges</option>
-      </select></div>
+      <div><label>Fundamentart</label><select id="foundationType"><option>Streifenfundament</option><option>durchgehende Bodenplatte</option><option>nicht bekannt</option><option>Sonstiges</option></select></div>
       <div><label>Raumhöhe m</label><input id="roomHeight" type="number" step=".01"></div>
-      <div><label>Bodenbelag (optional)</label><select id="floorCover">
-        <option value="">– keine Angabe –</option>
-        <option>Estrich</option>
-        <option>Fliesen</option>
-        <option>Beton</option>
-        <option>Gussasphalt</option>
-        <option>Unbekannt</option>
-        <option>Sonstiges</option>
-      </select></div>
+      <div><label>Bodenbelag (optional)</label><select id="floorCover"><option value="">- keine Angabe -</option><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
       <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
       <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
       <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
@@ -95,155 +92,152 @@
   </div>
 
   <div class="card">
-    <h2>3. Gesamtbeschreibung</h2>
+    <h2>3. Schadensbeschreibung</h2>
     <label>Schadensbild</label>
     <div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
     <label>Empfehlung für den Kunden</label>
     <div class="speech-row"><textarea id="customerDescription"></textarea><button class="speech" data-speech-target="customerDescription">🎤</button></div>
   </div>
-</section>
 
-<section id="areas" class="page">
   <div class="card">
-    <h2>Schadensbereiche</h2>
+    <h2>4. Schadensbereiche</h2>
     <div id="areaList"></div>
-    <button id="addArea" class="primary">+ Schadensbereich hinzufügen</button>
-    <p class="hint">Jeder Bereich enthält eigene Wanddaten, Messpunkte, Fotos und Maßnahmen.</p>
+    <button id="addArea" class="primary">+ Schadensbereich</button>
+  </div>
+
+  <div class="card">
+    <h2>5. Zusatzleistungen</h2>
+    <p class="hint">Es werden nur die in den Einstellungen angelegten Standardleistungen angezeigt. Beim Kunden gibst du nur die Menge ein.</p>
+    <div id="workExtras"></div>
+  </div>
+
+  <div class="sticky-actions">
+    <button id="saveVisit" class="secondary">Besichtigung speichern</button>
+    <button id="toOffer" class="primary">Zum Angebot</button>
   </div>
 </section>
 
-<section id="calc" class="page">
+<section id="offer" class="page">
   <div class="card">
-    <h2>Interne Kalkulation</h2>
-    <div id="calcAreas"></div>
-  </div>
-  <div class="card">
-    <h2>Zusatzleistungen</h2>
-    <div id="extraList"></div>
-    <button id="addExtra" class="primary">+ Zusatzleistung</button>
-  </div>
-  <div class="card">
-    <h2>Preisgestaltung</h2>
+    <h1>Angebot</h1>
     <div class="grid">
-      <div><label>Skonto</label>
-        <select id="discountType">
-          <option value="none">kein Skonto</option>
-          <option value="2">2 % Skonto</option>
-          <option value="3">3 % Skonto</option>
-          <option value="5">5 % Skonto</option>
-          <option value="custom">frei eingeben</option>
-        </select>
-      </div>
-      <div><label>Skonto frei in %</label><input id="discountCustom" type="number" step="0.1" value="0"></div>
-      <div><label>Sonderrabatt</label>
-        <select id="specialDiscountType">
-          <option value="none">kein Sonderrabatt</option>
-          <option value="percent">Prozent</option>
-          <option value="amount">Betrag in €</option>
-        </select>
-      </div>
-      <div><label>Sonderrabatt-Wert</label><input id="specialDiscountValue" type="number" step="0.01" value="0"></div>
-      <div class="full"><label>Bezeichnung des Sonderrabatts</label><input id="specialDiscountLabel" value="Sonderrabatt"></div>
+      <div><label>Skonto</label><select id="discountType"><option value="none">kein Skonto</option><option value="2">2 %</option><option value="3">3 %</option><option value="5">5 %</option><option value="custom">frei</option></select></div>
+      <div><label>Skonto frei %</label><input id="discountCustom" type="number" step=".1" value="0"></div>
+      <div><label>Sonderaktion</label><select id="specialType"><option value="none">keine Sonderaktion</option><option value="percent">Prozent</option><option value="amount">Betrag in €</option></select></div>
+      <div><label>Wert</label><input id="specialValue" type="number" step=".01" value="0"></div>
+      <div class="full"><label>Bezeichnung</label><input id="specialLabel" value="Sonderaktion"></div>
     </div>
   </div>
-  <div class="card">
-    <div class="metric"><span>Gesamtmaterial HZ</span><strong id="totalHz">–</strong></div>
-    <div class="metric"><span>Gesamtarbeitszeit</span><strong id="totalHours">–</strong></div>
-    <div class="metric"><span>Maßnahmen brutto</span><strong id="measureGross">–</strong></div>
-    <div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraGross">–</strong></div>
-    <div class="metric"><span>Normalpreis brutto</span><strong id="grandGross">–</strong></div>
-    <div class="metric"><span id="specialDiscountName">Sonderrabatt</span><strong id="specialDiscountAmount">–</strong></div>
-    <div class="metric"><span>Angebotssumme</span><strong id="offerGross" class="price">–</strong></div>
-    <div class="metric"><span id="skontoLabel">Skonto</span><strong id="skontoGross">–</strong></div>
-    <div class="metric"><span>Selbstkosten netto</span><strong id="selfNet">–</strong></div>
-    <div class="metric"><span>Deckungsbeitrag netto</span><strong id="marginNet">–</strong></div>
-  </div>
-</section>
 
-<section id="customer" class="page">
-  <div class="card customer-view">
-    <img class="customer-logo" src="bkm-mannesmann-logo.png" alt="BKM MANNESMANN">
-    <h2>mainabdichter</h2>
-    <div class="metric"><span>Kunde</span><strong id="cName">–</strong></div>
-    <div class="metric"><span>Objekt</span><strong id="cAddress">–</strong></div>
-    <div class="metric"><span>Empfehlung</span><strong id="cDescription">–</strong></div>
-    <div id="cAreas"></div>
-    <div id="cExtras"></div>
-    <div id="cNormalPriceRow" class="metric"><span>Normalpreis</span><strong id="cNormalPrice">–</strong></div>
-    <div id="cSpecialDiscountRow" class="metric"><span id="cSpecialDiscountLabel">Sonderrabatt</span><strong id="cSpecialDiscount">–</strong></div>
-    <div class="pricebox">
-      <div>Angebotssumme</div>
-      <strong id="cPrice" class="price">–</strong>
-      <small>inklusive gesetzlicher Umsatzsteuer</small>
+  <div class="card internal-card">
+    <div class="card-title-row">
+      <h2>Interne Kalkulation</h2>
+      <button id="toggleInternal" class="secondary">ein-/ausblenden</button>
     </div>
-    <div id="cSkontoRow" class="metric"><span id="cSkontoLabel">Skonto bei Zahlung innerhalb von 3 Werktagen</span><strong id="cSkonto">–</strong></div>
-    <div id="cPhotos" class="photo-grid"></div>
+    <div id="internalCalculation" class="hidden">
+      <div id="internalAreas"></div>
+      <div class="metric"><span>HZ-Material inkl. Reserve</span><strong id="totalHz">-</strong></div>
+      <div class="metric"><span>Arbeitszeit</span><strong id="totalHours">-</strong></div>
+      <div class="metric"><span>Materialkosten netto</span><strong id="materialCost">-</strong></div>
+      <div class="metric"><span>Personalkosten netto</span><strong id="personnelCost">-</strong></div>
+      <div class="metric"><span>Gesamte Selbstkosten netto</span><strong id="selfCost">-</strong></div>
+      <div class="metric"><span>Deckungsbeitrag netto</span><strong id="margin">-</strong></div>
+    </div>
   </div>
-  <button onclick="window.print()" class="primary">Drucken / PDF</button>
+
+  <div class="card customer-offer" id="customerOffer">
+    <div class="pdf-header">
+      <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
+      <div><strong>mainabdichter - BKM.MANNESMANN Fachbetrieb</strong><small>Bauwerksabdichtung mit System</small></div>
+    </div>
+    <h2>Angebot / Maßnahmenübersicht</h2>
+    <div class="metric"><span>Kunde</span><strong id="offerCustomer">-</strong></div>
+    <div class="metric"><span>Objekt</span><strong id="offerAddress">-</strong></div>
+    <div class="metric"><span>Empfehlung</span><strong id="offerDescription">-</strong></div>
+    <div id="offerMeasures"></div>
+    <div id="offerExtras"></div>
+    <div id="normalPriceRow" class="metric hidden"><span>Normalpreis</span><strong id="normalPrice">-</strong></div>
+    <div id="specialRow" class="metric hidden"><span id="specialRowLabel">Sonderaktion</span><strong id="specialAmount">-</strong></div>
+    <div class="pricebox"><span>Angebotssumme</span><strong id="offerPrice">-</strong><small>inkl. gesetzlicher Umsatzsteuer</small></div>
+    <div id="skontoRow" class="metric hidden"><span id="skontoText">Skonto</span><strong id="skontoPrice">-</strong></div>
+    <div id="offerPhotos" class="photo-grid"></div>
+  </div>
+
+  <div class="section-actions no-print">
+    <button id="printCustomerPdf" class="primary">Kunden-PDF erstellen</button>
+    <button id="printReportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
+    <button id="sendLexware" class="secondary">Kunde an Lexware</button>
+  </div>
+  <div id="offerStatus" class="status"></div>
 </section>
 
-<section id="systems" class="page">
+<section id="admin" class="page">
   <div class="card">
-    <h2>Pipedrive</h2>
-    <label>Suche nach Name, E-Mail oder Telefonnummer</label>
-    <input id="pdSearch">
-    <div class="actions"><button id="pdTest" class="secondary">Verbindung testen</button><button id="pdSearchBtn" class="primary">Suchen</button></div>
-    <div id="pdStatus" class="status"></div>
-    <div id="pdResults"></div>
+    <h1>Einstellungen</h1>
+    <p class="hint">Diese Werte gelten dauerhaft für alle neuen Kunden und werden nur bei Preisänderungen angepasst.</p>
   </div>
-  <div class="card">
-    <h2>Lexware Office</h2>
-    <div class="actions"><button id="lexTest" class="secondary">Verbindung testen</button><button id="lexSend" class="primary">Kunde an Lexware senden</button></div>
-    <div id="lexStatus" class="status"></div>
-    <p class="hint">Die Zugangsdaten werden unter Einstellungen einmalig gespeichert.</p>
-  </div>
-</section>
 
-<section id="settings" class="page">
-  <div class="card">
-    <h2>Kalkulationseinstellungen</h2>
+  <details class="card" open>
+    <summary>Aktive BKM-Preisliste</summary>
     <div class="grid">
-      <div><label>HZ-Einkaufspreis netto je Liter</label><input id="setMaterialEK" type="number" step="0.01"></div>
-      <div><label>HZ-Verkaufspreis netto je Liter</label><input id="setHzSell" type="number" step="0.01"></div>
-      <div><label>Personalkosten netto je Stunde</label><input id="setPersonnelCost" type="number" step="0.01"></div>
-      <div><label>Verkaufssatz netto je Arbeitsstunde</label><input id="setHourlySell" type="number" step="0.01"></div>
-      <div><label>Anzahl Mitarbeiter</label><input id="setWorkers" type="number" step="1"></div>
-      <div><label>Bohrleistung Löcher/Stunde</label><input id="setDrillRate" type="number" step="1"></div>
-      <div><label>Injektionsleistung Löcher/Stunde</label><input id="setFillRate" type="number" step="1"></div>
-      <div><label>Verschlussleistung Löcher/Stunde</label><input id="setCloseRate" type="number" step="1"></div>
-      <div><label>Rüstzeit Stunden</label><input id="setSetupHours" type="number" step="0.25"></div>
-      <div><label>Materialreserve %</label><input id="setReservePct" type="number" step="0.1"></div>
-      <div><label>Horizontaler Bohrlochabstand</label>
-        <select id="setSpacing">
-          <option value="0.125">12,5 cm</option>
-          <option value="0.25">25 cm</option>
-        </select>
-      </div>
-      <div><label>Vertikaler Reihenabstand Flächensperre</label><input value="25 cm (fest)" readonly></div>
-      <div><label>Faktor erste Reihe / Horizontalsperre</label><input id="setFactorHS" type="number" step="0.1"></div>
-      <div><label>Faktor weitere Reihen</label><input id="setFactorFS" type="number" step="0.1"></div>
-      <div><label>Wand-Sohlen-Anschluss brutto je lfm</label><input id="setWallSole" type="number" step="0.01"></div>
-      <div><label>Harzverpressung brutto je lfm</label><input id="setResin" type="number" step="0.01"></div>
-      <div><label>Flächensperre brutto je m²</label><input id="setAreaPrice" type="number" step="0.01"></div>
-      <div><label>Kleinmaterial netto je Baustelle</label><input id="setSmallCost" type="number" step="0.01"></div>
-      <div><label>Fixkostenanteil netto je Baustelle</label><input id="setFixedCost" type="number" step="0.01"></div>
+      <div><label>Bezeichnung</label><input id="priceListName"></div>
+      <div><label>Gültig ab</label><input id="priceListDate" type="date"></div>
     </div>
-    <div class="actions">
-      <button id="saveCalcSettings" class="primary">Kalkulation speichern</button>
-      <button id="resetCalcSettings" class="secondary">Standardwerte laden</button>
-    </div>
-    <div id="calcSettingsStatus" class="status"></div>
-  </div>
+    <h3>Wandstärken-Aufschläge</h3>
+    <div id="wallSurcharges"></div>
+    <h3>Horizontalsperre - Bruttopreise</h3><div id="hsPrices"></div>
+    <h3>Flächensperre - Bruttopreise</h3><div id="fsPrices"></div>
+    <h3>Harzverpressung - Bruttopreise</h3><div id="resinPrices"></div>
+  </details>
 
-  <div class="card">
-    <h2>Verbindungseinstellungen</h2>
+  <details class="card">
+    <summary>Material- und Arbeitskosten</summary>
+    <div class="grid">
+      <div><label>HZ Einkauf netto / Liter</label><input id="adminMaterialEK" type="number" step=".01"></div>
+      <div><label>Personalkosten netto / Stunde / Mitarbeiter</label><input id="adminPersonnelCost" type="number" step=".01"></div>
+      <div><label>Anzahl Mitarbeiter</label><input id="adminWorkers" type="number" step="1"></div>
+      <div><label>Bohrleistung Löcher / Stunde</label><input id="adminDrill" type="number"></div>
+      <div><label>Injektionsleistung Löcher / Stunde</label><input id="adminFill" type="number"></div>
+      <div><label>Verschlussleistung Löcher / Stunde</label><input id="adminClose" type="number"></div>
+      <div><label>Rüstzeit Stunden</label><input id="adminSetupHours" type="number" step=".25"></div>
+      <div><label>Materialreserve %</label><input id="adminReserve" type="number" step=".1"></div>
+      <div><label>Kleinmaterial netto / Baustelle</label><input id="adminSmallCost" type="number" step=".01"></div>
+      <div><label>Fixkostenanteil netto / Baustelle</label><input id="adminFixedCost" type="number" step=".01"></div>
+      <div><label>Harz-Materialkosten netto / lfm</label><input id="adminResinCost" type="number" step=".01"></div>
+      <div><label>Flächensperre-Materialkosten netto / m²</label><input id="adminAreaCost" type="number" step=".01"></div>
+      <div><label>Wand-Sohlen-Materialkosten netto / lfm</label><input id="adminWallSoleCost" type="number" step=".01"></div>
+      <div><label>Wand-Sohlen-Anschluss brutto / lfm</label><input id="adminWallSolePrice" type="number" step=".01"></div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>Standard-Zusatzleistungen</summary>
+    <div id="adminExtras"></div>
+    <button id="addAdminExtra" class="primary">+ Standardleistung</button>
+  </details>
+
+  <details class="card">
+    <summary>Schnittstellen</summary>
     <label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev">
     <label>APP_SECRET</label><input id="appSecret" type="password">
-    <div class="actions"><button id="saveConnection" class="primary">Verbindung speichern</button><button id="clearConnection" class="secondary">Verbindung neu einrichten</button></div>
-    <div id="settingsStatus" class="status"></div>
+  </details>
+
+  <div class="sticky-actions">
+    <button id="resetAdmin" class="secondary">BKM-Standardwerte laden</button>
+    <button id="saveAdmin" class="primary">Einstellungen speichern</button>
   </div>
+  <div id="adminStatus" class="status"></div>
 </section>
 </main>
-<script src="app.js"></script>
+
+<section id="reportDocument" class="print-document">
+  <div class="pdf-header">
+    <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
+    <div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter - BKM.MANNESMANN Fachbetrieb</small></div>
+  </div>
+  <div id="reportContent"></div>
+</section>
+
+<script src="js/app.js"></script>
 </body>
 </html>

@@ -1,18 +1,51 @@
-mainabdichter V6.1 – BKM.MANNESMANN Fachbetrieb
+mainabdichter Version 7.0
 
-Änderungen:
-- heller Header statt schwarzem Header
-- Bezeichnung: mainabdichter – BKM.MANNESMANN Fachbetrieb
-- Geschossauswahl nur Keller, Erdgeschoss, Hochparterre
-- Anzahl der Geschosse entfernt
-- neue Auswahl Bauart
-- neue Auswahl Fundamentart:
-  Streifenfundament, durchgehende Bodenplatte, nicht bekannt, Sonstiges
-- Bodenbelag nur noch optional
-- vollständige App inklusive Worker-Datei
+STRUKTUR
+- Dashboard
+- Besichtigung
+- Angebot
+- Einstellungen
 
-GitHub:
-index.html, styles.css, app.js, bkm-mannesmann-logo.png und manifest.json hochladen bzw. ersetzen.
+PREISE
+Die BKM-Preislisten sind einmalig als aktive Preisbasis hinterlegt:
+- Horizontalsperre, Stand 01.01.2017
+- Flächensperre, Stand 01.01.2017
+- Harzverpressung, Stand 01.01.2017
+- Wandstärken-Aufschläge für 24/30/36/42/48/60 cm
 
-Cloudflare:
-cloudflare-worker.js vollständig in den Worker-Editor kopieren und Deploy drücken.
+Die Preise werden beim Kunden NICHT bearbeitet.
+Änderungen erfolgen nur unter Einstellungen und gelten danach für alle neuen Kalkulationen.
+
+ARBEITSMODUS
+- Kunde manuell oder aus Pipedrive
+- Gebäude- und Raumdaten
+- Schadensbereiche
+- Messwerte
+- Fotos
+- Maßnahmen
+- Mengen der Standard-Zusatzleistungen
+- keine Preisfelder
+
+ANGEBOT
+- interne Kalkulation ein-/ausblendbar
+- Materialkosten
+- Personalkosten
+- Bohrlöcher
+- Arbeitszeit
+- Preis pro lfm / m²
+- Angebotssumme
+- Skonto
+- Sonderaktion
+- Kunden-PDF
+- Besichtigungsprotokoll als PDF
+
+GITHUB
+Gesamten Inhalt hochladen:
+- index.html
+- styles.css
+- js/app.js
+- assets/bkm-logo.png
+- manifest.json
+
+CLOUDFLARE
+cloudflare-worker.js in den Worker-Editor kopieren und Deploy drücken.
