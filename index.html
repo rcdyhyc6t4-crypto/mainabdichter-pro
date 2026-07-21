@@ -1,90 +1,74 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#76b82a">
-  <title>mainabdichter V9 - BKM.MANNESMANN Fachbetrieb</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="manifest" href="manifest.json">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#76b82a">
+<title>mainabdichter V10</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 <header class="app-header">
-  <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN Fachbetriebe">
-  <div>
-    <strong>mainabdichter - BKM.MANNESMANN Fachbetrieb</strong>
-    <small>Bauwerksabdichtung mit System</small>
-  </div>
+  <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
+  <div><strong>mainabdichter – BKM.MANNESMANN Fachbetrieb</strong><small>Bauwerksabdichtung mit System</small></div>
 </header>
-
 <nav class="main-nav">
   <button data-page="dashboard" class="active">Dashboard</button>
   <button data-page="visit">Besichtigung</button>
   <button data-page="offer">Angebot</button>
-  <button data-page="admin">Einstellungen</button>
+  <button data-page="settings">Einstellungen</button>
 </nav>
-
 <main>
 <section id="dashboard" class="page active">
-  <div class="card">
-    <h1>Dashboard</h1>
+  <div class="card"><h1>Dashboard</h1>
     <div class="dashboard-grid">
-      <button id="startVisit" class="dashboard-button primary">Neue Besichtigung</button>
-      <button id="continueVisit" class="dashboard-button secondary">Besichtigung fortsetzen</button>
-      <button id="openOffer" class="dashboard-button secondary">Angebot öffnen</button>
-      <button id="openAdmin" class="dashboard-button secondary">Einstellungen</button>
+      <button id="newVisit" class="primary">Neue Besichtigung</button>
+      <button id="continueVisit" class="secondary">Besichtigung fortsetzen</button>
+      <button id="openOffer" class="secondary">Angebot öffnen</button>
+      <button id="openSettings" class="secondary">Einstellungen</button>
     </div>
   </div>
   <div class="card">
-    <h2>Aktuelle Preisbasis</h2>
-    <div class="metric"><span>Preisliste</span><strong id="dashboardPriceList">-</strong></div>
-    <div class="metric"><span>Letzter Kunde</span><strong id="dashboardCustomer">-</strong></div>
-    <div class="metric"><span>Aktuelle Angebotssumme</span><strong id="dashboardOffer">-</strong></div>
+    <div class="metric"><span>Preisbasis</span><strong id="dashPriceList">–</strong></div>
+    <div class="metric"><span>Kunde</span><strong id="dashCustomer">–</strong></div>
+    <div class="metric"><span>Angebotssumme</span><strong id="dashOffer">–</strong></div>
   </div>
 </section>
 
 <section id="visit" class="page">
-  <div class="card">
-    <h1>Besichtigung</h1>
-    <div class="section-actions customer-source-actions">
-      <button id="loadPipedrive" class="primary">Kunde aus Pipedrive</button>
-      <button id="loadLexwareCustomer" class="secondary">Kunde aus Lexware</button>
-      <button id="clearVisit" class="secondary">Neue Besichtigung</button>
+  <div class="card"><h1>Besichtigung</h1>
+    <div class="customer-source-actions">
+      <button id="customerPipedrive" class="primary">Kunde aus Pipedrive</button>
+      <button id="customerLexware" class="secondary">Kunde aus Lexware</button>
+      <button id="resetVisit" class="secondary">Neue Besichtigung</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2>1. Kunde</h2>
+  <div class="card"><h2>1. Kunde</h2>
     <div class="grid">
-      <div><label>Anrede</label><select id="salutation"><option value="">-</option><option>Herr</option><option>Frau</option></select></div>
+      <div><label>Anrede</label><select id="salutation"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
       <div><label>Vorname</label><input id="firstName"></div>
       <div><label>Nachname</label><input id="lastName"></div>
+      <div><label>Firma</label><input id="company"></div>
       <div><label>Telefon</label><input id="phone"></div>
-      <div><label>E-Mail</label><input id="email" type="email"></div>
-      <div><label>Firma / Rechnungsempfänger</label><input id="company"></div>
+      <div><label>E-Mail</label><input id="email"></div>
       <div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
       <div><label>PLZ</label><input id="zip"></div>
       <div><label>Ort</label><input id="city"></div>
       <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
-      <input id="pipedriveId" type="hidden">
     </div>
   </div>
 
-  <div class="card">
-    <h2>2. Gebäude und Raum</h2>
+  <div class="card"><h2>2. Gebäude und Raum</h2>
     <div class="grid">
       <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
-      <div><label>Bauart</label><select id="buildingType">
-        <option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option>
-        <option>Reihenmittelhaus</option><option>Reihenendhaus</option>
-        <option>Mehrfamilienhaus</option><option>Bungalow</option>
-        <option>Gewerbeobjekt</option><option>Sonstiges</option>
-      </select></div>
+      <div><label>Bauart</label><select id="buildingType"><option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option><option>Reihenmittelhaus</option><option>Reihenendhaus</option><option>Mehrfamilienhaus</option><option>Bungalow</option><option>Gewerbeobjekt</option><option>Sonstiges</option></select></div>
       <div><label>Geschoss</label><select id="floor"><option>Keller</option><option>Erdgeschoss</option><option>Hochparterre</option></select></div>
       <div><label>Raumnutzung</label><select id="roomUse"><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
       <div><label>Fundamentart</label><select id="foundationType"><option>Streifenfundament</option><option>durchgehende Bodenplatte</option><option>nicht bekannt</option><option>Sonstiges</option></select></div>
       <div><label>Raumhöhe m</label><input id="roomHeight" type="number" step=".01"></div>
-      <div><label>Bodenbelag (optional)</label><select id="floorCover"><option value="">- keine Angabe -</option><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
+      <div><label>Bodenbelag optional</label><select id="floorCover"><option value="">– keine Angabe –</option><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
       <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
       <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
       <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
@@ -92,184 +76,93 @@
     </div>
   </div>
 
-  <div class="card">
-    <h2>3. Schadensbeschreibung</h2>
-    <label>Schadensbild</label>
-    <div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
-    <label>Empfehlung für den Kunden</label>
-    <div class="speech-row"><textarea id="customerDescription"></textarea><button class="speech" data-speech-target="customerDescription">🎤</button></div>
+  <div class="card"><h2>3. Schadensbeschreibung</h2>
+    <label>Schadensbild</label><div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
+    <label>Empfehlung für den Kunden</label><div class="speech-row"><textarea id="customerRecommendation"></textarea><button class="speech" data-speech-target="customerRecommendation">🎤</button></div>
   </div>
 
-  <div class="card">
-    <h2>4. Schadensbereiche</h2>
-    <div id="areaList"></div>
-    <button id="addArea" class="primary">+ Schadensbereich</button>
-  </div>
-
-  <div class="card">
-    <h2>5. Zusatzleistungen</h2>
-    <p class="hint">Es werden nur die in den Einstellungen angelegten Standardleistungen angezeigt. Beim Kunden gibst du nur die Menge ein.</p>
-    <div id="workExtras"></div>
-  </div>
-
-  <div class="sticky-actions">
-    <button id="saveVisit" class="secondary">Besichtigung speichern</button>
-    <button id="toOffer" class="primary">Zum Angebot</button>
-  </div>
+  <div class="card"><h2>4. Schadensbereiche</h2><div id="areas"></div><button id="addArea" class="primary">+ Schadensbereich</button></div>
+  <div class="card"><h2>5. Zusatzleistungen</h2><div id="extras"></div></div>
+  <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Zum Angebot</button></div>
 </section>
 
 <section id="offer" class="page">
-  <div class="card">
-    <h1>Angebot</h1>
+  <div class="card"><h1>Angebot</h1>
     <div class="grid">
-      <div><label>Skonto</label><select id="discountType"><option value="none">kein Skonto</option><option value="2">2 %</option><option value="3">3 %</option><option value="5">5 %</option><option value="custom">frei</option></select></div>
-      <div><label>Skonto frei %</label><input id="discountCustom" type="number" step=".1" value="0"></div>
-      <div><label>Sonderaktion</label><select id="specialType"><option value="none">keine Sonderaktion</option><option value="percent">Prozent</option><option value="amount">Betrag in €</option></select></div>
-      <div><label>Wert</label><input id="specialValue" type="number" step=".01" value="0"></div>
-      <div class="full"><label>Bezeichnung</label><input id="specialLabel" value="Sonderaktion"></div>
+      <div><label>Skonto</label><select id="skontoType"><option value="none">kein Skonto</option><option value="2">2 %</option><option value="3">3 %</option><option value="5">5 %</option><option value="custom">frei</option></select></div>
+      <div><label>Skonto frei %</label><input id="skontoCustom" type="number" step=".1"></div>
+      <div><label>Sonderaktion</label><select id="specialType"><option value="none">keine</option><option value="percent">Prozent</option><option value="amount">Betrag €</option></select></div>
+      <div><label>Wert</label><input id="specialValue" type="number" step=".01"></div>
+      <div class="full"><label>Bezeichnung</label><input id="specialLabel"></div>
     </div>
   </div>
-
-  <div class="card internal-card">
-    <div class="card-title-row">
-      <h2>Interne Kalkulation</h2>
-      <button id="toggleInternal" class="secondary">ein-/ausblenden</button>
-    </div>
-    <div id="internalCalculation" class="hidden">
-      <div id="internalAreas"></div>
-      <div class="metric"><span>HZ-Material inkl. Reserve</span><strong id="totalHz">-</strong></div>
-      <div class="metric"><span>Arbeitszeit</span><strong id="totalHours">-</strong></div>
-      <div class="metric"><span>Materialkosten netto</span><strong id="materialCost">-</strong></div>
-      <div class="metric"><span>Personalkosten netto</span><strong id="personnelCost">-</strong></div>
-      <div class="metric"><span>Gesamte Selbstkosten netto</span><strong id="selfCost">-</strong></div>
-      <div class="metric"><span>Deckungsbeitrag netto</span><strong id="margin">-</strong></div>
-    </div>
-  </div>
-
+  <div class="card"><div class="card-title-row"><h2>Interne Kalkulation</h2><button id="toggleInternal" class="secondary">ein-/ausblenden</button></div><div id="internalCalc" class="hidden"></div></div>
   <div class="card">
-    <h2>Angebotsübersicht</h2>
-    <div class="metric"><span>Kunde</span><strong id="offerCustomer">-</strong></div>
-    <div class="metric"><span>Objekt</span><strong id="offerAddress">-</strong></div>
-    <div class="metric"><span>Angebotssumme</span><strong id="offerPrice" class="offer-total">-</strong></div>
-    <p class="hint">Die Kundenansicht wird in einer vollständig getrennten Seite geöffnet. Dort sind keine internen Daten oder Einstellungen sichtbar.</p>
+    <div class="metric"><span>Kunde</span><strong id="offerCustomer">–</strong></div>
+    <div class="metric"><span>Objekt</span><strong id="offerAddress">–</strong></div>
+    <div class="metric"><span>Angebotssumme</span><strong id="offerGross" class="offer-total">–</strong></div>
+    <p class="hint">Die Kundenansicht wird separat geöffnet. Interne Daten sind dort nicht erreichbar.</p>
   </div>
-
-  <div class="section-actions no-print">
-    <button id="openCustomerPage" class="primary">Separate Kundenansicht öffnen</button>
-    <button id="printReportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
-    <button id="sendLexwareQuotation" class="secondary">Angebot als Lexware-Entwurf</button>
+  <div class="offer-actions">
+    <button id="openCustomerView" class="primary">Separate Kundenansicht öffnen</button>
+    <button id="reportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
+    <button id="sendLexware" class="secondary">Angebot als Lexware-Entwurf</button>
   </div>
   <div id="offerStatus" class="status"></div>
 </section>
 
-<section id="admin" class="page">
-  <div class="card">
-    <h1>Einstellungen</h1>
-    <p class="hint">Diese Werte gelten dauerhaft für alle neuen Kunden und werden nur bei Preisänderungen angepasst.</p>
-  </div>
-
-  <details class="card" open>
-    <summary>Kalkulationsbasis</summary>
-    <p class="hint">Diese Werte werden einmal gespeichert und gelten anschließend für alle Kunden.</p>
+<section id="settings" class="page">
+  <div class="card"><h1>Einstellungen</h1><p class="hint">Diese Werte gelten dauerhaft für alle Kunden.</p></div>
+  <details class="card" open><summary>Kalkulation</summary>
     <div class="grid">
-      <div><label>Bezeichnung der Preisbasis</label><input id="priceListName"></div>
+      <div><label>Preisbasis</label><input id="priceListName"></div>
       <div><label>Gültig ab</label><input id="priceListDate" type="date"></div>
-
-      <div><label>HZ 250 Pro Einkauf netto je Liter</label><input id="adminHzPurchase" type="number" step="0.01"></div>
-      <div><label>HZ 250 Pro Verkauf netto je Liter</label><input id="adminHzSale" type="number" step="0.01"></div>
-      <div><label>Materialreserve %</label><input id="adminReserve" type="number" step="0.1"></div>
-
-      <div><label>Bohrleistung Löcher/Stunde</label><input id="adminDrill" type="number" step="1"></div>
-      <div><label>Injektionsleistung Löcher/Stunde</label><input id="adminFill" type="number" step="1"></div>
-      <div><label>Verschlussleistung Löcher/Stunde</label><input id="adminClose" type="number" step="1"></div>
-      <div><label>Rüstzeit Stunden</label><input id="adminSetupHours" type="number" step="0.25"></div>
-
-      <div><label>Kleinbaustellenregel aktiv</label>
-        <select id="adminSmallJobEnabled"><option value="true">Ja</option><option value="false">Nein</option></select>
-      </div>
-      <div><label>Grenze Horizontalsperre in lfm</label><input id="adminSmallJobThreshold" type="number" step="0.1"></div>
-      <div><label>Art des Aufschlags</label>
-        <select id="adminSmallJobType"><option value="amount">fester Betrag brutto</option><option value="percent">Prozent</option></select>
-      </div>
-      <div><label>Aufschlag</label><input id="adminSmallJobValue" type="number" step="0.01"></div>
-      <div><label>In Kundenansicht separat anzeigen</label>
-        <select id="adminSmallJobVisible"><option value="false">Nein, nur einrechnen</option><option value="true">Ja</option></select>
-      </div>
-
-      <div><label>Wand-Sohlen-Anschluss brutto je lfm</label><input id="adminWallSolePrice" type="number" step="0.01"></div>
-      <div><label>Zusätzliches Harz netto je kg</label><input id="adminExtraResinKgPrice" type="number" step="0.01"></div>
+      <div><label>HZ Einkauf netto/Liter</label><input id="hzPurchaseNet" type="number" step=".01"></div>
+      <div><label>HZ Verkauf netto/Liter</label><input id="hzSaleNet" type="number" step=".01"></div>
+      <div><label>Reserve %</label><input id="reservePct" type="number" step=".1"></div>
+      <div><label>Bohrleistung Löcher/Stunde</label><input id="drillRate" type="number"></div>
+      <div><label>Injektionsleistung Löcher/Stunde</label><input id="fillRate" type="number"></div>
+      <div><label>Verschlussleistung Löcher/Stunde</label><input id="closeRate" type="number"></div>
+      <div><label>Rüstzeit Stunden</label><input id="setupHours" type="number" step=".25"></div>
+      <div><label>Wand-Sohlen-Anschluss brutto/lfm</label><input id="wallSoleGrossPerMeter" type="number" step=".01"></div>
+      <div><label>Zusätzliches Harz netto/kg</label><input id="extraResinKgNet" type="number" step=".01"></div>
     </div>
-
-    <h3>Harzverpressung – Bruttopreise laut Preisliste</h3>
-    <div id="resinPrices"></div>
-  </details>
-
-  <details class="card">
-    <summary>Standard-Zusatzleistungen / Lexware-Artikel</summary>
-    <p class="hint">Vorhandene Lexware-Artikel wie Baustelleneinrichtung oder Sauberkeitspaket können direkt zugeordnet werden. Artikelname, Artikeltext, Einheit und Preis werden unverändert aus Lexware übernommen.</p>
-    <div class="section-actions">
-      <button id="loadLexwareExtraArticles" class="secondary">Lexware-Artikel aktualisieren</button>
-      <button id="addAdminExtra" class="primary">+ freie Standardleistung</button>
-    </div>
-    <div id="extraArticleStatus" class="status"></div>
-    <div id="adminExtras"></div>
-  </details>
-
-  <details class="card">
-    <summary>Lexware-Artikelzuordnung</summary>
-    <p class="hint">Optional. Ohne Zuordnung werden die Positionen als freie Leistungen an Lexware übertragen.</p>
-    <div class="section-actions">
-      <button id="loadLexwareArticles" class="secondary">Lexware-Artikel laden</button>
-      <button id="clearArticleMappings" class="secondary">Zuordnungen löschen</button>
-    </div>
-    <div id="articleMappingStatus" class="status"></div>
-    <div id="measureMappingWarning" class="mapping-warning"></div>
+    <h3>Kleinbaustellenregel</h3>
     <div class="grid">
-      <div><label>Horizontalsperre</label><select id="mapHorizontalsperre"><option value="">freie Position</option></select></div>
-      <div><label>Flächensperre</label><select id="mapFlächensperre"><option value="">freie Position</option></select></div>
-      <div><label>Harzverpressung</label><select id="mapHarzverpressung"><option value="">freie Position</option></select></div>
-      <div><label>Wand-Sohlen-Anschluss</label><select id="mapWandSohlen"><option value="">freie Position</option></select></div>
-      <div><label>Kleinbaustellenzuschlag</label><select id="mapSmallJob"><option value="">freie Position</option></select></div>
+      <div><label>Aktiv</label><select id="smallJobEnabled"><option value="true">Ja</option><option value="false">Nein</option></select></div>
+      <div><label>Grenze lfm</label><input id="smallJobThreshold" type="number" step=".1"></div>
+      <div><label>Art</label><select id="smallJobType"><option value="amount">fester Betrag</option><option value="percent">Prozent</option></select></div>
+      <div><label>Wert</label><input id="smallJobValue" type="number" step=".01"></div>
+      <div><label>Dem Kunden zeigen</label><select id="smallJobVisible"><option value="false">Nein</option><option value="true">Ja</option></select></div>
     </div>
   </details>
 
-  <details class="card" open>
-    <summary>Schnittstellen</summary>
-    <label>Worker-URL</label>
-    <input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev" autocomplete="url">
-
-    <label>APP_SECRET</label>
-    <input id="appSecret" type="password" autocomplete="off">
-
-    <div class="section-actions connection-actions">
-      <button id="saveConnectionOnly" class="primary">Zugangsdaten speichern</button>
-      <button id="testConnections" class="secondary">Verbindungen testen</button>
+  <details class="card"><summary>Lexware-Artikel</summary>
+    <button id="loadArticles" class="secondary">Lexware-Artikel laden</button>
+    <div id="articleStatus" class="status"></div>
+    <div class="grid">
+      <div><label>Horizontalsperre</label><select id="mapHorizontalsperre"></select></div>
+      <div><label>Flächensperre</label><select id="mapFlächensperre"></select></div>
+      <div><label>Harzverpressung</label><select id="mapHarzverpressung"></select></div>
+      <div><label>Wand-Sohlen-Anschluss</label><select id="mapWandSohle"></select></div>
+      <div><label>Kleinbaustellenzuschlag</label><select id="mapSmallJob"></select></div>
     </div>
+    <h3>Standard-Zusatzleistungen</h3><div id="settingsExtras"></div><button id="addExtra" class="primary">+ Zusatzleistung</button>
+  </details>
 
-    <div class="connection-grid">
-      <div id="cloudflareConnection" class="connection-state">Cloudflare: nicht geprüft</div>
-      <div id="lexwareConnection" class="connection-state">Lexware: nicht geprüft</div>
-      <div id="pipedriveConnection" class="connection-state">Pipedrive: nicht geprüft</div>
-    </div>
+  <details class="card" open><summary>Schnittstellen</summary>
+    <label>Worker-URL</label><input id="workerUrl">
+    <label>APP_SECRET</label><input id="appSecret" type="password">
+    <div class="connection-actions"><button id="saveConnection" class="primary">Zugangsdaten speichern</button><button id="testConnection" class="secondary">Verbindungen testen</button></div>
+    <div class="connection-grid"><div id="stateCloudflare" class="connection-state">Cloudflare: nicht geprüft</div><div id="stateLexware" class="connection-state">Lexware: nicht geprüft</div><div id="statePipedrive" class="connection-state">Pipedrive: nicht geprüft</div></div>
     <div id="connectionStatus" class="status"></div>
   </details>
 
-  <div class="sticky-actions">
-    <button id="resetAdmin" class="secondary">BKM-Standardwerte laden</button>
-    <button id="saveAdmin" class="primary">Einstellungen speichern</button>
-  </div>
-  <div id="adminStatus" class="status"></div>
+  <div class="sticky-actions"><button id="resetSettings" class="secondary">Standardwerte laden</button><button id="saveSettings" class="primary">Einstellungen speichern</button></div>
+  <div id="settingsStatus" class="status"></div>
 </section>
 </main>
-
-<section id="reportDocument" class="print-document">
-  <div class="pdf-header">
-    <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
-    <div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter - BKM.MANNESMANN Fachbetrieb</small></div>
-  </div>
-  <div id="reportContent"></div>
-</section>
-
-<script src="js/app.js"></script>
+<section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

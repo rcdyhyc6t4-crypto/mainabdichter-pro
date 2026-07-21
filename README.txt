@@ -1,28 +1,42 @@
-mainabdichter Version 9.1 – Speicherung und Verbindungstest
+mainabdichter V10 – modularer Neuaufbau
 
-BEHOBEN
-- Worker-URL und APP_SECRET werden zuverlässig gespeichert.
-- Die Werte werden zusätzlich separat im Browser gespeichert.
-- Nach einem Neuladen werden beide Felder automatisch wiederhergestellt.
-- Der allgemeine Button 'Einstellungen speichern' speichert ebenfalls die Schnittstellen.
-- Bereits eingetragene, aber noch nicht gespeicherte Zugangsdaten können beim Verbindungstest direkt verwendet werden.
+DATEIEN
+- index.html
+- customer.html
+- css/app.css
+- css/customer.css
+- js/defaults.js
+- js/storage.js
+- js/calculator.js
+- js/api.js
+- js/utils.js
+- js/app.js
+- js/customer.js
+- assets/bkm-logo.png
+- manifest.json
+- cloudflare-worker.js
 
-NEU
-- Button 'Zugangsdaten speichern'
-- Button 'Verbindungen testen'
-- getrennte Statusanzeigen für:
-  - Cloudflare Worker
-  - Lexware Office
-  - Pipedrive
-- Lexware-Artikel können erst nach erfolgreicher Speicherung zuverlässig geladen werden.
-- Bei falschem APP_SECRET wird der Fehler direkt angezeigt.
+KERNFUNKTIONEN
+- Kunden aus Pipedrive laden
+- bestehende Kunden aus Lexware laden
+- Kundendaten manuell erfassen
+- Schadensbereiche, Messwerte, Fotos und Spracheingabe
+- Horizontalsperre, Flächensperre, Harzverpressung und Wand-Sohlen-Anschluss
+- Berechnung in eigenem Modul calculator.js
+- HZ-Einkaufs- und Verkaufspreis je Liter
+- Faktoren 14/10
+- horizontal 12,5 oder 25 cm
+- vertikal fest 25 cm
+- Kleinbaustellenregel
+- Lexware-Artikelzuordnung
+- Lexware-Artikeltext, Einheit und Steuer bleiben erhalten
+- Preis wird aus der App übernommen
+- Lexware-Angebot als Entwurf
+- separate Kundenansicht ohne Zugriff auf interne Daten
+- Kunden-PDF und Besichtigungsprotokoll
 
 GITHUB
-Die vollständige Struktur kann hochgeladen werden.
-Bei bereits installierter V9 reichen:
-- index.html
-- styles.css
-- js/app.js
+Die gesamte Struktur hochladen. Alte Dateien im Repository können entfernt werden, wenn sie nicht zu dieser Struktur gehören.
 
 CLOUDFLARE
-Der Worker ist gegenüber V9 inhaltlich unverändert und liegt vollständig im Paket.
+cloudflare-worker.js vollständig ersetzen und Deploy drücken.
