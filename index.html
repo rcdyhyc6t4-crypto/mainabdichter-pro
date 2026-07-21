@@ -123,12 +123,38 @@
     <button id="addExtra" class="primary">+ Zusatzleistung</button>
   </div>
   <div class="card">
+    <h2>Preisgestaltung</h2>
+    <div class="grid">
+      <div><label>Skonto</label>
+        <select id="discountType">
+          <option value="none">kein Skonto</option>
+          <option value="2">2 % Skonto</option>
+          <option value="3">3 % Skonto</option>
+          <option value="5">5 % Skonto</option>
+          <option value="custom">frei eingeben</option>
+        </select>
+      </div>
+      <div><label>Skonto frei in %</label><input id="discountCustom" type="number" step="0.1" value="0"></div>
+      <div><label>Sonderrabatt</label>
+        <select id="specialDiscountType">
+          <option value="none">kein Sonderrabatt</option>
+          <option value="percent">Prozent</option>
+          <option value="amount">Betrag in €</option>
+        </select>
+      </div>
+      <div><label>Sonderrabatt-Wert</label><input id="specialDiscountValue" type="number" step="0.01" value="0"></div>
+      <div class="full"><label>Bezeichnung des Sonderrabatts</label><input id="specialDiscountLabel" value="Sonderrabatt"></div>
+    </div>
+  </div>
+  <div class="card">
     <div class="metric"><span>Gesamtmaterial HZ</span><strong id="totalHz">–</strong></div>
     <div class="metric"><span>Gesamtarbeitszeit</span><strong id="totalHours">–</strong></div>
     <div class="metric"><span>Maßnahmen brutto</span><strong id="measureGross">–</strong></div>
     <div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraGross">–</strong></div>
-    <div class="metric"><span>Gesamtpreis brutto</span><strong id="grandGross" class="price">–</strong></div>
-    <div class="metric"><span>5 % Skonto</span><strong id="skontoGross">–</strong></div>
+    <div class="metric"><span>Normalpreis brutto</span><strong id="grandGross">–</strong></div>
+    <div class="metric"><span id="specialDiscountName">Sonderrabatt</span><strong id="specialDiscountAmount">–</strong></div>
+    <div class="metric"><span>Angebotssumme</span><strong id="offerGross" class="price">–</strong></div>
+    <div class="metric"><span id="skontoLabel">Skonto</span><strong id="skontoGross">–</strong></div>
     <div class="metric"><span>Selbstkosten netto</span><strong id="selfNet">–</strong></div>
     <div class="metric"><span>Deckungsbeitrag netto</span><strong id="marginNet">–</strong></div>
   </div>
@@ -143,12 +169,14 @@
     <div class="metric"><span>Empfehlung</span><strong id="cDescription">–</strong></div>
     <div id="cAreas"></div>
     <div id="cExtras"></div>
+    <div id="cNormalPriceRow" class="metric"><span>Normalpreis</span><strong id="cNormalPrice">–</strong></div>
+    <div id="cSpecialDiscountRow" class="metric"><span id="cSpecialDiscountLabel">Sonderrabatt</span><strong id="cSpecialDiscount">–</strong></div>
     <div class="pricebox">
-      <div>Empfohlener Gesamtpreis</div>
+      <div>Angebotssumme</div>
       <strong id="cPrice" class="price">–</strong>
       <small>inklusive gesetzlicher Umsatzsteuer</small>
     </div>
-    <div class="metric"><span>5 % Skonto bei Zahlung innerhalb von 3 Werktagen</span><strong id="cSkonto">–</strong></div>
+    <div id="cSkontoRow" class="metric"><span id="cSkontoLabel">Skonto bei Zahlung innerhalb von 3 Werktagen</span><strong id="cSkonto">–</strong></div>
     <div id="cPhotos" class="photo-grid"></div>
   </div>
   <button onclick="window.print()" class="primary">Drucken / PDF</button>
@@ -172,6 +200,41 @@
 </section>
 
 <section id="settings" class="page">
+  <div class="card">
+    <h2>Kalkulationseinstellungen</h2>
+    <div class="grid">
+      <div><label>HZ-Einkaufspreis netto je Liter</label><input id="setMaterialEK" type="number" step="0.01"></div>
+      <div><label>HZ-Verkaufspreis netto je Liter</label><input id="setHzSell" type="number" step="0.01"></div>
+      <div><label>Personalkosten netto je Stunde</label><input id="setPersonnelCost" type="number" step="0.01"></div>
+      <div><label>Verkaufssatz netto je Arbeitsstunde</label><input id="setHourlySell" type="number" step="0.01"></div>
+      <div><label>Anzahl Mitarbeiter</label><input id="setWorkers" type="number" step="1"></div>
+      <div><label>Bohrleistung Löcher/Stunde</label><input id="setDrillRate" type="number" step="1"></div>
+      <div><label>Injektionsleistung Löcher/Stunde</label><input id="setFillRate" type="number" step="1"></div>
+      <div><label>Verschlussleistung Löcher/Stunde</label><input id="setCloseRate" type="number" step="1"></div>
+      <div><label>Rüstzeit Stunden</label><input id="setSetupHours" type="number" step="0.25"></div>
+      <div><label>Materialreserve %</label><input id="setReservePct" type="number" step="0.1"></div>
+      <div><label>Horizontaler Bohrlochabstand</label>
+        <select id="setSpacing">
+          <option value="0.125">12,5 cm</option>
+          <option value="0.25">25 cm</option>
+        </select>
+      </div>
+      <div><label>Vertikaler Reihenabstand Flächensperre</label><input value="25 cm (fest)" readonly></div>
+      <div><label>Faktor erste Reihe / Horizontalsperre</label><input id="setFactorHS" type="number" step="0.1"></div>
+      <div><label>Faktor weitere Reihen</label><input id="setFactorFS" type="number" step="0.1"></div>
+      <div><label>Wand-Sohlen-Anschluss brutto je lfm</label><input id="setWallSole" type="number" step="0.01"></div>
+      <div><label>Harzverpressung brutto je lfm</label><input id="setResin" type="number" step="0.01"></div>
+      <div><label>Flächensperre brutto je m²</label><input id="setAreaPrice" type="number" step="0.01"></div>
+      <div><label>Kleinmaterial netto je Baustelle</label><input id="setSmallCost" type="number" step="0.01"></div>
+      <div><label>Fixkostenanteil netto je Baustelle</label><input id="setFixedCost" type="number" step="0.01"></div>
+    </div>
+    <div class="actions">
+      <button id="saveCalcSettings" class="primary">Kalkulation speichern</button>
+      <button id="resetCalcSettings" class="secondary">Standardwerte laden</button>
+    </div>
+    <div id="calcSettingsStatus" class="status"></div>
+  </div>
+
   <div class="card">
     <h2>Verbindungseinstellungen</h2>
     <label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev">
