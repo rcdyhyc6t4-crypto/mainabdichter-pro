@@ -1,103 +1,121 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#17365D"><title>Mainabdichter Pro V3</title>
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17365D">
+<title>Mainabdichter Pro V4.1</title>
+<link rel="manifest" href="manifest.json">
 <style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Arial;background:#eef3f8;color:#1f2937}header{background:#17365D;color:#fff;padding:16px;position:sticky;top:0;z-index:5}header h1{margin:0;font-size:20px}nav{display:flex;gap:8px;overflow:auto;padding:10px;background:#fff;position:sticky;top:59px;z-index:4;border-bottom:1px solid #d7dee8}button{border:0;border-radius:10px;padding:11px 13px;font-weight:700}nav button{white-space:nowrap;background:#e8eef6;color:#17365D}nav button.active,.primary{background:#2F75B5;color:#fff}.secondary{background:#e8eef6;color:#17365D}.danger{background:#fee2e2;color:#991b1b}main{max-width:800px;margin:auto;padding:14px}.page{display:none}.page.active{display:block}.card{background:#fff;border-radius:15px;padding:15px;margin:12px 0;box-shadow:0 2px 10px rgba(23,54,93,.08)}h2{font-size:17px;color:#17365D;margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}input,select,textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d7dee8;border-radius:10px;background:#fff2cc;font-size:16px}textarea{min-height:75px}.metric{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf0f4}.metric strong{color:#17365D;text-align:right}.price{font-size:30px;color:#1f6b2b!important}.hero{background:linear-gradient(145deg,#fff,#eef6ff)}.pricebox{text-align:center;padding:16px;border:1px solid #d8e6f5;border-radius:14px;margin:14px 0}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.extra{display:grid;grid-template-columns:1.4fr .6fr .6fr .6fr auto;gap:7px;margin-bottom:8px;align-items:end}.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.photo{border:1px solid #ddd;border-radius:10px;padding:8px}.photo img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}.hidden{display:none}.note{font-size:12px;color:#6b7280}@media(max-width:600px){.grid,.actions{grid-template-columns:1fr}.extra{grid-template-columns:1fr 1fr}.photo-grid{grid-template-columns:1fr 1fr}}@media print{header,nav,.no-print{display:none!important}.page{display:none!important}#customer{display:block!important}.card{box-shadow:none;border:1px solid #ddd}}
-</style></head><body>
-<header><h1>Mainabdichter Pro V3</h1></header>
+:root{--blue:#17365D;--blue2:#2F75B5;--bg:#eef3f8;--card:#fff;--border:#d7dee8;--yellow:#fff2cc}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;background:var(--bg);color:#1f2937}
+header{background:var(--blue);color:#fff;padding:16px;position:sticky;top:0;z-index:10}header h1{margin:0;font-size:20px}
+nav{display:flex;gap:8px;overflow:auto;padding:10px;background:#fff;position:sticky;top:59px;z-index:9;border-bottom:1px solid var(--border)}
+button{border:0;border-radius:10px;padding:11px 13px;font-weight:700;font-size:15px}
+nav button{white-space:nowrap;background:#e8eef6;color:var(--blue)}nav button.active,.primary{background:var(--blue2);color:#fff}.secondary{background:#e8eef6;color:var(--blue)}.danger{background:#fee2e2;color:#991b1b}
+main{max-width:860px;margin:auto;padding:14px}.page{display:none}.page.active{display:block}.card{background:#fff;border-radius:15px;padding:15px;margin:12px 0;box-shadow:0 2px 10px rgba(23,54,93,.08)}
+h2{font-size:17px;color:var(--blue);margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}input,select,textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--yellow);font-size:16px}
+textarea{min-height:75px}.metric{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf0f4}.metric strong{color:var(--blue);text-align:right}
+.price{font-size:30px;color:#1f6b2b!important}.pricebox{text-align:center;padding:16px;border:1px solid #d8e6f5;border-radius:14px;margin:14px 0;background:#fff}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.measure-card{border:1px solid #d7dee8;border-radius:14px;padding:12px;margin:10px 0;background:#fbfdff}
+.measure-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.measure-head h3{margin:0;color:var(--blue);font-size:16px}
+.measure-result{margin-top:10px;background:#f3f7fb;border-radius:10px;padding:10px}.note{font-size:12px;color:#6b7280}.status{padding:10px;border-radius:10px;margin-top:10px;display:none}
+.ok{display:block;background:#dcfce7;color:#166534}.err{display:block;background:#fee2e2;color:#991b1b}
+@media(max-width:650px){.grid,.actions{grid-template-columns:1fr}}
+@media print{header,nav,.no-print{display:none!important}.page{display:none!important}#customer{display:block!important}.card{box-shadow:none;border:1px solid #ddd}}
+</style></head>
+<body>
+<header><h1>Mainabdichter Pro V4.1</h1></header>
 <nav class="no-print">
 <button class="active" onclick="show('customer',this)">Kundenansicht</button>
-<button onclick="show('capture',this)">Erfassung</button>
-<button onclick="show('internal',this)">Interne Kalkulation</button>
-<button onclick="show('photos',this)">Fotos</button>
-<button onclick="show('settings',this)">Einstellungen</button>
-</nav><main>
+<button onclick="show('capture',this)">Kundendaten</button>
+<button onclick="show('measures',this)">Maßnahmen</button>
+<button onclick="show('internal',this)">Kalkulation</button>
+<button onclick="show('lexware',this)">Lexware</button>
+</nav>
+<main>
 
-<section id="customer" class="page active"><div class="card hero">
+<section id="customer" class="page active"><div class="card">
 <h2>Mainabdichter</h2>
 <div class="metric"><span>Kunde</span><strong id="ck">–</strong></div>
 <div class="metric"><span>Objekt</span><strong id="ca">–</strong></div>
-<div class="metric"><span>Maßnahme</span><strong id="cm">–</strong></div>
-<div class="metric"><span>Umfang</span><strong id="cu">–</strong></div>
+<div id="customerMeasures"></div>
 <div class="metric"><span>Beschreibung</span><strong id="cd">–</strong></div>
 <div class="pricebox"><div>Empfohlener Gesamtpreis</div><strong id="cp" class="price">–</strong><div>inkl. MwSt.</div></div>
 <div class="metric"><span>5 % Skonto bei Zahlung binnen 3 Werktagen</span><strong id="cs">–</strong></div>
-<div id="customerPhotos"></div>
-</div><div class="actions no-print"><button class="primary" onclick="print()">PDF / Drucken</button><button class="secondary" onclick="show('internal',document.querySelectorAll('nav button')[2])">Interne Kalkulation</button></div></section>
+</div></section>
 
-<section id="capture" class="page">
-<div class="card"><h2>Kunde und Objekt</h2><div class="grid">
-<div><label>Kunde</label><input id="kunde" oninput="calc()"></div><div><label>Telefon</label><input id="telefon"></div>
-<div><label>E-Mail</label><input id="email"></div><div><label>Rechnungsempfänger</label><input id="rechnung"></div>
-<div class="full"><label>Objektanschrift</label><input id="adresse" oninput="calc()"></div>
-<div class="full actions no-print"><button class="secondary" onclick="gps()">Standort übernehmen</button><button class="secondary" onclick="maps()">Karten öffnen</button></div>
-<div><label>Messwert unten</label><input id="unten" type="number"></div><div><label>Messwert oben</label><input id="oben" type="number"></div>
-<div><label>Feuchtehöhe</label><input id="feuchte" type="number" step=".01"></div><div><label>Messgerät</label><input id="geraet" value="Gann Hydromette Compact B"></div>
+<section id="capture" class="page"><div class="card"><h2>Kunde und Objekt</h2><div class="grid">
+<div><label>Anrede</label><select id="anrede"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
+<div><label>Vorname</label><input id="vorname" oninput="calc()"></div>
+<div><label>Nachname *</label><input id="nachname" oninput="calc()"></div>
+<div><label>Telefon</label><input id="telefon"></div>
+<div><label>E-Mail</label><input id="email" type="email"></div>
+<div><label>Rechnungsempfänger/Firma</label><input id="firma"></div>
+<div class="full"><label>Straße und Hausnummer *</label><input id="strasse" oninput="calc()"></div>
+<div><label>PLZ *</label><input id="plz" inputmode="numeric" oninput="calc()"></div>
+<div><label>Ort *</label><input id="ort" oninput="calc()"></div>
+<div class="full"><label>Objektanschrift, falls abweichend</label><input id="objekt" oninput="calc()"></div>
 <div class="full"><label>Beschreibung für Kundenansicht</label><textarea id="beschreibung" oninput="calc()"></textarea></div>
-<div class="full"><label>Interne Notizen</label><textarea id="notizen"></textarea></div>
-</div></div>
-<div class="card"><h2>Maßnahme</h2><div class="grid">
-<div><label>Hauptmaßnahme</label><select id="massnahme" onchange="toggle();calc()"><option>Horizontalsperre</option><option>Flächensperre</option><option>Wand-Sohlen-Anschluss</option><option>Harzverpressung</option></select></div>
-<div><label>Wandstärke cm</label><input id="wand" type="number" value="30" oninput="calc()"></div>
-<div id="lenBox"><label>Länge lfm</label><input id="laenge" type="number" value="8" step=".01" oninput="calc()"></div>
-<div id="areaBox" class="hidden"><label>Fläche m²</label><input id="flaeche" type="number" step=".01" oninput="calc()"></div>
-</div><p class="note">Beim Wand-Sohlen-Anschluss wird automatisch eine Horizontalsperre über dieselbe Länge ergänzt.</p></div>
-</section>
+</div></div></section>
 
-<section id="internal" class="page">
-<div class="card"><h2>Hauptkalkulation</h2>
-<div class="metric"><span>Bohrlöcher</span><strong id="holes">–</strong></div>
-<div class="metric"><span>Material rechnerisch</span><strong id="liters">–</strong></div>
-<div class="metric"><span>Material inkl. Reserve</span><strong id="reserve">–</strong></div>
-<div class="metric"><span>Arbeitszeit</span><strong id="hours">–</strong></div>
-<div class="metric"><span>Grundpreis brutto</span><strong id="base">–</strong></div></div>
-<div class="card"><h2>Zusatzleistungen</h2><div id="extras"></div><button class="secondary no-print" onclick="addExtra()">+ Position</button>
-<p class="note">Beispiele: Bauschutt entsorgen, Vorarbeiten, Heizkörper demontieren, Putz abschlagen, Möbel verrücken, Container.</p></div>
-<div class="card"><h2>Ergebnis</h2>
-<div class="metric"><span>Zusatzleistungen brutto</span><strong id="extraTotal">–</strong></div>
+<section id="measures" class="page"><div class="card"><h2>Maßnahmen</h2>
+<div id="measureList"></div><button class="primary" onclick="addMeasure()">+ Maßnahme hinzufügen</button>
+<p class="note">Flächensperre wird aus Breite × Höhe berechnet. Wand-Sohlen-Anschluss enthält automatisch eine Horizontalsperre.</p>
+</div></section>
+
+<section id="internal" class="page"><div class="card"><h2>Gesamtergebnis</h2>
+<div class="metric"><span>Maßnahmen brutto</span><strong id="measureTotal">–</strong></div>
 <div class="metric"><span>Baustelleneinrichtung brutto</span><strong id="setup">–</strong></div>
 <div class="metric"><span>Gesamtpreis brutto</span><strong id="offer" class="price">–</strong></div>
 <div class="metric"><span>Skonto-Endpreis</span><strong id="skonto">–</strong></div>
-<div class="metric"><span>Preis je lfm / m²</span><strong id="unit">–</strong></div>
-<div class="metric"><span>Selbstkosten netto</span><strong id="self">–</strong></div>
-<div class="metric"><span>Deckungsbeitrag netto</span><strong id="margin">–</strong></div>
-</div><div class="actions no-print"><button class="primary" onclick="saveCase()">Speichern</button><button class="secondary" onclick="loadCase()">Letzte laden</button></div></section>
+</div></section>
 
-<section id="photos" class="page"><div class="card"><h2>Fotodokumentation</h2>
-<input type="file" accept="image/*" capture="environment" multiple onchange="addPhotos(event)">
-<div id="photoGrid" class="photo-grid"></div></div></section>
+<section id="lexware" class="page"><div class="card"><h2>Lexware Office</h2>
+<div class="grid">
+<div class="full"><label>Worker-URL</label><input id="workerUrl" value="https://mainabdichter-lexoffice.cmww7htry5.workers.dev"></div>
+<div class="full"><label>App-Secret</label><input id="appSecret" type="password" placeholder="Dein APP_SECRET aus Cloudflare"></div>
+</div>
+<div class="actions" style="margin-top:12px">
+<button class="secondary" onclick="testLexware()">Verbindung testen</button>
+<button class="primary" onclick="sendContact()">Kunde an Lexware senden</button>
+</div>
+<div id="lexStatus" class="status"></div>
+<p class="note">Das App-Secret wird nur lokal in diesem Browser gespeichert. Der Lexware-API-Schlüssel bleibt ausschließlich als Secret in Cloudflare.</p>
+</div></section>
 
-<section id="settings" class="page"><div class="card"><h2>Einstellungen</h2><div id="settingsForm"></div>
-<div class="actions no-print"><button class="primary" onclick="saveSettings()">Speichern</button><button class="secondary" onclick="resetSettings()">Standardwerte</button></div></div></section>
-
-</main><script>
-const D={hourly:85,materialEK:30,spacing:.25,factorHS:14,drill:60,fill:30,close:40,setupHours:1,reservePct:10,setupNet:269,vat:19,skontoPct:5,hsSell:98,wallSole:300,resin:495,area:690,smallNet:200,fixedNet:250};
-let S={...D,...JSON.parse(localStorage.getItem('mav3s')||'{}')},E=JSON.parse(localStorage.getItem('mav3e')||'[]'),P=JSON.parse(localStorage.getItem('mav3p')||'[]');
-const $=x=>document.getElementById(x),n=x=>parseFloat($(x).value)||0,eur=v=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(v);
+</main>
+<script>
+const D={spacing:.25,rowSpacing:.25,factorHS:14,factorFS:10,reservePct:10,hsSell:98,wallSole:300,resin:495,area:690,setupNet:269,vat:19,skontoPct:5};
+let M=JSON.parse(localStorage.getItem('mav41m')||'[]');
+const $=x=>document.getElementById(x),eur=v=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(v),num=v=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:2}).format(v);
 function show(id,b){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));if(b)b.classList.add('active')}
-function toggle(){let a=$('massnahme').value==='Flächensperre';$('areaBox').classList.toggle('hidden',!a);$('lenBox').classList.toggle('hidden',a)}
-function hs(l,w){let h=Math.ceil(l/S.spacing);return{holes:h,liters:h*w*S.factorHS/1000}}
-function calc(){let m=$('massnahme').value,w=n('wand'),l=n('laenge'),a=n('flaeche'),holes=0,liters=0,base=0,u=0;
-if(m==='Horizontalsperre'){let x=hs(l,w);holes=x.holes;liters=x.liters;u=l;base=Math.ceil(liters*(1+S.reservePct/100))*S.hsSell*1.19}
-else if(m==='Wand-Sohlen-Anschluss'){let x=hs(l,w);holes=x.holes;liters=x.liters;u=l;base=l*S.wallSole+Math.ceil(liters*(1+S.reservePct/100))*S.hsSell*1.19}
-else if(m==='Harzverpressung'){u=l;base=l*S.resin}else{u=a;base=a*S.area}
-let reserve=Math.ceil(liters*(1+S.reservePct/100)),hours=holes?Math.ceil(holes/S.drill+holes/S.fill+holes/S.close+S.setupHours):0;
-let extras=E.reduce((s,e)=>s+(+e.qty||0)*(+e.price||0),0),setup=S.setupNet*(1+S.vat/100),total=base+extras+setup,sk=total*(1-S.skontoPct/100);
-let self=reserve*S.materialEK+hours*S.hourly+S.setupNet+S.smallNet+S.fixedNet+E.reduce((s,e)=>s+(+e.qty||0)*(+e.cost||0),0),margin=total/(1+S.vat/100)-self;
-$('holes').textContent=holes;$('liters').textContent=liters.toFixed(2)+' l';$('reserve').textContent=reserve+' l';$('hours').textContent=hours+' Std.';$('base').textContent=eur(base);$('extraTotal').textContent=eur(extras);$('setup').textContent=eur(setup);$('offer').textContent=eur(total);$('skonto').textContent=eur(sk);$('unit').textContent=u?eur(total/u):'–';$('self').textContent=eur(self);$('margin').textContent=eur(margin);
-$('ck').textContent=$('kunde').value||'–';$('ca').textContent=$('adresse').value||'–';$('cm').textContent=m;$('cu').textContent=m==='Flächensperre'?(a?a+' m²':'–'):(l?l+' lfm':'–');$('cd').textContent=$('beschreibung').value||'–';$('cp').textContent=eur(total);$('cs').textContent=eur(sk);renderCustomerPhotos()}
-function addExtra(){E.push({name:'',qty:1,price:0,cost:0});persistE();renderE();calc()}
-function persistE(){localStorage.setItem('mav3e',JSON.stringify(E))}
-function renderE(){let b=$('extras');b.innerHTML='';E.forEach((e,i)=>{let d=document.createElement('div');d.className='extra';d.innerHTML=`<div><label>Leistung</label><input value="${e.name||''}" oninput="E[${i}].name=this.value;persistE()"></div><div><label>Menge</label><input type="number" value="${e.qty}" oninput="E[${i}].qty=this.value;persistE();calc()"></div><div><label>VK brutto</label><input type="number" value="${e.price}" oninput="E[${i}].price=this.value;persistE();calc()"></div><div><label>EK netto</label><input type="number" value="${e.cost}" oninput="E[${i}].cost=this.value;persistE();calc()"></div><button class="danger no-print" onclick="E.splice(${i},1);persistE();renderE();calc()">×</button>`;b.appendChild(d)})}
-function addPhotos(ev){[...ev.target.files].forEach(f=>{let r=new FileReader();r.onload=x=>{P.push({src:x.target.result,caption:'',show:true});localStorage.setItem('mav3p',JSON.stringify(P));renderP();calc()};r.readAsDataURL(f)});ev.target.value=''}
-function renderP(){let g=$('photoGrid');g.innerHTML='';P.forEach((p,i)=>{let d=document.createElement('div');d.className='photo';d.innerHTML=`<img src="${p.src}"><input placeholder="Beschreibung" value="${p.caption||''}" oninput="P[${i}].caption=this.value;localStorage.setItem('mav3p',JSON.stringify(P));calc()"><label><input type="checkbox" ${p.show?'checked':''} onchange="P[${i}].show=this.checked;localStorage.setItem('mav3p',JSON.stringify(P));calc()"> Kundenansicht</label><button class="danger no-print" onclick="P.splice(${i},1);localStorage.setItem('mav3p',JSON.stringify(P));renderP();calc()">Löschen</button>`;g.appendChild(d)})}
-function renderCustomerPhotos(){let b=$('customerPhotos');b.innerHTML='';P.filter(x=>x.show).slice(0,4).forEach(p=>{let d=document.createElement('div');d.className='photo';d.innerHTML=`<img src="${p.src}">${p.caption?'<p>'+p.caption+'</p>':''}`;b.appendChild(d)})}
-const L={hourly:'Arbeitsstundensatz netto',materialEK:'Material-EK je Liter',spacing:'Bohrlochabstand',factorHS:'Faktor HS',drill:'Bohrleistung',fill:'Befüllleistung',close:'Verschlussleistung',setupHours:'Rüstzeit',reservePct:'Reserve %',setupNet:'Baustelleneinrichtung netto',vat:'MwSt. %',skontoPct:'Skonto %',hsSell:'HZ VK netto/Liter',wallSole:'Wand-Sohlen-Anschluss brutto/lfm',resin:'Harzverpressung brutto/lfm',area:'Flächensperre brutto/m²',smallNet:'Kleinmaterial netto',fixedNet:'Fixkostenanteil netto'};
-function renderSettings(){let f=$('settingsForm');f.innerHTML='';Object.keys(L).forEach(k=>{f.innerHTML+=`<div class="grid"><label>${L[k]}</label><input id="s_${k}" type="number" step=".01" value="${S[k]}"></div>`})}
-function saveSettings(){Object.keys(L).forEach(k=>S[k]=parseFloat($('s_'+k).value)||0);localStorage.setItem('mav3s',JSON.stringify(S));calc();alert('Gespeichert')}
-function resetSettings(){S={...D};localStorage.setItem('mav3s',JSON.stringify(S));renderSettings();calc()}
-function gps(){navigator.geolocation.getCurrentPosition(async p=>{let a=p.coords.latitude.toFixed(6)+', '+p.coords.longitude.toFixed(6);try{let r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p.coords.latitude}&lon=${p.coords.longitude}`);let d=await r.json();if(d.display_name)a=d.display_name}catch(e){}$('adresse').value=a;calc()},()=>alert('Standort nicht verfügbar'),{enableHighAccuracy:true})}
-function maps(){location.href='https://maps.apple.com/?q='+encodeURIComponent($('adresse').value)}
-function saveCase(){let ids=['kunde','telefon','email','rechnung','adresse','unten','oben','feuchte','geraet','beschreibung','notizen','massnahme','wand','laenge','flaeche'],d={};ids.forEach(i=>d[i]=$(i).value);localStorage.setItem('mav3c',JSON.stringify(d));alert('Baustelle gespeichert')}
-function loadCase(){let d=JSON.parse(localStorage.getItem('mav3c')||'{}');Object.keys(d).forEach(i=>{if($(i))$(i).value=d[i]});toggle();calc()}
-if(!E.length)E=[{name:'Bauschutt entsorgen',qty:0,price:0,cost:0},{name:'Heizkörper demontieren / montieren',qty:0,price:0,cost:0},{name:'Vorarbeiten / Freilegen',qty:0,price:0,cost:0}];
-renderE();renderP();renderSettings();toggle();calc();
+function persistM(){localStorage.setItem('mav41m',JSON.stringify(M))}
+function addMeasure(){M.push({type:'Horizontalsperre',length:0,width:0,height:0,wall:30});persistM();renderMeasures();calc()}
+function removeMeasure(i){M.splice(i,1);persistM();renderMeasures();calc()}
+function hsCalc(length,wall){let holes=Math.ceil((+length||0)/D.spacing);return{holes,liters:holes*(+wall||0)*D.factorHS/1000}}
+function fsCalc(width,height,wall){let holesRow=Math.ceil((+width||0)/D.spacing),rows=Math.ceil((+height||0)/D.rowSpacing);let first=holesRow*(+wall||0)*D.factorHS/1000,upper=Math.max(rows-1,0)*holesRow*(+wall||0)*D.factorFS/1000;return{holes:holesRow*rows,liters:first+upper,area:(+width||0)*(+height||0)}}
+function measureCalc(m){let liters=0,gross=0,label='';
+ if(m.type==='Horizontalsperre'){let x=hsCalc(m.length,m.wall);liters=x.liters;gross=Math.ceil(liters*(1+D.reservePct/100))*D.hsSell*1.19;label=num(+m.length||0)+' lfm'}
+ if(m.type==='Flächensperre'){let x=fsCalc(m.width,m.height,m.wall);liters=x.liters;gross=x.area*D.area;label=num(m.width)+' × '+num(m.height)+' m = '+num(x.area)+' m²'}
+ if(m.type==='Harzverpressung'){gross=(+m.length||0)*D.resin;label=num(+m.length||0)+' lfm'}
+ if(m.type==='Wand-Sohlen-Anschluss'){let x=hsCalc(m.length,m.wall);liters=x.liters;gross=(+m.length||0)*D.wallSole+Math.ceil(liters*(1+D.reservePct/100))*D.hsSell*1.19;label=num(+m.length||0)+' lfm inkl. Horizontalsperre'}
+ return{liters,gross,label}
+}
+function renderMeasures(){let b=$('measureList');b.innerHTML='';M.forEach((m,i)=>{let area=m.type==='Flächensperre',d=document.createElement('div');d.className='measure-card';d.innerHTML=`<div class="measure-head"><h3>Maßnahme ${i+1}</h3><button class="danger" onclick="removeMeasure(${i})">Löschen</button></div><div class="grid">
+<div><label>Art</label><select onchange="M[${i}].type=this.value;persistM();renderMeasures();calc()"><option ${m.type==='Horizontalsperre'?'selected':''}>Horizontalsperre</option><option ${m.type==='Flächensperre'?'selected':''}>Flächensperre</option><option ${m.type==='Harzverpressung'?'selected':''}>Harzverpressung</option><option ${m.type==='Wand-Sohlen-Anschluss'?'selected':''}>Wand-Sohlen-Anschluss</option></select></div>
+<div><label>Wandstärke cm</label><input type="number" value="${m.wall||30}" oninput="M[${i}].wall=this.value;persistM();calc()"></div>
+${area?`<div><label>Breite m</label><input type="number" step=".01" value="${m.width||0}" oninput="M[${i}].width=this.value;persistM();calc()"></div><div><label>Höhe m</label><input type="number" step=".01" value="${m.height||0}" oninput="M[${i}].height=this.value;persistM();calc()"></div>`:`<div><label>Länge lfm</label><input type="number" step=".01" value="${m.length||0}" oninput="M[${i}].length=this.value;persistM();calc()"></div>`}</div><div id="mr_${i}" class="measure-result"></div>`;b.appendChild(d)})}
+function calc(){let mg=0,cm=$('customerMeasures');cm.innerHTML='';M.forEach((m,i)=>{let r=measureCalc(m);mg+=r.gross;let el=$('mr_'+i);if(el)el.innerHTML=`<strong>${r.label}</strong><br>Material: ${num(r.liters)} l · Preis: ${eur(r.gross)}`;cm.innerHTML+=`<div class="metric"><span>${m.type}</span><strong>${r.label}</strong></div>`});
+let setup=D.setupNet*(1+D.vat/100),total=mg+setup,sk=total*(1-D.skontoPct/100);$('measureTotal').textContent=eur(mg);$('setup').textContent=eur(setup);$('offer').textContent=eur(total);$('skonto').textContent=eur(sk);$('ck').textContent=(( $('anrede').value+' '+$('vorname').value+' '+$('nachname').value).trim())||'–';$('ca').textContent=$('objekt').value||[$('strasse').value,$('plz').value,$('ort').value].filter(Boolean).join(', ')||'–';$('cd').textContent=$('beschreibung').value||'–';$('cp').textContent=eur(total);$('cs').textContent=eur(sk)}
+function lexConfig(){let url=$('workerUrl').value.trim().replace(/\\/$/,'');let secret=$('appSecret').value;localStorage.setItem('mav41worker',url);localStorage.setItem('mav41secret',secret);return{url,secret}}
+function status(msg,ok){let s=$('lexStatus');s.className='status '+(ok?'ok':'err');s.textContent=msg}
+async function testLexware(){let c=lexConfig();try{let r=await fetch(c.url+'/profile',{headers:{'X-App-Secret':c.secret}});let d=await r.json();if(!r.ok)throw new Error(d.error||'Verbindung fehlgeschlagen');status('Verbindung erfolgreich.',true)}catch(e){status(e.message,false)}}
+async function sendContact(){let c=lexConfig();if(!$('nachname').value.trim())return status('Nachname fehlt.',false);if(!$('strasse').value.trim()||!$('plz').value.trim()||!$('ort').value.trim())return status('Straße, PLZ und Ort müssen vollständig sein.',false);
+let payload={salutation:$('anrede').value,firstName:$('vorname').value,lastName:$('nachname').value,street:$('strasse').value,zip:$('plz').value,city:$('ort').value,email:$('email').value,phone:$('telefon').value,note:'Erstellt über Mainabdichter Pro'};
+try{status('Übertragung läuft …',true);let r=await fetch(c.url+'/contacts',{method:'POST',headers:{'Content-Type':'application/json','X-App-Secret':c.secret},body:JSON.stringify(payload)});let d=await r.json();if(!r.ok)throw new Error(d.error+(d.details?' – '+JSON.stringify(d.details):''));status('Kunde wurde in Lexware angelegt.',true)}catch(e){status(e.message,false)}}
+if(!M.length)M=[{type:'Horizontalsperre',length:8,width:0,height:0,wall:30}];
+$('workerUrl').value=localStorage.getItem('mav41worker')||$('workerUrl').value;$('appSecret').value=localStorage.getItem('mav41secret')||'';
+renderMeasures();calc();
 </script></body></html>
