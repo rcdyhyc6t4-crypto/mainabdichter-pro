@@ -1,41 +1,36 @@
-mainabdichter Version 8.0
+mainabdichter Version 8.3
 
-KERNLOGIK
-- HZ 250 Pro Einkaufspreis netto je Liter wird einmal im Adminbereich gespeichert.
-- Gewünschter HZ-Verkaufspreis netto je Liter wird einmal gespeichert.
-- Horizontalsperre und Flächensperre berechnen den Literbedarf automatisch:
-  - Faktor 14 für Horizontalsperre bzw. erste Reihe
-  - Faktor 10 für weitere Reihen
-  - horizontal 12,5 oder 25 cm
-  - vertikal immer 25 cm
-  - Materialreserve frei einstellbar
-- Kleinbaustellen-Aufschlag unter 12 lfm:
-  - fest oder prozentual
-  - optional separat in Kundenansicht
-- Harzverpressung:
-  - Grundpreis aus der dauerhaften Preisliste
-  - zusätzlicher kg-Mehraufwand separat
+KORRIGIERTE LEXWARE-ARTIKELLOGIK
 
-LEXWARE
-- Kunde wird angelegt, sofern noch keine Lexware-Kontakt-ID gespeichert ist.
-- Das vollständige Angebot wird als Lexware-Entwurf erstellt.
-- Alle Positionen, Mengen, Preise, MwSt., Skonto und Objektanschrift werden übertragen.
-- Optional können vorhandene Lexware-Artikel einmalig den Maßnahmen zugeordnet werden.
-- Ohne Artikelzuordnung werden freie Leistungspositionen angelegt.
+Von Lexware werden unverändert übernommen:
+- Artikel-ID
+- Artikelnummer
+- Artikelname
+- Artikeltext / Beschreibung
+- Einheit
+- Steuersatz
+
+Nicht aus Lexware übernommen wird der Preis.
+
+Der Preis stammt immer aus:
+- der Berechnung der App bei Horizontalsperre, Flächensperre, Harz und Wand-Sohlen-Anschluss
+- dem in der App gespeicherten Standardpreis bei Baustelleneinrichtung, Sauberkeitspaket und anderen Zusatzleistungen
+
+Damit kann beispielsweise der Lexware-Artikel 'Baustelleneinrichtung' verwendet werden,
+während der Preis in der App dauerhaft auf den gewünschten Betrag eingestellt wird.
+Der Lexware-Artikeltext bleibt vollständig unverändert.
+
+SONDERAKTION UND SKONTO
+- Eine Sonderaktion verändert den aus der App kommenden Positionspreis anteilig.
+- Skonto bleibt eine Zahlungsbedingung des Gesamtangebots.
+- Titel, Text, Einheit und Steuersatz des Lexware-Artikels bleiben unverändert.
 
 GITHUB
-Gesamte Ordnerstruktur hochladen:
-- index.html
-- styles.css
+Zu ersetzen:
 - js/app.js
-- assets/bkm-logo.png
-- manifest.json
+
+Die übrigen Dateien können unverändert bleiben.
 
 CLOUDFLARE
-Die neue cloudflare-worker.js ist zwingend erforderlich:
-- vorhandenen Worker-Code vollständig ersetzen
-- Deploy drücken
-
-WICHTIG
-Falls der Lexware-API-Key vor Einführung des Angebots-Endpunkts erstellt wurde und Lexware den Zugriff verweigert,
-muss in Lexware ein neuer Public-API-Key erzeugt und in Cloudflare bei LEXOFFICE_API_KEY rotiert werden.
+Keine Änderung am Worker gegenüber Version 8.2 erforderlich.
+Die Worker-Datei ist trotzdem im Paket enthalten.

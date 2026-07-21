@@ -46,8 +46,9 @@
 <section id="visit" class="page">
   <div class="card">
     <h1>Besichtigung</h1>
-    <div class="section-actions">
+    <div class="section-actions customer-source-actions">
       <button id="loadPipedrive" class="primary">Kunde aus Pipedrive</button>
+      <button id="loadLexwareCustomer" class="secondary">Kunde aus Lexware</button>
       <button id="clearVisit" class="secondary">Neue Besichtigung</button>
     </div>
   </div>
@@ -214,10 +215,14 @@
   </details>
 
   <details class="card">
-    <summary>Standard-Zusatzleistungen</summary>
-    <p class="hint">Diese Positionen werden einmal angelegt. Beim Kunden wird nur die Menge eingetragen.</p>
+    <summary>Standard-Zusatzleistungen / Lexware-Artikel</summary>
+    <p class="hint">Vorhandene Lexware-Artikel wie Baustelleneinrichtung oder Sauberkeitspaket können direkt zugeordnet werden. Artikelname, Artikeltext, Einheit und Preis werden unverändert aus Lexware übernommen.</p>
+    <div class="section-actions">
+      <button id="loadLexwareExtraArticles" class="secondary">Lexware-Artikel aktualisieren</button>
+      <button id="addAdminExtra" class="primary">+ freie Standardleistung</button>
+    </div>
+    <div id="extraArticleStatus" class="status"></div>
     <div id="adminExtras"></div>
-    <button id="addAdminExtra" class="primary">+ Standardleistung</button>
   </details>
 
   <details class="card">

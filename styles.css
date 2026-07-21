@@ -21,3 +21,6 @@ input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);borde
  body.print-report .app-header,body.print-report .main-nav,body.print-report main{display:none!important}body.print-report #reportDocument{display:block!important;padding:8mm}
  @page{size:A4;margin:11mm}
 }
+.customer-source-actions{grid-template-columns:repeat(3,1fr)}
+.article-description{font-size:12px;color:var(--muted);white-space:pre-wrap;margin-top:5px}
+@media(max-width:720px){.customer-source-actions{grid-template-columns:1fr}}
