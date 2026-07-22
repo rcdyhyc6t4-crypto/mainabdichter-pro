@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V14 CRM</title>
+<title>mainabdichter V16.1</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -181,6 +181,25 @@
       <div class="full"><label>Bezeichnung</label><input id="specialLabel"></div>
     </div>
   </div>
+  <div class="card price-strategy-card">
+    <div class="card-title-row"><div><h2>Preisstrategie</h2><p class="hint">Nur der ausgewählte Wert wird in Kundenansicht und Lexware verwendet.</p></div></div>
+    <div class="price-tier-grid">
+      <button type="button" class="price-tier" data-pricing-tier="minimum">
+        <span>Mindestwert</span><strong id="priceMinimum">–</strong><small>interne Untergrenze</small>
+      </button>
+      <button type="button" class="price-tier active" data-pricing-tier="standard">
+        <span>Mittlerer Wert</span><strong id="priceStandard">–</strong><small>empfohlen</small>
+      </button>
+      <button type="button" class="price-tier" data-pricing-tier="premium">
+        <span>Sehr teuer</span><strong id="pricePremium">–</strong><small>oberer Preis</small>
+      </button>
+    </div>
+  </div>
+  <div class="card material-requirement-card">
+    <div class="card-title-row"><h2>Materialbedarf und Lager</h2><button id="deductInventory" class="secondary">Material abbuchen</button></div>
+    <div id="materialRequirement"></div>
+    <div id="inventoryDeductStatus" class="status"></div>
+  </div>
   <div class="card"><div class="card-title-row"><h2>Interne Kalkulation</h2><button id="toggleInternal" class="secondary">ein-/ausblenden</button></div><div id="internalCalc" class="hidden"></div></div>
   <div class="card">
     <div class="metric"><span>Kunde</span><strong id="offerCustomer">–</strong></div>
@@ -224,15 +243,31 @@
       <div><label>Rüstzeit Stunden</label><input id="setupHours" type="number" inputmode="decimal" step=".25"></div>
       <div><label>Wand-Sohlen-Anschluss brutto/lfm</label><input id="wallSoleGrossPerMeter" type="number" inputmode="decimal" step=".01"></div>
       <div><label>Zusätzliches Harz netto/kg</label><input id="extraResinKgNet" type="number" inputmode="decimal" step=".01"></div>
+      <div><label>BKM HS Sperrmörtel je lfm Wand-Sohle</label><input id="hsKgPerWallSoleMeter" type="number" inputmode="decimal" step=".1"></div>
     </div>
-    <h3>Kleinbaustellenregel</h3>
+    <h3>Preisstrategie</h3>
+    <div class="grid">
+      <div><label>Mindestwert in % vom mittleren Wert</label><input id="minimumPricePercent" type="number" inputmode="decimal" step=".1"></div>
+      <div><label>Mittlerer Wert in %</label><input id="standardPricePercent" type="number" inputmode="decimal" step=".1"></div>
+      <div><label>Sehr teuer in % vom mittleren Wert</label><input id="premiumPricePercent" type="number" inputmode="decimal" step=".1"></div>
+    </div>
+    <h3>Kleinmengenregel</h3>
+    <p class="hint">Nur bei einer alleinigen Horizontalsperre unter 12 lfm oder einer alleinigen Flächensperre unter 3 m². Der Aufschlag wird direkt in den jeweiligen Meter- bzw. Quadratmeterpreis eingerechnet.</p>
     <div class="grid">
       <div><label>Aktiv</label><select id="smallJobEnabled"><option value="true">Ja</option><option value="false">Nein</option></select></div>
-      <div><label>Grenze lfm</label><input id="smallJobThreshold" type="number" inputmode="decimal" step=".1"></div>
+      <div><label>Grenze Horizontalsperre lfm</label><input id="smallJobHorizontalThreshold" type="number" inputmode="decimal" step=".1"></div>
+      <div><label>Grenze Flächensperre m²</label><input id="smallJobSurfaceThreshold" type="number" inputmode="decimal" step=".1"></div>
       <div><label>Art</label><select id="smallJobType"><option value="amount">fester Betrag</option><option value="percent">Prozent</option></select></div>
       <div><label>Wert</label><input id="smallJobValue" type="number" inputmode="decimal" step=".01"></div>
-      <div><label>Dem Kunden zeigen</label><select id="smallJobVisible"><option value="false">Nein</option><option value="true">Ja</option></select></div>
     </div>
+  </details>
+
+  <details class="card" open><summary>Warenbestand</summary>
+    <p class="hint">Bestände werden lokal gespeichert und mit der Komplettsicherung übertragen. Beim Abbuchen eines Auftrags werden BKM HZ 250 Pro und BKM HS Sperrmörtel automatisch reduziert.</p>
+    <div id="inventoryProducts"></div>
+    <button id="addInventoryProduct" class="secondary">+ Weiteres Material</button>
+    <h3>Letzte Lagerbewegungen</h3>
+    <div id="inventoryHistory" class="compact-list"></div>
   </details>
 
   <details class="card"><summary>Lexware-Artikel</summary>
@@ -243,9 +278,18 @@
       <div><label>Flächensperre</label><select id="mapFlächensperre"></select></div>
       <div><label>Harzverpressung</label><select id="mapHarzverpressung"></select></div>
       <div><label>Wand-Sohlen-Anschluss</label><select id="mapWandSohle"></select></div>
-      <div><label>Kleinbaustellenzuschlag</label><select id="mapSmallJob"></select></div>
     </div>
     <h3>Standard-Zusatzleistungen</h3><div id="settingsExtras"></div><button id="addExtra" class="primary">+ Zusatzleistung</button>
+  </details>
+
+  <details class="card"><summary>Hinweistexte für Kundenansicht und PDF</summary>
+    <p class="hint">Die App fügt diese Texte automatisch passend zu den ausgewählten Maßnahmen ein. Änderungen gelten dauerhaft und werden mit der Komplettsicherung übertragen.</p>
+    <label>Allgemeiner Hinweis bei Horizontal-, Flächensperre und Wand-Sohlen-Anschluss</label>
+    <textarea id="noticeStandard" class="large-setting-text"></textarea>
+    <label>Zusatzhinweis Wand-Sohlen-Anschluss</label>
+    <textarea id="noticeWallSole" class="large-setting-text"></textarea>
+    <label>Zusatzhinweis Harzverpressung</label>
+    <textarea id="noticeResin" class="large-setting-text"></textarea>
   </details>
 
   <details class="card" open><summary>Schnittstellen</summary>
