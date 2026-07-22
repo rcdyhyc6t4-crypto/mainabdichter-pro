@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V10</title>
+<title>mainabdichter V11</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -67,18 +67,20 @@
       <div><label>Geschoss</label><select id="floor"><option>Keller</option><option>Erdgeschoss</option><option>Hochparterre</option></select></div>
       <div><label>Raumnutzung</label><select id="roomUse"><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
       <div><label>Fundamentart</label><select id="foundationType"><option>Streifenfundament</option><option>durchgehende Bodenplatte</option><option>nicht bekannt</option><option>Sonstiges</option></select></div>
-      <div><label>Raumhöhe m</label><input id="roomHeight" type="number" step=".01"></div>
       <div><label>Bodenbelag optional</label><select id="floorCover"><option value="">– keine Angabe –</option><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
-      <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
-      <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
-      <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
-      <div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
+      <div class="full switch-row"><label><input id="climateMeasured" type="checkbox"> Klimamessung durchgeführt</label></div>
+      <div id="climateFields" class="full conditional-panel hidden"><div class="grid">
+        <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
+        <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
+        <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
+        <div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
+      </div></div>
     </div>
   </div>
 
-  <div class="card"><h2>3. Schadensbeschreibung</h2>
+  <div class="card"><h2>3. Schadensbeschreibung und Empfehlung</h2>
     <label>Schadensbild</label><div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
-    <label>Empfehlung für den Kunden</label><div class="speech-row"><textarea id="customerRecommendation"></textarea><button class="speech" data-speech-target="customerRecommendation">🎤</button></div>
+    <label>Automatisch erzeugte Empfehlung</label><div id="generatedRecommendation" class="generated-text">Die Empfehlung wird aus den ausgewählten Maßnahmen erstellt.</div>
   </div>
 
   <div class="card"><h2>4. Schadensbereiche</h2><div id="areas"></div><button id="addArea" class="primary">+ Schadensbereich</button></div>
