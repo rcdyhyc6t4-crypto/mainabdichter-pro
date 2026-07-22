@@ -26,7 +26,26 @@ export async function api(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "API-Fehler");
+    const detailParts = [];
+
+    if (data.status) {
+      detailParts.push(`HTTP ${data.status}`);
+    }
+
+    if (data.details) {
+      if (typeof data.details === "string") {
+        detailParts.push(data.details);
+      } else if (data.details.message) {
+        detailParts.push(data.details.message);
+      } else if (data.details.error) {
+        detailParts.push(data.details.error);
+      } else {
+        detailParts.push(JSON.stringify(data.details));
+      }
+    }
+
+    const suffix = detailParts.length ? ` – ${detailParts.join(" – ")}` : "";
+    throw new Error(`${data.error || "API-Fehler"}${suffix}`);
   }
   return data;
 }

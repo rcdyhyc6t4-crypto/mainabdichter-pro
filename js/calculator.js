@@ -86,12 +86,23 @@ export function calculateMeasure(settings, measure) {
     scope = `${quantity.toLocaleString("de-DE")} lfm inkl. Horizontalsperre`;
   }
 
+  const grossUnit = quantity > 0
+    ? gross / quantity
+    : gross;
+
   return {
-    type, quantity, unitName, scope, holes,
-    rawLiters, saleLiters, materialCostNet,
+    type,
+    quantity,
+    unitName,
+    scope,
+    holes,
+    rawLiters,
+    saleLiters,
+    materialCostNet,
     hours: workHours(settings, holes),
     gross,
-    grossUnit: quantity > 0 ? gross / quantity : gross,
+    grossUnit,
+    pricingMode: quantity > 0 ? "unit" : "flat",
     eligibleHorizontalMeters
   };
 }
@@ -150,6 +161,7 @@ export function calculateOffer(settings, visit, discount) {
         scope: result.scope,
         grossUnit: result.grossUnit,
         totalGross: result.gross,
+        pricingMode: result.pricingMode,
         holes: result.holes,
         saleLiters: result.saleLiters,
         hours: result.hours
@@ -172,7 +184,8 @@ export function calculateOffer(settings, visit, discount) {
       quantity,
       unitName: article?.unitName || extra.unit,
       grossUnit,
-      totalGross
+      totalGross,
+      pricingMode: "flat"
     });
   }
 
@@ -188,6 +201,7 @@ export function calculateOffer(settings, visit, discount) {
       unitName: "pauschal",
       grossUnit: smallJob,
       totalGross: smallJob,
+      pricingMode: "flat",
       hiddenToCustomer: !settings.smallJob.visibleToCustomer
     });
   }

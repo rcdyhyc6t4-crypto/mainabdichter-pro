@@ -294,22 +294,54 @@ $("openCustomerView").onclick = () => {
 function buildQuotationPayload() {
   const result = renderOffer();
   const factor = result.baseGross > 0 ? result.offerGross / result.baseGross : 1;
-  const lineItems = result.lineItems.filter(item => !item.hiddenToCustomer).map(item => {
-    const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
-    return {
-      ...(article ? { id: article.id, type: String(article.type).toUpperCase()==="PRODUCT" ? "material" : "service" } : { type:"custom" }),
-      name: article?.title || item.name,
-      description: article?.description || item.description || "",
-      quantity: item.quantity,
-      unitName: article?.unitName || item.unitName,
-      unitPrice: {
-        currency: "EUR",
-        grossAmount: Number((item.grossUnit * factor).toFixed(2)),
-        taxRatePercentage: article?.price?.taxRate ?? 19
-      },
-      discountPercentage: 0
-    };
-  });
+  const lineItems = result.lineItems
+    .filter(item => !item.hiddenToCustomer)
+    .filter(item => Number(item.quantity) > 0 && Number(item.totalGross) >= 0)
+    .map((item, index) => {
+      const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
+
+      const quantity = item.pricingMode === "flat"
+        ? 1
+        : Number(Number(item.quantity).toFixed(4));
+
+      const unitName = item.pricingMode === "flat"
+        ? (article?.unitName || item.unitName || "pauschal")
+        : (article?.unitName || item.unitName || "Stück");
+
+      const baseUnitGross = item.pricingMode === "flat"
+        ? Number(item.totalGross)
+        : Number(item.totalGross) / Math.max(Number(item.quantity), 1);
+
+      const adjustedUnitGross = Number((baseUnitGross * factor).toFixed(2));
+      const name = String(article?.title || item.name || `Position ${index + 1}`).trim().slice(0, 255);
+      const description = String(article?.description || item.description || "").slice(0, 2000);
+      const taxRate = Number(article?.price?.taxRate ?? 19);
+
+      return {
+        ...(article
+          ? {
+              id: article.id,
+              type: String(article.type).toUpperCase() === "PRODUCT"
+                ? "material"
+                : "service"
+            }
+          : { type: "custom" }),
+        name,
+        description,
+        quantity,
+        unitName,
+        unitPrice: {
+          currency: "EUR",
+          grossAmount: adjustedUnitGross,
+          taxRatePercentage: Number.isFinite(taxRate) ? taxRate : 19
+        },
+        discountPercentage: 0
+      };
+    });
+
+  if (!lineItems.length) {
+    throw new Error("Es gibt keine gültige Angebotsposition mit Menge und Preis.");
+  }
   return {
     customer: state.visit.customer,
     quotation: {
@@ -323,7 +355,15 @@ function buildQuotationPayload() {
 }
 $("sendLexware").onclick = async () => {
   try {
-    const response = await createLexwareQuotation(buildQuotationPayload());
+    const payload = buildQuotationPayload();
+
+    const preview = payload.quotation.lineItems.map((item, index) =>
+      `${index + 1}. ${item.name}: ${item.quantity} ${item.unitName} × ${eur(item.unitPrice.grossAmount)}`
+    ).join("\n");
+
+    console.info("Lexware Angebotspositionen\n" + preview);
+
+    const response = await createLexwareQuotation(payload);
     if (response.contactId) state.visit.customer.lexwareContactId = response.contactId;
     saveState();
     showStatus("offerStatus","Lexware-Angebot wurde als Entwurf erstellt.",true);
