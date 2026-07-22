@@ -6,3 +6,195 @@
 .switch-row input[type="checkbox"]{width:auto;min-width:20px;height:20px}
 .conditional-panel{padding:10px;border:1px solid var(--line);border-radius:6px;background:#f8faf6}
 .generated-text{white-space:pre-wrap;padding:12px;border:1px solid var(--line);border-radius:6px;background:#f7f9f4;line-height:1.5}
+
+/* V11.2 – kompakter App-Header */
+.compact-header{
+  min-height:58px;
+  padding:6px 10px;
+  gap:10px;
+  position:sticky;
+  top:0;
+  z-index:40;
+  border-bottom:3px solid var(--green);
+}
+.compact-header img{
+  width:auto;
+  height:38px;
+  max-width:128px;
+  object-fit:contain;
+}
+.header-title{
+  min-width:0;
+  flex:1;
+  line-height:1.1;
+}
+.header-title strong{
+  display:block;
+  font-size:17px;
+  white-space:nowrap;
+}
+.header-title small{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  white-space:nowrap;
+}
+.header-actions{
+  display:flex;
+  gap:4px;
+  margin-left:auto;
+}
+.header-icon{
+  width:36px;
+  height:36px;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#edf0e9;
+  font-size:17px;
+  border-radius:8px;
+}
+.main-nav{
+  top:57px;
+  padding:5px 7px;
+  gap:5px;
+}
+.main-nav button{
+  padding:8px 10px;
+  font-size:12px;
+}
+main{
+  padding:8px 10px;
+}
+.card{
+  margin:8px 0;
+  padding:12px;
+}
+h1{
+  font-size:20px;
+  margin-bottom:8px;
+}
+h2{
+  font-size:17px;
+  margin-bottom:9px;
+}
+@media(max-width:720px){
+  .app-header.compact-header{
+    flex-direction:row;
+    align-items:center;
+  }
+  .compact-header img{
+    width:auto;
+    height:34px;
+    max-width:112px;
+  }
+  .header-title strong{font-size:16px}
+  .header-title small{font-size:10px}
+  .main-nav{top:53px}
+}
+
+.metadata-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.location-weather-panel{margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:6px;background:#f7f9f4}
+@media(max-width:720px){.metadata-actions{grid-template-columns:1fr}}
+
+/* V11.4 – kompakter Baustellenmodus */
+.compact-step{
+  padding:0;
+  overflow:hidden;
+  border-top-width:3px;
+}
+.compact-step>summary{
+  padding:10px 12px;
+  font-size:15px;
+  background:#f7f9f4;
+  list-style:none;
+}
+.compact-step>summary::-webkit-details-marker{display:none}
+.compact-step>summary::after{
+  content:"▾";
+  float:right;
+  color:var(--green-dark);
+}
+.compact-step:not([open])>summary::after{content:"›"}
+.compact-step[open]>:not(summary){
+  margin-left:10px;
+  margin-right:10px;
+}
+.compact-step[open]>:last-child{
+  margin-bottom:10px;
+}
+.visit-toolbar{
+  padding:9px 10px;
+}
+.visit-toolbar h1{
+  margin-bottom:7px;
+}
+.visit-progress{
+  display:flex;
+  gap:4px;
+  overflow-x:auto;
+  padding-bottom:7px;
+}
+.visit-progress button{
+  flex:0 0 auto;
+  padding:7px 9px;
+  font-size:11px;
+  background:#edf0e9;
+}
+.customer-source-actions{
+  grid-template-columns:repeat(3,1fr);
+}
+.customer-source-actions button{
+  padding:8px 9px;
+  font-size:12px;
+}
+.mini-details{
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#f7f9f4;
+  margin-top:7px;
+}
+.mini-details>summary{
+  padding:9px 10px;
+  font-size:12px;
+}
+.location-weather-panel{
+  margin-top:0;
+  border:0;
+  border-top:1px solid var(--line);
+  border-radius:0;
+}
+input,select,textarea{
+  padding:8px 9px;
+  font-size:15px;
+}
+textarea{
+  min-height:62px;
+}
+label{
+  margin:5px 0 3px;
+}
+.area-card,.sub-card,.catalog-row,.result{
+  padding:9px;
+  margin:7px 0;
+}
+.photo-card img{
+  height:160px;
+}
+.sticky-actions{
+  grid-template-columns:1fr 1fr;
+  padding:6px 0;
+}
+.sticky-actions button{
+  padding:10px;
+}
+@media(max-width:720px){
+  .grid{gap:7px}
+  main{padding:6px 8px}
+  .card{margin:6px 0}
+  .compact-step[open]>:not(summary){
+    margin-left:7px;
+    margin-right:7px;
+  }
+}
