@@ -58,3 +58,48 @@ export function resetSettings() {
   state.settings = clone(DEFAULTS.settings);
   saveState();
 }
+
+
+const ARCHIVE_KEY = "mainabdichter_v13_archive";
+
+export function loadArchive() {
+  try {
+    const data = JSON.parse(localStorage.getItem(ARCHIVE_KEY) || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveArchive(archive) {
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive));
+}
+
+export function archiveCurrentOffer(record) {
+  const archive = loadArchive();
+  const now = new Date().toISOString();
+  const id = record.id || crypto.randomUUID();
+
+  const existingIndex = archive.findIndex(item => item.id === id);
+  const normalized = {
+    ...record,
+    id,
+    updatedAt: now,
+    createdAt: record.createdAt || now
+  };
+
+  if (existingIndex >= 0) archive[existingIndex] = normalized;
+  else archive.unshift(normalized);
+
+  saveArchive(archive);
+  return normalized;
+}
+
+export function deleteArchiveRecord(id) {
+  const archive = loadArchive().filter(item => item.id !== id);
+  saveArchive(archive);
+}
+
+export function replaceArchive(archive) {
+  saveArchive(Array.isArray(archive) ? archive : []);
+}

@@ -1,4 +1,4 @@
-import { state, saveState, resetVisit, resetSettings } from "./storage.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive } from "./storage.js";
 import { createArea } from "./defaults.js";
 import { calculateOffer, calculateMeasure } from "./calculator.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons } from "./utils.js";
@@ -20,6 +20,8 @@ function applyInputModes(root = document) {
     input.setAttribute("inputmode", "decimal");
   });
 }
+
+let activeArchiveId = null;
 
 
 const customerFields = ["salutation","firstName","lastName","company","phone","email","street","zip","city","objectAddress"];
@@ -131,15 +133,249 @@ async function fetchWeatherForLocation() {
   }
 }
 
+
+function startNewVisit() {
+  activeArchiveId = null;
+  resetVisit();
+  state.visit.visitDate = todayLocal();
+  state.visit.visitStartTime = timeLocal();
+  state.visit.visitNumber = createVisitNumber();
+  saveState();
+  renderVisit();
+  show("visit");
+}
+
+function customerDisplayName(customer) {
+  return [customer.salutation, customer.firstName, customer.lastName]
+    .filter(Boolean).join(" ") || customer.company || "Unbenannter Kunde";
+}
+
+function buildArchiveRecord() {
+  collectVisit();
+  updateGeneratedRecommendation();
+  const offer = calculateOffer(state.settings, state.visit, state.discount);
+  const measures = [...new Set(
+    state.visit.areas.flatMap(area => area.measures.map(m => m.type))
+  )];
+
+  return {
+    id: activeArchiveId || undefined,
+    visit: JSON.parse(JSON.stringify(state.visit)),
+    discount: JSON.parse(JSON.stringify(state.discount)),
+    customerName: customerDisplayName(state.visit.customer),
+    company: state.visit.customer.company || "",
+    objectAddress: state.visit.customer.objectAddress ||
+      [state.visit.customer.street, state.visit.customer.zip, state.visit.customer.city]
+        .filter(Boolean).join(", "),
+    city: state.visit.customer.city || "",
+    visitDate: state.visit.visitDate || "",
+    visitNumber: state.visit.visitNumber || "",
+    measures,
+    offerGross: offer.offerGross,
+    status: $("offerArchiveStatus")?.value || "draft",
+    followupDate: $("followupDate")?.value || "",
+    lexwareQuotationId: state.visit.lexwareQuotationId || ""
+  };
+}
+
+function saveCurrentToArchive(showMessage = true) {
+  const saved = archiveCurrentOffer(buildArchiveRecord());
+  activeArchiveId = saved.id;
+  if (showMessage) showStatus("offerStatus", "Angebot wurde im lokalen Archiv gespeichert.", true);
+  renderArchive();
+  return saved;
+}
+
+function loadArchiveRecord(id, asCopy = false) {
+  const record = loadArchive().find(item => item.id === id);
+  if (!record) return;
+
+  state.visit = JSON.parse(JSON.stringify(record.visit));
+  state.discount = JSON.parse(JSON.stringify(record.discount || state.discount));
+  activeArchiveId = asCopy ? null : record.id;
+
+  if (asCopy) {
+    state.visit.visitDate = todayLocal();
+    state.visit.visitStartTime = timeLocal();
+    state.visit.visitEndTime = "";
+    state.visit.visitNumber = createVisitNumber();
+  }
+
+  saveState();
+  renderVisit();
+  renderOffer();
+
+  if ($("offerArchiveStatus")) $("offerArchiveStatus").value = asCopy ? "draft" : (record.status || "draft");
+  if ($("followupDate")) $("followupDate").value = asCopy ? "" : (record.followupDate || "");
+
+  show("offer");
+}
+
+function statusLabel(status) {
+  return ({
+    draft: "Entwurf",
+    open: "Offen",
+    accepted: "Angenommen",
+    completed: "Abgeschlossen",
+    followup: "Nachkontrolle"
+  })[status] || status;
+}
+
+function renderArchive() {
+  const archive = loadArchive();
+  const term = String($("archiveSearch")?.value || "").trim().toLowerCase();
+  const filter = $("archiveFilter")?.value || "all";
+
+  const filtered = archive.filter(record => {
+    const haystack = [
+      record.customerName,
+      record.company,
+      record.objectAddress,
+      record.city,
+      ...(record.measures || [])
+    ].join(" ").toLowerCase();
+
+    const matchesTerm = !term || haystack.includes(term);
+    const matchesFilter = filter === "all" || record.status === filter;
+    return matchesTerm && matchesFilter;
+  });
+
+  const total = archive.length;
+  const open = archive.filter(r => ["draft","open"].includes(r.status)).length;
+  const accepted = archive.filter(r => r.status === "accepted").length;
+  const drafts = archive.filter(r => r.status === "draft").length;
+  const completed = archive.filter(r => r.status === "completed").length;
+  const followups = archive.filter(r => r.status === "followup" || r.followupDate).length;
+  const totalAmount = archive.reduce((sum, record) => sum + Number(record.offerGross || 0), 0);
+
+  if ($("statTotal")) $("statTotal").textContent = total;
+  if ($("statOpen")) $("statOpen").textContent = open;
+  if ($("statAccepted")) $("statAccepted").textContent = accepted;
+  if ($("statDraft")) $("statDraft").textContent = drafts;
+  if ($("statCompleted")) $("statCompleted").textContent = completed;
+  if ($("statFollowups")) $("statFollowups").textContent = followups;
+  if ($("statAmount")) $("statAmount").textContent = eur(totalAmount);
+
+  const donut = $("statusDonut");
+  if (donut) {
+    const a = total ? accepted / total * 360 : 0;
+    const o = total ? open / total * 360 : 0;
+    const d = total ? drafts / total * 360 : 0;
+    const c = total ? completed / total * 360 : 0;
+    donut.style.background = `conic-gradient(#55a95a 0 ${a}deg,#4f8fd7 ${a}deg ${a+o}deg,#efa938 ${a+o}deg ${a+o+d}deg,#9da3ad ${a+o+d}deg ${a+o+d+c}deg,#9b70cc ${a+o+d+c}deg 360deg)`;
+  }
+
+  const recent = archive.slice(0, 4);
+  if ($("recentOffers")) $("recentOffers").innerHTML = recent.length ? recent.map(record => `
+    <button class="compact-row" data-open-record="${record.id}">
+      <span class="mini-status status-${esc(record.status)}">${esc(statusLabel(record.status))}</span>
+      <span><strong>${esc(record.customerName)}</strong><small>${esc(record.objectAddress || "")}</small></span>
+      <span>${esc(record.visitDate || "")}</span>
+      <strong>${eur(record.offerGross || 0)}</strong>
+    </button>`).join("") : `<div class="empty-mini">Noch keine Angebote.</div>`;
+
+  const upcoming = archive.filter(record => record.followupDate).sort((a,b) => String(a.followupDate).localeCompare(String(b.followupDate))).slice(0,4);
+  if ($("nextFollowups")) $("nextFollowups").innerHTML = upcoming.length ? upcoming.map(record => `
+    <button class="compact-row followup-row" data-open-record="${record.id}">
+      <span><strong>${esc(record.customerName)}</strong><small>${esc(record.objectAddress || "")}</small></span>
+      <strong>${esc(record.followupDate)}</strong>
+    </button>`).join("") : `<div class="empty-mini">Keine Nachkontrollen geplant.</div>`;
+
+  const list = $("archiveList");
+  if (!list) return;
+  list.innerHTML = filtered.map(record => `
+    <article class="archive-row">
+      <button class="archive-row-main" data-open-record="${record.id}">
+        <span>${esc(record.visitDate || "")}</span>
+        <span><strong>${esc(record.customerName)}</strong><small>${esc(record.objectAddress || "Keine Objektadresse")}</small></span>
+        <span>${esc((record.measures || []).join(", "))}</span>
+        <strong>${eur(record.offerGross || 0)}</strong>
+        <span class="status-badge status-${esc(record.status)}">${esc(statusLabel(record.status))}</span>
+      </button>
+      <div class="row-actions"><button data-copy-record="${record.id}" title="Kopieren">⧉</button><button data-delete-record="${record.id}" title="Löschen">⋮</button></div>
+    </article>`).join("");
+
+  $("archiveEmpty").style.display = filtered.length ? "none" : "block";
+
+  document.querySelectorAll("[data-open-record]").forEach(el =>
+    el.onclick = () => loadArchiveRecord(el.dataset.openRecord, false)
+  );
+  document.querySelectorAll("[data-copy-record]").forEach(el =>
+    el.onclick = () => loadArchiveRecord(el.dataset.copyRecord, true)
+  );
+  document.querySelectorAll("[data-delete-record]").forEach(el =>
+    el.onclick = () => {
+      if (confirm("Diesen Archiv-Eintrag löschen?")) {
+        deleteArchiveRecord(el.dataset.deleteRecord);
+        renderArchive();
+      }
+    }
+  );
+}
+
+function exportArchiveData(filename = `mainabdichter-archiv-${todayLocal()}.json`) {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    version: 13,
+    archive: loadArchive()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString());
+  if(typeof updateBackupTime==="function") updateBackupTime();
+  URL.revokeObjectURL(url);
+}
+
 function show(pageId) {
   document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
   document.querySelectorAll(".main-nav button").forEach(button => button.classList.toggle("active", button.dataset.page === pageId));
   $(pageId).classList.add("active");
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
+  if (pageId === "dashboard") renderArchive();
 }
 
 document.querySelectorAll(".main-nav button").forEach(button => button.onclick = () => show(button.dataset.page));
+$("dashboardNewVisit").onclick = startNewVisit;
+$("quickCreateOffer").onclick = () => show("offer");
+$("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
+$("quickShowFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
+$("showAllOffers").onclick = () => $("archiveList").scrollIntoView({behavior:"smooth"});
+$("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
+$("icloudSave").onclick = () => { exportArchiveData("mainabdichter-backup.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
+document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => show(button.dataset.bottomPage));
+$("bottomCustomers").onclick = () => { show("dashboard"); $("archiveSearch").focus(); };
+$("bottomMore").onclick = () => show("settings");
+function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_last_backup"); if(!$("lastBackupTime")) return; $("lastBackupTime").textContent=raw?new Date(raw).toLocaleString("de-DE"):"Noch keine Sicherung"; }
+$("archiveSearch").oninput = renderArchive;
+$("archiveFilter").onchange = renderArchive;
+$("saveToArchive").onclick = () => saveCurrentToArchive(true);
+$("exportArchive").onclick = exportArchiveData;
+$("importArchive").onchange = event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const incoming = Array.isArray(parsed) ? parsed : parsed.archive;
+      if (!Array.isArray(incoming)) throw new Error("Ungültiges Archivformat.");
+      if (confirm(`Archiv mit ${incoming.length} Einträgen importieren und vorhandenes Archiv ersetzen?`)) {
+        replaceArchive(incoming);
+        renderArchive();
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+};
+
 $("quickSave").onclick = () => {
   collectVisit();
   saveState();
@@ -149,7 +385,7 @@ $("quickSettings").onclick = () => show("settings");
 $("quickMenu").onclick = () => document.querySelector(".native-nav").classList.toggle("menu-open");
 $("bottomPipedrive").onclick = () => { show("visit"); choosePipedrive(); };
 $("bottomLexware").onclick = () => { show("visit"); chooseLexware(); };
-$("bottomNewVisit").onclick = () => { resetVisit(); renderVisit(); show("visit"); };
+$("bottomNewVisit").onclick = startNewVisit;
 $("bottomFollowup").onclick = () => {
   alert("Nachkontrolle wird als nächster Ausbauschritt ergänzt.");
 };
@@ -231,10 +467,10 @@ $("captureLocation").onclick = () => {
 };
 
 $("loadWeather").onclick = fetchWeatherForLocation;
-$("newVisit").onclick = () => { resetVisit(); renderVisit(); show("visit"); };
-$("continueVisit").onclick = () => { renderVisit(); show("visit"); };
-$("openOffer").onclick = () => show("offer");
-$("openSettings").onclick = () => show("settings");
+if ($("newVisit")) $("newVisit").onclick = () => { startNewVisit(); };
+if ($("continueVisit")) $("continueVisit").onclick = () => { renderVisit(); show("visit"); };
+if ($("openOffer")) $("openOffer").onclick = () => show("offer");
+if ($("openSettings")) $("openSettings").onclick = () => show("settings");
 $("resetVisit").onclick = () => { if (confirm("Aktuelle Besichtigung löschen?")) { resetVisit(); renderVisit(); } };
 $("saveVisit").onclick = () => { collectVisit(); saveState(); alert("Besichtigung gespeichert."); };
 $("toOffer").onclick = () => { collectVisit(); saveState(); show("offer"); };
@@ -276,6 +512,14 @@ function updateMetaBar() {
     state.visit.visitWeather
       ? `${state.visit.visitOutdoorTemp || ""} °C ${state.visit.visitWeather}`.trim()
       : "–";
+  const dashboardPairs = {
+    metaVisitNumberDashboard: state.visit.visitNumber || "–",
+    metaVisitDateDashboard: state.visit.visitDate || "–",
+    metaVisitTimeDashboard: state.visit.visitStartTime || "–",
+    metaVisitLocationDashboard: location || "–",
+    metaVisitWeatherDashboard: state.visit.visitWeather ? `${state.visit.visitOutdoorTemp || ""} °C ${state.visit.visitWeather}`.trim() : "–"
+  };
+  Object.entries(dashboardPairs).forEach(([id,value]) => { if ($(id)) $(id).textContent = value; });
 }
 
 function renderVisit() {
@@ -596,6 +840,9 @@ $("customerLexware").onclick = chooseLexware;
 function renderOffer() {
   collectVisit();
   updateMetaBar();
+  const currentRecord = activeArchiveId ? loadArchive().find(item => item.id === activeArchiveId) : null;
+  if ($("offerArchiveStatus")) $("offerArchiveStatus").value = currentRecord?.status || "draft";
+  if ($("followupDate")) $("followupDate").value = currentRecord?.followupDate || "";
   const result = calculateOffer(state.settings, state.visit, state.discount);
   $("offerCustomer").textContent = [state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" ") || "–";
   $("offerAddress").textContent = state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ") || "–";
@@ -730,8 +977,11 @@ $("sendLexware").onclick = async () => {
 
     const response = await createLexwareQuotation(payload);
     if (response.contactId) state.visit.customer.lexwareContactId = response.contactId;
+    if (response.quotationId) state.visit.lexwareQuotationId = response.quotationId;
     saveState();
-    showStatus("offerStatus","Lexware-Angebot wurde als Entwurf erstellt.",true);
+    if ($("offerArchiveStatus")) $("offerArchiveStatus").value = "open";
+    saveCurrentToArchive(false);
+    showStatus("offerStatus","Lexware-Angebot wurde erstellt und im Archiv gespeichert.",true);
   } catch (error) {
     showStatus("offerStatus",error.message,false);
   }
@@ -814,4 +1064,4 @@ $("specialType").value = state.discount.specialType;
 $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
-renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); show("dashboard");
+renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateBackupTime(); show("dashboard");
