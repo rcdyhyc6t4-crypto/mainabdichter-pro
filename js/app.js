@@ -3,6 +3,24 @@ import { createArea } from "./defaults.js";
 import { calculateOffer, calculateMeasure } from "./calculator.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons } from "./utils.js";
 import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation } from "./api.js";
+function applyInputModes(root = document) {
+  root.querySelectorAll('input[type="number"]').forEach(input => {
+    input.setAttribute("inputmode", "decimal");
+  });
+
+  root.querySelectorAll('[data-mf="value"], [data-mf="height"]').forEach(input => {
+    input.setAttribute("inputmode", "decimal");
+  });
+
+  root.querySelectorAll('[data-mfield="length"], [data-mfield="width"], [data-mfield="height"], [data-mfield="extraResinKg"]').forEach(input => {
+    input.setAttribute("inputmode", "decimal");
+  });
+
+  root.querySelectorAll('[data-extra-qty], [data-extra-field="grossPrice"]').forEach(input => {
+    input.setAttribute("inputmode", "decimal");
+  });
+}
+
 
 const customerFields = ["salutation","firstName","lastName","company","phone","email","street","zip","city","objectAddress"];
 const buildingFields = ["yearBuilt","buildingType","floor","roomUse","foundationType","floorCover","roomTemp","humidity","surfaceTemp","dewPoint"];
@@ -128,6 +146,13 @@ $("quickSave").onclick = () => {
   alert("Aktueller Stand gespeichert.");
 };
 $("quickSettings").onclick = () => show("settings");
+$("quickMenu").onclick = () => document.querySelector(".native-nav").classList.toggle("menu-open");
+$("bottomPipedrive").onclick = () => { show("visit"); choosePipedrive(); };
+$("bottomLexware").onclick = () => { show("visit"); chooseLexware(); };
+$("bottomNewVisit").onclick = () => { resetVisit(); renderVisit(); show("visit"); };
+$("bottomFollowup").onclick = () => {
+  alert("Nachkontrolle wird als nächster Ausbauschritt ergänzt.");
+};
 $("setVisitNow").onclick = () => {
   state.visit.visitDate = todayLocal();
   state.visit.visitStartTime = timeLocal();
@@ -234,6 +259,25 @@ document.querySelectorAll("#visit details.compact-step").forEach(detail => {
   });
 });
 
+
+function updateMetaBar() {
+  if ($("metaVisitNumber")) $("metaVisitNumber").textContent = state.visit.visitNumber || "–";
+  if ($("metaVisitDate")) $("metaVisitDate").textContent = state.visit.visitDate || "–";
+  if ($("metaVisitTime")) $("metaVisitTime").textContent = state.visit.visitStartTime || "–";
+
+  const location = state.visit.customer.city
+    || state.visit.customer.objectAddress
+    || state.visit.visitLatitude && state.visit.visitLongitude
+      ? (state.visit.customer.city || state.visit.customer.objectAddress || `${state.visit.visitLatitude}, ${state.visit.visitLongitude}`)
+      : "–";
+
+  if ($("metaVisitLocation")) $("metaVisitLocation").textContent = location || "–";
+  if ($("metaVisitWeather")) $("metaVisitWeather").textContent =
+    state.visit.visitWeather
+      ? `${state.visit.visitOutdoorTemp || ""} °C ${state.visit.visitWeather}`.trim()
+      : "–";
+}
+
 function renderVisit() {
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
   if (!state.visit.visitStartTime) state.visit.visitStartTime = timeLocal();
@@ -259,7 +303,9 @@ function renderVisit() {
   updateGeneratedRecommendation();
   renderExtras();
   bindSpeechButtons();
+  applyInputModes();
   updateDewPoint();
+  updateMetaBar();
 }
 
 function collectVisit() {
@@ -426,6 +472,7 @@ function renderAreas() {
   });
 
   bindSpeechButtons();
+  applyInputModes(box);
 }
 
 function renderMeasurements(area) {
@@ -548,6 +595,7 @@ $("customerLexware").onclick = chooseLexware;
 
 function renderOffer() {
   collectVisit();
+  updateMetaBar();
   const result = calculateOffer(state.settings, state.visit, state.discount);
   $("offerCustomer").textContent = [state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" ") || "–";
   $("offerAddress").textContent = state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ") || "–";
@@ -717,6 +765,7 @@ function renderSettings() {
   $("mapWandSohle").innerHTML = articleOptions(s.articleMappings["Wand-Sohlen-Anschluss"]);
   $("mapSmallJob").innerHTML = articleOptions(s.articleMappings.smallJob);
   renderSettingsExtras();
+  applyInputModes();
 }
 function renderSettingsExtras() {
   $("settingsExtras").innerHTML = state.settings.extras.map(extra => {
