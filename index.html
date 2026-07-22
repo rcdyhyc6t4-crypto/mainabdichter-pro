@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V16.1</title>
+<title>mainabdichter V18 Baustellenakte</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -47,6 +47,7 @@
   <div class="dashboard-grid-v14">
     <section class="panel"><div class="panel-heading"><h2>Letzte Angebote</h2><button id="showAllOffers" class="text-button">Alle anzeigen</button></div><div id="recentOffers" class="compact-list"></div></section>
     <section class="panel"><div class="panel-heading"><h2>Schnellaktionen</h2></div><div class="quick-grid">
+      <button id="dashboardNewInquiry" class="quick-action green"><span>⌁</span>Anfrage importieren</button>
       <button id="dashboardNewVisit" class="quick-action green"><span>＋</span>Neue Besichtigung</button>
       <button id="quickCreateOffer" class="quick-action blue"><span>▤</span>Angebot erstellen</button>
       <button id="quickShowOffers" class="quick-action purple"><span>☷</span>Angebote</button>
@@ -212,6 +213,7 @@
     <button id="openCustomerView" class="secondary">Kundenansicht öffnen</button>
     <button id="reportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
     <button id="sendLexware" class="secondary">An Lexware senden</button>
+    <button id="createWorksite" class="primary">Baustelle aus Angebot anlegen</button>
   </div>
   <div class="card compact-status-card">
     <div class="grid">
@@ -226,6 +228,69 @@
     </div>
   </div>
   <div id="offerStatus" class="status"></div>
+</section>
+
+
+<section id="inquiryImport" class="page">
+  <div class="card"><div class="card-title-row"><div><h1>Anfrage aus Screenshot übernehmen</h1><p class="hint">WhatsApp, Outlook, Gmail oder Kontaktformular.</p></div><button id="cancelInquiryImport" class="secondary">Abbrechen</button></div></div>
+  <div class="card">
+    <label class="import-dropzone" for="inquiryScreenshot"><span>📷</span><strong>Screenshot auswählen oder aufnehmen</strong><small>Die Texterkennung läuft direkt im Browser.</small><input id="inquiryScreenshot" type="file" accept="image/*" capture="environment"></label>
+    <img id="inquiryPreview" class="inquiry-preview hidden" alt="Vorschau">
+    <div id="ocrProgressWrap" class="ocr-progress hidden"><div><span>Texterkennung</span><strong id="ocrProgressLabel">0 %</strong></div><progress id="ocrProgress" max="100" value="0"></progress></div>
+    <div id="inquiryImportStatus" class="status"></div>
+  </div>
+  <div id="inquiryReview" class="card hidden">
+    <h2>Erkannte Daten prüfen</h2><p class="hint">Kurz kontrollieren und übernehmen.</p>
+    <div class="grid">
+      <div><label>Quelle</label><input id="importSource"></div><div><label>Anrede</label><select id="importSalutation"><option value="">–</option><option>Herr</option><option>Frau</option><option>Firma</option></select></div>
+      <div><label>Vorname</label><input id="importFirstName"></div><div><label>Nachname</label><input id="importLastName"></div>
+      <div><label>Telefon</label><input id="importPhone" inputmode="tel"></div><div><label>E-Mail</label><input id="importEmail" inputmode="email"></div>
+      <div class="full"><label>Straße und Hausnummer</label><input id="importStreet"></div><div><label>PLZ</label><input id="importZip" inputmode="numeric"></div><div><label>Ort</label><input id="importCity"></div>
+      <div><label>Eigentümer / Mieter</label><input id="importOwnerStatus"></div><div class="full"><label>Terminnotiz</label><textarea id="importAppointment"></textarea></div><div class="full"><label>Nachricht</label><textarea id="importMessage"></textarea></div>
+    </div>
+    <label class="check-row"><input id="importCreatePipedrive" type="checkbox" checked>Kontakt zusätzlich in Pipedrive anlegen oder vorhandenen Kontakt verwenden</label>
+    <details class="mini-details"><summary>Erkannten Rohtext anzeigen</summary><textarea id="importRawText" class="large-setting-text"></textarea><button id="reparseInquiryText" class="secondary">Text erneut auswerten</button></details>
+    <div class="sticky-actions"><button id="retryInquiryImport" class="secondary">Anderen Screenshot wählen</button><button id="acceptInquiryImport" class="primary">Kunde und Anfrage übernehmen</button></div>
+  </div>
+</section>
+
+
+<section id="worksites" class="page">
+  <div class="card">
+    <div class="card-title-row"><div><h1>Baustellen und Arbeitsnachweise</h1><p class="hint">Angebot übernehmen, Ist-Werte dokumentieren, PDF erstellen und Material abbuchen.</p></div><button id="closeWorksite" class="secondary hidden">Zur Übersicht</button></div>
+  </div>
+  <div id="worksiteList" class="card"></div>
+  <div id="worksiteEditor" class="hidden">
+    <div class="card">
+      <div class="metric"><span>Kunde</span><strong id="wsCustomer">–</strong></div>
+      <div class="metric"><span>Objekt</span><strong id="wsAddress">–</strong></div>
+      <div class="grid">
+        <div><label>Ausführungsdatum</label><input id="wsDate" type="date"></div>
+        <div><label>Mitarbeiter</label><input id="wsEmployees"></div>
+        <div><label>Arbeitsbeginn</label><input id="wsStart" type="time"></div>
+        <div><label>Arbeitsende</label><input id="wsEnd" type="time"></div>
+        <div><label>Pause Minuten</label><input id="wsPause" inputmode="decimal"></div>
+        <div><label>Netto-Arbeitszeit</label><input id="wsDuration" readonly></div>
+        <div><label>Wetter</label><input id="wsWeather"></div>
+        <div><label>Außentemperatur °C</label><input id="wsOutdoorTemp" inputmode="decimal"></div>
+      </div>
+      <label>Allgemeine Bemerkungen</label><textarea id="wsGeneralNotes"></textarea>
+    </div>
+    <div id="worksiteTasks"></div>
+    <div class="card">
+      <h2>Materialzusammenfassung</h2><div id="wsMaterialSummary"></div>
+      <div class="grid">
+        <div class="full"><label>Kundenunterschrift / Name</label><input id="wsCustomerSignature"></div>
+        <div class="full"><label>Ausführender Mitarbeiter / Unterschrift</label><input id="wsWorkerSignature"></div>
+      </div>
+      <div class="offer-actions">
+        <button id="saveWorksite" class="secondary">Arbeitsnachweis speichern</button>
+        <button id="printWorksite" class="secondary">Arbeitsnachweis als PDF</button>
+        <button id="completeWorksite" class="primary">Abschließen und Ist-Material abbuchen</button>
+      </div>
+      <div id="worksiteStatus" class="status"></div>
+    </div>
+  </div>
 </section>
 
 <section id="settings" class="page">
@@ -309,9 +374,10 @@
   <button id="bottomCustomers"><span>♙</span><small>Kunden</small></button>
   <button data-bottom-page="visit"><span>▣</span><small>Besichtigungen</small></button>
   <button data-bottom-page="offer"><span>▤</span><small>Angebote</small></button>
-  <button id="bottomFollowup"><span>▦</span><small>Nachkontrollen</small></button>
+  <button data-bottom-page="worksites"><span>⚒</span><small>Baustellen</small></button>
   <button id="bottomMore"><span>•••</span><small>Mehr</small></button>
 </nav>
+<section id="worksiteDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Arbeitsnachweis</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="worksitePrintContent"></div></section>
 <section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
 <script type="module" src="js/app.js"></script>
 </body>
