@@ -9,12 +9,19 @@
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
-<header class="app-header">
+<header class="app-header compact-header">
   <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
-  <div><strong>mainabdichter – BKM.MANNESMANN Fachbetrieb</strong><small>Bauwerksabdichtung mit System</small></div>
+  <div class="header-title">
+    <strong>mainabdichter</strong>
+    <small>BKM.MANNESMANN Fachbetrieb</small>
+  </div>
+  <div class="header-actions">
+    <button id="quickSave" class="header-icon" title="Speichern" aria-label="Speichern">💾</button>
+    <button id="quickSettings" class="header-icon" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
+  </div>
 </header>
 <nav class="main-nav">
-  <button data-page="dashboard" class="active">Dashboard</button>
+  <button data-page="dashboard" class="active">Start</button>
   <button data-page="visit">Besichtigung</button>
   <button data-page="offer">Angebot</button>
   <button data-page="settings">Einstellungen</button>
@@ -23,7 +30,7 @@
 <section id="dashboard" class="page active">
   <div class="card"><h1>Dashboard</h1>
     <div class="dashboard-grid">
-      <button id="newVisit" class="primary">Neue Besichtigung</button>
+      <button id="newVisit" class="primary">Neu</button>
       <button id="continueVisit" class="secondary">Besichtigung fortsetzen</button>
       <button id="openOffer" class="secondary">Angebot öffnen</button>
       <button id="openSettings" class="secondary">Einstellungen</button>
@@ -37,16 +44,51 @@
 </section>
 
 <section id="visit" class="page">
-  <div class="card"><h1>Besichtigung</h1>
+  <div class="card visit-toolbar"><h1>Besichtigung</h1>
+    <div class="visit-progress">
+      <button type="button" data-open-step="1">Kunde</button>
+      <button type="button" data-open-step="2">Gebäude</button>
+      <button type="button" data-open-step="3">Beschreibung</button>
+      <button type="button" data-open-step="4">Maßnahmen</button>
+      <button type="button" data-open-step="5">Extras</button>
+    </div>
     <div class="customer-source-actions">
-      <button id="customerPipedrive" class="primary">Kunde aus Pipedrive</button>
-      <button id="customerLexware" class="secondary">Kunde aus Lexware</button>
-      <button id="resetVisit" class="secondary">Neue Besichtigung</button>
+      <button id="customerPipedrive" class="primary">Pipedrive</button>
+      <button id="customerLexware" class="secondary">Lexware</button>
+      <button id="resetVisit" class="secondary">Neu</button>
     </div>
   </div>
 
-  <div class="card"><h2>1. Kunde</h2>
+  <details class="card compact-step" open>
+    <summary>1. Kunde und Termin</summary>
     <div class="grid">
+      <div><label>Besichtigungsnummer</label><input id="visitNumber" readonly></div>
+      <div><label>Besichtigungsdatum</label><input id="visitDate" type="date"></div>
+      <div><label>Beginn</label><input id="visitStartTime" type="time"></div>
+      <div><label>Ende optional</label><input id="visitEndTime" type="time"></div>
+      <div><label>Dauer</label><input id="visitDuration" readonly></div>
+      <div class="full metadata-actions">
+        <button id="setVisitNow" class="secondary">Datum und Beginn jetzt übernehmen</button>
+        <button id="setVisitEndNow" class="secondary">Ende jetzt übernehmen</button>
+      </div>
+      <details class="full mini-details">
+        <summary>Standort und Wetter optional</summary>
+        <div class="location-weather-panel">
+          <div class="section-actions">
+            <button id="captureLocation" class="secondary">📍 Standort übernehmen</button>
+            <button id="loadWeather" class="secondary">🌦️ Wetter abrufen</button>
+          </div>
+          <div class="grid">
+            <div><label>Breitengrad</label><input id="visitLatitude" readonly></div>
+            <div><label>Längengrad</label><input id="visitLongitude" readonly></div>
+            <div><label>GPS-Genauigkeit</label><input id="visitAccuracy" readonly></div>
+            <div><label>Wetter</label><input id="visitWeather" readonly></div>
+            <div><label>Außentemperatur °C</label><input id="visitOutdoorTemp" readonly></div>
+            <div><label>Niederschlag mm</label><input id="visitPrecipitation" readonly></div>
+          </div>
+          <div id="locationWeatherStatus" class="status"></div>
+        </div>
+      </details>
       <div><label>Anrede</label><select id="salutation"><option value="">–</option><option>Herr</option><option>Frau</option></select></div>
       <div><label>Vorname</label><input id="firstName"></div>
       <div><label>Nachname</label><input id="lastName"></div>
@@ -58,9 +100,10 @@
       <div><label>Ort</label><input id="city"></div>
       <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
     </div>
-  </div>
+  </details>
 
-  <div class="card"><h2>2. Gebäude und Raum</h2>
+  <details class="card compact-step">
+    <summary>2. Gebäude und Raum</summary>
     <div class="grid">
       <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
       <div><label>Bauart</label><select id="buildingType"><option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option><option>Reihenmittelhaus</option><option>Reihenendhaus</option><option>Mehrfamilienhaus</option><option>Bungalow</option><option>Gewerbeobjekt</option><option>Sonstiges</option></select></div>
@@ -76,15 +119,24 @@
         <div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
       </div></div>
     </div>
-  </div>
+  </details>
 
-  <div class="card"><h2>3. Schadensbeschreibung und Empfehlung</h2>
+  <details class="card compact-step">
+    <summary>3. Schadensbeschreibung und Empfehlung</summary>
     <label>Schadensbild</label><div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
     <label>Automatisch erzeugte Empfehlung</label><div id="generatedRecommendation" class="generated-text">Die Empfehlung wird aus den ausgewählten Maßnahmen erstellt.</div>
-  </div>
+  </details>
 
-  <div class="card"><h2>4. Schadensbereiche</h2><div id="areas"></div><button id="addArea" class="primary">+ Schadensbereich</button></div>
-  <div class="card"><h2>5. Zusatzleistungen</h2><div id="extras"></div></div>
+  <details class="card compact-step" open>
+    <summary>4. Schadensbereiche und Maßnahmen</summary>
+    <div id="areas"></div>
+    <button id="addArea" class="primary">+ Schadensbereich</button>
+  </details>
+
+  <details class="card compact-step">
+    <summary>5. Zusatzleistungen</summary>
+    <div id="extras"></div>
+  </details>
   <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Zum Angebot</button></div>
 </section>
 
