@@ -2,8 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { createArea } from "./defaults.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils.js";
-import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation } from "./api.js";
+import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson } from "./api.js";
 import { buildExecutionNotices } from "./texts.js";
+import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer.js";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, workDurationMinutes, worksiteMaterialTotals } from "./construction.js";
 function applyInputModes(root = document) {
   const decimalSelectors = [
     'input[type="number"]',
@@ -155,6 +157,68 @@ async function fetchWeatherForLocation() {
   }
 }
 
+
+
+let inquiryScreenshotData = "";
+
+function openInquiryImport() {
+  inquiryScreenshotData = "";
+  $("inquiryScreenshot").value = "";
+  $("inquiryPreview").src = "";
+  $("inquiryPreview").classList.add("hidden");
+  $("inquiryReview").classList.add("hidden");
+  $("ocrProgressWrap").classList.add("hidden");
+  showStatus("inquiryImportStatus","Screenshot auswählen.",true);
+  show("inquiryImport");
+}
+
+function fillInquiryReview(data) {
+  const values = {importSource:data.source,importFirstName:data.firstName,importLastName:data.lastName,importPhone:data.phone,importEmail:data.email,importStreet:data.street,importZip:data.zip,importCity:data.city,importOwnerStatus:data.ownerStatus,importAppointment:data.appointment,importMessage:data.message,importRawText:data.rawText};
+  Object.entries(values).forEach(([id,value]) => { if ($(id)) $(id).value = value || ""; });
+  $("importSalutation").value = data.salutation || "";
+  $("inquiryReview").classList.remove("hidden");
+  $("inquiryReview").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+async function handleInquiryScreenshot(file) {
+  if (!file) return;
+  $("inquiryReview").classList.add("hidden");
+  $("ocrProgressWrap").classList.remove("hidden");
+  $("ocrProgress").value = 0; $("ocrProgressLabel").textContent = "0 %";
+  showStatus("inquiryImportStatus","Bild wird vorbereitet und gelesen …",true);
+  try {
+    inquiryScreenshotData = await compressImage(file);
+    $("inquiryPreview").src = inquiryScreenshotData; $("inquiryPreview").classList.remove("hidden");
+    const text = await recognizeScreenshot(inquiryScreenshotData, progress => { $("ocrProgress").value = progress; $("ocrProgressLabel").textContent = `${progress} %`; });
+    fillInquiryReview(parseInquiryText(text));
+    showStatus("inquiryImportStatus","Daten erkannt. Bitte kurz prüfen.",true);
+  } catch(error) { showStatus("inquiryImportStatus",error.message,false); }
+  finally { $("ocrProgressWrap").classList.add("hidden"); }
+}
+
+function readInquiryReview() {
+  return {source:$("importSource").value.trim() || "Screenshot",salutation:$("importSalutation").value,firstName:$("importFirstName").value.trim(),lastName:$("importLastName").value.trim(),phone:$("importPhone").value.trim(),email:$("importEmail").value.trim(),street:$("importStreet").value.trim(),zip:$("importZip").value.trim(),city:$("importCity").value.trim(),ownerStatus:$("importOwnerStatus").value.trim(),appointment:$("importAppointment").value.trim(),message:$("importMessage").value.trim(),rawText:$("importRawText").value.trim()};
+}
+
+async function acceptInquiryImport() {
+  const data = readInquiryReview();
+  if (!data.firstName && !data.lastName) { showStatus("inquiryImportStatus","Bitte einen Namen eintragen.",false); return; }
+  resetVisit(); state.visit.visitDate=todayLocal(); state.visit.visitStartTime=timeLocal(); state.visit.visitNumber=createVisitNumber();
+  Object.assign(state.visit.customer,{salutation:data.salutation,firstName:data.firstName,lastName:data.lastName,phone:data.phone,email:data.email,street:data.street,zip:data.zip,city:data.city,objectAddress:[data.street,[data.zip,data.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")});
+  state.visit.damageDescription=data.message;
+  state.visit.inquiry={source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message,rawText:data.rawText,screenshot:inquiryScreenshotData,importedAt:new Date().toISOString()};
+  saveState();
+  let pipedriveMessage="";
+  if ($("importCreatePipedrive").checked) {
+    try {
+      const response=await createPipedrivePerson({name:[data.firstName,data.lastName].filter(Boolean).join(" "),email:data.email,phone:data.phone,street:data.street,zip:data.zip,city:data.city,source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message});
+      state.visit.customer.pipedriveId=String(response.person?.id || ""); saveState();
+      pipedriveMessage=response.created ? " Kontakt wurde in Pipedrive angelegt." : " Vorhandener Pipedrive-Kontakt wurde verwendet.";
+    } catch(error) { pipedriveMessage=` Pipedrive konnte nicht aktualisiert werden: ${error.message}`; }
+  }
+  renderVisit(); show("visit");
+  showStatus("visitStatus",`Anfrage wurde übernommen.${pipedriveMessage}`,!pipedriveMessage.includes("konnte nicht"));
+}
 
 function startNewVisit() {
   activeArchiveId = null;
@@ -373,9 +437,16 @@ function show(pageId) {
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
   if (pageId === "dashboard") renderArchive();
+  if (pageId === "worksites") renderWorksites();
 }
 
 document.querySelectorAll(".main-nav button").forEach(button => button.onclick = () => show(button.dataset.page));
+$("dashboardNewInquiry").onclick = openInquiryImport;
+$("cancelInquiryImport").onclick = () => show("dashboard");
+$("retryInquiryImport").onclick = () => $("inquiryScreenshot").click();
+$("inquiryScreenshot").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
+$("reparseInquiryText").onclick = () => fillInquiryReview(parseInquiryText($("importRawText").value));
+$("acceptInquiryImport").onclick = acceptInquiryImport;
 $("dashboardNewVisit").onclick = startNewVisit;
 $("quickCreateOffer").onclick = () => show("offer");
 $("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
@@ -1395,6 +1466,152 @@ function renderSettings() {
   renderInventorySettings();
   applyInputModes();
 }
+
+let activeWorksiteId = null;
+
+function worksiteCustomerName(worksite) {
+  return [worksite.customer?.salutation, worksite.customer?.firstName, worksite.customer?.lastName].filter(Boolean).join(" ") || worksite.customer?.company || "Unbenannter Kunde";
+}
+
+function renderWorksites() {
+  const list = loadWorksites();
+  const box = $("worksiteList");
+  if (!box) return;
+  $("worksiteEditor").classList.toggle("hidden", !activeWorksiteId);
+  $("closeWorksite").classList.toggle("hidden", !activeWorksiteId);
+  box.classList.toggle("hidden", Boolean(activeWorksiteId));
+  if (activeWorksiteId) {
+    renderWorksiteEditor();
+    return;
+  }
+  box.innerHTML = `<h2>Baustellen</h2>` + (list.length ? list.map(item => `
+    <div class="worksite-list-item">
+      <div><strong>${esc(worksiteCustomerName(item))}</strong><span>${esc(item.objectAddress || "–")}</span><small>${esc(item.date || "")} · ${esc(item.status === "completed" ? "abgeschlossen" : item.status === "active" ? "in Ausführung" : "geplant")}</small></div>
+      <div class="worksite-list-actions"><button class="secondary" data-open-worksite="${item.id}">Öffnen</button><button class="danger" data-delete-worksite="${item.id}">Löschen</button></div>
+    </div>`).join("") : `<p class="hint">Noch keine Baustelle angelegt. Öffne ein angenommenes Angebot und tippe auf „Baustelle aus Angebot anlegen“.</p>`);
+  box.querySelectorAll("[data-open-worksite]").forEach(button => button.onclick = () => { activeWorksiteId = button.dataset.openWorksite; renderWorksites(); });
+  box.querySelectorAll("[data-delete-worksite]").forEach(button => button.onclick = () => { if(confirm("Baustelle wirklich löschen?")){ deleteWorksite(button.dataset.deleteWorksite); renderWorksites(); } });
+}
+
+function collectWorksite() {
+  const worksite = getWorksite(activeWorksiteId);
+  if (!worksite) return null;
+  worksite.date = $("wsDate").value;
+  worksite.employees = $("wsEmployees").value.trim();
+  worksite.startTime = $("wsStart").value;
+  worksite.endTime = $("wsEnd").value;
+  worksite.pauseMinutes = parseDecimal($("wsPause").value);
+  worksite.weather = $("wsWeather").value.trim();
+  worksite.outdoorTemp = $("wsOutdoorTemp").value.trim();
+  worksite.generalNotes = $("wsGeneralNotes").value.trim();
+  worksite.customerSignature = $("wsCustomerSignature").value.trim();
+  worksite.workerSignature = $("wsWorkerSignature").value.trim();
+  document.querySelectorAll("[data-ws-task]").forEach(input => {
+    const task = worksite.tasks.find(item => item.id === input.dataset.wsTask);
+    if (!task) return;
+    const field = input.dataset.wsField;
+    if (input.type === "checkbox") task[field] = input.checked;
+    else if (["actualHoles","actualLiters","actualHsKg","packers","resinKg","spacing"].includes(field)) task[field] = parseDecimal(input.value);
+    else task[field] = input.value;
+  });
+  return worksite;
+}
+
+function saveActiveWorksite(message=true) {
+  const worksite = collectWorksite();
+  if (!worksite) return null;
+  if (worksite.status === "planned" && worksite.startTime) worksite.status = "active";
+  persistWorksite(worksite);
+  if(message) showStatus("worksiteStatus","Arbeitsnachweis gespeichert.",true);
+  return worksite;
+}
+
+function taskPhotoHtml(task) {
+  return (task.photos || []).map(photo => `<div class="worksite-photo"><img src="${photo.src}" alt=""><small>${esc(photo.category)}</small><button class="danger" data-delete-ws-photo="${photo.id}" data-task-id="${task.id}">×</button></div>`).join("");
+}
+
+function renderWorksiteEditor() {
+  const ws = getWorksite(activeWorksiteId);
+  if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
+  $("wsCustomer").textContent = worksiteCustomerName(ws);
+  $("wsAddress").textContent = ws.objectAddress || "–";
+  $("wsDate").value = ws.date || "";
+  $("wsEmployees").value = ws.employees || "";
+  $("wsStart").value = ws.startTime || "";
+  $("wsEnd").value = ws.endTime || "";
+  $("wsPause").value = formatDecimalInput(ws.pauseMinutes || 0);
+  $("wsDuration").value = `${num(workDurationMinutes(ws)/60)} Std.`;
+  $("wsWeather").value = ws.weather || "";
+  $("wsOutdoorTemp").value = ws.outdoorTemp || "";
+  $("wsGeneralNotes").value = ws.generalNotes || "";
+  $("wsCustomerSignature").value = ws.customerSignature || "";
+  $("wsWorkerSignature").value = ws.workerSignature || "";
+  $("worksiteTasks").innerHTML = ws.tasks.map(task => `
+    <div class="card worksite-task-card">
+      <div class="worksite-task-title"><div><h2>${esc(task.areaName)} – ${esc(task.type)}</h2><small>${esc(task.scope)} · Wand ${num(task.wall)} cm</small></div><label class="worksite-check"><input type="checkbox" data-ws-task="${task.id}" data-ws-field="completed" ${task.completed?"checked":""}> vollständig ausgeführt</label></div>
+      <div class="grid">
+        <div><label>Bohrlochabstand m</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>0,125 m</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>0,25 m</option></select></div>
+        <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
+        <div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>
+        <div><label>Sollmenge je Bohrloch</label><input value="${num(task.targetLitersPerHole)} l" readonly></div>
+        <div><label>Sollverbrauch HZ 250 Pro</label><input value="${num(task.plannedLiters)} l" readonly></div>
+        <div><label>Istverbrauch HZ 250 Pro Liter</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualLiters" value="${formatDecimalInput(task.actualLiters)}"></div>
+        ${task.type === "Wand-Sohlen-Anschluss" ? `<div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div><div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>` : ""}
+        ${task.type === "Harzverpressung" ? `<div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div><div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>` : ""}
+        <div><label>Injektionsart</label><select data-ws-task="${task.id}" data-ws-field="injectionType"><option ${task.injectionType==="Niederdruckverfahren"?"selected":""}>Niederdruckverfahren</option><option ${task.injectionType==="drucklose Injektion"?"selected":""}>drucklose Injektion</option></select></div>
+        ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(task.type) ? `<div><label>Charge BKM HZ 250 Pro</label><input data-ws-task="${task.id}" data-ws-field="chargeHz" value="${esc(task.chargeHz)}"></div>` : ""}
+        <div class="full"><label>Was wurde gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="note">${esc(task.note)}</textarea></div>
+      </div>
+      <label>Fotos</label><div class="grid"><div><select id="photo-category-${task.id}"><option>Vorher</option><option>Während</option><option>Nachher</option></select></div><div><input type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></div></div>
+      <div class="worksite-photo-grid">${taskPhotoHtml(task)}</div>
+    </div>`).join("");
+  const totals = worksiteMaterialTotals(ws);
+  $("wsMaterialSummary").innerHTML = `<div class="worksite-material-row"><span>BKM HZ 250 Pro</span><strong>${num(totals.hzLiters)} Liter</strong></div><div class="worksite-material-row"><span>BKM HS Sperrmörtel</span><strong>${num(totals.hsKg)} kg</strong></div><div class="worksite-material-row"><span>Harz</span><strong>${num(totals.resinKg)} kg</strong></div><div class="worksite-material-row"><span>Packer</span><strong>${num(totals.packers)} Stück</strong></div>${ws.materialBooked?`<p class="booked-badge">Material bereits abgebucht</p>`:""}`;
+  document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = event => {
+    const task = ws.tasks.find(item => item.id === input.dataset.wsPhotoTask);
+    const category = $(`photo-category-${task.id}`).value;
+    [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
+  });
+  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); renderWorksiteEditor(); });
+  applyInputModes($("worksiteEditor"));
+}
+
+function deductWorksiteInventory(ws) {
+  if (ws.materialBooked) throw new Error("Das Ist-Material wurde bereits abgebucht.");
+  const totals = worksiteMaterialTotals(ws);
+  const rows = [
+    { id:"bkm-hz-250-pro", amount:totals.hzLiters },
+    { id:"bkm-hs-sperrmoertel", amount:totals.hsKg }
+  ];
+  for (const row of rows) {
+    if (row.amount <= 0) continue;
+    const product = state.settings.inventory?.products?.find(item => item.id === row.id);
+    if (!product) continue;
+    product.stock = Number(product.stock || 0) - row.amount;
+    inventoryTransaction(product,-row.amount,"issue",`Istverbrauch Baustelle ${worksiteCustomerName(ws)}`);
+  }
+  ws.materialBooked = true;
+  ws.materialBookedAt = new Date().toISOString();
+}
+
+function buildWorksitePrint(ws) {
+  const totals=worksiteMaterialTotals(ws);
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div></div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div></div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+}
+
+$("createWorksite").onclick = () => {
+  collectVisit();
+  const offer=saveCurrentToArchive(false);
+  const ws=createWorksiteFromVisit(state.settings,state.visit,offer.id);
+  if(!ws.tasks.length){ showStatus("offerStatus","Keine Maßnahme mit gültiger Menge vorhanden.",false); return; }
+  persistWorksite(ws); activeWorksiteId=ws.id; show("worksites"); showStatus("worksiteStatus","Baustelle wurde aus dem Angebot angelegt.",true);
+};
+$("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
+$("saveWorksite").onclick = () => { saveActiveWorksite(true); renderWorksiteEditor(); };
+["wsStart","wsEnd","wsPause"].forEach(id => $(id).onchange = () => { const ws=collectWorksite(); if(ws) $("wsDuration").value=`${num(workDurationMinutes(ws)/60)} Std.`; });
+$("printWorksite").onclick = () => { const ws=saveActiveWorksite(false); buildWorksitePrint(ws); document.body.classList.add("print-worksite"); window.print(); setTimeout(()=>document.body.classList.remove("print-worksite"),400); };
+$("completeWorksite").onclick = () => { try { const ws=saveActiveWorksite(false); if(!ws.tasks.every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return; deductWorksiteInventory(ws); ws.status="completed"; persistWorksite(ws); saveState(); renderInventorySettings(); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis abgeschlossen und Ist-Material abgebucht.",true); } catch(error){ showStatus("worksiteStatus",error.message,false); } };
+
 function renderSettingsExtras() {
   $("settingsExtras").innerHTML = state.settings.extras.map(extra => {
     const article = state.settings.lexwareArticles.find(a=>a.id===extra.lexwareArticleId);

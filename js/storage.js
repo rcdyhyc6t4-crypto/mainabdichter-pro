@@ -107,12 +107,13 @@ export function replaceArchive(archive) {
 
 export function createFullBackupPayload() {
   return {
-    version: 16.0,
+    version: 18.0,
     exportedAt: new Date().toISOString(),
     settings: JSON.parse(JSON.stringify(state.settings)),
     visit: JSON.parse(JSON.stringify(state.visit)),
     discount: JSON.parse(JSON.stringify(state.discount)),
     archive: loadArchive(),
+    worksites: JSON.parse(localStorage.getItem("mainabdichter_v18_worksites") || "[]"),
     metadata: {
       source: "mainabdichter",
       containsSensitiveConnectionData: Boolean(
@@ -146,12 +147,19 @@ export function restoreFullBackupPayload(payload) {
     replaceArchive(payload.archive);
   }
 
+  if (Array.isArray(payload.worksites)) {
+    localStorage.setItem("mainabdichter_v18_worksites", JSON.stringify(payload.worksites));
+  }
+
   return {
     settingsRestored: Boolean(payload.settings),
     visitRestored: Boolean(payload.visit),
     discountRestored: Boolean(payload.discount),
     archiveCount: Array.isArray(payload.archive)
       ? payload.archive.length
+      : 0,
+    worksiteCount: Array.isArray(payload.worksites)
+      ? payload.worksites.length
       : 0
   };
 }

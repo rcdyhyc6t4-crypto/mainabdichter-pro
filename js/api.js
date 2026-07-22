@@ -109,3 +109,12 @@ export async function createLexwareQuotation(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+
+export async function createPipedrivePerson(payload) {
+  return api("/pipedrive/persons", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}

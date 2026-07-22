@@ -102,6 +102,10 @@ export const DEFAULTS = {
     visitOutdoorTemp: "",
     visitPrecipitation: "",
     damageDescription: "",
+    inquiry: {
+      source: "", ownerStatus: "", appointment: "", message: "",
+      rawText: "", screenshot: "", importedAt: ""
+    },
     customerRecommendation: "",
     inventoryDeducted: false,
     inventoryDeductedAt: "",
