@@ -1,1 +1,14 @@
 .customer-page{background:#fff}.customer-header{display:flex;align-items:center;gap:16px;padding:12px 18px;border-bottom:5px solid var(--green)}.customer-header img{width:165px}.customer-header strong,.customer-header small{display:block}.customer-main{max-width:850px;margin:auto;padding:14px}.customer-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:sticky;bottom:0;background:rgba(255,255,255,.96);padding:12px 0}@media(max-width:650px){.customer-header{align-items:flex-start;flex-direction:column}.customer-actions{grid-template-columns:1fr}}@media print{.customer-actions{display:none!important}.customer-main{padding:0}@page{size:A4;margin:12mm}}
+.customer-native-header{
+  min-height:54px;
+  padding:7px 10px;
+  border-bottom:3px solid var(--green);
+}
+.customer-native-header img{
+  width:auto;
+  height:34px;
+  max-width:110px;
+  object-fit:contain;
+}
+.customer-native-header strong{font-size:16px}
+.customer-native-header small{font-size:10px;color:var(--muted)}
