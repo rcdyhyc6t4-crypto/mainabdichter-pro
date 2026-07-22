@@ -537,3 +537,124 @@ main{max-width:1500px;padding:10px 20px}.dashboard-grid-v14{display:grid;grid-te
 .v14-bottom-nav{grid-template-columns:repeat(6,1fr);height:64px;padding:4px 10px max(4px,env(safe-area-inset-bottom));background:#fff}.v14-bottom-nav button span{font-size:19px}.v14-bottom-nav button small{font-size:9px}.v14-bottom-nav button.active{color:var(--v14-green)}
 @media(max-width:1100px){.dashboard-grid-v14{grid-template-columns:1fr 1fr}.archive-layout{grid-template-columns:1fr}.backup-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.backup-panel .panel-heading,.backup-info{grid-column:1/-1}.backup-action{border:1px solid var(--v14-border);border-radius:8px}}
 @media(max-width:720px){.v14-header{padding:7px 10px}.v14-brand small{display:none}.v14-brand strong{font-size:18px}.header-action span{display:none}.header-actions{gap:2px}.header-action{padding:8px}main{padding:7px 9px}.dashboard-meta{grid-template-columns:repeat(5,minmax(92px,1fr));overflow-x:auto;margin-top:4px}.dashboard-meta>div{padding:9px 10px}.dashboard-meta strong{font-size:11px}.dashboard-grid-v14{grid-template-columns:1fr}.panel{padding:11px}.quick-action{height:82px}.archive-layout{grid-template-columns:1fr}.archive-table-head{display:none}.archive-row{grid-template-columns:1fr auto;border:1px solid var(--v14-border);border-radius:10px;margin-bottom:8px;overflow:hidden}.archive-row-main{grid-template-columns:75px 1fr auto;gap:6px;padding:10px}.archive-row-main>span:nth-child(3){grid-column:2/-1}.archive-row-main>strong{grid-column:3;grid-row:1}.status-badge{grid-column:3}.filter-row{grid-template-columns:1fr}.backup-panel{display:block}.backup-action{border:0;border-bottom:1px solid var(--v14-border);border-radius:0}.v14-bottom-nav button small{font-size:8px}}
+
+.large-setting-text{
+  min-height:220px;
+  line-height:1.45;
+  font-size:14px;
+  white-space:pre-wrap;
+}
+.report-notices{
+  page-break-before:auto;
+}
+.report-notice{
+  margin:0 0 16px;
+  padding:12px 14px;
+  border:1px solid #ccd2d6;
+  border-radius:6px;
+  break-inside:avoid;
+}
+.report-notice h3{
+  margin:0 0 8px;
+  font-size:14px;
+}
+.report-flowtext{
+  white-space:pre-line;
+  font-size:11px;
+  line-height:1.5;
+  color:#30363b;
+}
+
+.price-tier-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.price-tier{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  align-items:flex-start;
+  padding:16px;
+  border:2px solid #dce1e4;
+  background:#fff;
+  border-radius:12px;
+  text-align:left;
+}
+.price-tier strong{font-size:21px}
+.price-tier small{color:#687077}
+.price-tier.active{
+  border-color:#76b82a;
+  box-shadow:0 0 0 3px rgba(118,184,42,.12);
+}
+.inventory-requirement{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px;
+  margin:10px 0;
+  border:1px solid #dce1e4;
+  border-radius:10px;
+}
+.inventory-requirement>div:first-child{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.inventory-numbers{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:3px;
+}
+.inventory-requirement.ok b{color:#2f7d32}
+.inventory-requirement.warning b{color:#a66b00}
+.inventory-requirement.danger b{color:#b42318}
+.inventory-booked{
+  padding:10px 12px;
+  border-radius:8px;
+  background:#eef7e8;
+}
+.inventory-product-card{
+  border:1px solid #dce1e4;
+  border-radius:12px;
+  padding:15px;
+  margin:12px 0;
+}
+.inventory-product-card.low-stock{
+  border-color:#d39b38;
+  background:#fffaf0;
+}
+.inventory-product-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:12px;
+}
+.inventory-product-head>div{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.inventory-action-cell{
+  display:flex;
+  align-items:flex-end;
+}
+.compact-list-item{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  padding:10px 0;
+  border-bottom:1px solid #e4e7e9;
+}
+.compact-list-item>div{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+@media(max-width:720px){
+  .price-tier-grid{grid-template-columns:1fr}
+  .inventory-requirement{flex-direction:column}
+  .inventory-numbers{align-items:flex-start}
+}
