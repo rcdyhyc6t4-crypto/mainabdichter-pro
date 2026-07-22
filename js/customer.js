@@ -1,6 +1,7 @@
 import { state } from "./storage.js";
 import { calculateOffer } from "./calculator.js";
 import { $, eur, num, esc } from "./utils.js";
+import { buildExecutionNotices } from "./texts.js";
 
 function buildCustomerData() {
   const result = calculateOffer(
@@ -81,7 +82,8 @@ function buildCustomerData() {
     specialAmount: result.specialAmount,
     offerGross: result.offerGross,
     skontoPct: result.skontoPct,
-    skontoGross: result.skontoGross
+    skontoGross: result.skontoGross,
+    notices: buildExecutionNotices(state.settings, state.visit)
   };
 }
 
@@ -156,6 +158,16 @@ try {
       `${num(data.skontoPct)} % Skonto bei Zahlung ` +
       "innerhalb von 3 Werktagen";
     $("cSkonto").textContent = eur(data.skontoGross);
+  }
+
+  if (data.notices.length) {
+    $("cNoticesSection").classList.remove("hidden");
+    $("cNotices").innerHTML = data.notices.map(notice => `
+      <article class="customer-notice-card">
+        <h3>${esc(notice.title)}</h3>
+        <div class="notice-flowtext">${esc(notice.text)}</div>
+      </article>
+    `).join("");
   }
 
   $("cPhotos").innerHTML = data.photos

@@ -1,26 +1,48 @@
 import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload } from "./storage.js";
 import { createArea } from "./defaults.js";
-import { calculateOffer, calculateMeasure } from "./calculator.js";
-import { $, eur, num, esc, showStatus, bindSpeechButtons } from "./utils.js";
+import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator.js";
+import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils.js";
 import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation } from "./api.js";
+import { buildExecutionNotices } from "./texts.js";
 function applyInputModes(root = document) {
-  root.querySelectorAll('input[type="number"]').forEach(input => {
-    input.setAttribute("inputmode", "decimal");
-  });
+  const decimalSelectors = [
+    'input[type="number"]',
+    '[data-mf="value"]',
+    '[data-mf="height"]',
+    '[data-mfield="length"]',
+    '[data-mfield="width"]',
+    '[data-mfield="height"]',
+    '[data-mfield="extraResinKg"]',
+    '[data-extra-qty]',
+    '[data-extra-field="grossPrice"]',
+    '[data-inventory-field="stock"]',
+    '[data-inventory-field="minimumStock"]',
+    '[data-inventory-field="packageSize"]',
+    '[data-inventory-field="purchaseNet"]'
+  ];
 
-  root.querySelectorAll('[data-mf="value"], [data-mf="height"]').forEach(input => {
+  root.querySelectorAll(decimalSelectors.join(",")).forEach(input => {
+    // type="text" ist notwendig, weil Safari bei type="number" ein Komma
+    // je nach Tastatur und Region teilweise ablehnt.
+    if (input.type === "number") input.type = "text";
     input.setAttribute("inputmode", "decimal");
-  });
+    input.setAttribute("autocomplete", "off");
 
-  root.querySelectorAll('[data-mfield="length"], [data-mfield="width"], [data-mfield="height"], [data-mfield="extraResinKg"]').forEach(input => {
-    input.setAttribute("inputmode", "decimal");
-  });
+    if (!input.dataset.decimalReady) {
+      input.dataset.decimalReady = "true";
+      input.addEventListener("blur", () => {
+        if (input.value.trim() !== "") {
+          input.value = formatDecimalInput(input.value);
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+    }
 
-  root.querySelectorAll('[data-extra-qty], [data-extra-field="grossPrice"]').forEach(input => {
-    input.setAttribute("inputmode", "decimal");
+    if (input.value !== "" && document.activeElement !== input) {
+      input.value = formatDecimalInput(input.value);
+    }
   });
 }
-
 let activeArchiveId = null;
 
 
@@ -199,6 +221,8 @@ function loadArchiveRecord(id, asCopy = false) {
     state.visit.visitStartTime = timeLocal();
     state.visit.visitEndTime = "";
     state.visit.visitNumber = createVisitNumber();
+    state.visit.inventoryDeducted = false;
+    state.visit.inventoryDeductedAt = "";
   }
 
   saveState();
@@ -700,7 +724,7 @@ function generateRecommendationText() {
 
   if (selected.has("Wand-Sohlen-Anschluss")) {
     parts.push(
-      "Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht. Im Anschluss wird zusätzlich eine Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro eingebracht. Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit von etwa 5–6 Monaten wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet."
+      "Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht. Im Anschluss wird zusätzlich eine Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro eingebracht. Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet."
     );
   }
 
@@ -724,8 +748,8 @@ function updateGeneratedRecommendation() {
 }
 
 function updateDewPoint() {
-  const t = Number($("roomTemp").value);
-  const rh = Number($("humidity").value);
+  const t = parseDecimal($("roomTemp").value);
+  const rh = parseDecimal($("humidity").value);
   if (Number.isFinite(t) && rh > 0) {
     const a = 17.62, b = 243.12;
     const gamma = Math.log(rh / 100) + a * t / (b + t);
@@ -895,7 +919,7 @@ function renderExtras() {
     return `<div class="catalog-row"><div><strong>${esc(article?.title || extra.name)}</strong>${article?.description?`<div class="article-description">${esc(article.description)}</div>`:""}<small>${esc(article?.unitName || extra.unit)}</small></div><div><label>Menge</label><input type="number" step=".01" data-extra-qty="${extra.id}" value="${state.visit.extraQuantities[extra.id] || 0}"></div></div>`;
   }).join("");
   document.querySelectorAll("[data-extra-qty]").forEach(input => input.oninput = () => {
-    state.visit.extraQuantities[input.dataset.extraQty] = Number(input.value) || 0; saveState();
+    state.visit.extraQuantities[input.dataset.extraQty] = parseDecimal(input.value); saveState();
   });
 }
 
@@ -939,6 +963,21 @@ function renderOffer() {
   if ($("offerArchiveStatus")) $("offerArchiveStatus").value = currentRecord?.status || "draft";
   if ($("followupDate")) $("followupDate").value = currentRecord?.followupDate || "";
   const result = calculateOffer(state.settings, state.visit, state.discount);
+  const strategies = calculatePriceStrategies(
+    state.settings,
+    state.visit,
+    state.discount
+  );
+  $("priceMinimum").textContent = eur(strategies.minimum.offerGross);
+  $("priceStandard").textContent = eur(strategies.standard.offerGross);
+  $("pricePremium").textContent = eur(strategies.premium.offerGross);
+  document.querySelectorAll("[data-pricing-tier]").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.pricingTier === (state.discount.pricingTier || "standard")
+    );
+  });
+  renderMaterialRequirement(result);
   $("offerCustomer").textContent = [state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" ") || "–";
   $("offerAddress").textContent = state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ") || "–";
   $("offerGross").textContent = eur(result.offerGross);
@@ -954,20 +993,29 @@ function renderOffer() {
   if ($("dashOffer")) {
     $("dashOffer").textContent = eur(result.offerGross);
   }
-  $("internalCalc").innerHTML = result.lineItems.map(item => `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${item.holes!==undefined?`<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div><div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div><div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`:""}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
+  $("internalCalc").innerHTML = result.lineItems.map(item => `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${item.holes!==undefined?`<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div><div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div>${Number(item.hsKg)>0?`<div class="metric"><span>BKM HS Sperrmörtel</span><strong>${num(item.hsKg)} kg</strong></div>`:""}${item.smallJobIntegrated?`<div class="metric"><span>Kleinmengenaufschlag integriert</span><strong>${eur(item.smallJobSurchargePerUnit)} je ${esc(item.unitName)}</strong></div>`:""}<div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`:""}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
   return result;
 }
 
 ["skontoType","skontoCustom","specialType","specialValue","specialLabel"].forEach(id => {
   $(id).oninput = () => {
     state.discount.skontoType = $("skontoType").value;
-    state.discount.skontoCustom = Number($("skontoCustom").value) || 0;
+    state.discount.skontoCustom = parseDecimal($("skontoCustom").value);
     state.discount.specialType = $("specialType").value;
-    state.discount.specialValue = Number($("specialValue").value) || 0;
+    state.discount.specialValue = parseDecimal($("specialValue").value);
     state.discount.specialLabel = $("specialLabel").value;
     saveState(); renderOffer();
   };
 });
+
+document.querySelectorAll("[data-pricing-tier]").forEach(button => {
+  button.onclick = () => {
+    state.discount.pricingTier = button.dataset.pricingTier;
+    saveState();
+    renderOffer();
+  };
+});
+$("deductInventory").onclick = deductCurrentOrderInventory;
 $("toggleInternal").onclick = () => $("internalCalc").classList.toggle("hidden");
 
 function buildCustomerSnapshot() {
@@ -1110,27 +1158,241 @@ function buildReport() {
   for (const area of state.visit.areas) {
     html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")}</td></tr><tr><th>Bemerkung</th><td>${esc(area.measurementRemark || "")}</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
+  const executionNotices = buildExecutionNotices(
+    state.settings,
+    state.visit
+  );
+
+  if (executionNotices.length) {
+    html += `<div class="report-section report-notices">
+      <h2>Wichtige Hinweise zur Ausführung</h2>
+      ${executionNotices.map(notice => `
+        <div class="report-notice">
+          <h3>${esc(notice.title)}</h3>
+          <div class="report-flowtext">${esc(notice.text)}</div>
+        </div>
+      `).join("")}
+    </div>`;
+  }
+
   $("reportContent").innerHTML = html;
 }
 $("reportPdf").onclick = () => { buildReport(); document.body.classList.add("print-report"); window.print(); setTimeout(()=>document.body.classList.remove("print-report"),400); };
+
+
+function inventoryProduct(id) {
+  return state.settings.inventory?.products?.find(product => product.id === id);
+}
+
+function inventoryStatus(required, product) {
+  const stock = Number(product?.stock || 0);
+  const remaining = stock - Number(required || 0);
+  return {
+    stock,
+    remaining,
+    sufficient: remaining >= 0,
+    belowMinimum: remaining < Number(product?.minimumStock || 0)
+  };
+}
+
+function renderMaterialRequirement(result) {
+  const box = $("materialRequirement");
+  if (!box) return;
+
+  const hz = inventoryProduct("bkm-hz-250-pro");
+  const hs = inventoryProduct("bkm-hs-sperrmoertel");
+  const rows = [
+    { product: hz, required: result.totalHzLiters, unit: "Liter" },
+    { product: hs, required: result.totalHsKg, unit: "kg" }
+  ].filter(row => Number(row.required) > 0 || row.product);
+
+  box.innerHTML = rows.map(row => {
+    const status = inventoryStatus(row.required, row.product);
+    const statusClass = status.sufficient ? (status.belowMinimum ? "warning" : "ok") : "danger";
+    const statusText = status.sufficient
+      ? `${num(status.remaining)} ${row.unit} verbleiben`
+      : `${num(Math.abs(status.remaining))} ${row.unit} fehlen`;
+
+    return `<div class="inventory-requirement ${statusClass}">
+      <div>
+        <strong>${esc(row.product?.name || "Material")}</strong>
+        <small>Bedarf für diesen Auftrag</small>
+      </div>
+      <div class="inventory-numbers">
+        <span>${num(row.required)} ${row.unit} benötigt</span>
+        <span>${num(status.stock)} ${row.unit} Bestand</span>
+        <b>${esc(statusText)}</b>
+      </div>
+    </div>`;
+  }).join("");
+
+  if (state.visit.inventoryDeducted) {
+    box.innerHTML += `<p class="inventory-booked">Material bereits am ${esc(
+      new Date(state.visit.inventoryDeductedAt).toLocaleString("de-DE")
+    )} abgebucht.</p>`;
+  }
+}
+
+function inventoryTransaction(product, amount, type, note) {
+  state.settings.inventory = state.settings.inventory || { products: [], transactions: [] };
+  state.settings.inventory.transactions = state.settings.inventory.transactions || [];
+  state.settings.inventory.transactions.unshift({
+    id: crypto.randomUUID(),
+    date: new Date().toISOString(),
+    productId: product.id,
+    productName: product.name,
+    amount,
+    unit: product.unit,
+    type,
+    note
+  });
+  state.settings.inventory.transactions =
+    state.settings.inventory.transactions.slice(0, 100);
+}
+
+function renderInventorySettings() {
+  const inventory = state.settings.inventory || { products: [], transactions: [] };
+  state.settings.inventory = inventory;
+  inventory.products = inventory.products || [];
+  inventory.transactions = inventory.transactions || [];
+
+  const box = $("inventoryProducts");
+  if (box) {
+    box.innerHTML = inventory.products.map(product => {
+      const low = Number(product.stock) <= Number(product.minimumStock);
+      return `<div class="inventory-product-card ${low ? "low-stock" : ""}">
+        <div class="inventory-product-head">
+          <div><strong>${esc(product.name)}</strong><small>${low ? "Mindestbestand erreicht" : "Bestand ausreichend"}</small></div>
+          <label><input type="checkbox" data-inventory-active="${product.id}" ${product.active !== false ? "checked" : ""}> aktiv</label>
+        </div>
+        <div class="grid">
+          <div><label>Bezeichnung</label><input data-inventory-id="${product.id}" data-inventory-field="name" value="${esc(product.name)}"></div>
+          <div><label>Einheit</label><input data-inventory-id="${product.id}" data-inventory-field="unit" value="${esc(product.unit)}"></div>
+          <div><label>Aktueller Bestand</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="stock" value="${Number(product.stock || 0)}"></div>
+          <div><label>Mindestbestand</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="minimumStock" value="${Number(product.minimumStock || 0)}"></div>
+          <div><label>Gebindegröße</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="packageSize" value="${Number(product.packageSize || 0)}"></div>
+          <div><label>Einkauf netto je Einheit</label><input type="number" inputmode="decimal" step=".01" data-inventory-id="${product.id}" data-inventory-field="purchaseNet" value="${Number(product.purchaseNet || 0)}"></div>
+          <div><label>Zugang buchen</label><input type="number" inputmode="decimal" step=".1" id="receipt-${product.id}" placeholder="Menge"></div>
+          <div class="inventory-action-cell"><button class="secondary" data-inventory-receipt="${product.id}">Bestand erhöhen</button></div>
+        </div>
+      </div>`;
+    }).join("");
+
+    box.querySelectorAll("[data-inventory-field]").forEach(input => {
+      input.onchange = () => {
+        const product = inventory.products.find(item => item.id === input.dataset.inventoryId);
+        const field = input.dataset.inventoryField;
+        product[field] = ["stock","minimumStock","packageSize","purchaseNet"].includes(field)
+          ? parseDecimal(input.value)
+          : input.value;
+        if (product.id === "bkm-hz-250-pro" && field === "purchaseNet") {
+          state.settings.hzPurchaseNet = product.purchaseNet;
+        }
+        saveState();
+        renderInventorySettings();
+      };
+    });
+
+    box.querySelectorAll("[data-inventory-active]").forEach(input => {
+      input.onchange = () => {
+        const product = inventory.products.find(item => item.id === input.dataset.inventoryActive);
+        product.active = input.checked;
+        saveState();
+      };
+    });
+
+    box.querySelectorAll("[data-inventory-receipt]").forEach(button => {
+      button.onclick = () => {
+        const product = inventory.products.find(item => item.id === button.dataset.inventoryReceipt);
+        const input = $(`receipt-${product.id}`);
+        const amount = parseDecimal(input.value);
+        if (amount <= 0) return;
+        product.stock = Number(product.stock || 0) + amount;
+        inventoryTransaction(product, amount, "receipt", "Wareneingang");
+        saveState();
+        renderInventorySettings();
+      };
+    });
+  }
+
+  const history = $("inventoryHistory");
+  if (history) {
+    history.innerHTML = inventory.transactions.length
+      ? inventory.transactions.slice(0, 12).map(item => `
+        <div class="compact-list-item">
+          <div><strong>${esc(item.productName)}</strong><small>${new Date(item.date).toLocaleString("de-DE")} – ${esc(item.note || "")}</small></div>
+          <b>${item.type === "issue" ? "−" : "+"}${num(Math.abs(item.amount))} ${esc(item.unit)}</b>
+        </div>`).join("")
+      : `<p class="hint">Noch keine Lagerbewegungen vorhanden.</p>`;
+  }
+}
+
+function deductCurrentOrderInventory() {
+  if (state.visit.inventoryDeducted) {
+    showStatus("inventoryDeductStatus", "Das Material für diesen Auftrag wurde bereits abgebucht.", false);
+    return;
+  }
+
+  const result = calculateOffer(state.settings, state.visit, state.discount);
+  const deductions = [
+    { product: inventoryProduct("bkm-hz-250-pro"), amount: result.totalHzLiters },
+    { product: inventoryProduct("bkm-hs-sperrmoertel"), amount: result.totalHsKg }
+  ].filter(item => item.product && Number(item.amount) > 0);
+
+  const insufficient = deductions.filter(
+    item => Number(item.product.stock || 0) < Number(item.amount)
+  );
+  if (insufficient.length) {
+    const text = insufficient.map(
+      item => `${item.product.name}: ${num(item.amount - Number(item.product.stock || 0))} ${item.product.unit} fehlen`
+    ).join(", ");
+    if (!confirm(`Der Bestand reicht nicht vollständig aus. ${text}. Trotzdem abbuchen?`)) {
+      return;
+    }
+  }
+
+  for (const item of deductions) {
+    item.product.stock = Number(item.product.stock || 0) - Number(item.amount);
+    inventoryTransaction(
+      item.product,
+      -Number(item.amount),
+      "issue",
+      `Auftrag ${state.visit.visitNumber || customerDisplayName(state.visit.customer)}`
+    );
+  }
+
+  state.visit.inventoryDeducted = true;
+  state.visit.inventoryDeductedAt = new Date().toISOString();
+  saveState();
+  renderOffer();
+  renderInventorySettings();
+  showStatus("inventoryDeductStatus", "Material wurde vom Warenbestand abgebucht.", true);
+}
 
 function articleOptions(selected="") {
   return `<option value="">nicht zugeordnet</option>${state.settings.lexwareArticles.map(article=>`<option value="${article.id}" ${selected===article.id?"selected":""}>${esc(article.articleNumber?`${article.articleNumber} – `:"")}${esc(article.title)}</option>`).join("")}`;
 }
 function renderSettings() {
   const s = state.settings;
-  ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
+  ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
+  $("minimumPricePercent").value = Number(s.priceStrategy?.minimumFactor || .9) * 100;
+  $("standardPricePercent").value = Number(s.priceStrategy?.standardFactor || 1) * 100;
+  $("premiumPricePercent").value = Number(s.priceStrategy?.premiumFactor || 1.15) * 100;
   $("smallJobEnabled").value = String(s.smallJob.enabled);
-  $("smallJobThreshold").value = s.smallJob.thresholdMeters;
+  $("smallJobHorizontalThreshold").value = s.smallJob.horizontalThresholdMeters ?? 12;
+  $("smallJobSurfaceThreshold").value = s.smallJob.surfaceThresholdSquareMeters ?? 3;
   $("smallJobType").value = s.smallJob.type;
   $("smallJobValue").value = s.smallJob.value;
-  $("smallJobVisible").value = String(s.smallJob.visibleToCustomer);
   $("mapHorizontalsperre").innerHTML = articleOptions(s.articleMappings.Horizontalsperre);
   $("mapFlächensperre").innerHTML = articleOptions(s.articleMappings.Flächensperre);
   $("mapHarzverpressung").innerHTML = articleOptions(s.articleMappings.Harzverpressung);
   $("mapWandSohle").innerHTML = articleOptions(s.articleMappings["Wand-Sohlen-Anschluss"]);
-  $("mapSmallJob").innerHTML = articleOptions(s.articleMappings.smallJob);
+  const noticeTexts = s.noticeTexts || {};
+  $("noticeStandard").value = noticeTexts.standard || "";
+  $("noticeWallSole").value = noticeTexts.wallSole || "";
+  $("noticeResin").value = noticeTexts.resin || "";
   renderSettingsExtras();
+  renderInventorySettings();
   applyInputModes();
 }
 function renderSettingsExtras() {
@@ -1140,7 +1402,7 @@ function renderSettingsExtras() {
   }).join("");
   document.querySelectorAll("[data-extra-field]").forEach(input => input.oninput = () => {
     const extra = state.settings.extras.find(e=>e.id===input.dataset.extra);
-    extra[input.dataset.extraField] = input.dataset.extraField==="grossPrice" ? Number(input.value)||0 : input.value;
+    extra[input.dataset.extraField] = input.dataset.extraField==="grossPrice" ? parseDecimal(input.value) : input.value;
   });
   document.querySelectorAll("[data-extra-article]").forEach(select => select.onchange = () => {
     const extra = state.settings.extras.find(e=>e.id===select.dataset.extraArticle);
@@ -1150,6 +1412,21 @@ function renderSettingsExtras() {
   document.querySelectorAll("[data-extra-active]").forEach(input => input.onchange = () => state.settings.extras.find(e=>e.id===input.dataset.extraActive).active = input.checked);
   document.querySelectorAll("[data-extra-delete]").forEach(button => button.onclick = () => { state.settings.extras = state.settings.extras.filter(e=>e.id!==button.dataset.extraDelete); renderSettingsExtras(); });
 }
+$("addInventoryProduct").onclick = () => {
+  state.settings.inventory = state.settings.inventory || { products: [], transactions: [] };
+  state.settings.inventory.products.push({
+    id: crypto.randomUUID(),
+    name: "Neues Material",
+    unit: "Stück",
+    stock: 0,
+    minimumStock: 0,
+    packageSize: 1,
+    purchaseNet: 0,
+    active: true
+  });
+  saveState();
+  renderInventorySettings();
+};
 $("addExtra").onclick = () => { state.settings.extras.push({id:crypto.randomUUID(),name:"Neue Zusatzleistung",unit:"pauschal",grossPrice:0,active:true,lexwareArticleId:""}); renderSettingsExtras(); };
 $("loadArticles").onclick = async () => {
   try { const articles = await loadLexwareArticles(); renderSettings(); showStatus("articleStatus",`${articles.length} Artikel geladen.`,true); }
@@ -1158,9 +1435,25 @@ $("loadArticles").onclick = async () => {
 function collectSettings() {
   const s = state.settings;
   ["priceListName","priceListDate","workerUrl","appSecret"].forEach(key => s[key] = $(key).value.trim());
-  ["hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet"].forEach(key => s[key] = Number($(key).value)||0);
-  s.smallJob = { enabled:$("smallJobEnabled").value==="true", thresholdMeters:Number($("smallJobThreshold").value)||12, type:$("smallJobType").value, value:Number($("smallJobValue").value)||0, visibleToCustomer:$("smallJobVisible").value==="true" };
-  s.articleMappings = { Horizontalsperre:$("mapHorizontalsperre").value, Flächensperre:$("mapFlächensperre").value, Harzverpressung:$("mapHarzverpressung").value, "Wand-Sohlen-Anschluss":$("mapWandSohle").value, smallJob:$("mapSmallJob").value };
+  ["hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter"].forEach(key => s[key] = parseDecimal($(key).value));
+  s.priceStrategy = {
+    minimumFactor: (parseDecimal($("minimumPricePercent").value) || 90) / 100,
+    standardFactor: (parseDecimal($("standardPricePercent").value) || 100) / 100,
+    premiumFactor: (parseDecimal($("premiumPricePercent").value) || 115) / 100
+  };
+  s.smallJob = {
+    enabled:$("smallJobEnabled").value==="true",
+    horizontalThresholdMeters:parseDecimal($("smallJobHorizontalThreshold").value)||12,
+    surfaceThresholdSquareMeters:parseDecimal($("smallJobSurfaceThreshold").value)||3,
+    type:$("smallJobType").value,
+    value:parseDecimal($("smallJobValue").value)
+  };
+  s.articleMappings = { Horizontalsperre:$("mapHorizontalsperre").value, Flächensperre:$("mapFlächensperre").value, Harzverpressung:$("mapHarzverpressung").value, "Wand-Sohlen-Anschluss":$("mapWandSohle").value };
+  s.noticeTexts = {
+    standard: $("noticeStandard").value.trim(),
+    wallSole: $("noticeWallSole").value.trim(),
+    resin: $("noticeResin").value.trim()
+  };
 }
 $("saveConnection").onclick = () => { collectSettings(); saveState(); showStatus("connectionStatus","Zugangsdaten gespeichert.",true); };
 $("saveSettings").onclick = () => { collectSettings(); saveState(); showStatus("settingsStatus","Einstellungen gespeichert.",true); renderExtras(); renderOffer(); };
@@ -1174,6 +1467,7 @@ $("testConnection").onclick = async () => {
   setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
 };
 
+state.discount.pricingTier = state.discount.pricingTier || "standard";
 $("skontoType").value = state.discount.skontoType;
 $("skontoCustom").value = state.discount.skontoCustom;
 $("specialType").value = state.discount.specialType;

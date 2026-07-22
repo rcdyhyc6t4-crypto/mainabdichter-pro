@@ -107,7 +107,7 @@ export function replaceArchive(archive) {
 
 export function createFullBackupPayload() {
   return {
-    version: 14.2,
+    version: 16.0,
     exportedAt: new Date().toISOString(),
     settings: JSON.parse(JSON.stringify(state.settings)),
     visit: JSON.parse(JSON.stringify(state.visit)),

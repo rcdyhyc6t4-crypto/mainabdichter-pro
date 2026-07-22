@@ -1,6 +1,51 @@
 export const $ = id => document.getElementById(id);
-export const eur = value => new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(value) || 0);
-export const num = value => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(value) || 0);
+
+/**
+ * Akzeptiert deutsche und internationale Dezimalzahlen:
+ * 12,5 | 12.5 | 1.234,56 | 1,234.56
+ */
+export function parseDecimal(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  let text = String(value ?? "").trim().replace(/\s/g, "");
+  if (!text) return 0;
+
+  const comma = text.lastIndexOf(",");
+  const dot = text.lastIndexOf(".");
+
+  if (comma >= 0 && dot >= 0) {
+    // Das zuletzt vorkommende Trennzeichen ist das Dezimalzeichen.
+    if (comma > dot) {
+      text = text.replace(/\./g, "").replace(",", ".");
+    } else {
+      text = text.replace(/,/g, "");
+    }
+  } else if (comma >= 0) {
+    text = text.replace(/\./g, "").replace(",", ".");
+  }
+
+  text = text.replace(/[^0-9+\-.]/g, "");
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function formatDecimalInput(value, maximumFractionDigits = 3) {
+  if (value === "" || value === null || value === undefined) return "";
+  return new Intl.NumberFormat("de-DE", {
+    useGrouping: false,
+    minimumFractionDigits: 0,
+    maximumFractionDigits
+  }).format(parseDecimal(value));
+}
+
+export const eur = value => new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR"
+}).format(parseDecimal(value));
+
+export const num = value => new Intl.NumberFormat("de-DE", {
+  maximumFractionDigits: 2
+}).format(parseDecimal(value));
+
 export const esc = value => String(value || "").replace(/[&<>"']/g, char => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
 }[char]));
