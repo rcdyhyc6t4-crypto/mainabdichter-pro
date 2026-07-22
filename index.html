@@ -9,22 +9,34 @@
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
-<header class="app-header compact-header">
-  <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
-  <div class="header-title">
-    <strong>mainabdichter</strong>
-    <small>BKM.MANNESMANN Fachbetrieb</small>
-  </div>
-  <div class="header-actions">
-    <button id="quickSave" class="header-icon" title="Speichern" aria-label="Speichern">💾</button>
-    <button id="quickSettings" class="header-icon" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
+<header class="app-header native-header">
+  <div class="brand-row">
+    <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
+    <div class="brand-copy">
+      <strong>mainabdichter</strong>
+      <small>BKM.MANNESMANN Fachbetrieb</small>
+    </div>
+    <div class="header-actions">
+      <button id="quickSave" class="icon-button" title="Speichern" aria-label="Speichern">💾</button>
+      <button id="quickSettings" class="icon-button" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
+      <button id="quickMenu" class="icon-button" title="Menü" aria-label="Menü">☰</button>
+    </div>
   </div>
 </header>
-<nav class="main-nav">
-  <button data-page="dashboard" class="active">Start</button>
-  <button data-page="visit">Besichtigung</button>
-  <button data-page="offer">Angebot</button>
-  <button data-page="settings">Einstellungen</button>
+
+<section class="visit-meta-bar">
+  <div><span>Nr.</span><strong id="metaVisitNumber">–</strong></div>
+  <div><span>Datum</span><strong id="metaVisitDate">–</strong></div>
+  <div><span>Beginn</span><strong id="metaVisitTime">–</strong></div>
+  <div><span>Standort</span><strong id="metaVisitLocation">–</strong></div>
+  <div><span>Wetter</span><strong id="metaVisitWeather">–</strong></div>
+</section>
+
+<nav class="main-nav native-nav">
+  <button data-page="dashboard" class="active"><span>⌂</span><small>Start</small></button>
+  <button data-page="visit"><span>👤</span><small>Besichtigung</small></button>
+  <button data-page="offer"><span>🧮</span><small>Angebot</small></button>
+  <button data-page="settings"><span>⚙</span><small>Einstellungen</small></button>
 </nav>
 <main>
 <section id="dashboard" class="page active">
@@ -93,10 +105,10 @@
       <div><label>Vorname</label><input id="firstName"></div>
       <div><label>Nachname</label><input id="lastName"></div>
       <div><label>Firma</label><input id="company"></div>
-      <div><label>Telefon</label><input id="phone"></div>
+      <div><label>Telefon</label><input id="phone" inputmode="tel"></div>
       <div><label>E-Mail</label><input id="email"></div>
       <div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
-      <div><label>PLZ</label><input id="zip"></div>
+      <div><label>PLZ</label><input id="zip" inputmode="numeric"></div>
       <div><label>Ort</label><input id="city"></div>
       <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
     </div>
@@ -105,7 +117,7 @@
   <details class="card compact-step">
     <summary>2. Gebäude und Raum</summary>
     <div class="grid">
-      <div><label>Baujahr</label><input id="yearBuilt" type="number"></div>
+      <div><label>Baujahr</label><input id="yearBuilt" type="number" inputmode="numeric" pattern="[0-9]*"></div>
       <div><label>Bauart</label><select id="buildingType"><option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option><option>Reihenmittelhaus</option><option>Reihenendhaus</option><option>Mehrfamilienhaus</option><option>Bungalow</option><option>Gewerbeobjekt</option><option>Sonstiges</option></select></div>
       <div><label>Geschoss</label><select id="floor"><option>Keller</option><option>Erdgeschoss</option><option>Hochparterre</option></select></div>
       <div><label>Raumnutzung</label><select id="roomUse"><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
@@ -113,9 +125,9 @@
       <div><label>Bodenbelag optional</label><select id="floorCover"><option value="">– keine Angabe –</option><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
       <div class="full switch-row"><label><input id="climateMeasured" type="checkbox"> Klimamessung durchgeführt</label></div>
       <div id="climateFields" class="full conditional-panel hidden"><div class="grid">
-        <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" step=".1"></div>
-        <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" step=".1"></div>
-        <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" step=".1"></div>
+        <div><label>Raumtemperatur °C</label><input id="roomTemp" type="number" inputmode="decimal" step=".1"></div>
+        <div><label>Luftfeuchtigkeit %</label><input id="humidity" type="number" inputmode="decimal" step=".1"></div>
+        <div><label>Oberflächentemperatur °C</label><input id="surfaceTemp" type="number" inputmode="decimal" step=".1"></div>
         <div><label>Taupunkt °C</label><input id="dewPoint" readonly></div>
       </div></div>
     </div>
@@ -144,9 +156,9 @@
   <div class="card"><h1>Angebot</h1>
     <div class="grid">
       <div><label>Skonto</label><select id="skontoType"><option value="none">kein Skonto</option><option value="2">2 %</option><option value="3">3 %</option><option value="5">5 %</option><option value="custom">frei</option></select></div>
-      <div><label>Skonto frei %</label><input id="skontoCustom" type="number" step=".1"></div>
+      <div><label>Skonto frei %</label><input id="skontoCustom" type="number" inputmode="decimal" step=".1"></div>
       <div><label>Sonderaktion</label><select id="specialType"><option value="none">keine</option><option value="percent">Prozent</option><option value="amount">Betrag €</option></select></div>
-      <div><label>Wert</label><input id="specialValue" type="number" step=".01"></div>
+      <div><label>Wert</label><input id="specialValue" type="number" inputmode="decimal" step=".01"></div>
       <div class="full"><label>Bezeichnung</label><input id="specialLabel"></div>
     </div>
   </div>
@@ -171,22 +183,22 @@
     <div class="grid">
       <div><label>Preisbasis</label><input id="priceListName"></div>
       <div><label>Gültig ab</label><input id="priceListDate" type="date"></div>
-      <div><label>HZ Einkauf netto/Liter</label><input id="hzPurchaseNet" type="number" step=".01"></div>
-      <div><label>HZ Verkauf netto/Liter</label><input id="hzSaleNet" type="number" step=".01"></div>
-      <div><label>Reserve %</label><input id="reservePct" type="number" step=".1"></div>
-      <div><label>Bohrleistung Löcher/Stunde</label><input id="drillRate" type="number"></div>
-      <div><label>Injektionsleistung Löcher/Stunde</label><input id="fillRate" type="number"></div>
-      <div><label>Verschlussleistung Löcher/Stunde</label><input id="closeRate" type="number"></div>
-      <div><label>Rüstzeit Stunden</label><input id="setupHours" type="number" step=".25"></div>
-      <div><label>Wand-Sohlen-Anschluss brutto/lfm</label><input id="wallSoleGrossPerMeter" type="number" step=".01"></div>
-      <div><label>Zusätzliches Harz netto/kg</label><input id="extraResinKgNet" type="number" step=".01"></div>
+      <div><label>HZ Einkauf netto/Liter</label><input id="hzPurchaseNet" type="number" inputmode="decimal" step=".01"></div>
+      <div><label>HZ Verkauf netto/Liter</label><input id="hzSaleNet" type="number" inputmode="decimal" step=".01"></div>
+      <div><label>Reserve %</label><input id="reservePct" type="number" inputmode="decimal" step=".1"></div>
+      <div><label>Bohrleistung Löcher/Stunde</label><input id="drillRate" type="number" inputmode="decimal"></div>
+      <div><label>Injektionsleistung Löcher/Stunde</label><input id="fillRate" type="number" inputmode="decimal"></div>
+      <div><label>Verschlussleistung Löcher/Stunde</label><input id="closeRate" type="number" inputmode="decimal"></div>
+      <div><label>Rüstzeit Stunden</label><input id="setupHours" type="number" inputmode="decimal" step=".25"></div>
+      <div><label>Wand-Sohlen-Anschluss brutto/lfm</label><input id="wallSoleGrossPerMeter" type="number" inputmode="decimal" step=".01"></div>
+      <div><label>Zusätzliches Harz netto/kg</label><input id="extraResinKgNet" type="number" inputmode="decimal" step=".01"></div>
     </div>
     <h3>Kleinbaustellenregel</h3>
     <div class="grid">
       <div><label>Aktiv</label><select id="smallJobEnabled"><option value="true">Ja</option><option value="false">Nein</option></select></div>
-      <div><label>Grenze lfm</label><input id="smallJobThreshold" type="number" step=".1"></div>
+      <div><label>Grenze lfm</label><input id="smallJobThreshold" type="number" inputmode="decimal" step=".1"></div>
       <div><label>Art</label><select id="smallJobType"><option value="amount">fester Betrag</option><option value="percent">Prozent</option></select></div>
-      <div><label>Wert</label><input id="smallJobValue" type="number" step=".01"></div>
+      <div><label>Wert</label><input id="smallJobValue" type="number" inputmode="decimal" step=".01"></div>
       <div><label>Dem Kunden zeigen</label><select id="smallJobVisible"><option value="false">Nein</option><option value="true">Ja</option></select></div>
     </div>
   </details>
@@ -216,6 +228,12 @@
   <div id="settingsStatus" class="status"></div>
 </section>
 </main>
+<nav class="bottom-nav">
+  <button id="bottomPipedrive"><span class="brand-letter">p</span><small>Pipedrive</small></button>
+  <button id="bottomLexware"><span class="brand-letter">X</span><small>Lexware</small></button>
+  <button id="bottomNewVisit" class="bottom-main"><span>＋</span><small>Neue Besichtigung</small></button>
+  <button id="bottomFollowup"><span>✓</span><small>Nachkontrolle</small></button>
+</nav>
 <section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
 <script type="module" src="js/app.js"></script>
 </body>

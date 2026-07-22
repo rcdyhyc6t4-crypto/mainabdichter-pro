@@ -1,21 +1,22 @@
-mainabdichter V11.4 – kompakter Baustellenmodus
+mainabdichter V12 – native App-Oberfläche und iPhone-Zahlentastatur
 
-Geändert:
-- Besichtigung in fünf aufklappbare Schritte gegliedert
-- immer nur ein Arbeitsschritt geöffnet
-- direkte Schrittleiste:
-  Kunde, Gebäude, Beschreibung, Maßnahmen, Extras
-- Pipedrive, Lexware und Neu als kleine Schnellschaltflächen
-- GPS und Wetter standardmäßig eingeklappt
-- kleinere Eingabefelder, Karten und Abstände
-- kompaktere Messpunkte und Maßnahmen
-- kleinere Fotos in der Arbeitsansicht
-- bestehende Funktionen und Kalkulation bleiben erhalten
+NEU
+- komplett kompakter, nativer App-Header
+- kleines BKM-Logo
+- mainabdichter / BKM.MANNESMANN Fachbetrieb
+- Schnellaktionen Speichern, Einstellungen und Menü
+- feste Statusleiste für Nummer, Datum, Uhrzeit, Standort und Wetter
+- kompakte Icon-Navigation
+- feste untere Navigation für Pipedrive, Lexware, neue Besichtigung und Nachkontrolle
+- Kundenansicht ebenfalls mit kompaktem Header
+- Zahlenfelder öffnen auf dem iPhone direkt die passende Zahlentastatur:
+  - inputmode decimal für Meter, Quadratmeter, Temperaturen, Preise
+  - inputmode numeric für Baujahr und reine Ganzzahlen
+  - inputmode tel für Telefonnummern
+- bestehende Kalkulation, Lexware, Pipedrive und PDFs bleiben erhalten
 
-GitHub ersetzen:
-- index.html
-- css/app.css
-- js/app.js
+GITHUB:
+Komplette Struktur aus dem ZIP hochladen bzw. ersetzen.
 
-Cloudflare:
+CLOUDFLARE:
 Keine Änderung erforderlich.
