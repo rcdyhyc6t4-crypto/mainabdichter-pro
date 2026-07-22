@@ -7,6 +7,112 @@ import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwar
 const customerFields = ["salutation","firstName","lastName","company","phone","email","street","zip","city","objectAddress"];
 const buildingFields = ["yearBuilt","buildingType","floor","roomUse","foundationType","floorCover","roomTemp","humidity","surfaceTemp","dewPoint"];
 
+
+function todayLocal() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function timeLocal() {
+  return new Date().toTimeString().slice(0, 5);
+}
+
+function createVisitNumber() {
+  const date = (state.visit.visitDate || todayLocal()).replaceAll("-", "");
+  const stamp = String(Date.now()).slice(-4);
+  return `${date}-${stamp}`;
+}
+
+function updateVisitDuration() {
+  const start = $("visitStartTime")?.value;
+  const end = $("visitEndTime")?.value;
+  if (!start || !end) {
+    if ($("visitDuration")) $("visitDuration").value = "";
+    return;
+  }
+
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  let minutes = eh * 60 + em - (sh * 60 + sm);
+  if (minutes < 0) minutes += 24 * 60;
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const text = hours > 0
+    ? `${hours} Std. ${rest} Min.`
+    : `${rest} Min.`;
+
+  $("visitDuration").value = text;
+}
+
+function weatherDescription(code) {
+  const descriptions = {
+    0: "klar",
+    1: "überwiegend klar",
+    2: "teilweise bewölkt",
+    3: "bedeckt",
+    45: "Nebel",
+    48: "Reifnebel",
+    51: "leichter Nieselregen",
+    53: "Nieselregen",
+    55: "starker Nieselregen",
+    61: "leichter Regen",
+    63: "Regen",
+    65: "starker Regen",
+    71: "leichter Schneefall",
+    73: "Schneefall",
+    75: "starker Schneefall",
+    80: "leichte Regenschauer",
+    81: "Regenschauer",
+    82: "starke Regenschauer",
+    95: "Gewitter",
+    96: "Gewitter mit Hagel",
+    99: "starkes Gewitter mit Hagel"
+  };
+  return descriptions[Number(code)] || `Wettercode ${code}`;
+}
+
+async function fetchWeatherForLocation() {
+  const latitude = Number(state.visit.visitLatitude || $("visitLatitude").value);
+  const longitude = Number(state.visit.visitLongitude || $("visitLongitude").value);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    showStatus("locationWeatherStatus", "Bitte zuerst den GPS-Standort übernehmen.", false);
+    return;
+  }
+
+  showStatus("locationWeatherStatus", "Wetterdaten werden abgerufen …", true);
+
+  try {
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude", latitude);
+    url.searchParams.set("longitude", longitude);
+    url.searchParams.set("current", "temperature_2m,precipitation,weather_code");
+    url.searchParams.set("timezone", "auto");
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok || !data.current) {
+      throw new Error(data.reason || "Wetterdaten konnten nicht abgerufen werden.");
+    }
+
+    state.visit.visitWeather = weatherDescription(data.current.weather_code);
+    state.visit.visitOutdoorTemp = Number(data.current.temperature_2m).toFixed(1);
+    state.visit.visitPrecipitation = Number(data.current.precipitation).toFixed(1);
+
+    $("visitWeather").value = state.visit.visitWeather;
+    $("visitOutdoorTemp").value = state.visit.visitOutdoorTemp;
+    $("visitPrecipitation").value = state.visit.visitPrecipitation;
+
+    saveState();
+    showStatus("locationWeatherStatus", "Standortbezogene Wetterdaten wurden gespeichert.", true);
+  } catch (error) {
+    showStatus("locationWeatherStatus", error.message, false);
+  }
+}
+
 function show(pageId) {
   document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
   document.querySelectorAll(".main-nav button").forEach(button => button.classList.toggle("active", button.dataset.page === pageId));
@@ -16,6 +122,90 @@ function show(pageId) {
 }
 
 document.querySelectorAll(".main-nav button").forEach(button => button.onclick = () => show(button.dataset.page));
+$("quickSave").onclick = () => {
+  collectVisit();
+  saveState();
+  alert("Aktueller Stand gespeichert.");
+};
+$("quickSettings").onclick = () => show("settings");
+$("setVisitNow").onclick = () => {
+  state.visit.visitDate = todayLocal();
+  state.visit.visitStartTime = timeLocal();
+  if (!state.visit.visitNumber) state.visit.visitNumber = createVisitNumber();
+
+  $("visitDate").value = state.visit.visitDate;
+  $("visitStartTime").value = state.visit.visitStartTime;
+  $("visitNumber").value = state.visit.visitNumber;
+  updateVisitDuration();
+  saveState();
+};
+
+$("setVisitEndNow").onclick = () => {
+  state.visit.visitEndTime = timeLocal();
+  $("visitEndTime").value = state.visit.visitEndTime;
+  updateVisitDuration();
+  saveState();
+};
+
+$("visitStartTime").oninput = () => {
+  state.visit.visitStartTime = $("visitStartTime").value;
+  updateVisitDuration();
+  saveState();
+};
+
+$("visitEndTime").oninput = () => {
+  state.visit.visitEndTime = $("visitEndTime").value;
+  updateVisitDuration();
+  saveState();
+};
+
+$("visitDate").onchange = () => {
+  state.visit.visitDate = $("visitDate").value || todayLocal();
+  if (!state.visit.visitNumber) {
+    state.visit.visitNumber = createVisitNumber();
+    $("visitNumber").value = state.visit.visitNumber;
+  }
+  saveState();
+};
+
+$("captureLocation").onclick = () => {
+  if (!navigator.geolocation) {
+    showStatus("locationWeatherStatus", "Dieses Gerät unterstützt keine Standortbestimmung.", false);
+    return;
+  }
+
+  showStatus("locationWeatherStatus", "Standort wird ermittelt …", true);
+
+  navigator.geolocation.getCurrentPosition(
+    async position => {
+      state.visit.visitLatitude = position.coords.latitude.toFixed(6);
+      state.visit.visitLongitude = position.coords.longitude.toFixed(6);
+      state.visit.visitAccuracy = `${Math.round(position.coords.accuracy)} m`;
+
+      $("visitLatitude").value = state.visit.visitLatitude;
+      $("visitLongitude").value = state.visit.visitLongitude;
+      $("visitAccuracy").value = state.visit.visitAccuracy;
+
+      saveState();
+      showStatus("locationWeatherStatus", "Standort wurde gespeichert.", true);
+      await fetchWeatherForLocation();
+    },
+    error => {
+      showStatus(
+        "locationWeatherStatus",
+        `Standort konnte nicht ermittelt werden: ${error.message}`,
+        false
+      );
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
+  );
+};
+
+$("loadWeather").onclick = fetchWeatherForLocation;
 $("newVisit").onclick = () => { resetVisit(); renderVisit(); show("visit"); };
 $("continueVisit").onclick = () => { renderVisit(); show("visit"); };
 $("openOffer").onclick = () => show("offer");
@@ -24,7 +214,42 @@ $("resetVisit").onclick = () => { if (confirm("Aktuelle Besichtigung löschen?")
 $("saveVisit").onclick = () => { collectVisit(); saveState(); alert("Besichtigung gespeichert."); };
 $("toOffer").onclick = () => { collectVisit(); saveState(); show("offer"); };
 
+document.querySelectorAll("[data-open-step]").forEach(button => {
+  button.onclick = () => {
+    const step = Number(button.dataset.openStep);
+    const details = [...document.querySelectorAll("#visit details.compact-step")];
+    details.forEach((detail, index) => {
+      detail.open = index + 1 === step;
+    });
+    details[step - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+});
+
+document.querySelectorAll("#visit details.compact-step").forEach(detail => {
+  detail.addEventListener("toggle", () => {
+    if (!detail.open) return;
+    document.querySelectorAll("#visit details.compact-step").forEach(other => {
+      if (other !== detail) other.open = false;
+    });
+  });
+});
+
 function renderVisit() {
+  if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
+  if (!state.visit.visitStartTime) state.visit.visitStartTime = timeLocal();
+  if (!state.visit.visitNumber) state.visit.visitNumber = createVisitNumber();
+
+  $("visitNumber").value = state.visit.visitNumber;
+  $("visitDate").value = state.visit.visitDate;
+  $("visitStartTime").value = state.visit.visitStartTime || "";
+  $("visitEndTime").value = state.visit.visitEndTime || "";
+  $("visitLatitude").value = state.visit.visitLatitude || "";
+  $("visitLongitude").value = state.visit.visitLongitude || "";
+  $("visitAccuracy").value = state.visit.visitAccuracy || "";
+  $("visitWeather").value = state.visit.visitWeather || "";
+  $("visitOutdoorTemp").value = state.visit.visitOutdoorTemp || "";
+  $("visitPrecipitation").value = state.visit.visitPrecipitation || "";
+  updateVisitDuration();
   customerFields.forEach(key => $(key).value = state.visit.customer[key] || "");
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
@@ -38,6 +263,16 @@ function renderVisit() {
 }
 
 function collectVisit() {
+  state.visit.visitDate = $("visitDate").value || todayLocal();
+  state.visit.visitStartTime = $("visitStartTime").value || timeLocal();
+  state.visit.visitEndTime = $("visitEndTime").value || "";
+  state.visit.visitNumber = $("visitNumber").value || createVisitNumber();
+  state.visit.visitLatitude = $("visitLatitude").value || "";
+  state.visit.visitLongitude = $("visitLongitude").value || "";
+  state.visit.visitAccuracy = $("visitAccuracy").value || "";
+  state.visit.visitWeather = $("visitWeather").value || "";
+  state.visit.visitOutdoorTemp = $("visitOutdoorTemp").value || "";
+  state.visit.visitPrecipitation = $("visitPrecipitation").value || "";
   customerFields.forEach(key => state.visit.customer[key] = $(key).value);
   buildingFields.forEach(key => state.visit.building[key] = $(key).value);
   state.visit.damageDescription = $("damageDescription").value;
@@ -139,6 +374,11 @@ function renderAreas() {
         <div><label>Zugänglichkeit</label><select data-area="${area.id}" data-field="access"><option ${area.access==="normal"?"selected":""}>normal</option><option ${area.access==="eingeschränkt"?"selected":""}>eingeschränkt</option><option ${area.access==="schwierig"?"selected":""}>schwierig</option></select></div>
       </div>
       <label>Notizen</label><div class="speech-row"><textarea id="area-note-${area.id}" data-area="${area.id}" data-field="notes">${esc(area.notes)}</textarea><button class="speech" data-speech-target="area-note-${area.id}">🎤</button></div>
+      <h3>Feuchtemessung</h3>
+      <div class="grid">
+        <div><label>Referenzwert „trocken“</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
+        <div class="full"><label>Bemerkung zur Feuchtemessung</label><textarea data-area="${area.id}" data-field="measurementRemark">${esc(area.measurementRemark || "")}</textarea></div>
+      </div>
       <h3>Messpunkte</h3><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Messpunkt</button>
       <h3>Maßnahmen</h3><div id="measures-${area.id}"></div><button class="secondary" data-add-measure="${area.id}">+ Maßnahme</button>
       <h3>Fotos</h3><input type="file" accept="image/*" capture="environment" multiple data-photo-area="${area.id}"><div id="photos-${area.id}" class="photo-grid"></div>`;
@@ -162,7 +402,7 @@ function renderAreas() {
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
-    area.measurements.push({ id: crypto.randomUUID(), device:"Gann Hydromette Compact B",value:"",dryReference:"",unit:"Digits",height:"",location:"",note:"" });
+    area.measurements.push({ id: crypto.randomUUID(), device:"Gann Hydromette Compact B",value:"",unit:"Digits",height:"",location:"" });
     saveState(); renderAreas();
   });
 
@@ -194,21 +434,22 @@ function renderMeasurements(area) {
     <div class="sub-card item-grid">
       <div class="wide"><label>Gerät</label><input data-mid="${m.id}" data-mf="device" value="${esc(m.device)}"></div>
       <div><label>Messwert</label><input data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
-      <div><label>Referenz „trocken“</label><input data-mid="${m.id}" data-mf="dryReference" value="${esc(m.dryReference || "")}"></div>
       <div><label>Einheit</label><input data-mid="${m.id}" data-mf="unit" value="${esc(m.unit)}"></div>
       <div><label>Höhe cm</label><input data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
       <div><label>Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}"></div>
-      <div class="wide"><label>Bemerkung</label><input data-mid="${m.id}" data-mf="note" value="${esc(m.note)}"></div>
       <button class="danger" data-delete-measurement="${m.id}">Löschen</button>
     </div>`).join("");
 
   box.querySelectorAll("[data-mf]").forEach(input => input.oninput = () => {
     const measurement = area.measurements.find(item => item.id === input.dataset.mid);
-    measurement[input.dataset.mf] = input.value; saveState();
+    measurement[input.dataset.mf] = input.value;
+    saveState();
   });
+
   box.querySelectorAll("[data-delete-measurement]").forEach(button => button.onclick = () => {
     area.measurements = area.measurements.filter(item => item.id !== button.dataset.deleteMeasurement);
-    saveState(); renderAreas();
+    saveState();
+    renderAreas();
   });
 }
 
@@ -449,11 +690,11 @@ $("sendLexware").onclick = async () => {
 };
 
 function buildReport() {
-  let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr>${state.visit.building.climateMeasured?`<tr><th>Raumtemperatur</th><td>${esc(state.visit.building.roomTemp)} °C</td></tr><tr><th>Luftfeuchtigkeit</th><td>${esc(state.visit.building.humidity)} %</td></tr><tr><th>Oberflächentemperatur</th><td>${esc(state.visit.building.surfaceTemp)} °C</td></tr><tr><th>Taupunkt</th><td>${esc(state.visit.building.dewPoint)} °C</td></tr>`:""}</table></div>`;
+  let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Besichtigungsnummer</th><td>${esc(state.visit.visitNumber || "")}</td></tr><tr><th>Besichtigungsdatum</th><td>${esc(state.visit.visitDate || "")}</td></tr><tr><th>Beginn</th><td>${esc(state.visit.visitStartTime || "")}</td></tr><tr><th>Ende</th><td>${esc(state.visit.visitEndTime || "")}</td></tr><tr><th>Dauer</th><td>${esc($("visitDuration")?.value || "")}</td></tr>${state.visit.visitLatitude?`<tr><th>GPS-Standort</th><td>${esc(state.visit.visitLatitude)}, ${esc(state.visit.visitLongitude)} (${esc(state.visit.visitAccuracy)})</td></tr>`:""}${state.visit.visitWeather?`<tr><th>Wetter</th><td>${esc(state.visit.visitWeather)}, ${esc(state.visit.visitOutdoorTemp)} °C, Niederschlag ${esc(state.visit.visitPrecipitation)} mm</td></tr>`:""}<tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr>${state.visit.building.climateMeasured?`<tr><th>Raumtemperatur</th><td>${esc(state.visit.building.roomTemp)} °C</td></tr><tr><th>Luftfeuchtigkeit</th><td>${esc(state.visit.building.humidity)} %</td></tr><tr><th>Oberflächentemperatur</th><td>${esc(state.visit.building.surfaceTemp)} °C</td></tr><tr><th>Taupunkt</th><td>${esc(state.visit.building.dewPoint)} °C</td></tr>`:""}</table></div>`;
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(state.visit.damageDescription)}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Messwerte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Referenz trocken</th><th>Höhe</th><th>Position</th><th>Bemerkung</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.dryReference || "")} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td><td>${esc(m.note)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")}</td></tr><tr><th>Bemerkung</th><td>${esc(area.measurementRemark || "")}</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   $("reportContent").innerHTML = html;
 }
