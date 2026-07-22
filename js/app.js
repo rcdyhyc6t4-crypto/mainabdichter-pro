@@ -5,7 +5,7 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons } from "./utils.js";
 import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation } from "./api.js";
 
 const customerFields = ["salutation","firstName","lastName","company","phone","email","street","zip","city","objectAddress"];
-const buildingFields = ["yearBuilt","buildingType","floor","roomUse","foundationType","roomHeight","floorCover","roomTemp","humidity","surfaceTemp","dewPoint"];
+const buildingFields = ["yearBuilt","buildingType","floor","roomUse","foundationType","floorCover","roomTemp","humidity","surfaceTemp","dewPoint"];
 
 function show(pageId) {
   document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
@@ -28,8 +28,10 @@ function renderVisit() {
   customerFields.forEach(key => $(key).value = state.visit.customer[key] || "");
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
-  $("customerRecommendation").value = state.visit.customerRecommendation || "";
+  $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
+  toggleClimateFields();
   renderAreas();
+  updateGeneratedRecommendation();
   renderExtras();
   bindSpeechButtons();
   updateDewPoint();
@@ -39,7 +41,66 @@ function collectVisit() {
   customerFields.forEach(key => state.visit.customer[key] = $(key).value);
   buildingFields.forEach(key => state.visit.building[key] = $(key).value);
   state.visit.damageDescription = $("damageDescription").value;
-  state.visit.customerRecommendation = $("customerRecommendation").value;
+  state.visit.building.climateMeasured = $("climateMeasured").checked;
+  state.visit.customerRecommendation = generateRecommendationText();
+}
+
+
+function toggleClimateFields() {
+  const active = $("climateMeasured").checked;
+  $("climateFields").classList.toggle("hidden", !active);
+  state.visit.building.climateMeasured = active;
+
+  if (!active) {
+    ["roomTemp","humidity","surfaceTemp","dewPoint"].forEach(id => {
+      $(id).value = "";
+      state.visit.building[id] = "";
+    });
+  }
+}
+
+function generateRecommendationText() {
+  const selected = new Set(
+    state.visit.areas.flatMap(area => area.measures.map(measure => measure.type))
+  );
+
+  const parts = [];
+
+  if (selected.has("Horizontalsperre")) {
+    parts.push(
+      "Aufgrund der festgestellten kapillar aufsteigenden Feuchtigkeit empfehlen wir die Ausführung einer Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro."
+    );
+  }
+
+  if (selected.has("Flächensperre")) {
+    parts.push(
+      "Zur Reduzierung des seitlichen Feuchteeintrags empfehlen wir die Ausführung einer Flächensperre im Injektionsverfahren mit BKM HZ 250 Pro."
+    );
+  }
+
+  if (selected.has("Wand-Sohlen-Anschluss")) {
+    parts.push(
+      "Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht. Im Anschluss wird zusätzlich eine Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro eingebracht. Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit von etwa 5–6 Monaten wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet."
+    );
+  }
+
+  if (selected.has("Harzverpressung")) {
+    parts.push(
+      "Zur Abdichtung der ausgewählten feuchtigkeits- oder wasserführenden Bereiche empfehlen wir eine gezielte Harzverpressung. Abgerechnet wird ausschließlich der tatsächlich ausgeführte Umfang."
+    );
+  }
+
+  return parts.join("\n\n") ||
+    "Auf Grundlage der ausgewählten Maßnahmen wird die technische Empfehlung automatisch erstellt.";
+}
+
+function updateGeneratedRecommendation() {
+  const text = generateRecommendationText();
+  state.visit.customerRecommendation = text;
+  if ($("generatedRecommendation")) {
+    $("generatedRecommendation").textContent = text;
+  }
+  saveState();
 }
 
 function updateDewPoint() {
@@ -51,6 +112,11 @@ function updateDewPoint() {
     $("dewPoint").value = (b * gamma / (a - gamma)).toFixed(1);
   } else $("dewPoint").value = "";
 }
+$("climateMeasured").onchange = () => {
+  toggleClimateFields();
+  updateDewPoint();
+  saveState();
+};
 $("roomTemp").oninput = updateDewPoint;
 $("humidity").oninput = updateDewPoint;
 
@@ -91,19 +157,19 @@ function renderAreas() {
 
   box.querySelectorAll("[data-delete-area]").forEach(button => button.onclick = () => {
     state.visit.areas = state.visit.areas.filter(area => area.id !== button.dataset.deleteArea);
-    saveState(); renderAreas();
+    saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
-    area.measurements.push({ id: crypto.randomUUID(), device:"Gann Hydromette Compact B",value:"",unit:"Digits",height:"",location:"",note:"" });
+    area.measurements.push({ id: crypto.randomUUID(), device:"Gann Hydromette Compact B",value:"",dryReference:"",unit:"Digits",height:"",location:"",note:"" });
     saveState(); renderAreas();
   });
 
   box.querySelectorAll("[data-add-measure]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasure);
     area.measures.push({ id:crypto.randomUUID(), type:"Horizontalsperre",length:0,width:0,height:0,wall:Number(area.wallThickness),spacing:.25,extraResinKg:0,note:"" });
-    saveState(); renderAreas();
+    saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 
   box.querySelectorAll("[data-photo-area]").forEach(input => input.onchange = event => {
@@ -127,7 +193,8 @@ function renderMeasurements(area) {
   box.innerHTML = area.measurements.map(m => `
     <div class="sub-card item-grid">
       <div class="wide"><label>Gerät</label><input data-mid="${m.id}" data-mf="device" value="${esc(m.device)}"></div>
-      <div><label>Wert</label><input data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
+      <div><label>Messwert</label><input data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
+      <div><label>Referenz „trocken“</label><input data-mid="${m.id}" data-mf="dryReference" value="${esc(m.dryReference || "")}"></div>
       <div><label>Einheit</label><input data-mid="${m.id}" data-mf="unit" value="${esc(m.unit)}"></div>
       <div><label>Höhe cm</label><input data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
       <div><label>Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}"></div>
@@ -154,6 +221,7 @@ function renderMeasures(area) {
       ${m.type==="Flächensperre" ? `<div><label>Breite m</label><input data-measure="${m.id}" data-mfield="width" value="${m.width}"></div><div><label>Höhe m</label><input data-measure="${m.id}" data-mfield="height" value="${m.height}"></div>` : `<div><label>Länge lfm</label><input data-measure="${m.id}" data-mfield="length" value="${m.length}"></div>`}
       ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type) ? `<div><label>horizontaler Abstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value=".125" ${Number(m.spacing)===.125?"selected":""}>12,5 cm</option><option value=".25" ${Number(m.spacing)===.25?"selected":""}>25 cm</option></select></div>` : ""}
       ${m.type==="Harzverpressung" ? `<div><label>zusätzliches Harz kg</label><input data-measure="${m.id}" data-mfield="extraResinKg" value="${m.extraResinKg}"></div>` : ""}
+      ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>
       <button class="danger" data-delete-measure="${m.id}">Löschen</button>
     </div>`).join("");
@@ -162,11 +230,18 @@ function renderMeasures(area) {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mfield] = input.value;
     saveState();
+    updateGeneratedRecommendation();
     if (input.dataset.mfield === "type") renderAreas();
+  });
+  box.querySelectorAll("[data-mcheck]").forEach(input => input.onchange = () => {
+    const measure = area.measures.find(item => item.id === input.dataset.measure);
+    measure[input.dataset.mcheck] = input.checked;
+    saveState();
+    updateGeneratedRecommendation();
   });
   box.querySelectorAll("[data-delete-measure]").forEach(button => button.onclick = () => {
     area.measures = area.measures.filter(item => item.id !== button.dataset.deleteMeasure);
-    saveState(); renderAreas();
+    saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 }
 
@@ -256,6 +331,7 @@ function renderOffer() {
 $("toggleInternal").onclick = () => $("internalCalc").classList.toggle("hidden");
 
 function buildCustomerSnapshot() {
+  updateGeneratedRecommendation();
   const result = renderOffer();
   const measures = result.lineItems.filter(item => item.kind === "measure").map(item => {
     const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
@@ -302,7 +378,7 @@ function buildQuotationPayload() {
 
       const quantity = item.pricingMode === "flat"
         ? 1
-        : Number(Number(item.quantity).toFixed(4));
+        : Number(Number(item.quantity).toFixed(1));
 
       const unitName = item.pricingMode === "flat"
         ? (article?.unitName || item.unitName || "pauschal")
@@ -373,10 +449,11 @@ $("sendLexware").onclick = async () => {
 };
 
 function buildReport() {
-  let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr></table></div>`;
+  let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr>${state.visit.building.climateMeasured?`<tr><th>Raumtemperatur</th><td>${esc(state.visit.building.roomTemp)} °C</td></tr><tr><th>Luftfeuchtigkeit</th><td>${esc(state.visit.building.humidity)} %</td></tr><tr><th>Oberflächentemperatur</th><td>${esc(state.visit.building.surfaceTemp)} °C</td></tr><tr><th>Taupunkt</th><td>${esc(state.visit.building.dewPoint)} °C</td></tr>`:""}</table></div>`;
+  updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(state.visit.damageDescription)}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Messwerte</h3><table class="report-table"><tr><th>Gerät</th><th>Wert</th><th>Höhe</th><th>Position</th><th>Bemerkung</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td><td>${esc(m.note)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Messwerte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Referenz trocken</th><th>Höhe</th><th>Position</th><th>Bemerkung</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.dryReference || "")} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td><td>${esc(m.note)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   $("reportContent").innerHTML = html;
 }
@@ -447,4 +524,4 @@ $("specialType").value = state.discount.specialType;
 $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
-renderVisit(); renderSettings(); renderOffer(); show("dashboard");
+renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); show("dashboard");

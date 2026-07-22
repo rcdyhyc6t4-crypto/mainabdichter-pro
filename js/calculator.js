@@ -7,6 +7,13 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function oneDecimal(value) {
+  return num(value).toLocaleString("de-DE", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  });
+}
+
 function resinBasePrice(settings, length) {
   const cfg = settings.resinPriceList;
   const meters = num(length);
@@ -28,7 +35,9 @@ function workHours(settings, holes) {
 export function calculateMeasure(settings, measure) {
   const type = measure.type;
   const wall = num(measure.wall) || 30;
-  const spacing = [0.125, 0.25].includes(num(measure.spacing)) ? num(measure.spacing) : 0.25;
+  const spacing = [0.125, 0.25].includes(num(measure.spacing))
+    ? num(measure.spacing)
+    : 0.25;
   const reserveFactor = 1 + num(settings.reservePct) / 100;
 
   let holes = 0;
@@ -36,6 +45,7 @@ export function calculateMeasure(settings, measure) {
   let saleLiters = 0;
   let materialCostNet = 0;
   let gross = 0;
+  let grossUnit = 0;
   let quantity = 0;
   let unitName = "lfm";
   let scope = "";
@@ -44,12 +54,19 @@ export function calculateMeasure(settings, measure) {
   if (type === "Horizontalsperre") {
     quantity = num(measure.length);
     eligibleHorizontalMeters = quantity;
+
+    const holesPerMeter = 1 / spacing;
+    const rawLitersPerMeter = holesPerMeter * wall * 14 / 1000;
+    const saleLitersPerMeter = rawLitersPerMeter * reserveFactor;
+
     holes = ceil(quantity / spacing);
-    rawLiters = holes * wall * 14 / 1000;
+    rawLiters = quantity * rawLitersPerMeter;
     saleLiters = ceil(rawLiters * reserveFactor);
+
+    grossUnit = saleLitersPerMeter * num(settings.hzSaleNet) * 1.19;
+    gross = quantity * grossUnit;
     materialCostNet = saleLiters * num(settings.hzPurchaseNet);
-    gross = saleLiters * num(settings.hzSaleNet) * 1.19;
-    scope = `${quantity.toLocaleString("de-DE")} lfm`;
+    scope = `${oneDecimal(quantity)} lfm`;
   }
 
   if (type === "Flächensperre") {
@@ -57,38 +74,78 @@ export function calculateMeasure(settings, measure) {
     const height = num(measure.height);
     quantity = width * height;
     unitName = "m²";
-    const holesPerRow = ceil(width / spacing);
-    const rows = ceil(height / 0.25);
-    holes = holesPerRow * rows;
-    rawLiters = holesPerRow * wall * 14 / 1000
-      + Math.max(0, rows - 1) * holesPerRow * wall * 10 / 1000;
+
+    const holesPerRowPerMeter = 1 / spacing;
+    const rowsPerMeterHeight = 1 / 0.25;
+
+    const rawLitersPerSquareMeter =
+      holesPerRowPerMeter * wall * 14 / 1000
+      + (rowsPerMeterHeight - 1)
+        * holesPerRowPerMeter
+        * wall
+        * 10
+        / 1000;
+
+    const saleLitersPerSquareMeter =
+      rawLitersPerSquareMeter * reserveFactor;
+
+    const actualHolesPerRow = ceil(width / spacing);
+    const actualRows = ceil(height / 0.25);
+
+    holes = actualHolesPerRow * actualRows;
+    rawLiters = quantity * rawLitersPerSquareMeter;
     saleLiters = ceil(rawLiters * reserveFactor);
+
+    grossUnit =
+      saleLitersPerSquareMeter * num(settings.hzSaleNet) * 1.19;
+
+    gross = quantity * grossUnit;
     materialCostNet = saleLiters * num(settings.hzPurchaseNet);
-    gross = saleLiters * num(settings.hzSaleNet) * 1.19;
-    scope = `${width.toLocaleString("de-DE")} × ${height.toLocaleString("de-DE")} m = ${quantity.toLocaleString("de-DE")} m²`;
+
+    scope =
+      `${oneDecimal(width)} × `
+      + `${oneDecimal(height)} m = `
+      + `${oneDecimal(quantity)} m²`;
   }
 
   if (type === "Harzverpressung") {
     quantity = num(measure.length);
     const extraKg = num(measure.extraResinKg);
-    gross = resinBasePrice(settings, quantity) + extraKg * num(settings.extraResinKgNet) * 1.19;
-    scope = `${quantity.toLocaleString("de-DE")} lfm${extraKg > 0 ? ` + ${extraKg.toLocaleString("de-DE")} kg Mehraufwand` : ""}`;
+
+    gross = resinBasePrice(settings, quantity)
+      + extraKg * num(settings.extraResinKgNet) * 1.19;
+
+    grossUnit = quantity > 0 ? gross / quantity : gross;
+
+    scope =
+      `${oneDecimal(quantity)} lfm`
+      + `${extraKg > 0
+        ? ` + ${extraKg.toLocaleString("de-DE")} kg Mehraufwand`
+        : ""}`;
   }
 
   if (type === "Wand-Sohlen-Anschluss") {
     quantity = num(measure.length);
     eligibleHorizontalMeters = quantity;
-    holes = ceil(quantity / spacing);
-    rawLiters = holes * wall * 14 / 1000;
-    saleLiters = ceil(rawLiters * reserveFactor);
-    materialCostNet = saleLiters * num(settings.hzPurchaseNet);
-    gross = quantity * num(settings.wallSoleGrossPerMeter) + saleLiters * num(settings.hzSaleNet) * 1.19;
-    scope = `${quantity.toLocaleString("de-DE")} lfm inkl. Horizontalsperre`;
-  }
 
-  const grossUnit = quantity > 0
-    ? gross / quantity
-    : gross;
+    const holesPerMeter = 1 / spacing;
+    const rawLitersPerMeter = holesPerMeter * wall * 14 / 1000;
+    const saleLitersPerMeter = rawLitersPerMeter * reserveFactor;
+
+    holes = ceil(quantity / spacing);
+    rawLiters = quantity * rawLitersPerMeter;
+    saleLiters = ceil(rawLiters * reserveFactor);
+
+    grossUnit =
+      num(settings.wallSoleGrossPerMeter)
+      + saleLitersPerMeter * num(settings.hzSaleNet) * 1.19;
+
+    gross = quantity * grossUnit;
+    materialCostNet = saleLiters * num(settings.hzPurchaseNet);
+
+    scope =
+      `${quantity.toLocaleString("de-DE")} lfm inkl. Horizontalsperre`;
+  }
 
   return {
     type,
@@ -166,6 +223,28 @@ export function calculateOffer(settings, visit, discount) {
         saleLiters: result.saleLiters,
         hours: result.hours
       });
+      if (measure.type === "Wand-Sohlen-Anschluss" && measure.disposeDebris) {
+        const debrisExtra = settings.extras.find(extra =>
+          extra.active && String(extra.name || "").toLowerCase().includes("bauschutt")
+        );
+        if (debrisExtra) {
+          const article = settings.lexwareArticles.find(item => item.id === debrisExtra.lexwareArticleId);
+          const grossUnit = num(debrisExtra.grossPrice);
+          baseGross += grossUnit;
+          lineItems.push({
+            kind: "extra",
+            name: article?.title || debrisExtra.name,
+            description: article?.description || "Aufnehmen, Abfahren und fachgerechtes Entsorgen des anfallenden mineralischen Bauschutts.",
+            articleId: article?.id || "",
+            quantity: 1,
+            unitName: article?.unitName || debrisExtra.unit || "pauschal",
+            grossUnit,
+            totalGross: grossUnit,
+            pricingMode: "flat",
+            linkedToMeasure: measure.id
+          });
+        }
+      }
     }
   }
 

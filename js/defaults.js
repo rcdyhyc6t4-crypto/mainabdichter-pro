@@ -28,7 +28,8 @@ export const DEFAULTS = {
     },
     extras: [
       { id: crypto.randomUUID(), name: "Baustelleneinrichtung", unit: "pauschal", grossPrice: 320.11, active: true, lexwareArticleId: "" },
-      { id: crypto.randomUUID(), name: "Sauberkeitspaket", unit: "pauschal", grossPrice: 0, active: true, lexwareArticleId: "" }
+      { id: crypto.randomUUID(), name: "Sauberkeitspaket", unit: "pauschal", grossPrice: 0, active: true, lexwareArticleId: "" },
+      { id: crypto.randomUUID(), name: "Bauschutt entsorgen", unit: "pauschal", grossPrice: 0, active: true, lexwareArticleId: "" }
     ],
     articleMappings: {
       Horizontalsperre: "",
@@ -51,7 +52,7 @@ export const DEFAULTS = {
       yearBuilt: "", buildingType: "freistehendes Einfamilienhaus",
       floor: "Keller", roomUse: "Kellerraum",
       foundationType: "Streifenfundament",
-      roomHeight: "", floorCover: "",
+      floorCover: "", climateMeasured: false,
       roomTemp: "", humidity: "", surfaceTemp: "", dewPoint: ""
     },
     damageDescription: "",
@@ -87,7 +88,7 @@ export function createArea(name = "Vorderwand") {
       unit: "Digits",
       height: "",
       location: "",
-      note: ""
+      note: "", dryReference: ""
     }],
     measures: [{
       id: crypto.randomUUID(),
@@ -98,6 +99,7 @@ export function createArea(name = "Vorderwand") {
       wall: 30,
       spacing: 0.25,
       extraResinKg: 0,
+      disposeDebris: false,
       note: ""
     }],
     photos: []
