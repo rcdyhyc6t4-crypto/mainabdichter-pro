@@ -7,7 +7,10 @@ export const esc = value => String(value || "").replace(/[&<>"']/g, char => ({
 
 export function showStatus(id, message, ok = true) {
   const element = $(id);
-  if (!element) return;
+  if (!element) {
+    console.warn(`Statusfeld ${id} fehlt:`, message);
+    return;
+  }
   element.className = `status ${ok ? "ok" : "err"}`;
   element.textContent = message;
 }

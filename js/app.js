@@ -942,9 +942,18 @@ function renderOffer() {
   $("offerCustomer").textContent = [state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" ") || "–";
   $("offerAddress").textContent = state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ") || "–";
   $("offerGross").textContent = eur(result.offerGross);
-  $("dashPriceList").textContent = state.settings.priceListName;
-  $("dashCustomer").textContent = [state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" ") || "–";
-  $("dashOffer").textContent = eur(result.offerGross);
+  if ($("dashPriceList")) {
+    $("dashPriceList").textContent = state.settings.priceListName;
+  }
+  if ($("dashCustomer")) {
+    $("dashCustomer").textContent =
+      [state.visit.customer.firstName, state.visit.customer.lastName]
+        .filter(Boolean)
+        .join(" ") || "–";
+  }
+  if ($("dashOffer")) {
+    $("dashOffer").textContent = eur(result.offerGross);
+  }
   $("internalCalc").innerHTML = result.lineItems.map(item => `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${item.holes!==undefined?`<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div><div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div><div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`:""}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
   return result;
 }
@@ -993,9 +1002,21 @@ function buildCustomerSnapshot() {
   };
 }
 $("openCustomerView").onclick = () => {
-  localStorage.setItem("mainabdichter_v10_customer", JSON.stringify(buildCustomerSnapshot()));
-  const win = window.open("customer.html","_blank");
-  if (!win) alert("Bitte Pop-ups erlauben.");
+  try {
+    collectVisit();
+    updateGeneratedRecommendation();
+    saveState();
+
+    // Navigation im selben Tab funktioniert auf iPhone und iPad
+    // auch im Home-Bildschirm-/PWA-Modus zuverlässig.
+    window.location.assign("./customer.html");
+  } catch (error) {
+    showStatus(
+      "offerStatus",
+      `Kundenansicht konnte nicht geöffnet werden: ${error.message}`,
+      false
+    );
+  }
 };
 
 function buildQuotationPayload() {
