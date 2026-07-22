@@ -4,23 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V11</title>
+<title>mainabdichter V14 CRM</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
-<header class="app-header native-header">
-  <div class="brand-row">
-    <img src="assets/bkm-logo.png" alt="BKM.MANNESMANN">
-    <div class="brand-copy">
-      <strong>mainabdichter</strong>
-      <small>BKM.MANNESMANN Fachbetrieb</small>
-    </div>
-    <div class="header-actions">
-      <button id="quickSave" class="icon-button" title="Speichern" aria-label="Speichern">💾</button>
-      <button id="quickSettings" class="icon-button" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
-      <button id="quickMenu" class="icon-button" title="Menü" aria-label="Menü">☰</button>
-    </div>
+<header class="app-header v14-header">
+  <div class="v14-brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <div><strong>mainabdichter</strong><small>Digitale Besichtigungen. Bessere Angebote.</small></div>
+  </div>
+  <div class="header-actions">
+    <button id="quickSave" class="header-action primary-action">▣ <span>Speichern</span></button>
+    <button id="quickSettings" class="header-action">⚙ <span>Einstellungen</span></button>
+    <button id="quickMenu" class="header-action">☰ <span>Menü</span></button>
   </div>
 </header>
 
@@ -40,18 +37,40 @@
 </nav>
 <main>
 <section id="dashboard" class="page active">
-  <div class="card"><h1>Dashboard</h1>
-    <div class="dashboard-grid">
-      <button id="newVisit" class="primary">Neu</button>
-      <button id="continueVisit" class="secondary">Besichtigung fortsetzen</button>
-      <button id="openOffer" class="secondary">Angebot öffnen</button>
-      <button id="openSettings" class="secondary">Einstellungen</button>
-    </div>
+  <section class="dashboard-meta">
+    <div><span>Besichtigungs-Nr.</span><strong id="metaVisitNumberDashboard">–</strong></div>
+    <div><span>Datum</span><strong id="metaVisitDateDashboard">–</strong></div>
+    <div><span>Uhrzeit</span><strong id="metaVisitTimeDashboard">–</strong></div>
+    <div><span>Standort</span><strong id="metaVisitLocationDashboard">–</strong></div>
+    <div><span>Wetter</span><strong id="metaVisitWeatherDashboard">–</strong></div>
+  </section>
+  <div class="dashboard-grid-v14">
+    <section class="panel"><div class="panel-heading"><h2>Letzte Angebote</h2><button id="showAllOffers" class="text-button">Alle anzeigen</button></div><div id="recentOffers" class="compact-list"></div></section>
+    <section class="panel"><div class="panel-heading"><h2>Schnellaktionen</h2></div><div class="quick-grid">
+      <button id="dashboardNewVisit" class="quick-action green"><span>＋</span>Neue Besichtigung</button>
+      <button id="quickCreateOffer" class="quick-action blue"><span>▤</span>Angebot erstellen</button>
+      <button id="quickShowOffers" class="quick-action purple"><span>☷</span>Angebote</button>
+      <button id="quickShowFollowups" class="quick-action amber"><span>▣</span>Nachkontrollen</button>
+    </div></section>
+    <section class="panel"><div class="panel-heading"><h2>Nächste Nachkontrollen</h2><button id="showAllFollowups" class="text-button">Alle anzeigen</button></div><div id="nextFollowups" class="compact-list"></div></section>
+    <section class="panel"><div class="panel-heading"><h2>Statistik</h2></div><div class="donut-wrap"><div id="statusDonut" class="status-donut"><span id="statTotal">0</span><small>Angebote</small></div><div class="legend">
+      <div><i class="legend-green"></i><span><b id="statAccepted">0</b> Angenommen</span></div>
+      <div><i class="legend-blue"></i><span><b id="statOpen">0</b> Offen</span></div>
+      <div><i class="legend-orange"></i><span><b id="statDraft">0</b> Entwurf</span></div>
+      <div><i class="legend-gray"></i><span><b id="statCompleted">0</b> Abgeschlossen</span></div>
+      <div><i class="legend-purple"></i><span><b id="statFollowups">0</b> Nachkontrolle</span></div>
+    </div></div><div class="stat-total-row"><span>Gesamtsumme</span><strong id="statAmount">0,00 €</strong></div></section>
   </div>
-  <div class="card">
-    <div class="metric"><span>Preisbasis</span><strong id="dashPriceList">–</strong></div>
-    <div class="metric"><span>Kunde</span><strong id="dashCustomer">–</strong></div>
-    <div class="metric"><span>Angebotssumme</span><strong id="dashOffer">–</strong></div>
+  <div class="archive-layout">
+    <section class="panel archive-panel"><div class="filter-row"><input id="archiveSearch" placeholder="Kunde, Adresse, Ort oder Maßnahme suchen"><select id="archiveFilter">
+      <option value="all">Alle Status</option><option value="draft">Entwurf</option><option value="open">Offen</option><option value="accepted">Angenommen</option><option value="completed">Abgeschlossen</option><option value="followup">Nachkontrolle</option>
+    </select></div><div class="archive-table-head"><span>Datum</span><span>Kunde / Objekt</span><span>Maßnahmen</span><span>Summe</span><span>Status</span></div><div id="archiveList" class="archive-list table-list"></div><div id="archiveEmpty" class="empty-state">Noch keine Angebote gespeichert.</div></section>
+    <aside class="panel backup-panel"><div class="panel-heading"><h2>Datensicherung</h2></div>
+      <button id="icloudSave" class="backup-action"><span>☁</span><div><strong>In iCloud sichern</strong><small>Aktuelles Archiv in iCloud Drive speichern</small></div></button>
+      <label class="backup-action restore-action"><span>☁</span><div><strong>Aus iCloud wiederherstellen</strong><small>Archiv aus iCloud Drive laden</small></div><input id="importArchive" type="file" accept="application/json"></label>
+      <button id="exportArchive" class="backup-action"><span>⇩</span><div><strong>Lokale Sicherung erstellen</strong><small>Sicherungsdatei herunterladen</small></div></button>
+      <div class="backup-info"><span>Letzte Sicherung</span><strong id="lastBackupTime">Noch keine Sicherung</strong><small>Im Dateidialog „iCloud Drive“ auswählen.</small></div>
+    </aside>
   </div>
 </section>
 
@@ -170,9 +189,22 @@
     <p class="hint">Die Kundenansicht wird separat geöffnet. Interne Daten sind dort nicht erreichbar.</p>
   </div>
   <div class="offer-actions">
-    <button id="openCustomerView" class="primary">Separate Kundenansicht öffnen</button>
+    <button id="saveToArchive" class="primary">Im Archiv speichern</button>
+    <button id="openCustomerView" class="secondary">Kundenansicht öffnen</button>
     <button id="reportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
-    <button id="sendLexware" class="secondary">Angebot als Lexware-Entwurf</button>
+    <button id="sendLexware" class="secondary">An Lexware senden</button>
+  </div>
+  <div class="card compact-status-card">
+    <div class="grid">
+      <div><label>Status</label><select id="offerArchiveStatus">
+        <option value="draft">Entwurf</option>
+        <option value="open">Offen</option>
+        <option value="accepted">Angenommen</option>
+        <option value="completed">Abgeschlossen</option>
+        <option value="followup">Nachkontrolle</option>
+      </select></div>
+      <div><label>Nachkontrolle am</label><input id="followupDate" type="date"></div>
+    </div>
   </div>
   <div id="offerStatus" class="status"></div>
 </section>
@@ -228,11 +260,13 @@
   <div id="settingsStatus" class="status"></div>
 </section>
 </main>
-<nav class="bottom-nav">
-  <button id="bottomPipedrive"><span class="brand-letter">p</span><small>Pipedrive</small></button>
-  <button id="bottomLexware"><span class="brand-letter">X</span><small>Lexware</small></button>
-  <button id="bottomNewVisit" class="bottom-main"><span>＋</span><small>Neue Besichtigung</small></button>
-  <button id="bottomFollowup"><span>✓</span><small>Nachkontrolle</small></button>
+<nav class="bottom-nav v14-bottom-nav">
+  <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Dashboard</small></button>
+  <button id="bottomCustomers"><span>♙</span><small>Kunden</small></button>
+  <button data-bottom-page="visit"><span>▣</span><small>Besichtigungen</small></button>
+  <button data-bottom-page="offer"><span>▤</span><small>Angebote</small></button>
+  <button id="bottomFollowup"><span>▦</span><small>Nachkontrollen</small></button>
+  <button id="bottomMore"><span>•••</span><small>Mehr</small></button>
 </nav>
 <section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
 <script type="module" src="js/app.js"></script>

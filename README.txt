@@ -1,22 +1,27 @@
-mainabdichter V12 – native App-Oberfläche und iPhone-Zahlentastatur
+mainabdichter V14 CRM
 
-NEU
-- komplett kompakter, nativer App-Header
-- kleines BKM-Logo
-- mainabdichter / BKM.MANNESMANN Fachbetrieb
-- Schnellaktionen Speichern, Einstellungen und Menü
-- feste Statusleiste für Nummer, Datum, Uhrzeit, Standort und Wetter
-- kompakte Icon-Navigation
-- feste untere Navigation für Pipedrive, Lexware, neue Besichtigung und Nachkontrolle
-- Kundenansicht ebenfalls mit kompaktem Header
-- Zahlenfelder öffnen auf dem iPhone direkt die passende Zahlentastatur:
-  - inputmode decimal für Meter, Quadratmeter, Temperaturen, Preise
-  - inputmode numeric für Baujahr und reine Ganzzahlen
-  - inputmode tel für Telefonnummern
-- bestehende Kalkulation, Lexware, Pipedrive und PDFs bleiben erhalten
+Komplett neuer Designstand:
+- kompakter Header ohne großes BKM-Logo
+- modernes Dashboard
+- letzte Angebote
+- Schnellaktionen
+- nächste Nachkontrollen
+- Statistik
+- Angebotsarchiv
+- Suche und Statusfilter
+- iCloud-Sicherung über den Apple-Dateidialog
+- Wiederherstellung aus iCloud Drive
+- lokale Sicherung
+- letzte Sicherung sichtbar
+- feste Navigation
+- iPhone-, iPad- und Desktop-Optimierung
 
-GITHUB:
-Komplette Struktur aus dem ZIP hochladen bzw. ersetzen.
+Wichtig:
+Eine Web-App darf nicht ohne Nachfrage direkt in iCloud schreiben.
+Bei „In iCloud sichern“ im Dateidialog iCloud Drive auswählen.
 
-CLOUDFLARE:
+GitHub:
+Komplette Struktur hochladen und vorhandene Dateien ersetzen.
+
+Cloudflare:
 Keine Änderung erforderlich.
