@@ -382,13 +382,37 @@ $("quickSave").onclick = () => {
   alert("Aktueller Stand gespeichert.");
 };
 $("quickSettings").onclick = () => show("settings");
-$("quickMenu").onclick = () => document.querySelector(".native-nav").classList.toggle("menu-open");
-$("bottomPipedrive").onclick = () => { show("visit"); choosePipedrive(); };
-$("bottomLexware").onclick = () => { show("visit"); chooseLexware(); };
-$("bottomNewVisit").onclick = startNewVisit;
-$("bottomFollowup").onclick = () => {
-  alert("Nachkontrolle wird als nächster Ausbauschritt ergänzt.");
-};
+$("quickMenu").onclick = () => show("settings");
+
+if ($("bottomPipedrive")) {
+  $("bottomPipedrive").onclick = () => {
+    show("visit");
+    choosePipedrive();
+  };
+}
+
+if ($("bottomLexware")) {
+  $("bottomLexware").onclick = () => {
+    show("visit");
+    chooseLexware();
+  };
+}
+
+if ($("bottomNewVisit")) {
+  $("bottomNewVisit").onclick = startNewVisit;
+}
+
+if ($("bottomFollowup")) {
+  $("bottomFollowup").onclick = () => {
+    show("dashboard");
+    $("archiveFilter").value = "followup";
+    renderArchive();
+    $("archiveList").scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  };
+}
 $("setVisitNow").onclick = () => {
   state.visit.visitDate = todayLocal();
   state.visit.visitStartTime = timeLocal();
