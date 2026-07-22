@@ -103,3 +103,55 @@ export function deleteArchiveRecord(id) {
 export function replaceArchive(archive) {
   saveArchive(Array.isArray(archive) ? archive : []);
 }
+
+
+export function createFullBackupPayload() {
+  return {
+    version: 14.2,
+    exportedAt: new Date().toISOString(),
+    settings: JSON.parse(JSON.stringify(state.settings)),
+    visit: JSON.parse(JSON.stringify(state.visit)),
+    discount: JSON.parse(JSON.stringify(state.discount)),
+    archive: loadArchive(),
+    metadata: {
+      source: "mainabdichter",
+      containsSensitiveConnectionData: Boolean(
+        state.settings.workerUrl || state.settings.appSecret
+      )
+    }
+  };
+}
+
+export function restoreFullBackupPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Ungültige Sicherungsdatei.");
+  }
+
+  if (payload.settings && typeof payload.settings === "object") {
+    state.settings = payload.settings;
+    localStorage.setItem(KEYS.settings, JSON.stringify(state.settings));
+  }
+
+  if (payload.visit && typeof payload.visit === "object") {
+    state.visit = payload.visit;
+    localStorage.setItem(KEYS.visit, JSON.stringify(state.visit));
+  }
+
+  if (payload.discount && typeof payload.discount === "object") {
+    state.discount = payload.discount;
+    localStorage.setItem(KEYS.discount, JSON.stringify(state.discount));
+  }
+
+  if (Array.isArray(payload.archive)) {
+    replaceArchive(payload.archive);
+  }
+
+  return {
+    settingsRestored: Boolean(payload.settings),
+    visitRestored: Boolean(payload.visit),
+    discountRestored: Boolean(payload.discount),
+    archiveCount: Array.isArray(payload.archive)
+      ? payload.archive.length
+      : 0
+  };
+}

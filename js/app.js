@@ -1,4 +1,4 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive } from "./storage.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload } from "./storage.js";
 import { createArea } from "./defaults.js";
 import { calculateOffer, calculateMeasure } from "./calculator.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons } from "./utils.js";
@@ -313,21 +313,33 @@ function renderArchive() {
   );
 }
 
-function exportArchiveData(filename = `mainabdichter-archiv-${todayLocal()}.json`) {
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    version: 13,
-    archive: loadArchive()
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+function exportArchiveData(
+  filename = `mainabdichter-komplettsicherung-${todayLocal()}.json`
+) {
+  collectVisit();
+  saveState();
+
+  const payload = createFullBackupPayload();
+  const blob = new Blob(
+    [JSON.stringify(payload, null, 2)],
+    { type: "application/json" }
+  );
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   link.click();
-  localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString());
-  if(typeof updateBackupTime==="function") updateBackupTime();
   URL.revokeObjectURL(url);
+
+  localStorage.setItem(
+    "mainabdichter_v14_last_backup",
+    new Date().toISOString()
+  );
+
+  if (typeof updateBackupTime === "function") {
+    updateBackupTime();
+  }
 }
 
 function show(pageId) {
@@ -346,7 +358,7 @@ $("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderA
 $("quickShowFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
 $("showAllOffers").onclick = () => $("archiveList").scrollIntoView({behavior:"smooth"});
 $("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
-$("icloudSave").onclick = () => { exportArchiveData("mainabdichter-backup.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
+$("icloudSave").onclick = () => { exportArchiveData("mainabdichter-komplettsicherung.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
 document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => show(button.dataset.bottomPage));
 $("bottomCustomers").onclick = () => { show("dashboard"); $("archiveSearch").focus(); };
 $("bottomMore").onclick = () => show("settings");
@@ -358,20 +370,79 @@ $("exportArchive").onclick = exportArchiveData;
 $("importArchive").onchange = event => {
   const file = event.target.files?.[0];
   if (!file) return;
+
   const reader = new FileReader();
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
-      const incoming = Array.isArray(parsed) ? parsed : parsed.archive;
-      if (!Array.isArray(incoming)) throw new Error("Ungültiges Archivformat.");
-      if (confirm(`Archiv mit ${incoming.length} Einträgen importieren und vorhandenes Archiv ersetzen?`)) {
-        replaceArchive(incoming);
-        renderArchive();
+
+      // Rückwärtskompatibilität zu den bisherigen reinen Archivdateien.
+      if (Array.isArray(parsed)) {
+        if (confirm(
+          `Alte Archivsicherung mit ${parsed.length} Einträgen importieren?`
+        )) {
+          replaceArchive(parsed);
+          renderArchive();
+        }
+        return;
       }
+
+      if (
+        Array.isArray(parsed.archive) &&
+        !parsed.settings &&
+        !parsed.visit &&
+        !parsed.discount
+      ) {
+        if (confirm(
+          `Archivsicherung mit ${parsed.archive.length} Einträgen importieren?`
+        )) {
+          replaceArchive(parsed.archive);
+          renderArchive();
+        }
+        return;
+      }
+
+      const archiveCount = Array.isArray(parsed.archive)
+        ? parsed.archive.length
+        : 0;
+
+      const confirmed = confirm(
+        "Diese Komplettsicherung enthält Einstellungen, " +
+        "Lexoffice-Artikelzuordnungen, Materialpreise, " +
+        "Verbindungsdaten und " +
+        `${archiveCount} Archiv-Einträge.\n\n` +
+        "Die vorhandenen Daten auf diesem Gerät werden ersetzt. " +
+        "Sicherung jetzt wiederherstellen?"
+      );
+
+      if (!confirmed) return;
+
+      const result = restoreFullBackupPayload(parsed);
+
+      renderVisit();
+      renderSettings();
+      renderExtras();
+      renderOffer();
+      renderArchive();
+      updateMetaBar();
+
+      localStorage.setItem(
+        "mainabdichter_v14_last_backup",
+        new Date().toISOString()
+      );
+      updateBackupTime();
+
+      alert(
+        "Sicherung erfolgreich wiederhergestellt.\n\n" +
+        `Archiv-Einträge: ${result.archiveCount}\n` +
+        `Einstellungen: ${result.settingsRestored ? "Ja" : "Nein"}\n` +
+        `Aktuelle Besichtigung: ${result.visitRestored ? "Ja" : "Nein"}`
+      );
     } catch (error) {
-      alert(error.message);
+      alert(`Sicherung konnte nicht importiert werden: ${error.message}`);
     }
   };
+
   reader.readAsText(file);
   event.target.value = "";
 };
