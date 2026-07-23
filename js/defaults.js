@@ -75,6 +75,14 @@ export const DEFAULTS = {
       wallSole: "Der Wand-Sohlen-Anschluss wird grundsätzlich im Ausschlussverfahren ausgeführt. Der Leistungsumfang umfasst das Öffnen des Estrichs auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte, die Reinigung des Anschlussbereiches, die Herstellung einer Dichtkehle, das Aufbringen des Dichtmörtels bis mindestens 15 cm über eine vorhandene Sperrbahn sowie das anschließende Einbringen einer Horizontalsperre mit BKM HZ 250 Pro.\n\nNach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Sollte sich dabei zeigen, dass eine ergänzende Harzverpressung erforderlich ist, wird diese ausschließlich in den tatsächlich notwendigen Bereichen ausgeführt und nach dem tatsächlich ausgeführten Umfang gesondert berechnet.",
       resin: "Harzverpressungen erfassen ausschließlich die zum Zeitpunkt der Ausführung festgestellten und zugänglichen Fehlstellen. Weitere Fehlstellen können erst im Zuge der Austrocknung oder nach einer angemessenen Standzeit sichtbar werden. Hieraus entstehende ergänzende Maßnahmen sind gesondert festzustellen, mit dem Auftraggeber abzustimmen, zu beauftragen und abzurechnen."
     },
+    pipedriveSync: {
+      autoSync: true,
+      fields: [],
+      stages: [],
+      fieldMappings: {},
+      stageMappings: {},
+      log: []
+    },
     workerUrl: "https://mainabdichter-lexoffice.cmww7htry5.workers.dev",
     appSecret: ""
   },
@@ -82,7 +90,7 @@ export const DEFAULTS = {
     customer: {
       salutation: "", firstName: "", lastName: "", company: "",
       phone: "", email: "", street: "", zip: "", city: "",
-      objectAddress: "", pipedriveId: "", lexwareContactId: ""
+      objectAddress: "", pipedriveId: "", pipedriveDealId: "", lexwareContactId: ""
     },
     building: {
       yearBuilt: "", buildingType: "freistehendes Einfamilienhaus",

@@ -2,10 +2,12 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { createArea } from "./defaults.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils.js";
-import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson } from "./api.js";
+import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation, loadPipedriveDealFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api.js";
 import { buildExecutionNotices } from "./texts.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, workDurationMinutes, worksiteMaterialTotals } from "./construction.js";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask } from "./construction.js";
+import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync.js";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js";
 function applyInputModes(root = document) {
   const decimalSelectors = [
     'input[type="number"]',
@@ -159,11 +161,78 @@ async function fetchWeatherForLocation() {
 
 
 
+
+function customerName(customer) {
+  return [customer?.salutation, customer?.firstName, customer?.lastName]
+    .filter(Boolean).join(" ") || customer?.company || "Kunde";
+}
+
+async function ensurePipedrivePerson(customer) {
+  if (customer?.pipedriveId) return String(customer.pipedriveId);
+  const response = await createPipedrivePerson({
+    name: customerName(customer),
+    email: customer?.email || "",
+    phone: customer?.phone || "",
+    street: customer?.street || "",
+    zip: customer?.zip || "",
+    city: customer?.city || "",
+    source: "mainabdichter-App"
+  });
+  customer.pipedriveId = String(response.person?.id || "");
+  saveState();
+  return customer.pipedriveId;
+}
+
+async function syncVisitDeal(stageKey, extra = {}) {
+  const customer = state.visit.customer;
+  const personId = await ensurePipedrivePerson(customer);
+  const title = `${customerName(customer)} – ${customer.objectAddress || customer.city || "Anfrage"}`;
+  const response = await syncPipedriveDeal({
+    dealId: customer.pipedriveDealId || "",
+    personId,
+    title,
+    stageId: stageId(stageKey),
+    value: extra.offerValue,
+    currency: "EUR",
+    customFields: visitSyncValues(state.visit, extra),
+    note: extra.note || ""
+  });
+  customer.pipedriveDealId = String(response.deal?.id || customer.pipedriveDealId || "");
+  saveState();
+  addSyncLog(`Deal ${stageKey}`, true, `${title} wurde synchronisiert.`, {dealId:customer.pipedriveDealId});
+  return response;
+}
+
+async function syncWorksiteDeal(worksite, stageKey = null, pdf = null) {
+  const personId = worksite.pipedrivePersonId || await ensurePipedrivePerson(worksite.customer);
+  worksite.pipedrivePersonId = personId;
+  const response = await syncPipedriveDeal({
+    dealId: worksite.pipedriveDealId || worksite.customer?.pipedriveDealId || "",
+    personId,
+    title: `${worksiteCustomerName(worksite)} – ${worksite.objectAddress || "Baustelle"}`,
+    stageId: stageKey ? stageId(stageKey) : undefined,
+    customFields: worksiteSyncValues(worksite),
+    note: `Baustellenstatus: ${worksite.status || "geplant"}<br>Arbeitsnachweis zuletzt synchronisiert: ${new Date().toLocaleString("de-DE")}`
+  });
+  worksite.pipedriveDealId = String(response.deal?.id || worksite.pipedriveDealId || "");
+  worksite.customer.pipedriveDealId = worksite.pipedriveDealId;
+  if (pdf && worksite.pipedriveDealId) {
+    const uploaded = await uploadPipedriveDealFile(worksite.pipedriveDealId, pdf.blob, pdf.filename);
+    worksite.pipedriveReportFileId = String(uploaded.file?.id || "");
+    worksite.pipedriveReportUploadedAt = new Date().toISOString();
+  }
+  worksite.pipedriveSyncedAt = new Date().toISOString();
+  persistWorksite(worksite);
+  addSyncLog("Arbeitsnachweis", true, `${worksiteCustomerName(worksite)} wurde mit Pipedrive synchronisiert.`, {dealId:worksite.pipedriveDealId,fileId:worksite.pipedriveReportFileId||""});
+  return response;
+}
+
 let inquiryScreenshotData = "";
 
 function openInquiryImport() {
   inquiryScreenshotData = "";
   $("inquiryScreenshot").value = "";
+  if ($("inquiryCamera")) $("inquiryCamera").value = "";
   $("inquiryPreview").src = "";
   $("inquiryPreview").classList.add("hidden");
   $("inquiryReview").classList.add("hidden");
@@ -213,11 +282,73 @@ async function acceptInquiryImport() {
     try {
       const response=await createPipedrivePerson({name:[data.firstName,data.lastName].filter(Boolean).join(" "),email:data.email,phone:data.phone,street:data.street,zip:data.zip,city:data.city,source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message});
       state.visit.customer.pipedriveId=String(response.person?.id || ""); saveState();
-      pipedriveMessage=response.created ? " Kontakt wurde in Pipedrive angelegt." : " Vorhandener Pipedrive-Kontakt wurde verwendet.";
+      const dealResponse = await syncVisitDeal("inquiry", {
+        note: `<strong>Neue Anfrage über ${esc(data.source)}</strong><br>${esc(data.message || "").replace(/\n/g,"<br>")}`
+      });
+      pipedriveMessage=(response.created ? " Kontakt wurde in Pipedrive angelegt." : " Vorhandener Pipedrive-Kontakt wurde verwendet.") + ` Deal ${dealResponse.created ? "angelegt" : "aktualisiert"}.`;
     } catch(error) { pipedriveMessage=` Pipedrive konnte nicht aktualisiert werden: ${error.message}`; }
   }
   renderVisit(); show("visit");
   showStatus("visitStatus",`Anfrage wurde übernommen.${pipedriveMessage}`,!pipedriveMessage.includes("konnte nicht"));
+}
+
+
+let cachedAcceptedQuotations = [];
+
+function todayIso() { return new Date().toISOString().slice(0,10); }
+
+async function syncPipedriveDashboard() {
+  const box=$("pipedriveTodayList");
+  box.innerHTML='<div class="empty-mini">Termine werden geladen …</div>';
+  try {
+    const data=await loadPipedriveActivities(todayIso());
+    const items=data.activities||[];
+    box.innerHTML=items.length?items.map(item=>`<button class="compact-row activity-row" data-activity-person="${item.personId||""}" data-activity-deal="${item.dealId||""}"><span><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(item.type||"Termin")}</small></span><span><strong>${esc(item.subject||"Termin")}</strong><small>${esc(item.personName||item.location||"")}</small></span></button>`).join(''):'<div class="empty-mini">Heute sind keine offenen Pipedrive-Termine vorhanden.</div>';
+    box.querySelectorAll('[data-activity-person]').forEach(button=>button.onclick=async()=>{const id=button.dataset.activityPerson;if(!id)return;try{const data=await loadPipedrivePerson(id);Object.assign(state.visit.customer,data.person);state.visit.customer.pipedriveDealId=button.dataset.activityDeal||state.visit.customer.pipedriveDealId||"";saveState();renderVisit();show('visit');}catch(error){alert(error.message);}});
+  } catch(error) { box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
+}
+
+async function syncAcceptedQuotationDashboard() {
+  const box=$("acceptedQuotationList");
+  box.innerHTML='<div class="empty-mini">Angebote werden geladen …</div>';
+  try {
+    const today = todayLocal();
+    const data = await loadAcceptedLexwareQuotations(today);
+    cachedAcceptedQuotations = (data.quotations || []).filter(item => {
+      const updated = String(item.updatedDate || "").slice(0, 10);
+      return updated >= today;
+    });
+    const existingIds=new Set(loadWorksites().map(item=>item.lexwareQuotationId).filter(Boolean));
+    const items=cachedAcceptedQuotations.filter(item=>!existingIds.has(item.id));
+    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):'<div class="empty-mini">Keine heute angenommenen Angebote.</div>';
+    box.querySelectorAll('[data-create-lexware-worksite]').forEach(button=>button.onclick=async()=>{
+      button.disabled=true;
+      try {
+        const data=await loadAcceptedLexwareQuotation(button.dataset.createLexwareWorksite);
+        const ws=createWorksiteFromLexwareQuotation(state.settings,data.quotation);
+        const personId=await ensurePipedrivePerson(ws.customer);
+        ws.pipedrivePersonId=personId;
+        const deal=await syncPipedriveDeal({
+          personId,
+          title:`${worksiteCustomerName(ws)} – ${ws.objectAddress || ws.lexwareVoucherNumber}`,
+          stageId:stageId("executionPlanned"),
+          value:Number(data.quotation.totalGrossAmount || data.quotation.totalAmount || 0),
+          currency:data.quotation.currency || "EUR",
+          customFields:visitSyncValues({customer:ws.customer,visitNumber:ws.visitNumber,visitDate:ws.date,building:{},areas:[],damageDescription:""},{offerNumber:ws.lexwareVoucherNumber,offerDate:data.quotation.voucherDate,offerValue:Number(data.quotation.totalGrossAmount || data.quotation.totalAmount || 0)}),
+          note:`Angenommenes Lexware-Angebot ${esc(ws.lexwareVoucherNumber || "")} wurde als Baustelle übernommen.`
+        });
+        ws.pipedriveDealId=String(deal.deal?.id || "");
+        ws.customer.pipedriveDealId=ws.pipedriveDealId;
+        persistWorksite(ws);
+        addSyncLog("Lexware → Baustelle",true,`${ws.lexwareVoucherNumber || "Angebot"} übernommen.`,{dealId:ws.pipedriveDealId});
+        activeWorksiteId=ws.id;renderWorksites();show('worksites');
+      } catch(error){addSyncLog("Lexware → Baustelle",false,error.message);alert(error.message);} finally{button.disabled=false;}
+    });
+  } catch(error) { box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
+}
+
+async function syncDashboardSources() {
+  await Promise.allSettled([syncPipedriveDashboard(),syncAcceptedQuotationDashboard()]);
 }
 
 function startNewVisit() {
@@ -436,15 +567,18 @@ function show(pageId) {
   $(pageId).classList.add("active");
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
-  if (pageId === "dashboard") renderArchive();
+  if (pageId === "dashboard") { renderArchive(); syncDashboardSources(); }
   if (pageId === "worksites") renderWorksites();
 }
 
 document.querySelectorAll(".main-nav button").forEach(button => button.onclick = () => show(button.dataset.page));
+$("syncPipedriveActivities").onclick = syncPipedriveDashboard;
+$("syncAcceptedQuotations").onclick = syncAcceptedQuotationDashboard;
 $("dashboardNewInquiry").onclick = openInquiryImport;
 $("cancelInquiryImport").onclick = () => show("dashboard");
 $("retryInquiryImport").onclick = () => $("inquiryScreenshot").click();
 $("inquiryScreenshot").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
+$("inquiryCamera").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
 $("reparseInquiryText").onclick = () => fillInquiryReview(parseInquiryText($("importRawText").value));
 $("acceptInquiryImport").onclick = acceptInquiryImport;
 $("dashboardNewVisit").onclick = startNewVisit;
@@ -1216,7 +1350,18 @@ $("sendLexware").onclick = async () => {
     saveState();
     if ($("offerArchiveStatus")) $("offerArchiveStatus").value = "open";
     saveCurrentToArchive(false);
-    showStatus("offerStatus","Lexware-Angebot wurde erstellt und im Archiv gespeichert.",true);
+    try {
+      await syncVisitDeal("offerSent", {
+        offerNumber: response.voucherNumber || response.quotationNumber || "",
+        offerDate: todayLocal(),
+        offerValue: renderOffer().offerGross,
+        note: `Lexware-Angebot ${esc(response.voucherNumber || response.quotationId || "")} wurde erstellt und versendet.`
+      });
+      showStatus("offerStatus","Lexware-Angebot wurde erstellt, archiviert und mit Pipedrive synchronisiert.",true);
+    } catch(syncError) {
+      addSyncLog("Angebot",false,syncError.message);
+      showStatus("offerStatus",`Lexware-Angebot wurde erstellt. Pipedrive-Synchronisation fehlgeschlagen: ${syncError.message}`,false);
+    }
   } catch (error) {
     showStatus("offerStatus",error.message,false);
   }
@@ -1248,7 +1393,19 @@ function buildReport() {
 
   $("reportContent").innerHTML = html;
 }
-$("reportPdf").onclick = () => { buildReport(); document.body.classList.add("print-report"); window.print(); setTimeout(()=>document.body.classList.remove("print-report"),400); };
+$("reportPdf").onclick = async () => {
+  try {
+    collectVisit(); updateGeneratedRecommendation(); saveState();
+    const pdf=await createVisitPdf(state.visit);
+    downloadBlob(pdf.blob,pdf.filename);
+    if (state.visit.customer.pipedriveDealId) {
+      await syncVisitDeal("onsiteAppointment", {note:"Besichtigungs- und Messprotokoll erstellt."});
+      await uploadPipedriveDealFile(state.visit.customer.pipedriveDealId,pdf.blob,pdf.filename);
+      addSyncLog("Besichtigungsprotokoll",true,`${pdf.filename} wurde hochgeladen.`,{dealId:state.visit.customer.pipedriveDealId});
+      showStatus("offerStatus","Besichtigungsprotokoll wurde erstellt und zu Pipedrive hochgeladen.",true);
+    }
+  } catch(error) { addSyncLog("Besichtigungsprotokoll",false,error.message); showStatus("offerStatus",error.message,false); }
+};
 
 
 function inventoryProduct(id) {
@@ -1443,6 +1600,42 @@ function deductCurrentOrderInventory() {
 function articleOptions(selected="") {
   return `<option value="">nicht zugeordnet</option>${state.settings.lexwareArticles.map(article=>`<option value="${article.id}" ${selected===article.id?"selected":""}>${esc(article.articleNumber?`${article.articleNumber} – `:"")}${esc(article.title)}</option>`).join("")}`;
 }
+
+function mappingOptions(items, selected, labelKey="name", valueKey="key") {
+  return `<option value="">nicht zugeordnet</option>` + (items||[]).map(item => {
+    const value=String(item[valueKey] ?? item.id ?? "");
+    const label=String(item[labelKey] ?? item.name ?? value);
+    return `<option value="${esc(value)}" ${String(selected||"")===value?"selected":""}>${esc(label)}</option>`;
+  }).join("");
+}
+
+function renderPipedriveSyncSettings() {
+  const sync=state.settings.pipedriveSync ||= {autoSync:true,fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[]};
+  $("pipedriveAutoSync").checked=sync.autoSync !== false;
+  $("pipedriveStageMappings").innerHTML=STAGE_DEFINITIONS.map(([key,label])=>`
+    <div class="mapping-item"><label>${esc(label)}</label><select data-stage-mapping="${key}">${mappingOptions(sync.stages,sync.stageMappings?.[key],"name","id")}</select></div>`).join("");
+  $("pipedriveFieldMappings").innerHTML=FIELD_DEFINITIONS.map(([key,label])=>`
+    <div class="mapping-item"><label>${esc(label)}</label><select data-field-mapping="${key}">${mappingOptions(sync.fields,sync.fieldMappings?.[key],"name","key")}</select>${sync.fieldMappings?.[key]?`<small>${esc(sync.fields.find(f=>f.key===sync.fieldMappings[key])?.type||"")}</small>`:""}</div>`).join("");
+  document.querySelectorAll("[data-stage-mapping]").forEach(select=>select.onchange=()=>{sync.stageMappings[select.dataset.stageMapping]=select.value;saveState();});
+  document.querySelectorAll("[data-field-mapping]").forEach(select=>select.onchange=()=>{sync.fieldMappings[select.dataset.fieldMapping]=select.value;saveState();renderPipedriveSyncSettings();});
+  $("pipedriveSyncLog").innerHTML=(sync.log||[]).length ? sync.log.slice(0,30).map(item=>`<div class="sync-log-row ${item.ok?"ok":"err"}"><span>${new Date(item.time).toLocaleString("de-DE")}</span><b>${esc(item.action)}</b><span>${esc(item.message)}</span></div>`).join("") : `<p class="hint">Noch keine Synchronisation protokolliert.</p>`;
+}
+
+async function loadPipedriveSchema() {
+  showStatus("pipedriveSchemaStatus","Pipedrive-Felder und Dealphasen werden geladen …",true);
+  try {
+    collectSettings(); saveState();
+    const [fieldData,stageData]=await Promise.all([loadPipedriveDealFields(),loadPipedriveStages()]);
+    const sync=state.settings.pipedriveSync ||= {};
+    sync.fields=fieldData.fields||[];
+    sync.stages=stageData.stages||[];
+    sync.fieldMappings={...autoMapFields(sync.fields),...(sync.fieldMappings||{})};
+    sync.stageMappings={...autoMapStages(sync.stages),...(sync.stageMappings||{})};
+    saveState(); renderPipedriveSyncSettings();
+    showStatus("pipedriveSchemaStatus",`${sync.fields.length} Deal-Felder und ${sync.stages.length} Dealphasen geladen. Bitte Zuordnung kontrollieren.`,true);
+  } catch(error) { addSyncLog("Schema",false,error.message); renderPipedriveSyncSettings(); showStatus("pipedriveSchemaStatus",error.message,false); }
+}
+
 function renderSettings() {
   const s = state.settings;
   ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
@@ -1464,6 +1657,7 @@ function renderSettings() {
   $("noticeResin").value = noticeTexts.resin || "";
   renderSettingsExtras();
   renderInventorySettings();
+  renderPipedriveSyncSettings();
   applyInputModes();
 }
 
@@ -1573,6 +1767,13 @@ function renderWorksiteEditor() {
     [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
   });
   document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); renderWorksiteEditor(); });
+  document.querySelectorAll('[data-ws-field="spacing"]').forEach(select => select.onchange = () => {
+    const task=ws.tasks.find(item=>item.id===select.dataset.wsTask);
+    task.spacing=parseDecimal(select.value);
+    recalculateWorksiteTask(state.settings,task);
+    persistWorksite(ws);
+    renderWorksiteEditor();
+  });
   applyInputModes($("worksiteEditor"));
 }
 
@@ -1609,8 +1810,29 @@ $("createWorksite").onclick = () => {
 $("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
 $("saveWorksite").onclick = () => { saveActiveWorksite(true); renderWorksiteEditor(); };
 ["wsStart","wsEnd","wsPause"].forEach(id => $(id).onchange = () => { const ws=collectWorksite(); if(ws) $("wsDuration").value=`${num(workDurationMinutes(ws)/60)} Std.`; });
-$("printWorksite").onclick = () => { const ws=saveActiveWorksite(false); buildWorksitePrint(ws); document.body.classList.add("print-worksite"); window.print(); setTimeout(()=>document.body.classList.remove("print-worksite"),400); };
-$("completeWorksite").onclick = () => { try { const ws=saveActiveWorksite(false); if(!ws.tasks.every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return; deductWorksiteInventory(ws); ws.status="completed"; persistWorksite(ws); saveState(); renderInventorySettings(); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis abgeschlossen und Ist-Material abgebucht.",true); } catch(error){ showStatus("worksiteStatus",error.message,false); } };
+$("printWorksite").onclick = async () => {
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws); downloadBlob(pdf.blob,pdf.filename); showStatus("worksiteStatus","Arbeitsnachweis wurde als PDF erstellt.",true); }
+  catch(error){ showStatus("worksiteStatus",error.message,false); }
+};
+$("syncWorksitePipedrive").onclick = async () => {
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
+  catch(error){ addSyncLog("Arbeitsnachweis",false,error.message); showStatus("worksiteStatus",error.message,false); }
+};
+$("completeWorksite").onclick = async () => {
+  try {
+    const ws=saveActiveWorksite(false);
+    if (ws.materialBooked || ws.status === "completed") throw new Error("Diese Baustelle wurde bereits abgeschlossen und das Material bereits abgebucht.");
+    if(!ws.tasks.every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return;
+    const oldStatus=ws.status;
+    ws.status="completed";
+    const pdf=await createWorksitePdf(ws);
+    try { await syncWorksiteDeal(ws,"executionCompleted",pdf); }
+    catch(error) { ws.status=oldStatus; persistWorksite(ws); throw error; }
+    deductWorksiteInventory(ws);
+    persistWorksite(ws); saveState(); renderInventorySettings(); renderWorksiteEditor();
+    showStatus("worksiteStatus","Arbeitsnachweis hochgeladen, Pipedrive aktualisiert und Ist-Material abgebucht.",true);
+  } catch(error){ addSyncLog("Baustellenabschluss",false,error.message); showStatus("worksiteStatus",`Abschluss abgebrochen: ${error.message}`,false); }
+};
 
 function renderSettingsExtras() {
   $("settingsExtras").innerHTML = state.settings.extras.map(extra => {
@@ -1645,6 +1867,8 @@ $("addInventoryProduct").onclick = () => {
   renderInventorySettings();
 };
 $("addExtra").onclick = () => { state.settings.extras.push({id:crypto.randomUUID(),name:"Neue Zusatzleistung",unit:"pauschal",grossPrice:0,active:true,lexwareArticleId:""}); renderSettingsExtras(); };
+$("loadPipedriveSchema").onclick = loadPipedriveSchema;
+$("pipedriveAutoSync").onchange = () => { state.settings.pipedriveSync.autoSync=$("pipedriveAutoSync").checked; saveState(); };
 $("loadArticles").onclick = async () => {
   try { const articles = await loadLexwareArticles(); renderSettings(); showStatus("articleStatus",`${articles.length} Artikel geladen.`,true); }
   catch(error){ showStatus("articleStatus",error.message,false); }
@@ -1671,9 +1895,11 @@ function collectSettings() {
     wallSole: $("noticeWallSole").value.trim(),
     resin: $("noticeResin").value.trim()
   };
+  s.pipedriveSync = s.pipedriveSync || {fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[]};
+  s.pipedriveSync.autoSync = $("pipedriveAutoSync").checked;
 }
 $("saveConnection").onclick = () => { collectSettings(); saveState(); showStatus("connectionStatus","Zugangsdaten gespeichert.",true); };
-$("saveSettings").onclick = () => { collectSettings(); saveState(); showStatus("settingsStatus","Einstellungen gespeichert.",true); renderExtras(); renderOffer(); };
+$("saveSettings").onclick = () => { collectSettings(); saveState(); showStatus("settingsStatus","Einstellungen gespeichert.",true); renderExtras(); renderOffer(); renderPipedriveSyncSettings(); };
 $("resetSettings").onclick = () => { if(confirm("Standardwerte laden?")){ resetSettings(); renderSettings(); } };
 $("testConnection").onclick = async () => {
   collectSettings(); saveState();

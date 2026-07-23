@@ -118,3 +118,89 @@ export async function createPipedrivePerson(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+
+export async function loadPipedriveActivities(date) {
+  return api(`/pipedrive/activities?date=${encodeURIComponent(date)}`);
+}
+
+export async function loadAcceptedLexwareQuotations(dateFrom) {
+  const query = dateFrom
+    ? `?updatedDateFrom=${encodeURIComponent(dateFrom)}`
+    : "";
+  return api(`/lexware/accepted-quotations${query}`);
+}
+
+export async function loadAcceptedLexwareQuotation(id) {
+  return api(`/lexware/accepted-quotations/${encodeURIComponent(id)}`);
+}
+
+
+export async function loadPipedriveDealFields() {
+  return api("/pipedrive/deal-fields");
+}
+
+export async function loadPipedriveStages() {
+  return api("/pipedrive/stages");
+}
+
+export async function syncPipedriveDeal(payload) {
+  return api("/pipedrive/deals/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function addPipedriveDealNote(dealId, content) {
+  return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/note`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function uploadPipedriveDealFile(dealId, blob, filename) {
+  const form = new FormData();
+  form.append("file", blob, filename);
+  form.append("dealId", String(dealId));
+  return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/file`, {
+    method: "POST",
+    body: form
+  });
+}
+
+
+export async function loadPipedriveDealFields() {
+  return api("/pipedrive/deal-fields");
+}
+
+export async function loadPipedriveStages() {
+  return api("/pipedrive/stages");
+}
+
+export async function syncPipedriveDeal(payload) {
+  return api("/pipedrive/deals/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function addPipedriveDealNote(dealId, content) {
+  return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/note`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function uploadPipedriveDealFile(dealId, blob, filename) {
+  const form = new FormData();
+  form.append("file", blob, filename);
+  form.append("dealId", String(dealId));
+  return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/file`, {
+    method: "POST",
+    body: form
+  });
+}
