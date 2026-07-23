@@ -1,0 +1,31 @@
+mainabdichter V20.1 Stable – technischer Prüfbericht
+
+Gefundener Hauptfehler:
+- js/api.js enthielt die Funktionen loadPipedriveDealFields, loadPipedriveStages,
+  syncPipedriveDeal, addPipedriveDealNote und uploadPipedriveDealFile jeweils doppelt.
+- Browserfolge: SyntaxError „Identifier ... has already been declared“.
+- Wirkung: app.js startete nicht; alle Buttons und Verknüpfungen blieben ohne Funktion.
+
+Nach Reparatur geprüft:
+- Syntax aller JavaScript-Dateien: bestanden
+- Syntax Cloudflare Worker: bestanden
+- Modulimport app.js mit realen HTML-IDs: bestanden
+- Modulimport customer.js: bestanden
+- Doppelte exportierte Funktionsnamen: keine
+- Doppelte Worker-Funktionsnamen und Routen: keine
+- Kritische Schaltflächen besitzen Handler:
+  Anfrage importieren, neue Besichtigung, Angebot, Angebotsarchiv,
+  Nachkontrollen, Kundenansicht, Lexware senden, PDF, Archiv speichern,
+  Pipedrive-Felder laden, Lexware-Artikel laden, Verbindungstest,
+  Einstellungen speichern, iCloud-Sicherung, lokaler Export,
+  Baustelle aus Angebot anlegen.
+- Kalkulator-Modultests: bestanden
+- Kundenansicht startet ohne DOM-Fehler: bestanden
+- ZIP-Integrität: bestanden
+
+Nicht ohne Nutzerzugang live testbar:
+- echte Übertragung in das persönliche Pipedrive-Konto
+- echte Erstellung eines Lexware-Angebots
+- echter Upload an den produktiven Cloudflare Worker
+Diese Prüfungen erfolgen nach Installation über „Verbindungen testen“ und
+mit einem Testkunden bzw. Testdeal.

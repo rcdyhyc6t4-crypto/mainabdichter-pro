@@ -399,6 +399,18 @@
 </nav>
 <section id="worksiteDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Arbeitsnachweis</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="worksitePrintContent"></div></section>
 <section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
+<script>
+window.addEventListener("error", function(event) {
+  var box = document.getElementById("startupError");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "startupError";
+    box.style.cssText = "position:fixed;left:10px;right:10px;bottom:75px;z-index:9999;padding:12px;border-radius:8px;background:#fff0f0;border:1px solid #c62828;color:#7f0000;font:14px sans-serif;white-space:pre-wrap";
+    document.body.appendChild(box);
+  }
+  box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler");
+});
+</script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
