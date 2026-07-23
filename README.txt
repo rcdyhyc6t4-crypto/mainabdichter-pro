@@ -1,26 +1,7 @@
-mainabdichter V20.1 Stable
+mainabdichter V21 – Digitale Bauakte und leere Besichtigung
 
-WICHTIGE REPARATUR
-- Mehrere Pipedrive-API-Funktionen waren in js/api.js doppelt definiert.
-- Dadurch wurde app.js vom Browser nicht geladen und sämtliche Schaltflächen wirkten ohne Funktion.
-- Die doppelten Definitionen wurden entfernt.
-- Ein sichtbarer Startfehler-Hinweis wurde ergänzt, damit künftige Ladefehler nicht mehr unbemerkt bleiben.
+Beim Öffnen eines Pipedrive-Termins werden Deal, Person, Notizen, Aktivitäten, Dateien, weitere Deals, Lexware-Dokumente sowie vorhandene App-Besichtigungen und Baustellen geladen.
 
-ENTHALTEN
-- Dashboard und Navigation
-- Screenshot-Anfrageimport
-- Pipedrive-Termine und Deal-Synchronisation
-- Lexware-Kunden, Artikel, Angebote und angenommene Angebote ab heute
-- Kundenansicht und PDFs
-- Preisstrategie und Kleinmengenlogik
-- Warenbestand
-- Baustellenakte und Arbeitsnachweis
-- Pipedrive-PDF-Upload
-- Komplettsicherung und Wiederherstellung
+Neue Deals/Besichtigungen starten ohne Standardwerte: keine Gebäudeart, kein Geschoss, keine Raumnutzung, kein Fundament, kein Schadensbereich, kein Wandmaterial, keine Wandstärke, kein Messgerät, keine Einheit, keine Maßnahme und kein Bohrlochabstand.
 
-INSTALLATION
-1. Kompletten ZIP-Inhalt in GitHub hochladen und vorhandene Dateien ersetzen.
-2. cloudflare-worker.js in Cloudflare einsetzen und neu bereitstellen.
-3. Browser-/PWA-Cache vollständig aktualisieren.
-4. Einstellungen > Verbindungen testen.
-5. Pipedrive-Synchronisation > Dealphasen und Felder laden.
+Cloudflare Worker muss aktualisiert werden.

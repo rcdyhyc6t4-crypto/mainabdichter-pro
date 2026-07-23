@@ -138,14 +138,16 @@
     </div>
   </details>
 
+
+  <details id="recordContextCard" class="card compact-step hidden" open><summary>Vorgeschichte und digitale Bauakte</summary><div id="recordContextStatus" class="status"></div><div id="recordContextSummary"></div><div class="context-grid"><details class="sub-card" open><summary>Pipedrive-Deal</summary><div id="contextDeal"></div></details><details class="sub-card"><summary>Notizen und Kommunikation</summary><div id="contextNotes"></div></details><details class="sub-card"><summary>Aktivitäten und Termine</summary><div id="contextActivities"></div></details><details class="sub-card"><summary>Dokumente und Dateien</summary><div id="contextFiles"></div></details><details class="sub-card"><summary>Weitere Deals / Reklamationen</summary><div id="contextRelatedDeals"></div></details><details class="sub-card"><summary>Lexware-Angebote, Aufträge und Rechnungen</summary><div id="contextLexware"></div></details><details class="sub-card"><summary>Vorhandene App-Daten</summary><div id="contextLocal"></div></details></div><div class="context-actions"><button id="contextTypeComplaint" class="secondary">Als Reklamation kennzeichnen</button><button id="contextTypeFollowup" class="secondary">Als Nachkontrolle kennzeichnen</button><button id="contextTypeFollowOn" class="secondary">Als Folgeauftrag kennzeichnen</button></div></details>
   <details class="card compact-step">
     <summary>2. Gebäude und Raum</summary>
     <div class="grid">
       <div><label>Baujahr</label><input id="yearBuilt" type="number" inputmode="numeric" pattern="[0-9]*"></div>
-      <div><label>Bauart</label><select id="buildingType"><option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option><option>Reihenmittelhaus</option><option>Reihenendhaus</option><option>Mehrfamilienhaus</option><option>Bungalow</option><option>Gewerbeobjekt</option><option>Sonstiges</option></select></div>
-      <div><label>Geschoss</label><select id="floor"><option>Keller</option><option>Erdgeschoss</option><option>Hochparterre</option></select></div>
-      <div><label>Raumnutzung</label><select id="roomUse"><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
-      <div><label>Fundamentart</label><select id="foundationType"><option>Streifenfundament</option><option>durchgehende Bodenplatte</option><option>nicht bekannt</option><option>Sonstiges</option></select></div>
+      <div><label>Bauart</label><select id="buildingType"><option value="">– bitte auswählen –</option><option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option><option>Reihenmittelhaus</option><option>Reihenendhaus</option><option>Mehrfamilienhaus</option><option>Bungalow</option><option>Gewerbeobjekt</option><option>Sonstiges</option></select></div>
+      <div><label>Geschoss</label><select id="floor"><option value="">– bitte auswählen –</option><option>Keller</option><option>Erdgeschoss</option><option>Hochparterre</option></select></div>
+      <div><label>Raumnutzung</label><select id="roomUse"><option value="">– bitte auswählen –</option><option>Kellerraum</option><option>Wohnraum</option><option>Heizraum</option><option>Garage</option><option>Lagerraum</option><option>Sonstiges</option></select></div>
+      <div><label>Fundamentart</label><select id="foundationType"><option value="">– bitte auswählen –</option><option>Streifenfundament</option><option>durchgehende Bodenplatte</option><option>nicht bekannt</option><option>Sonstiges</option></select></div>
       <div><label>Bodenbelag optional</label><select id="floorCover"><option value="">– keine Angabe –</option><option>Estrich</option><option>Fliesen</option><option>Beton</option><option>Gussasphalt</option><option>Unbekannt</option><option>Sonstiges</option></select></div>
       <div class="full switch-row"><label><input id="climateMeasured" type="checkbox"> Klimamessung durchgeführt</label></div>
       <div id="climateFields" class="full conditional-panel hidden"><div class="grid">
