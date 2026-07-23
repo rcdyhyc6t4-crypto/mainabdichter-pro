@@ -90,7 +90,7 @@ export const DEFAULTS = {
     customer: {
       salutation: "", firstName: "", lastName: "", company: "",
       phone: "", email: "", street: "", zip: "", city: "",
-      objectAddress: "", pipedriveId: "", pipedriveDealId: "", lexwareContactId: ""
+      objectAddress: "", objectAddressDifferent: false, pipedriveId: "", pipedriveDealId: "", lexwareContactId: ""
     },
     building: {
       yearBuilt: "", buildingType: "", floor: "", roomUse: "",

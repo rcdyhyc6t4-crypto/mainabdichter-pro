@@ -54,6 +54,30 @@ let activeArchiveId = null;
 const customerFields = ["salutation","firstName","lastName","company","phone","email","street","zip","city","objectAddress"];
 const buildingFields = ["yearBuilt","buildingType","floor","roomUse","foundationType","floorCover","roomTemp","humidity","surfaceTemp","dewPoint"];
 
+function postalAddress(customer = state.visit.customer) {
+  return [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")]
+    .filter(Boolean).join(", ").trim();
+}
+
+function syncObjectAddressFromPostal(force = false) {
+  const customer = state.visit.customer;
+  const different = Boolean($("objectAddressDifferent")?.checked ?? customer.objectAddressDifferent);
+  customer.objectAddressDifferent = different;
+  if (force || !different) {
+    customer.objectAddress = postalAddress(customer);
+    if ($("objectAddress")) $("objectAddress").value = customer.objectAddress;
+  }
+  if ($("objectAddress")) {
+    $("objectAddress").readOnly = !different;
+    $("objectAddress").classList.toggle("is-auto-address", !different);
+  }
+  if ($("objectAddressHint")) {
+    $("objectAddressHint").textContent = different
+      ? "Abweichende Objektanschrift bitte vollständig eintragen."
+      : "Wird automatisch aus Straße, PLZ und Ort übernommen.";
+  }
+}
+
 
 function todayLocal() {
   const now = new Date();
@@ -358,14 +382,15 @@ async function acceptInquiryImport() {
   const data = readInquiryReview();
   if (!data.firstName && !data.lastName) { showStatus("inquiryImportStatus","Bitte einen Namen eintragen.",false); return; }
   resetVisit(); state.visit.visitDate=todayLocal(); state.visit.visitStartTime=timeLocal(); state.visit.visitNumber=createVisitNumber();
-  Object.assign(state.visit.customer,{salutation:data.salutation,firstName:data.firstName,lastName:data.lastName,phone:data.phone,email:data.email,street:data.street,zip:data.zip,city:data.city,objectAddress:[data.street,[data.zip,data.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")});
+  Object.assign(state.visit.customer,{salutation:data.salutation,firstName:data.firstName,lastName:data.lastName,phone:data.phone,email:data.email,street:data.street,zip:data.zip,city:data.city,objectAddressDifferent:false});
+  state.visit.customer.objectAddress = postalAddress(state.visit.customer);
   state.visit.damageDescription=data.message;
   state.visit.inquiry={source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message,rawText:data.rawText,screenshot:inquiryScreenshotData,importedAt:new Date().toISOString()};
   saveState();
   let pipedriveMessage="";
   if ($("importCreatePipedrive").checked) {
     try {
-      const response=await createPipedrivePerson({name:[data.firstName,data.lastName].filter(Boolean).join(" "),email:data.email,phone:data.phone,street:data.street,zip:data.zip,city:data.city,source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message});
+      const response=await createPipedrivePerson({name:[data.firstName,data.lastName].filter(Boolean).join(" "),email:data.email,phone:data.phone,street:data.street,zip:data.zip,city:data.city,postalAddress:postalAddress(state.visit.customer),objectAddress:state.visit.customer.objectAddress,source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message});
       state.visit.customer.pipedriveId=String(response.person?.id || ""); saveState();
       const dealResponse = await syncVisitDeal("inquiry", {
         note: `<strong>Neue Anfrage über ${esc(data.source)}</strong><br>${esc(data.message || "").replace(/\n/g,"<br>")}`
@@ -435,6 +460,55 @@ async function syncAcceptedQuotationDashboard() {
 }
 
 
+function renderDashboardInventory() {
+  const list = $("dashboardInventoryList");
+  const alertBox = $("dashboardInventoryAlert");
+  if (!list) return;
+
+  const products = (state.settings.inventory?.products || [])
+    .filter(product => product.active !== false);
+
+  if (!products.length) {
+    list.innerHTML = '<div class="empty-mini">Noch keine aktiven Lagerartikel angelegt.</div>';
+    if (alertBox) alertBox.hidden = true;
+    return;
+  }
+
+  const lowProducts = products.filter(product =>
+    Number(product.stock || 0) <= Number(product.minimumStock || 0)
+  );
+
+  list.innerHTML = products.map(product => {
+    const stock = Number(product.stock || 0);
+    const minimum = Number(product.minimumStock || 0);
+    const low = stock <= minimum;
+    const empty = stock <= 0;
+    const statusText = empty ? "Leer" : low ? "Nachbestellen" : "Ausreichend";
+    const stockText = Number.isInteger(stock)
+      ? String(stock)
+      : stock.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+    const minimumText = Number.isInteger(minimum)
+      ? String(minimum)
+      : minimum.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+
+    return `<button type="button" class="dashboard-inventory-card ${low ? "low-stock" : ""} ${empty ? "empty-stock" : ""}" data-page-target="settings" data-scroll-target="inventoryProducts">
+      <div class="dashboard-inventory-card-head">
+        <strong>${esc(product.name || "Material")}</strong>
+        <span>${esc(statusText)}</span>
+      </div>
+      <div class="dashboard-inventory-value">${esc(stockText)} <small>${esc(product.unit || "")}</small></div>
+      <div class="dashboard-inventory-minimum">Mindestbestand: ${esc(minimumText)} ${esc(product.unit || "")}</div>
+    </button>`;
+  }).join("");
+
+  if (alertBox) {
+    alertBox.hidden = lowProducts.length === 0;
+    alertBox.innerHTML = lowProducts.length
+      ? `<strong>⚠ ${lowProducts.length} Lagerartikel ${lowProducts.length === 1 ? "muss" : "müssen"} geprüft werden.</strong><span>${lowProducts.map(item => esc(item.name)).join(", ")}</span>`
+      : "";
+  }
+}
+
 function updateDashboardOverview() {
   const archive = loadArchive();
   const worksites = loadWorksites();
@@ -448,6 +522,7 @@ function updateDashboardOverview() {
     const hour = new Date().getHours();
     $("dashboardGreeting").textContent = `${hour < 11 ? "Guten Morgen" : hour < 17 ? "Guten Tag" : "Guten Abend"}, Mike`;
   }
+  renderDashboardInventory();
 }
 function updateRecordHeader() {
   const customer = state.visit.customer || {};
@@ -753,6 +828,27 @@ $("inquiryScreenshot").onchange = event => handleInquiryScreenshot(event.target.
 $("inquiryCamera").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
 $("reparseInquiryText").onclick = () => fillInquiryReview(parseInquiryText($("importRawText").value));
 $("acceptInquiryImport").onclick = acceptInquiryImport;
+["street","zip","city"].forEach(id => {
+  const input = $(id);
+  if (!input) return;
+  input.addEventListener("input", () => {
+    state.visit.customer[id] = input.value;
+    syncObjectAddressFromPostal();
+    saveState();
+    updateRecordHeader();
+  });
+});
+if ($("objectAddressDifferent")) $("objectAddressDifferent").addEventListener("change", () => {
+  state.visit.customer.objectAddressDifferent = $("objectAddressDifferent").checked;
+  syncObjectAddressFromPostal(!state.visit.customer.objectAddressDifferent);
+  saveState();
+});
+if ($("objectAddress")) $("objectAddress").addEventListener("input", () => {
+  if (!state.visit.customer.objectAddressDifferent) return;
+  state.visit.customer.objectAddress = $("objectAddress").value;
+  saveState();
+  updateRecordHeader();
+});
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
 
 $('guidedNext').onclick=()=>{const i=currentGuideStep();if(i<6&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===6){if(stepComplete(6)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
@@ -1123,6 +1219,8 @@ function renderVisit() {
   $("visitPrecipitation").value = state.visit.visitPrecipitation || "";
   updateVisitDuration();
   customerFields.forEach(key => $(key).value = state.visit.customer[key] || "");
+  if ($("objectAddressDifferent")) $("objectAddressDifferent").checked = Boolean(state.visit.customer.objectAddressDifferent);
+  syncObjectAddressFromPostal();
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
   renderDamageTags();
@@ -1150,6 +1248,8 @@ function collectVisit() {
   state.visit.visitOutdoorTemp = $("visitOutdoorTemp").value || "";
   state.visit.visitPrecipitation = $("visitPrecipitation").value || "";
   customerFields.forEach(key => state.visit.customer[key] = $(key).value);
+  state.visit.customer.objectAddressDifferent = Boolean($("objectAddressDifferent")?.checked);
+  syncObjectAddressFromPostal();
   buildingFields.forEach(key => state.visit.building[key] = $(key).value);
   state.visit.damageDescription = $("damageDescription").value;
   state.visit.damageTags ||= [];
@@ -1753,6 +1853,7 @@ function inventoryTransaction(product, amount, type, note) {
 
 function renderInventorySettings() {
   const inventory = state.settings.inventory || { products: [], transactions: [] };
+  renderDashboardInventory();
   state.settings.inventory = inventory;
   inventory.products = inventory.products || [];
   inventory.transactions = inventory.transactions || [];
