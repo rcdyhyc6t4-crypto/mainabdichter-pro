@@ -13,6 +13,12 @@ function oneDecimal(value) {
   });
 }
 
+function injectionLitersPerHole(wallCm, baseMlPerCm, spacing) {
+  const baseAt25Cm = num(wallCm) * num(baseMlPerCm) / 1000;
+  const spacingFactor = num(spacing) / 0.25;
+  return Math.max(0.2, baseAt25Cm * spacingFactor);
+}
+
 function resinBasePrice(settings, length) {
   const cfg = settings.resinPriceList;
   const meters = num(length);
@@ -61,11 +67,12 @@ export function calculateMeasure(settings, measure) {
   if (type === "Horizontalsperre") {
     quantity = num(measure.length);
     const holesPerMeter = 1 / spacing;
-    const rawLitersPerMeter = holesPerMeter * wall * 14 / 1000;
+    const litersPerHole = injectionLitersPerHole(wall, 14, spacing);
+    const rawLitersPerMeter = holesPerMeter * litersPerHole;
     const saleLitersPerMeter = rawLitersPerMeter * reserveFactor;
 
     holes = ceil(quantity / spacing);
-    rawLiters = quantity * rawLitersPerMeter;
+    rawLiters = holes * litersPerHole;
     saleLiters = ceil(rawLiters * reserveFactor);
 
     grossUnit = saleLitersPerMeter * num(settings.hzSaleNet) * 1.19;
@@ -82,15 +89,20 @@ export function calculateMeasure(settings, measure) {
 
     const holesPerRowPerMeter = 1 / spacing;
     const rowsPerMeterHeight = 1 / 0.25;
+    const firstRowLitersPerHole = injectionLitersPerHole(wall, 14, spacing);
+    const followingRowLitersPerHole = injectionLitersPerHole(wall, 10, spacing);
     const rawLitersPerSquareMeter =
-      holesPerRowPerMeter * wall * 14 / 1000
+      holesPerRowPerMeter * firstRowLitersPerHole
       + (rowsPerMeterHeight - 1)
-        * holesPerRowPerMeter * wall * 10 / 1000;
+        * holesPerRowPerMeter * followingRowLitersPerHole;
     const saleLitersPerSquareMeter =
       rawLitersPerSquareMeter * reserveFactor;
 
-    holes = ceil(width / spacing) * ceil(height / 0.25);
-    rawLiters = quantity * rawLitersPerSquareMeter;
+    const holesPerRow = ceil(width / spacing);
+    const rowCount = ceil(height / 0.25);
+    holes = holesPerRow * rowCount;
+    rawLiters = holesPerRow * firstRowLitersPerHole
+      + Math.max(0, rowCount - 1) * holesPerRow * followingRowLitersPerHole;
     saleLiters = ceil(rawLiters * reserveFactor);
 
     grossUnit = saleLitersPerSquareMeter * num(settings.hzSaleNet) * 1.19;

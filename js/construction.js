@@ -40,7 +40,8 @@ export function deleteWorksite(id) {
 }
 
 function targetPerHole(result) {
-  return result.holes > 0 ? result.rawLiters / result.holes : 0;
+  if (result.holes <= 0) return 0;
+  return Math.max(0.2, result.rawLiters / result.holes);
 }
 
 export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
