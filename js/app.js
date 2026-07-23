@@ -8,6 +8,7 @@ import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask } from "./construction.js";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync.js";
 import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js";
+import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments.js";
 function applyInputModes(root = document) {
   const decimalSelectors = [
     'input[type="number"]',
@@ -203,6 +204,72 @@ async function syncVisitDeal(stageKey, extra = {}) {
   return response;
 }
 
+function dataUrlToBlob(dataUrl) {
+  const [header, data] = String(dataUrl || "").split(",");
+  const mime = (header.match(/data:([^;]+)/) || [])[1] || "image/jpeg";
+  const bytes = atob(data || "");
+  const array = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i);
+  return new Blob([array], { type: mime });
+}
+
+function worksiteFilePrefix(worksite) {
+  const name = worksiteCustomerName(worksite).replace(/[^a-zA-Z0-9ÄÖÜäöüß_-]+/g,"_");
+  return `${worksite.date || new Date().toISOString().slice(0,10)}_${name}`;
+}
+
+async function uploadWorksiteAttachments(worksite) {
+  if (!worksite.pipedriveDealId) throw new Error("Für den Datei-Upload fehlt die Pipedrive-Deal-ID.");
+  const errors = [];
+  let uploadedCount = 0;
+  const prefix = worksiteFilePrefix(worksite);
+  const attachments = await listWorksiteAttachments(worksite.id);
+
+  for (const item of attachments) {
+    if (item.uploadStatus === "uploaded" && item.pipedriveFileId) continue;
+    try {
+      item.uploadStatus = "uploading";
+      item.error = "";
+      await updateWorksiteAttachment(item);
+      const filename = safeAttachmentFilename(item, prefix);
+      const result = await uploadPipedriveDealFile(worksite.pipedriveDealId, item.blob, filename);
+      item.uploadStatus = "uploaded";
+      item.uploadedAt = new Date().toISOString();
+      item.pipedriveFileId = String(result.file?.id || "");
+      item.error = "";
+      await updateWorksiteAttachment(item);
+      uploadedCount++;
+    } catch (error) {
+      item.uploadStatus = "error";
+      item.error = error.message;
+      await updateWorksiteAttachment(item);
+      errors.push(`${item.filename}: ${error.message}`);
+    }
+  }
+
+  for (const task of worksite.tasks || []) {
+    for (const photo of task.photos || []) {
+      if (photo.pipedriveFileId) continue;
+      try {
+        const blob = dataUrlToBlob(photo.src);
+        const ext = blob.type.includes("png") ? "png" : "jpg";
+        const filename = `${prefix}_${String(photo.category || "Foto").replace(/\\W+/g,"_")}_${photo.id}.${ext}`;
+        const result = await uploadPipedriveDealFile(worksite.pipedriveDealId, blob, filename);
+        photo.pipedriveFileId = String(result.file?.id || "");
+        photo.uploadedAt = new Date().toISOString();
+        photo.uploadError = "";
+        uploadedCount++;
+      } catch (error) {
+        photo.uploadError = error.message;
+        errors.push(`${task.areaName} / ${photo.category}: ${error.message}`);
+      }
+    }
+  }
+
+  persistWorksite(worksite);
+  return { uploadedCount, errors };
+}
+
 async function syncWorksiteDeal(worksite, stageKey = null, pdf = null) {
   const personId = worksite.pipedrivePersonId || await ensurePipedrivePerson(worksite.customer);
   worksite.pipedrivePersonId = personId;
@@ -216,14 +283,31 @@ async function syncWorksiteDeal(worksite, stageKey = null, pdf = null) {
   });
   worksite.pipedriveDealId = String(response.deal?.id || worksite.pipedriveDealId || "");
   worksite.customer.pipedriveDealId = worksite.pipedriveDealId;
+
   if (pdf && worksite.pipedriveDealId) {
     const uploaded = await uploadPipedriveDealFile(worksite.pipedriveDealId, pdf.blob, pdf.filename);
     worksite.pipedriveReportFileId = String(uploaded.file?.id || "");
     worksite.pipedriveReportUploadedAt = new Date().toISOString();
   }
+
+  const attachmentResult = await uploadWorksiteAttachments(worksite);
   worksite.pipedriveSyncedAt = new Date().toISOString();
+  worksite.lastAttachmentUpload = {
+    uploadedCount: attachmentResult.uploadedCount,
+    errors: attachmentResult.errors,
+    at: new Date().toISOString()
+  };
   persistWorksite(worksite);
-  addSyncLog("Arbeitsnachweis", true, `${worksiteCustomerName(worksite)} wurde mit Pipedrive synchronisiert.`, {dealId:worksite.pipedriveDealId,fileId:worksite.pipedriveReportFileId||""});
+  addSyncLog("Arbeitsnachweis", attachmentResult.errors.length === 0,
+    attachmentResult.errors.length
+      ? `${worksiteCustomerName(worksite)} synchronisiert, aber ${attachmentResult.errors.length} Datei(en) fehlgeschlagen.`
+      : `${worksiteCustomerName(worksite)} und alle Unterlagen wurden mit Pipedrive synchronisiert.`,
+    {dealId:worksite.pipedriveDealId,fileId:worksite.pipedriveReportFileId||"",attachments:attachmentResult.uploadedCount});
+  if (attachmentResult.errors.length) {
+    throw new Error(`Baustellendaten wurden synchronisiert, aber Dateien konnten nicht vollständig hochgeladen werden:
+${attachmentResult.errors.join("
+")}`);
+  }
   return response;
 }
 
@@ -297,7 +381,7 @@ let cachedAcceptedQuotations = [];
 
 function todayIso() { return new Date().toISOString().slice(0,10); }
 
-function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span></div>`;$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
+function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
 async function syncPipedriveDashboard() {
   const box=$("pipedriveTodayList");
   box.innerHTML='<div class="empty-mini">Termine werden geladen …</div>';
@@ -668,7 +752,7 @@ $("inquiryScreenshot").onchange = event => handleInquiryScreenshot(event.target.
 $("inquiryCamera").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
 $("reparseInquiryText").onclick = () => fillInquiryReview(parseInquiryText($("importRawText").value));
 $("acceptInquiryImport").onclick = acceptInquiryImport;
-["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry.source=x;state.visit.damageDescription=[`[Vorgangsart: ${x}]`,state.visit.damageDescription].filter(Boolean).join("\n");saveState();renderVisit();showStatus("visitStatus",`${x} wurde vorgemerkt.`,true);};});
+["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
 $("dashboardNewVisit").onclick = startNewVisit;
 $("quickCreateOffer").onclick = () => show("offer");
 $("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
@@ -772,7 +856,6 @@ $("quickSave").onclick = () => {
   alert("Aktueller Stand gespeichert.");
 };
 $("quickSettings").onclick = () => show("settings");
-$("quickMenu").onclick = () => show("settings");
 
 if ($("bottomPipedrive")) {
   $("bottomPipedrive").onclick = () => {
@@ -1815,6 +1898,68 @@ function taskPhotoHtml(task) {
   return (task.photos || []).map(photo => `<div class="worksite-photo"><img src="${photo.src}" alt=""><small>${esc(photo.category)}</small><button class="danger" data-delete-ws-photo="${photo.id}" data-task-id="${task.id}">×</button></div>`).join("");
 }
 
+let currentWorksiteAttachments = [];
+
+function formatFileSize(size) {
+  const value = Number(size || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function attachmentStatusLabel(item) {
+  if (item.uploadStatus === "uploaded") return "In Pipedrive hochgeladen";
+  if (item.uploadStatus === "error") return `Fehler: ${item.error || "Upload fehlgeschlagen"}`;
+  if (item.uploadStatus === "uploading") return "Wird hochgeladen …";
+  return "Noch nicht hochgeladen";
+}
+
+async function renderWorksiteAttachments(ws) {
+  const box = $("wsAttachmentList");
+  if (!box) return;
+  try {
+    currentWorksiteAttachments = await listWorksiteAttachments(ws.id);
+    box.innerHTML = currentWorksiteAttachments.length ? currentWorksiteAttachments.map(item => `
+      <article class="worksite-attachment ${item.uploadStatus || "pending"}">
+        <div class="attachment-icon">${item.mimeType === "application/pdf" ? "PDF" : item.mimeType.startsWith("image/") ? "BILD" : "DATEI"}</div>
+        <div class="attachment-main">
+          <strong>${esc(item.filename)}</strong>
+          <span>${esc(item.category)} · ${formatFileSize(item.size)}</span>
+          ${item.note ? `<small>${esc(item.note)}</small>` : ""}
+          <small class="attachment-status">${esc(attachmentStatusLabel(item))}</small>
+        </div>
+        <div class="attachment-actions">
+          <button class="secondary small-button" data-open-attachment="${item.id}">Öffnen</button>
+          ${item.uploadStatus === "error" ? `<button class="secondary small-button" data-retry-attachment="${item.id}">Erneut versuchen</button>` : ""}
+          <button class="danger small-button" data-delete-attachment="${item.id}">Löschen</button>
+        </div>
+      </article>`).join("") : `<p class="hint">Noch keine Pläne, PDFs oder sonstigen Unterlagen hinterlegt.</p>`;
+
+    box.querySelectorAll("[data-open-attachment]").forEach(button => button.onclick = () => {
+      const item = currentWorksiteAttachments.find(entry => entry.id === button.dataset.openAttachment);
+      if (!item) return;
+      const url = URL.createObjectURL(item.blob);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    });
+    box.querySelectorAll("[data-delete-attachment]").forEach(button => button.onclick = async () => {
+      if (!confirm("Datei wirklich aus der Bauakte löschen?")) return;
+      await deleteWorksiteAttachment(button.dataset.deleteAttachment);
+      await renderWorksiteAttachments(ws);
+    });
+    box.querySelectorAll("[data-retry-attachment]").forEach(button => button.onclick = async () => {
+      const item = currentWorksiteAttachments.find(entry => entry.id === button.dataset.retryAttachment);
+      if (!item) return;
+      item.uploadStatus = "pending";
+      item.error = "";
+      await updateWorksiteAttachment(item);
+      await renderWorksiteAttachments(ws);
+    });
+  } catch (error) {
+    box.innerHTML = `<p class="status error">${esc(error.message)}</p>`;
+  }
+}
+
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
@@ -1866,6 +2011,7 @@ function renderWorksiteEditor() {
     renderWorksiteEditor();
   });
   applyInputModes($("worksiteEditor"));
+  renderWorksiteAttachments(ws);
 }
 
 function deductWorksiteInventory(ws) {
@@ -1899,6 +2045,38 @@ $("createWorksite").onclick = () => {
   persistWorksite(ws); activeWorksiteId=ws.id; show("worksites"); showStatus("worksiteStatus","Baustelle wurde aus dem Angebot angelegt.",true);
 };
 $("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
+$("wsAddAttachments").onclick = () => $("wsAttachmentInput").click();
+$("wsAttachmentInput").onchange = async event => {
+  const ws = saveActiveWorksite(false) || getWorksite(activeWorksiteId);
+  if (!ws) return;
+  const category = $("wsAttachmentCategory").value;
+  const note = $("wsAttachmentNote").value.trim();
+  const files = [...(event.target.files || [])];
+  if (!files.length) return;
+  try {
+    showStatus("worksiteStatus", `${files.length} Datei(en) werden gespeichert …`, true);
+    for (const file of files) await addWorksiteAttachment(ws.id, file, { category, note });
+    event.target.value = "";
+    $("wsAttachmentNote").value = "";
+    await renderWorksiteAttachments(ws);
+    showStatus("worksiteStatus", `${files.length} Datei(en) wurden der Bauakte hinzugefügt.`, true);
+  } catch (error) {
+    showStatus("worksiteStatus", error.message, false);
+  }
+};
+$("wsUploadAttachments").onclick = async () => {
+  try {
+    const ws = saveActiveWorksite(false);
+    if (!ws) return;
+    showStatus("worksiteStatus", "Unterlagen werden zu Pipedrive hochgeladen …", true);
+    await syncWorksiteDeal(ws, ws.status === "completed" ? "executionCompleted" : "executionPlanned", null);
+    await renderWorksiteAttachments(ws);
+    showStatus("worksiteStatus", "Alle noch offenen Unterlagen wurden zu Pipedrive hochgeladen.", true);
+  } catch (error) {
+    await renderWorksiteAttachments(getWorksite(activeWorksiteId));
+    showStatus("worksiteStatus", error.message, false);
+  }
+};
 $("saveWorksite").onclick = () => { saveActiveWorksite(true); renderWorksiteEditor(); };
 ["wsStart","wsEnd","wsPause"].forEach(id => $(id).onchange = () => { const ws=collectWorksite(); if(ws) $("wsDuration").value=`${num(workDurationMinutes(ws)/60)} Std.`; });
 $("printWorksite").onclick = async () => {
