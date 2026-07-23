@@ -304,9 +304,10 @@ async function syncPipedriveDashboard() {
   try {
     const data=await loadPipedriveActivities(todayIso());
     const items=data.activities||[];
+    if ($("dashboardAppointmentCount")) $("dashboardAppointmentCount").textContent = items.length;
     box.innerHTML=items.length?items.map(item=>`<button class="compact-row activity-row" data-activity-person="${item.personId||""}" data-activity-deal="${item.dealId||""}"><span><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(item.type||"Termin")}</small></span><span><strong>${esc(item.subject||"Termin")}</strong><small>${esc(item.personName||item.location||"")}</small></span></button>`).join(''):'<div class="empty-mini">Heute sind keine offenen Pipedrive-Termine vorhanden.</div>';
     box.querySelectorAll('[data-activity-person]').forEach(button=>button.onclick=async()=>{const personId=button.dataset.activityPerson||"",dealId=button.dataset.activityDeal||"";if(!personId&&!dealId)return;try{resetVisit();state.visit.visitDate=todayLocal();state.visit.visitStartTime=timeLocal();state.visit.visitNumber=createVisitNumber();if(personId){const d=await loadPipedrivePerson(personId);Object.assign(state.visit.customer,d.person);state.visit.customer.pipedriveId=String(personId);}state.visit.customer.pipedriveDealId=String(dealId);saveState();renderVisit();show('visit');showStatus("visitStatus","Kundendaten geladen. Vorgeschichte wird abgerufen …",true);await loadCompleteRecordContext(personId,dealId);renderVisit();showStatus("visitStatus","Termin und vollständige Bauakte wurden geladen.",true);}catch(error){alert(error.message);}});
-  } catch(error) { box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
+  } catch(error) { if ($("dashboardAppointmentCount")) $("dashboardAppointmentCount").textContent = "!"; box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
 }
 
 async function syncAcceptedQuotationDashboard() {
@@ -346,6 +347,37 @@ async function syncAcceptedQuotationDashboard() {
       } catch(error){addSyncLog("Lexware → Baustelle",false,error.message);alert(error.message);} finally{button.disabled=false;}
     });
   } catch(error) { box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
+}
+
+
+function updateDashboardOverview() {
+  const archive = loadArchive();
+  const worksites = loadWorksites();
+  const openOffers = archive.filter(item => ["draft", "open"].includes(item.status)).length;
+  const followups = archive.filter(item => item.status === "followup" || item.followupDate).length;
+  if ($("dashboardOpenOfferCount")) $("dashboardOpenOfferCount").textContent = openOffers;
+  if ($("dashboardFollowupCount")) $("dashboardFollowupCount").textContent = followups;
+  if ($("dashboardWorksiteCount")) $("dashboardWorksiteCount").textContent = worksites.filter(item => item.status !== "completed").length;
+  if ($("dashboardDate")) $("dashboardDate").textContent = new Intl.DateTimeFormat("de-DE", {weekday:"long", day:"2-digit", month:"long"}).format(new Date());
+  if ($("dashboardGreeting")) {
+    const hour = new Date().getHours();
+    $("dashboardGreeting").textContent = `${hour < 11 ? "Guten Morgen" : hour < 17 ? "Guten Tag" : "Guten Abend"}, Mike`;
+  }
+}
+function updateRecordHeader() {
+  const customer = state.visit.customer || {};
+  const name = [customer.salutation, customer.firstName, customer.lastName].filter(Boolean).join(" ") || customer.company || "Neue Besichtigung";
+  const address = customer.objectAddress || [customer.street, customer.zip, customer.city].filter(Boolean).join(", ") || "Kunde und Objekt noch nicht ausgewählt";
+  if ($("recordHeaderCustomer")) $("recordHeaderCustomer").textContent = name;
+  if ($("recordHeaderAddress")) $("recordHeaderAddress").textContent = address;
+  if ($("recordCall")) {
+    $("recordCall").disabled = !customer.phone;
+    $("recordCall").onclick = () => { if (customer.phone) location.href = `tel:${customer.phone}`; };
+  }
+  if ($("recordNavigate")) {
+    $("recordNavigate").disabled = !address || address.includes("noch nicht");
+    $("recordNavigate").onclick = () => { if (address) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank"); };
+  }
 }
 
 async function syncDashboardSources() {
@@ -475,6 +507,7 @@ function renderArchive() {
   if ($("statCompleted")) $("statCompleted").textContent = completed;
   if ($("statFollowups")) $("statFollowups").textContent = followups;
   if ($("statAmount")) $("statAmount").textContent = eur(totalAmount);
+  updateDashboardOverview();
 
   const donut = $("statusDonut");
   if (donut) {
@@ -568,11 +601,18 @@ function show(pageId) {
   $(pageId).classList.add("active");
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
-  if (pageId === "dashboard") { renderArchive(); syncDashboardSources(); }
+  if (pageId === "dashboard") { renderArchive(); updateDashboardOverview(); syncDashboardSources(); }
   if (pageId === "worksites") renderWorksites();
 }
 
 document.querySelectorAll(".main-nav button").forEach(button => button.onclick = () => show(button.dataset.page));
+$("headerHome").onclick = () => show("dashboard");
+$("syncDashboardAll").onclick = syncDashboardSources;
+document.querySelectorAll("[data-scroll-target]").forEach(button => button.onclick = () => {
+  const target = $(button.dataset.scrollTarget);
+  target?.scrollIntoView({behavior:"smooth", block:"center"});
+});
+document.querySelectorAll("[data-page-target]").forEach(button => button.onclick = () => show(button.dataset.pageTarget));
 $("syncPipedriveActivities").onclick = syncPipedriveDashboard;
 $("syncAcceptedQuotations").onclick = syncAcceptedQuotationDashboard;
 $("dashboardNewInquiry").onclick = openInquiryImport;
@@ -876,6 +916,7 @@ function renderVisit() {
   applyInputModes();
   updateDewPoint();
   updateMetaBar();
+  updateRecordHeader();
 }
 
 function collectVisit() {
@@ -1919,4 +1960,4 @@ $("specialType").value = state.discount.specialType;
 $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
-renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateBackupTime(); show("dashboard");
+renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
