@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V25.1
+// mainabdichter PRO Cloudflare Worker V25.2
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -253,8 +253,14 @@ async function resolvePipedrivePersonAddressField(env) {
   // Beispiel: PIPEDRIVE_PERSON_ADDRESS_FIELD=012345...abcdef
   const configured = cleanText(env.PIPEDRIVE_PERSON_ADDRESS_FIELD);
   if (configured) {
-    pipedrivePersonAddressFieldCache = configured;
-    return configured;
+    const validConfigured =
+      /^[a-zA-Z0-9]{20,}$/.test(configured) &&
+      !["postal_address", "address"].includes(configured.toLowerCase());
+
+    pipedrivePersonAddressFieldCache =
+      validConfigured ? configured : false;
+
+    return pipedrivePersonAddressFieldCache || null;
   }
 
   try {
@@ -272,13 +278,42 @@ async function resolvePipedrivePersonAddressField(env) {
       "address"
     ];
 
+    const isWritableCustomFieldCode = value => {
+      const key = cleanText(value);
+
+      // Systemfelder wie "postal_address" sind keine zulässigen
+      // Custom-Field-Schlüssel für custom_fields.
+      if (!key) return false;
+      if ([
+        "postal_address",
+        "address",
+        "name",
+        "email",
+        "phone",
+        "first_name",
+        "last_name"
+      ].includes(key.toLowerCase())) {
+        return false;
+      }
+
+      // Pipedrive-Custom-Field-Codes sind üblicherweise lange
+      // alphanumerische Kennungen. Kurze Systemnamen werden abgewiesen.
+      return /^[a-zA-Z0-9]{20,}$/.test(key);
+    };
+
     const addressFields = fields.filter(field => {
       const type = cleanText(
         field.field_type ||
         field.field_type_name ||
         field.type
       ).toLowerCase();
-      return type === "address";
+
+      const key = cleanText(
+        field.field_code ||
+        field.key
+      );
+
+      return type === "address" && isWritableCustomFieldCode(key);
     });
 
     const preferred = addressFields.find(field => {
@@ -289,14 +324,19 @@ async function resolvePipedrivePersonAddressField(env) {
       return preferredNames.includes(name);
     });
 
-    const selected = preferred || (addressFields.length === 1 ? addressFields[0] : null);
+    const selected =
+      preferred ||
+      (addressFields.length === 1 ? addressFields[0] : null);
+
     const key = cleanText(
       selected?.field_code ||
       selected?.key
     );
 
-    pipedrivePersonAddressFieldCache = key || false;
-    return key || null;
+    pipedrivePersonAddressFieldCache =
+      isWritableCustomFieldCode(key) ? key : false;
+
+    return pipedrivePersonAddressFieldCache || null;
   } catch {
     // Die Personenerstellung darf nicht daran scheitern, dass kein
     // beschreibbares Adress-Custom-Field vorhanden ist.
@@ -653,7 +693,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "25.1",
+          workerVersion: "25.2",
           addressSync: true,
           postalAddressPayloadFixed: true
         });
