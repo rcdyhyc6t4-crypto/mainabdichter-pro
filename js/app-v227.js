@@ -855,10 +855,10 @@ $('guidedNext').onclick=()=>{const i=currentGuideStep();if(i<6&&!stepComplete(i)
 $('goToMissingStep').onclick=()=>openGuideStep(firstMissingGuideStep());
 $('finishVisitGuide').onclick=()=>{if(!stepComplete(6))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
 $('changeCustomer').onclick=()=>{$('customerSourceActions').classList.remove('hidden');$('customerConfirmed').classList.add('hidden');};
-$('openCustomerAdvice').onclick=()=>{adviceState.stage=1;const m=adviceMeasure();if(m.type)adviceState.type=m.type;renderAdvice();show('customerAdvice');};
+$('openCustomerAdvice').onclick=()=>{adviceState.stage=1;const m=adviceMeasure();if(m.type&&ADVICE_CONTENT[m.type])adviceState.type=m.type;renderAdvice();show('customerAdvice');};
 $('closeCustomerAdvice').onclick=()=>show('visit');
 $('advicePrev').onclick=()=>{adviceState.stage=Math.max(1,adviceState.stage-1);renderAdvice();};
-$('adviceNext').onclick=()=>{adviceState.stage=Math.min(4,adviceState.stage+1);renderAdvice();};
+$('adviceNext').onclick=()=>{const max=(ADVICE_CONTENT[adviceState.type]?.steps||[]).length||1;adviceState.stage=Math.min(max,adviceState.stage+1);renderAdvice();};
 document.querySelectorAll('[data-advice-type]').forEach(b=>b.onclick=()=>{adviceState.type=b.dataset.adviceType;adviceState.stage=1;renderAdvice();});
 document.querySelectorAll('[data-open-step]').forEach((b,i)=>b.onclick=()=>openGuideStep(i===4?5:i));
 
@@ -1163,10 +1163,88 @@ function updateVisitGuide(){
   renderVisitChecklist();
 }
 function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok)return 4;return 6;}
-function adviceMeasure(){const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre'].includes(m.type))||{};}
+function adviceMeasure(){
+  const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));
+  return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre','Wand-Sohlen-Anschluss'].includes(m.type))||{};
+}
 const adviceState={type:'Horizontalsperre',stage:1};
-const ADVICE_TEXT={Horizontalsperre:[['Feuchtigkeit steigt im Mauerwerk auf','Feuchtigkeit kann über die feinen Kapillaren des Mauerwerks von unten nach oben transportiert werden.'],['Bohrlöcher werden in einer waagerechten Ebene gesetzt','Die Bohrlochkette wird passend zur Wandstärke und zum gewählten Abstand angelegt.'],['BKM HZ 250 Pro wird in die Bohrlöcher eingebracht','Das Material verteilt sich im Kapillarsystem und bildet dort einen wasserabweisenden Bereich.'],['Der weitere kapillare Feuchtetransport wird unterbunden','Die vorhandene Feuchtigkeit trocknet anschließend nach und nach aus. Das benötigt Zeit.']],Flächensperre:[['Feuchtigkeit wirkt seitlich auf die erdberührte Wand','Bei einer Querdurchfeuchtung gelangt Feuchtigkeit seitlich aus dem Erdreich in das Bauteil.'],['Bohrlöcher werden über die betroffene Fläche verteilt','Die Bohrungen werden rasterförmig über den gesamten Schadensbereich angeordnet.'],['BKM HZ 250 Pro verteilt sich flächig im Wandquerschnitt','Durch die mehreren Bohrreihen entsteht eine zusammenhängende wasserabweisende Fläche.'],['Der kapillare Feuchtetransport durch die Wand wird reduziert','Die behandelte Wandfläche kann anschließend kontrolliert austrocknen.'] ]};
-function renderAdvice(){const vis=$('adviceAnimation');if(!vis)return;vis.className=`wall-animation ${adviceState.type==='Flächensperre'?'surface-mode':'horizontal-mode'} stage-${adviceState.stage}`;const txt=ADVICE_TEXT[adviceState.type][adviceState.stage-1];$('adviceTypeLabel').textContent=adviceState.type.toUpperCase();$('adviceTitle').textContent=txt[0];$('adviceText').textContent=txt[1];$('adviceStage').textContent=`${adviceState.stage} von 4`;const m=adviceMeasure(),wall=Number(m.wall||m.areaWall||0),spacing=Number(m.spacing||0),qty=adviceState.type==='Flächensperre'?Number(m.width||0)*Number(m.height||0):Number(m.length||0);let holes=0;if(spacing>0)holes=adviceState.type==='Flächensperre'?Math.ceil(Number(m.width||0)/spacing+1)*Math.ceil(Number(m.height||0)/spacing+1):Math.ceil(qty/spacing);$('adviceObjectData').innerHTML=[['Objekt',state.visit.customer?.objectAddress||state.visit.customer?.city||'aktuelles Objekt'],['Wandstärke',wall?`${wall} cm`:'noch nicht erfasst'],['Umfang',qty?`${num(qty)} ${adviceState.type==='Flächensperre'?'m²':'lfm'}`:'noch nicht erfasst'],['Bohrlochabstand',spacing?`${num(spacing*100)} cm`:'noch nicht erfasst'],['Bohrlöcher',holes||'wird berechnet']].map(x=>`<div><span>${x[0]}</span><strong>${esc(String(x[1]))}</strong></div>`).join('');document.querySelectorAll('[data-advice-type]').forEach(b=>b.classList.toggle('active',b.dataset.adviceType===adviceState.type));}
+const ADVICE_CONTENT={
+  'Horizontalsperre':{
+    image:'assets/advice/horizontalsperre.png',
+    note:'Die Sperre stoppt den weiteren kapillaren Feuchtetransport. Die bereits im Mauerwerk vorhandene Feuchtigkeit muss anschließend natürlich austrocknen.',
+    steps:[
+      {title:'Feuchtigkeit steigt aus dem Fundament auf',text:'Bei einer fehlenden oder defekten Horizontalsperre steigt Feuchtigkeit kapillar aus dem Fundament in die darüberliegende Wand.',details:['Darstellung immer mit Fundament unter der Wand','Erdreich liegt seitlich am Bauteil an','Feuchtigkeit steigt im Mauerwerk nach oben']},
+      {title:'Bohrlochreihe anzeichnen',text:'Die Bohrlöcher werden in einer waagerechten Reihe oberhalb des Fundaments angeordnet.',details:['Bohrlochabstand 25 cm oder 12,5 cm','Bohrposition entsprechend dem vorhandenen Mauerwerk festlegen']},
+      {title:'Schräg bis etwa zur Mauerwerksmitte bohren',text:'Wir bohren von innen in einem Winkel von 30–50 Grad bis ungefähr zur Mitte des Mauerwerks.',details:['Seitliche Schnittansicht','Bohrkanal endet etwa in Mauerwerksmitte','Mauerwerksschonendes Verfahren']},
+      {title:'BKM HZ 250 PRO injizieren',text:'Das Injektionsmaterial wird in die Bohrlöcher eingebracht und verteilt sich durch seine Kriecheigenschaften im Kapillarsystem.',details:['Mindestmenge grundsätzlich 200 ml je Bohrloch','Bei 12,5 cm Abstand wird die rechnerische Menge je Bohrloch halbiert, jedoch niemals unter 200 ml','Verteilung erfolgt im feuchten Mauerwerk']},
+      {title:'Neue wasserabweisende Sperrschicht',text:'Im Mauerwerk entsteht eine durchgehende wasserabweisende Zone, die den weiteren Feuchtetransport aus dem Fundament unterbindet.',details:['Kapillaren werden hydrophobiert und nicht verstopft','Restfeuchtigkeit kann anschließend austrocknen']}
+    ]
+  },
+  'Flächensperre':{
+    image:'assets/advice/flaechensperre.png',
+    note:'Die Flächensperre wird vollständig von innen ausgeführt. Ein Freischachten der Außenwand ist hierfür nicht erforderlich.',
+    steps:[
+      {title:'Feuchtigkeit aus Fundament und Erdreich',text:'Bei einer defekten oder fehlenden Vertikalabdichtung dringt Feuchtigkeit seitlich aus dem anliegenden Erdreich und zusätzlich aus dem Fundament in die Wand ein.',details:['Fundament immer unter der Wand darstellen','Erdreich immer seitlich neben der Wand darstellen','Feuchtigkeitswege von unten und von der Seite zeigen']},
+      {title:'Bohrbild von innen anlegen',text:'Die betroffene Innenwand wird rasterförmig gebohrt. Die Bohrungen beeinträchtigen die Statik des Mauerwerks nicht.',details:['Bohrabstand 25 cm oder 12,5 cm','Mehrere versetzte Bohrreihen über der gesamten Fläche']},
+      {title:'BKM HZ 250 PRO injizieren',text:'Das Material wird von innen eingebracht und verteilt sich im durchfeuchteten Wandquerschnitt.',details:['Injektion über die vollständige Schadensfläche','Verteilung auch in stark durchfeuchtetem Mauerwerk']},
+      {title:'Zusammenhängende Flächensperre entsteht',text:'Die hydrophobierte Zone reduziert den kapillaren Feuchtetransport aus Erdreich und Fundament. Die Wand kann anschließend kontrolliert austrocknen.',details:['Keine Außenarbeiten','Bohrlöcher werden anschließend verschlossen']}
+    ]
+  },
+  'Wand-Sohlen-Anschluss':{
+    image:'assets/advice/wand-sohle.png',
+    note:'Diese Maßnahme endet mit Hohlkehle und Sperrmörtel. Zweikomponentige Abdichtung und Sanierputz gehören ausschließlich zur druckwasserstabilen Innenabdichtung.',
+    steps:[
+      {title:'Estrich von innen öffnen',text:'Der Estrich wird entlang der Innenwand aufgeschnitten und in der erforderlichen Breite bis zur Bodenplatte entfernt.',details:['Arbeitsbereich von innen','Bodenplatte und Wand-Sohlen-Fuge vollständig freilegen','Ausbau in der Regel ca. 10–15 cm breit, objektabhängig']},
+      {title:'Untergrund vollständig vorbereiten',text:'Loser Putz, lose Bestandteile und haftungsmindernde Rückstände werden entfernt. Wand, Bodenplatte und Anschlussfuge werden gründlich gereinigt.',details:['Tragfähigen mineralischen Untergrund herstellen','Staub und lose Bestandteile entfernen']},
+      {title:'Dreieckige Nut 2 × 2 cm ausstemmen',text:'Direkt im Wand-Sohlen-Bereich wird von innen eine dreieckige Nut mit ungefähr 2 cm Schenkellänge und 2 cm Tiefe ausgestemmt.',details:['Dreiecksform im 90-Grad-Anschluss','Nut verläuft durchgehend entlang des abzudichtenden Anschlusses','Untergrund anschließend erneut reinigen']},
+      {title:'Harzinjektion bei Bedarf',text:'Bei aktivem oder zu erwartendem Wassereintritt wird die Fuge über geeignete Bohrungen und Packer mit Injektionsharz verpresst.',details:['Nur technisch erforderliche Bereiche','Harz stoppt Wasser und füllt vorhandene Hohlräume']},
+      {title:'Hohlkehle herstellen',text:'BKM HS Sperrmörtel wird in die ausgestemmte Nut eingebracht und mit der Kelle zu einer gleichmäßigen Hohlkehle ausgeformt.',details:['Keine scharfkantige 90-Grad-Ecke','Dauerhafte Verbindung zwischen Wand und Bodenplatte']},
+      {title:'Sperrmörtel mindestens 15 cm über Sperrbahn führen',text:'Der Sperrmörtel wird über Hohlkehle, Anschlussbereich und Wandfläche aufgetragen und mindestens 15 cm über eine vorhandene Horizontalsperre beziehungsweise Sperrbahn hinausgeführt.',details:['Überdeckung verhindert Hinterläufigkeit','Durchgehender dichter Anschluss von Wand und Bodenplatte']},
+      {title:'Wand-Sohlen-Anschluss fertigstellen',text:'Nach der Erhärtung ist der kritische Übergang von innen dauerhaft abgedichtet. Der Estrichbereich kann später fachgerecht geschlossen werden.',details:['Keine zweikomponentige Abdichtung in diesem Modul','Kein Sanierputz in diesem Modul']}
+    ]
+  },
+  'Druckwasserstabile Innenabdichtung':{
+    image:'assets/advice/druckwasser.png',
+    note:'Die druckwasserstabile Innenabdichtung ist ein eigenständiger mehrlagiger Systemaufbau und wird klar vom reinen Wand-Sohlen-Anschluss getrennt.',
+    steps:[
+      {title:'Untergrund von innen freilegen',text:'Putz, Beschichtungen und nicht tragfähige Bestandteile werden vollständig entfernt. Der mineralische Untergrund wird gereinigt und vorbereitet.',details:['Alle Arbeiten erfolgen von innen','Wand-Sohlen-Anschluss wird in das System einbezogen']},
+      {title:'Wand-Sohlen-Anschluss abdichten',text:'Der Anschluss wird vorbereitet, bei Bedarf mit Harz verpresst und mit einer Hohlkehle aus BKM HS Sperrmörtel ausgebildet.',details:['Dreieckige Nut 2 × 2 cm','Sperrmörtel mindestens 15 cm über vorhandene Sperrbahn']},
+      {title:'Mineralische Vorabdichtung und Egalisierung',text:'Unebenheiten werden mit geeignetem Sperrmörtel ausgeglichen. Dadurch entsteht ein tragfähiger, geschlossener Untergrund für die Abdichtungslagen.',details:['Hohlräume schließen','Scharfe Kanten vermeiden']},
+      {title:'Zweikomponentige Abdichtung aufbringen',text:'Die druckwasserstabile zweikomponentige Abdichtung wird in den vorgesehenen Lagen vollflächig von innen aufgetragen.',details:['BKM SEF 2K beziehungsweise der freigegebene Systemwerkstoff','Erforderliche Schichtdicke und Trocknungszeiten einhalten']},
+      {title:'Haftvermittlung und Sanierputzsystem',text:'Nach vollständiger Erhärtung der Abdichtung wird der weitere systemgerechte Putzaufbau hergestellt.',details:['Haftvermittler nach Systemvorgabe','Sanierputz als eigener Bestandteil dieses Systems','Oberflächenveredelung erst nach ausreichender Standzeit']}
+    ]
+  }
+};
+function renderAdvice(){
+  const content=ADVICE_CONTENT[adviceState.type]||ADVICE_CONTENT.Horizontalsperre;
+  const max=content.steps.length;
+  adviceState.stage=Math.max(1,Math.min(max,adviceState.stage));
+  const step=content.steps[adviceState.stage-1];
+  const img=$('adviceImage');
+  if(img){img.src=content.image;img.alt=`${adviceState.type} – Innenabdichtung`}
+  $('adviceTypeLabel').textContent=adviceState.type.toUpperCase();
+  $('adviceTitle').textContent=step.title;
+  $('adviceText').textContent=step.text;
+  $('adviceStage').textContent=`${adviceState.stage} von ${max}`;
+  $('advicePrev').disabled=adviceState.stage<=1;
+  $('adviceNext').disabled=adviceState.stage>=max;
+  $('adviceStepDetails').innerHTML=(step.details||[]).map(x=>`<div class="advice-detail-row"><span>✓</span><p>${esc(x)}</p></div>`).join('');
+  $('adviceImportantNote').textContent=content.note;
+  $('adviceProcessTitle').textContent=`${adviceState.type}: kompletter Ablauf`;
+  $('adviceProcessSteps').innerHTML=content.steps.map((x,i)=>`<button type="button" class="advice-process-step ${i+1===adviceState.stage?'active':''}" data-advice-stage="${i+1}"><span>${i+1}</span><strong>${esc(x.title)}</strong></button>`).join('');
+  $('adviceProcessSteps').querySelectorAll('[data-advice-stage]').forEach(b=>b.onclick=()=>{adviceState.stage=Number(b.dataset.adviceStage);renderAdvice();});
+  const m=adviceMeasure(),wall=Number(m.wall||m.areaWall||0),spacing=Number(m.spacing||0);
+  const isSurface=adviceState.type==='Flächensperre';
+  const qty=isSurface?Number(m.width||0)*Number(m.height||0):Number(m.length||0);
+  let holes=0;
+  if(spacing>0&&['Horizontalsperre','Flächensperre'].includes(adviceState.type)) holes=isSurface?Math.ceil(Number(m.width||0)/spacing+1)*Math.ceil(Number(m.height||0)/spacing+1):Math.ceil(qty/spacing);
+  const rows=[['Objekt',state.visit.customer?.objectAddress||state.visit.customer?.city||'aktuelles Objekt'],['Ausführung','ausschließlich von innen'],['Wandstärke',wall?`${wall} cm`:'noch nicht erfasst']];
+  if(qty)rows.push(['Umfang',`${num(qty)} ${isSurface?'m²':'lfm'}`]);
+  if(spacing&&['Horizontalsperre','Flächensperre'].includes(adviceState.type))rows.push(['Bohrlochabstand',`${num(spacing*100)} cm`]);
+  if(holes)rows.push(['Bohrlöcher',holes]);
+  $('adviceObjectData').innerHTML=rows.map(x=>`<div><span>${x[0]}</span><strong>${esc(String(x[1]))}</strong></div>`).join('');
+  document.querySelectorAll('[data-advice-type]').forEach(b=>b.classList.toggle('active',b.dataset.adviceType===adviceState.type));
+}
 
 const DAMAGE_TAGS = [
   "Muffiger Geruch",
