@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V23 Geführter Auftrag Menü & Logo Fix</title>
+<title>mainabdichter V23.1 Geführter Auftrag Menü & Logo Fix</title>
 <link rel="stylesheet" href="css/app-v227.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -200,7 +200,10 @@
 
   <details id="visitStep3" class="card compact-step guided-step">
     <summary>3. Schadensbeschreibung und Empfehlung <span class="step-state"></span></summary>
-    <label>Schadensbild</label><div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
+    <label>Festgestellte Schadensmerkmale – Mehrfachauswahl möglich</label>
+    <div id="damageTagOptions" class="damage-tag-grid"></div>
+    <label>Zusätzliche Beschreibung – nur falls nötig</label>
+    <div class="speech-row"><textarea id="damageDescription" placeholder="Besonderheiten ergänzen …"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
     <label>Automatisch erzeugte Empfehlung</label><div id="generatedRecommendation" class="generated-text">Die Empfehlung wird aus den ausgewählten Maßnahmen erstellt.</div>
   </details>
 
