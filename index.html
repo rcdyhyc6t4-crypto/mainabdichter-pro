@@ -62,6 +62,17 @@
     </button>
   </section>
 
+  <section class="dashboard-section dashboard-inventory-section">
+    <div class="section-title">
+      <div><span>LAGER</span><h2>Aktueller Materialbestand</h2></div>
+      <button type="button" class="text-button" data-page-target="settings" data-scroll-target="inventoryProducts">Lager bearbeiten</button>
+    </div>
+    <div id="dashboardInventoryAlert" class="inventory-dashboard-alert" hidden></div>
+    <div id="dashboardInventoryList" class="dashboard-inventory-grid">
+      <div class="empty-mini">Lagerbestand wird geladen.</div>
+    </div>
+  </section>
+
   <section class="dashboard-action-grid">
     <button id="dashboardNewVisit" class="dashboard-action-card"><span>＋</span><strong>Neue Besichtigung</strong><small>Leere Erfassung starten</small></button>
     <button id="quickCreateOffer" class="dashboard-action-card"><span>▤</span><strong>Angebot erstellen</strong><small>Aktuellen Vorgang kalkulieren</small></button>
@@ -520,6 +531,6 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260723-1315"></script>
+<script type="module" src="js/app-v227.js?build=20260723-v24"></script>
 </body>
 </html>
