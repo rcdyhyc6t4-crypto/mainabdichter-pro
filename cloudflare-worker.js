@@ -1,3 +1,6 @@
+// mainabdichter PRO Cloudflare Worker V24
+// Enthält die Adresskorrektur für Pipedrive aus V23.2.
+
 const LEXWARE_API = "https://api.lexware.io/v1";
 
 function corsHeaders(request) {
@@ -127,41 +130,47 @@ function splitName(fullName) {
   };
 }
 
+function cleanText(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function formatAddress({ street = "", zip = "", city = "" } = {}) {
+  const first = cleanText(street);
+  const second = [cleanText(zip), cleanText(city)].filter(Boolean).join(" ");
+  return [first, second].filter(Boolean).join(", ");
+}
+
+function splitGermanAddress(value) {
+  const text = cleanText(value);
+  if (!text) return {};
+  const normalized = text.replace(/\n+/g, ", ");
+  const match = normalized.match(/(?:^|,\s*|\s)(\d{5})\s+([^,]+)$/);
+  if (!match) return { street: normalized, zip: "", city: "", formatted: normalized };
+  const street = cleanText(normalized.slice(0, match.index).replace(/,\s*$/, ""));
+  const zip = match[1];
+  const city = cleanText(match[2]);
+  return { street, zip, city, formatted: formatAddress({ street, zip, city }) };
+}
+
 function parseAddress(value) {
-  if (!value) {
-    return {};
+  if (!value) return {};
+  if (typeof value === "string") return splitGermanAddress(value);
+  if (typeof value !== "object") return splitGermanAddress(String(value));
+  const street = cleanText(value.street || value.street_address || (value.route ? `${value.route} ${value.street_number || ""}` : "") || value.address_line_1);
+  const zip = cleanText(value.postal_code || value.zip || value.zip_code);
+  const city = cleanText(value.locality || value.city || value.admin_area_level_2);
+  const formatted = cleanText(value.formatted_address || value.formatted || value.address) || formatAddress({ street, zip, city });
+  if ((!street || !zip || !city) && formatted) {
+    const parsed = splitGermanAddress(formatted);
+    return { ...parsed, ...(street ? { street } : {}), ...(zip ? { zip } : {}), ...(city ? { city } : {}), formatted };
   }
-
-  if (typeof value === "object") {
-    return {
-      street: value.street_number
-        ? `${value.route || ""} ${value.street_number}`.trim()
-        : value.route ||
-          value.address ||
-          value.formatted_address ||
-          "",
-      zip: value.postal_code || value.zip || "",
-      city:
-        value.locality ||
-        value.city ||
-        value.admin_area_level_2 ||
-        "",
-      formatted:
-        value.formatted_address ||
-        value.address ||
-        "",
-    };
-  }
-
-  return {
-    formatted: String(value),
-  };
+  return { street, zip, city, formatted };
 }
 
 function normalizePipedrivePerson(person) {
   const split = splitName(person.name);
-  const address = parseAddress(person.postal_address);
-
+  const address = parseAddress(person.postal_address || person.address);
+  const postal = address.formatted || formatAddress(address);
   return {
     id: person.id,
     name: person.name || "",
@@ -172,7 +181,20 @@ function normalizePipedrivePerson(person) {
     street: address.street || "",
     zip: address.zip || "",
     city: address.city || "",
-    objectAddress: address.formatted || "",
+    postalAddress: postal,
+    objectAddress: cleanText(person.object_address || person.objectAddress) || postal,
+    objectAddressDifferent: Boolean(cleanText(person.object_address || person.objectAddress) && cleanText(person.object_address || person.objectAddress) !== postal),
+  };
+}
+
+function createPipedrivePersonPayload(input) {
+  const address = parseAddress(input.postalAddress || input.postal_address || input.address || formatAddress(input));
+  const postalAddress = address.formatted || formatAddress({ street: input.street, zip: input.zip, city: input.city });
+  return {
+    name: cleanText(input.name),
+    emails: input.email ? [{ value: cleanText(input.email), primary: true, label: "work" }] : [],
+    phones: input.phone ? [{ value: cleanText(input.phone), primary: true, label: "mobile" }] : [],
+    postal_address: postalAddress || undefined,
   };
 }
 
@@ -464,6 +486,8 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
+          workerVersion: "24.0",
+          addressSync: true
         });
       }
 
@@ -480,22 +504,26 @@ export default {
         let person = await findExistingPipedrivePerson(env,email,phone);
         let created = false;
         if (!person) {
-          const payload = {
-            name,
-            emails: email ? [{value:email,primary:true,label:"work"}] : [],
-            phones: phone ? [{value:phone,primary:true,label:"mobile"}] : []
-          };
+          const payload = createPipedrivePersonPayload({ ...input, name, email, phone });
           const result = await pipedriveRequest(env,"/api/v2/persons",{
             method:"POST", body:JSON.stringify(payload)
           });
           person = normalizePipedrivePerson(result.data || result);
           created = true;
+        } else {
+          const updatePayload = createPipedrivePersonPayload({ ...input, name, email, phone });
+          const updated = await pipedriveRequest(env, `/api/v2/persons/${person.id}`, {
+            method: "PATCH", body: JSON.stringify(updatePayload)
+          });
+          person = normalizePipedrivePerson(updated.data || updated);
         }
 
-        const address = [input.street,[input.zip,input.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+        const address = cleanText(input.postalAddress) || formatAddress({street:input.street,zip:input.zip,city:input.city});
+        const objectAddress = cleanText(input.objectAddress) || address;
         const content = [
           `<strong>Neue Anfrage über ${escapeHtml(input.source || "Screenshot")}</strong>`,
-          address ? `<br><strong>Objekt:</strong> ${escapeHtml(address)}` : "",
+          address ? `<br><strong>Postanschrift:</strong> ${escapeHtml(address)}` : "",
+          objectAddress ? `<br><strong>Objekt:</strong> ${escapeHtml(objectAddress)}` : "",
           input.ownerStatus ? `<br><strong>Status:</strong> ${escapeHtml(input.ownerStatus)}` : "",
           input.appointment ? `<br><strong>Terminnotiz:</strong><br>${escapeHtml(input.appointment).replace(/\n/g,"<br>")}` : "",
           input.message ? `<br><strong>Nachricht:</strong><br>${escapeHtml(input.message).replace(/\n/g,"<br>")}` : ""
