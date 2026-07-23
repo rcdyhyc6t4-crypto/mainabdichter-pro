@@ -1,22 +1,9 @@
-mainabdichter V22.3 – funktionierendes Menü, Datensicherung und kompakter Header
+mainabdichter V22.7 Stable
 
-NEU
-- Header zeigt nur mainabdichter + Nachhaltig. Sicher. Trocken.
-- BKM.MANNESMANN bleibt ausschließlich in offiziellen PDFs.
-- Echtes seitliches Hauptmenü mit direkten Seitenzielen.
-- Menü schließt per X, Hintergrund oder Escape-Taste.
-- Eigene Seite Mehr.
-- Datensicherung Import/Export dauerhaft unter Mehr sichtbar.
-- Untere Navigation führt direkt zu Übersicht, Kunden, Vorgängen, Baustellen und Mehr.
-- Kunden öffnet direkt die Pipedrive-Kundensuche.
+Diese Version repariert den JavaScript-Syntaxfehler aus V22.6 und verwendet vollständig neue Dateinamen, damit keine beschädigten Dateien aus dem Browsercache geladen werden.
 
-INSTALLATION
-Kompletten ZIP-Inhalt in GitHub ersetzen. Der Cloudflare-Worker ist gegenüber V22.2 nicht verändert.
-
-
-V22.5 MENÜ- UND LOGO-KORREKTUR
-- Überschreibender quickMenu-Handler entfernt.
-- Menübutton öffnet jetzt ausschließlich das seitliche Hauptmenü.
-- Neues cache-sicheres Header-Logo aus dem hochgeladenen Original erstellt.
-- Header enthält nur mainabdichter und Nachhaltig. Sicher. Trocken.
-- BKM.MANNESMANN-Bereich ist im App-Header ausgeschlossen.
+Installation:
+1. Den bisherigen Inhalt des GitHub-Repositories vollständig durch den Inhalt dieser ZIP ersetzen.
+2. GitHub Pages kurz neu veröffentlichen lassen.
+3. Die App neu öffnen. Ein Löschen des Browsercaches ist wegen der neuen Dateinamen normalerweise nicht erforderlich.
+4. Den Cloudflare-Worker nicht ersetzen, sofern er aktuell funktioniert.

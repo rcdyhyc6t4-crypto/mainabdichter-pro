@@ -1,0 +1,26 @@
+mainabdichter V22.7 Stable – technischer Prüfbericht
+
+Gefundener Fehler in V22.6:
+- In js/app.js war innerhalb einer Fehlermeldung ein echter Zeilenumbruch in einem JavaScript-String enthalten.
+- Dadurch meldete der Browser: SyntaxError: Invalid or unexpected token.
+- Die fehlerhafte Stelle wurde durch eine normale Zeichenkette mit \n ersetzt.
+
+Zusätzliche Absicherung gegen Cachefehler:
+- sämtliche JavaScript-Dateien haben neue Dateinamen mit -v227
+- sämtliche CSS-Dateien haben neue Dateinamen mit -v227
+- das Hauptmodul besitzt einen eindeutigen Build-Parameter
+- das Headerlogo besitzt einen neuen Dateinamen
+
+Geprüft:
+- Syntax aller JavaScript-Dateien
+- vollständiger Modulimport bis zum erwarteten DOM-Zugriff
+- Syntax des Cloudflare-Workers
+- alle Modulimporte zeigen auf vorhandene Dateien
+- alle HTML-Assets sind vorhanden
+- keine doppelten HTML-IDs
+- Menü, Vorgangsart-Buttons, Datensicherung und Baustellen-Anhänge sind enthalten
+- ZIP-Integrität
+
+Cloudflare:
+- Der Worker ist gegenüber der funktionierenden V22.6 unverändert.
+- Er muss nicht neu hochgeladen werden, wenn dein derzeitiger Worker funktioniert.
