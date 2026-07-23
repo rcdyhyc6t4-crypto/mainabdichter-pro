@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V23.1 Geführter Auftrag Menü & Logo Fix</title>
+<title>mainabdichter V25 Geführter Auftrag Menü & Logo Fix</title>
 <link rel="stylesheet" href="css/app-v227.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -238,23 +238,33 @@
 </section>
 
 <section id="customerAdvice" class="page customer-advice-page">
-  <section class="page-heading-card advice-heading"><div><span class="dashboard-eyebrow">KUNDENBERATUNG</span><h1>So funktioniert die Abdichtung</h1><p>Einfach erklären – direkt mit den Daten des aktuellen Objekts.</p></div><button id="closeCustomerAdvice" class="secondary">Zurück zur Besichtigung</button></section>
+  <section class="page-heading-card advice-heading">
+    <div><span class="dashboard-eyebrow">KUNDENBERATUNG</span><h1>Maßnahmen erklärt</h1><p>Alle Abdichtungen werden von innen ausgeführt – anschaulich und passend zum aktuellen Objekt.</p></div>
+    <button id="closeCustomerAdvice" class="secondary">Zurück zur Besichtigung</button>
+  </section>
   <section class="advice-selector card">
     <button data-advice-type="Horizontalsperre" class="advice-type active">Horizontalsperre</button>
     <button data-advice-type="Flächensperre" class="advice-type">Flächensperre</button>
+    <button data-advice-type="Wand-Sohlen-Anschluss" class="advice-type">Wand-Sohlen-Anschluss</button>
+    <button data-advice-type="Druckwasserstabile Innenabdichtung" class="advice-type">Druckwasserstabile Innenabdichtung</button>
   </section>
-  <section class="advice-layout">
+  <section class="advice-layout advice-layout-v25">
     <div class="card advice-visual">
-      <div id="adviceAnimation" class="wall-animation horizontal-mode">
-        <div class="soil"></div><div class="wall-grid"></div><div class="moisture-arrows">↑ ↑ ↑</div><div class="drill-row"></div><div class="injection-zone"></div><div class="dry-zone"></div>
-      </div>
-      <div class="animation-controls"><button id="advicePrev" class="secondary">Zurück</button><span id="adviceStage">1 von 4</span><button id="adviceNext" class="primary">Weiter</button></div>
+      <div class="advice-image-frame"><img id="adviceImage" alt="Technische Darstellung der ausgewählten Innenabdichtung"></div>
+      <div class="animation-controls"><button id="advicePrev" class="secondary">Zurück</button><span id="adviceStage">1 von 1</span><button id="adviceNext" class="primary">Weiter</button></div>
     </div>
     <div class="card advice-copy">
-      <span id="adviceTypeLabel" class="dashboard-eyebrow">HORIZONTalsperre</span><h2 id="adviceTitle">Feuchtigkeit steigt im Mauerwerk auf</h2><p id="adviceText"></p>
+      <span id="adviceTypeLabel" class="dashboard-eyebrow">HORIZONTalsperre</span>
+      <h2 id="adviceTitle">Aufsteigende Feuchtigkeit stoppen</h2>
+      <p id="adviceText"></p>
+      <div id="adviceStepDetails" class="advice-step-details"></div>
       <div id="adviceObjectData" class="advice-object-data"></div>
-      <div class="customer-plain-note">Die Wand ist nicht sofort trocken. Die Sperre unterbindet den weiteren kapillaren Feuchtetransport; die vorhandene Feuchtigkeit muss anschließend nach und nach austrocknen.</div>
+      <div id="adviceImportantNote" class="customer-plain-note"></div>
     </div>
+  </section>
+  <section class="card advice-all-steps">
+    <div class="card-title-row"><div><span class="dashboard-eyebrow">ARBEITSABLAUF</span><h2 id="adviceProcessTitle">Schritt für Schritt</h2></div></div>
+    <div id="adviceProcessSteps" class="advice-process-grid"></div>
   </section>
 </section>
 
@@ -531,6 +541,6 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260723-v24"></script>
+<script type="module" src="js/app-v227.js?build=20260723-v25"></script>
 </body>
 </html>
