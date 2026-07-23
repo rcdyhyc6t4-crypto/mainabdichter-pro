@@ -1,21 +1,37 @@
-mainabdichter V18 – Digitale Baustellenakte und Arbeitsnachweis
+mainabdichter V20 – vollständige Pipedrive-Deal-Synchronisation
 
 NEU
-- Baustelle direkt aus einem angenommenen Angebot anlegen
-- Angebotene Maßnahmen, Wandstärken, Mengen und Sollmaterial werden übernommen
-- Arbeitsbeginn, Arbeitsende, Pause, Mitarbeiter, Wetter und Bemerkungen
-- je Maßnahme Soll-/Ist-Bohrlöcher
-- automatische Sollmenge je Bohrloch aus Wandstärke und Bohrlochabstand
-- Soll-/Istverbrauch BKM HZ 250 Pro
-- Chargennummer BKM HZ 250 Pro bei Horizontal-, Flächensperre und Wand-Sohle
-- BKM HS Sperrmörtel Soll/Ist bei Wand-Sohlen-Anschluss (7 kg/lfm aus Einstellungen)
-- Harz und Packer bei Harzverpressungen
-- Vorher-/Während-/Nachher-Fotos
-- Arbeitsnachweis als PDF/Druckansicht
-- Ist-Material wird beim Abschluss automatisch aus dem Warenbestand abgezogen
+- Pipedrive-Dealphasen direkt aus dem eigenen Konto laden
+- benutzerdefinierte Pipedrive-Deal-Felder direkt aus dem eigenen Konto laden
+- automatische Zuordnung anhand der Feldnamen
+- manuelle Kontrolle und Korrektur jeder Zuordnung
+- Zuordnung wird in der Komplettsicherung gespeichert
+- Screenshot-Anfrage erzeugt Kontakt und Deal in der Phase „Anfragen“
+- Pipedrive-Termine übernehmen Person-ID und Deal-ID in die Besichtigung
+- Lexware-Angebot synchronisiert Angebotsdaten und Phase „Angebot versendet“
+- heute angenommene Lexware-Angebote erzeugen eine Baustelle und aktualisieren die Phase „Ausführung geplant“
+- Baustellen- und Arbeitsnachweisdaten werden in zugeordnete Pipedrive-Deal-Felder geschrieben
+- Arbeitsnachweis wird als echte PDF-Datei erzeugt und am richtigen Pipedrive-Deal hochgeladen
+- Besichtigungs- und Messprotokoll wird als echte PDF-Datei erzeugt und am Deal hochgeladen
+- Baustellenabschluss aktualisiert die Phase „Ausführung abgeschlossen“
+- Material wird erst nach erfolgreicher Pipedrive-Synchronisation und PDF-Upload abgebucht
 - doppelte Materialabbuchung wird verhindert
-- Baustellen werden in der Komplettsicherung mitgesichert
+- Bohrlochanzahl und Injektionsmenge je Bohrloch werden bei Änderung des Bohrlochabstands neu berechnet
+- Synchronisationsprotokoll mit Erfolgen und Fehlern
 
-INSTALLATION
-Kompletten ZIP-Inhalt in GitHub hochladen und vorhandene Dateien ersetzen.
-Der Cloudflare Worker ist in dieser Ausbaustufe gegenüber V17 unverändert.
+EINMALIGE EINRICHTUNG
+1. Vollständigen ZIP-Inhalt in GitHub hochladen und vorhandene Dateien ersetzen.
+2. cloudflare-worker.js vollständig in Cloudflare ersetzen und neu bereitstellen.
+3. App neu laden.
+4. Einstellungen > Schnittstellen: Zugangsdaten speichern und Verbindungen testen.
+5. Einstellungen > Pipedrive-Synchronisation: „Dealphasen und Felder laden“ drücken.
+6. Automatisch vorgeschlagene Zuordnungen kurz kontrollieren und Einstellungen speichern.
+
+WICHTIG
+Die technischen Pipedrive-Felder besitzen in jedem Konto eigene interne Schlüssel. Deshalb müssen sie einmal aus deinem Konto geladen werden. Danach werden die Zuordnungen dauerhaft gespeichert und mit der Komplettsicherung auf andere Geräte übertragen.
+
+PDF
+Die PDF-Erzeugung nutzt jsPDF 2.5.1 über cdnjs. Beim ersten PDF-Aufruf ist daher eine Internetverbindung nötig. Die OCR-Texterkennung für Screenshot-Importe benötigt ebenfalls Internet.
+
+CLOUDFLARE
+Der Worker ist zwingend zu aktualisieren. Neu sind Routen für Deal-Felder, Dealphasen, Deal-Update, Notizen und PDF-Dateiupload.

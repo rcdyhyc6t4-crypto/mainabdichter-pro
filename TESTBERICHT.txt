@@ -1,0 +1,29 @@
+TESTBERICHT mainabdichter V20
+
+Automatisch geprüft und bestanden:
+- JavaScript-Syntax aller 12 App-Module
+- JavaScript-Syntax des Cloudflare-Workers
+- 181 statische DOM-Referenzen gegen index.html
+- automatische Zuordnung repräsentativer Pipedrive-Feldnamen
+- automatische Zuordnung der Dealphasen Anfragen, Ausführung geplant und Ausführung abgeschlossen
+- deutsche Dezimalwerte in Synchronisationsdaten
+- Kleinmengenlogik Horizontalsperre
+- Baustellenerstellung aus einer Besichtigung
+- Neuberechnung bei Wechsel von 25 cm auf 12,5 cm Bohrlochabstand
+- Ergebnis im Test: 8 lfm Horizontalsperre = 64 Bohrlöcher
+- Injektionsmenge je Bohrloch im Test: 0,42 Liter
+- Arbeitsnachweis-Soll-/Ist-Materialzusammenfassung
+- Pipedrive-Worker: Deal-Felder laden
+- Pipedrive-Worker: Dealphasen laden
+- Pipedrive-Worker: Deal suchen und erstellen
+- Pipedrive-Worker: benutzerdefinierte Deal-Felder senden
+- Pipedrive-Worker: Notiz am Deal erstellen
+- Pipedrive-Worker: PDF als multipart/form-data mit deal_id hochladen
+- ZIP-Integritätsprüfung
+
+Nicht ohne deine Zugangsdaten live testbar:
+- tatsächlicher Abruf deiner persönlichen Pipedrive-Feldschlüssel und Phasen-IDs
+- echter Upload in dein Pipedrive-Konto
+- echter Abruf deines Lexware-Kontos
+
+Dafür enthält die App den Verbindungstest, das Schema-Laden, ein Synchronisationsprotokoll und verständliche Fehlermeldungen.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V18 Baustellenakte</title>
+<title>mainabdichter V20 Pipedrive Sync</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -43,6 +43,10 @@
     <div><span>Uhrzeit</span><strong id="metaVisitTimeDashboard">–</strong></div>
     <div><span>Standort</span><strong id="metaVisitLocationDashboard">–</strong></div>
     <div><span>Wetter</span><strong id="metaVisitWeatherDashboard">–</strong></div>
+  </section>
+  <section class="sync-dashboard-grid">
+    <section class="panel"><div class="panel-heading"><h2>Heutige Pipedrive-Termine</h2><button id="syncPipedriveActivities" class="text-button">Aktualisieren</button></div><div id="pipedriveTodayList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
+    <section class="panel"><div class="panel-heading"><h2>Angenommene Lexware-Angebote</h2><button id="syncAcceptedQuotations" class="text-button">Aktualisieren</button></div><div id="acceptedQuotationList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
   </section>
   <div class="dashboard-grid-v14">
     <section class="panel"><div class="panel-heading"><h2>Letzte Angebote</h2><button id="showAllOffers" class="text-button">Alle anzeigen</button></div><div id="recentOffers" class="compact-list"></div></section>
@@ -234,7 +238,10 @@
 <section id="inquiryImport" class="page">
   <div class="card"><div class="card-title-row"><div><h1>Anfrage aus Screenshot übernehmen</h1><p class="hint">WhatsApp, Outlook, Gmail oder Kontaktformular.</p></div><button id="cancelInquiryImport" class="secondary">Abbrechen</button></div></div>
   <div class="card">
-    <label class="import-dropzone" for="inquiryScreenshot"><span>📷</span><strong>Screenshot auswählen oder aufnehmen</strong><small>Die Texterkennung läuft direkt im Browser.</small><input id="inquiryScreenshot" type="file" accept="image/*" capture="environment"></label>
+    <div class="import-choice-grid">
+  <label class="import-dropzone" for="inquiryScreenshot"><span>🖼️</span><strong>Screenshot aus Fotos auswählen</strong><small>Öffnet die Fotomediathek auf iPhone und iPad.</small><input id="inquiryScreenshot" type="file" accept="image/png,image/jpeg,image/heic,image/heif,image/*"></label>
+  <label class="import-dropzone" for="inquiryCamera"><span>📷</span><strong>Neues Foto aufnehmen</strong><small>Öffnet direkt die Kamera.</small><input id="inquiryCamera" type="file" accept="image/*" capture="environment"></label>
+</div>
     <img id="inquiryPreview" class="inquiry-preview hidden" alt="Vorschau">
     <div id="ocrProgressWrap" class="ocr-progress hidden"><div><span>Texterkennung</span><strong id="ocrProgressLabel">0 %</strong></div><progress id="ocrProgress" max="100" value="0"></progress></div>
     <div id="inquiryImportStatus" class="status"></div>
@@ -286,7 +293,8 @@
       <div class="offer-actions">
         <button id="saveWorksite" class="secondary">Arbeitsnachweis speichern</button>
         <button id="printWorksite" class="secondary">Arbeitsnachweis als PDF</button>
-        <button id="completeWorksite" class="primary">Abschließen und Ist-Material abbuchen</button>
+        <button id="syncWorksitePipedrive" class="secondary">Mit Pipedrive synchronisieren</button>
+        <button id="completeWorksite" class="primary">Abschließen, PDF hochladen und Material abbuchen</button>
       </div>
       <div id="worksiteStatus" class="status"></div>
     </div>
@@ -355,6 +363,18 @@
     <textarea id="noticeWallSole" class="large-setting-text"></textarea>
     <label>Zusatzhinweis Harzverpressung</label>
     <textarea id="noticeResin" class="large-setting-text"></textarea>
+  </details>
+
+  <details class="card" open><summary>Pipedrive-Synchronisation</summary>
+    <p class="hint">Dealphasen und benutzerdefinierte Deal-Felder werden direkt aus deinem Pipedrive-Konto geladen. Die Zuordnung wird mit der Komplettsicherung übertragen.</p>
+    <div class="connection-actions">
+      <button id="loadPipedriveSchema" class="primary">Dealphasen und Felder laden</button>
+      <label class="check-row compact-check"><input id="pipedriveAutoSync" type="checkbox"> automatisch synchronisieren</label>
+    </div>
+    <div id="pipedriveSchemaStatus" class="status"></div>
+    <h3>Dealphasen</h3><div id="pipedriveStageMappings" class="mapping-grid"></div>
+    <h3>Deal-Felder</h3><div id="pipedriveFieldMappings" class="mapping-grid"></div>
+    <h3>Synchronisationsprotokoll</h3><div id="pipedriveSyncLog" class="sync-log"></div>
   </details>
 
   <details class="card" open><summary>Schnittstellen</summary>
