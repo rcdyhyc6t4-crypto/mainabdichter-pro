@@ -1,0 +1,19 @@
+mainabdichter V22.5 – Prüfbericht
+
+Menü:
+- Anzahl direkter quickMenu-onclick-Zuweisungen: 1
+- Erwartet: 1
+- Ziel: openAppMenu
+- Seitenmenü, Hintergrund und Schließen-Handler vorhanden
+
+Logo:
+- Neue Datei: assets/mainabdichter-header-v225.png
+- Quelle: hochgeladenes Logo(1).png
+- Ausschnitt enthält nur mainabdichter + Nachhaltig. Sicher. Trocken.
+- BKM.MANNESMANN-Bereich ausgeschlossen
+- Neuer Dateiname verhindert Verwendung des alten Browser-Caches
+
+Technische Prüfungen:
+- JavaScript-Syntax aller Module bestanden
+- Worker-Syntax bestanden
+- ZIP-Integrität bestanden

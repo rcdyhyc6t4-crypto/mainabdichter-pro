@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V22.3 Navigation & Backup</title>
+<title>mainabdichter V22.6.5 Menü & Logo Fix</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
 <header class="app-header redesign-header">
   <button id="headerHome" class="header-logo-button" aria-label="Zur Übersicht">
-    <img src="assets/mainabdichter-header-logo.png" alt="mainabdichter – Nachhaltig. Sicher. Trocken.">
+    <img src="assets/mainabdichter-header-v225.png" alt="mainabdichter – Nachhaltig. Sicher. Trocken.">
   </button>
   <div class="header-actions redesign-header-actions">
     <button id="quickSave" class="header-action primary-action"><span class="header-action-icon">✓</span><span>Speichern</span></button>
@@ -22,7 +22,7 @@
 <div id="menuBackdrop" class="menu-backdrop hidden"></div>
 <aside id="appMenu" class="app-menu" aria-hidden="true">
   <div class="app-menu-head">
-    <img src="assets/mainabdichter-header-logo.png" alt="mainabdichter">
+    <img src="assets/mainabdichter-header-v225.png" alt="mainabdichter">
     <button id="closeMenu" class="menu-close" aria-label="Menü schließen">×</button>
   </div>
   <nav class="app-menu-nav" aria-label="Hauptmenü">
@@ -315,6 +315,21 @@
       <label>Allgemeine Bemerkungen</label><textarea id="wsGeneralNotes"></textarea>
     </div>
     <div id="worksiteTasks"></div>
+    <div class="card worksite-files-card">
+      <div class="card-title-row">
+        <div><h2>Dateien, Pläne und Unterlagen</h2><p class="hint">Fotos, PDFs, Grundrisse, Gebäudequerschnitte und sonstige Unterlagen werden in der Bauakte gespeichert und zum zugehörigen Pipedrive-Deal hochgeladen.</p></div>
+      </div>
+      <div class="grid">
+        <div><label>Kategorie</label><select id="wsAttachmentCategory"><option>Grundriss</option><option>Gebäudequerschnitt</option><option>Schadensbild</option><option>Messstelle</option><option>Vorher</option><option>Während</option><option>Nachher</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
+        <div class="full"><label>Bemerkung zur Datei</label><input id="wsAttachmentNote" placeholder="z. B. Kellergrundriss mit markierter Nordwand"></div>
+      </div>
+      <input id="wsAttachmentInput" class="hidden" type="file" accept="image/*,.pdf,application/pdf" multiple>
+      <div class="offer-actions">
+        <button id="wsAddAttachments" class="secondary">Bilder oder PDFs hinzufügen</button>
+        <button id="wsUploadAttachments" class="secondary">Offene Dateien zu Pipedrive hochladen</button>
+      </div>
+      <div id="wsAttachmentList" class="worksite-attachment-list"></div>
+    </div>
     <div class="card">
       <h2>Materialzusammenfassung</h2><div id="wsMaterialSummary"></div>
       <div class="grid">

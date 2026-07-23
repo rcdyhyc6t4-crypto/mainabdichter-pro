@@ -12,3 +12,11 @@ NEU
 
 INSTALLATION
 Kompletten ZIP-Inhalt in GitHub ersetzen. Der Cloudflare-Worker ist gegenüber V22.2 nicht verändert.
+
+
+V22.5 MENÜ- UND LOGO-KORREKTUR
+- Überschreibender quickMenu-Handler entfernt.
+- Menübutton öffnet jetzt ausschließlich das seitliche Hauptmenü.
+- Neues cache-sicheres Header-Logo aus dem hochgeladenen Original erstellt.
+- Header enthält nur mainabdichter und Nachhaltig. Sicher. Trocken.
+- BKM.MANNESMANN-Bereich ist im App-Header ausgeschlossen.
