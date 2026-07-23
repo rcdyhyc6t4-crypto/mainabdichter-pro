@@ -1,10 +1,10 @@
 {
-  "name": "mainabdichter V21 Digitale Bauakte",
+  "name": "mainabdichter V22 Redesign",
   "short_name": "mainabdichter",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f1f3ef",
-  "theme_color": "#76b82a",
+  "background_color": "#f5f7f6",
+  "theme_color": "#48ad35",
   "icons": [
     {
       "src": "assets/bkm-logo.png",

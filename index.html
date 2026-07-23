@@ -4,83 +4,97 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V20 Pipedrive Sync</title>
+<title>mainabdichter V22.2.1 Redesign</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
-<header class="app-header v14-header">
-  <div class="v14-brand">
-    <span class="brand-mark" aria-hidden="true"></span>
-    <div><strong>mainabdichter</strong><small>Digitale Besichtigungen. Bessere Angebote.</small></div>
-  </div>
-  <div class="header-actions">
-    <button id="quickSave" class="header-action primary-action">▣ <span>Speichern</span></button>
-    <button id="quickSettings" class="header-action">⚙ <span>Einstellungen</span></button>
-    <button id="quickMenu" class="header-action">☰ <span>Menü</span></button>
+<header class="app-header redesign-header">
+  <button id="headerHome" class="header-logo-button" aria-label="Zur Übersicht">
+    <img src="assets/mainabdichter-logo.png" alt="mainabdichter – BKM.MANNESMANN Fachbetrieb">
+  </button>
+  <div class="header-actions redesign-header-actions">
+    <button id="quickSave" class="header-action primary-action"><span class="header-action-icon">✓</span><span>Speichern</span></button>
+    <button id="quickSettings" class="header-action"><span class="header-action-icon">⚙</span><span>Einstellungen</span></button>
+    <button id="quickMenu" class="header-action"><span class="header-action-icon">☰</span><span>Menü</span></button>
   </div>
 </header>
 
-<section class="visit-meta-bar">
-  <div><span>Nr.</span><strong id="metaVisitNumber">–</strong></div>
-  <div><span>Datum</span><strong id="metaVisitDate">–</strong></div>
-  <div><span>Beginn</span><strong id="metaVisitTime">–</strong></div>
-  <div><span>Standort</span><strong id="metaVisitLocation">–</strong></div>
-  <div><span>Wetter</span><strong id="metaVisitWeather">–</strong></div>
-</section>
 
-<nav class="main-nav native-nav">
-  <button data-page="dashboard" class="active"><span>⌂</span><small>Start</small></button>
-  <button data-page="visit"><span>👤</span><small>Besichtigung</small></button>
-  <button data-page="offer"><span>🧮</span><small>Angebot</small></button>
-  <button data-page="settings"><span>⚙</span><small>Einstellungen</small></button>
-</nav>
 <main>
-<section id="dashboard" class="page active">
-  <section class="dashboard-meta">
-    <div><span>Besichtigungs-Nr.</span><strong id="metaVisitNumberDashboard">–</strong></div>
-    <div><span>Datum</span><strong id="metaVisitDateDashboard">–</strong></div>
-    <div><span>Uhrzeit</span><strong id="metaVisitTimeDashboard">–</strong></div>
-    <div><span>Standort</span><strong id="metaVisitLocationDashboard">–</strong></div>
-    <div><span>Wetter</span><strong id="metaVisitWeatherDashboard">–</strong></div>
+<section id="dashboard" class="page active redesign-dashboard">
+  <section class="dashboard-welcome">
+    <div>
+      <span id="dashboardDate" class="dashboard-eyebrow"></span>
+      <h1 id="dashboardGreeting">Guten Morgen, Mike</h1>
+      <p>Was steht als Nächstes an?</p>
+    </div>
+    <button id="dashboardNewInquiry" class="dashboard-primary-action"><span>＋</span>Neue Anfrage</button>
   </section>
-  <section class="sync-dashboard-grid">
-    <section class="panel"><div class="panel-heading"><h2>Heutige Pipedrive-Termine</h2><button id="syncPipedriveActivities" class="text-button">Aktualisieren</button></div><div id="pipedriveTodayList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
-    <section class="panel"><div class="panel-heading"><h2>Angenommene Lexware-Angebote</h2><button id="syncAcceptedQuotations" class="text-button">Aktualisieren</button></div><div id="acceptedQuotationList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
+
+  <section class="dashboard-status-grid">
+    <button id="dashboardTodayCard" class="dashboard-status-card" data-scroll-target="pipedriveTodayList">
+      <span class="status-icon">◷</span><strong id="dashboardAppointmentCount">–</strong><small>Termine heute</small>
+    </button>
+    <button id="dashboardWorksiteCard" class="dashboard-status-card" data-page-target="worksites">
+      <span class="status-icon">⚒</span><strong id="dashboardWorksiteCount">0</strong><small>Baustellen</small>
+    </button>
+    <button id="dashboardOfferCard" class="dashboard-status-card" data-scroll-target="recentOffers">
+      <span class="status-icon">▤</span><strong id="dashboardOpenOfferCount">0</strong><small>Offene Angebote</small>
+    </button>
+    <button id="dashboardFollowupCard" class="dashboard-status-card" data-scroll-target="nextFollowups">
+      <span class="status-icon">↻</span><strong id="dashboardFollowupCount">0</strong><small>Nachkontrollen</small>
+    </button>
   </section>
-  <div class="dashboard-grid-v14">
-    <section class="panel"><div class="panel-heading"><h2>Letzte Angebote</h2><button id="showAllOffers" class="text-button">Alle anzeigen</button></div><div id="recentOffers" class="compact-list"></div></section>
-    <section class="panel"><div class="panel-heading"><h2>Schnellaktionen</h2></div><div class="quick-grid">
-      <button id="dashboardNewInquiry" class="quick-action green"><span>⌁</span>Anfrage importieren</button>
-      <button id="dashboardNewVisit" class="quick-action green"><span>＋</span>Neue Besichtigung</button>
-      <button id="quickCreateOffer" class="quick-action blue"><span>▤</span>Angebot erstellen</button>
-      <button id="quickShowOffers" class="quick-action purple"><span>☷</span>Angebote</button>
-      <button id="quickShowFollowups" class="quick-action amber"><span>▣</span>Nachkontrollen</button>
-    </div></section>
-    <section class="panel"><div class="panel-heading"><h2>Nächste Nachkontrollen</h2><button id="showAllFollowups" class="text-button">Alle anzeigen</button></div><div id="nextFollowups" class="compact-list"></div></section>
-    <section class="panel"><div class="panel-heading"><h2>Statistik</h2></div><div class="donut-wrap"><div id="statusDonut" class="status-donut"><span id="statTotal">0</span><small>Angebote</small></div><div class="legend">
-      <div><i class="legend-green"></i><span><b id="statAccepted">0</b> Angenommen</span></div>
-      <div><i class="legend-blue"></i><span><b id="statOpen">0</b> Offen</span></div>
-      <div><i class="legend-orange"></i><span><b id="statDraft">0</b> Entwurf</span></div>
-      <div><i class="legend-gray"></i><span><b id="statCompleted">0</b> Abgeschlossen</span></div>
-      <div><i class="legend-purple"></i><span><b id="statFollowups">0</b> Nachkontrolle</span></div>
-    </div></div><div class="stat-total-row"><span>Gesamtsumme</span><strong id="statAmount">0,00 €</strong></div></section>
-  </div>
-  <div class="archive-layout">
-    <section class="panel archive-panel"><div class="filter-row"><input id="archiveSearch" placeholder="Kunde, Adresse, Ort oder Maßnahme suchen"><select id="archiveFilter">
-      <option value="all">Alle Status</option><option value="draft">Entwurf</option><option value="open">Offen</option><option value="accepted">Angenommen</option><option value="completed">Abgeschlossen</option><option value="followup">Nachkontrolle</option>
-    </select></div><div class="archive-table-head"><span>Datum</span><span>Kunde / Objekt</span><span>Maßnahmen</span><span>Summe</span><span>Status</span></div><div id="archiveList" class="archive-list table-list"></div><div id="archiveEmpty" class="empty-state">Noch keine Angebote gespeichert.</div></section>
-    <aside class="panel backup-panel"><div class="panel-heading"><h2>Datensicherung</h2></div>
-      <button id="icloudSave" class="backup-action"><span>☁</span><div><strong>In iCloud sichern</strong><small>Aktuelles Archiv in iCloud Drive speichern</small></div></button>
-      <label class="backup-action restore-action"><span>☁</span><div><strong>Aus iCloud wiederherstellen</strong><small>Archiv aus iCloud Drive laden</small></div><input id="importArchive" type="file" accept="application/json"></label>
-      <button id="exportArchive" class="backup-action"><span>⇩</span><div><strong>Lokale Sicherung erstellen</strong><small>Sicherungsdatei herunterladen</small></div></button>
-      <div class="backup-info"><span>Letzte Sicherung</span><strong id="lastBackupTime">Noch keine Sicherung</strong><small>Im Dateidialog „iCloud Drive“ auswählen.</small></div>
-    </aside>
-  </div>
+
+  <section class="dashboard-action-grid">
+    <button id="dashboardNewVisit" class="dashboard-action-card"><span>＋</span><strong>Neue Besichtigung</strong><small>Leere Erfassung starten</small></button>
+    <button id="quickCreateOffer" class="dashboard-action-card"><span>▤</span><strong>Angebot erstellen</strong><small>Aktuellen Vorgang kalkulieren</small></button>
+    <button id="quickShowOffers" class="dashboard-action-card"><span>☷</span><strong>Vorgänge</strong><small>Angebote und Bauakten</small></button>
+    <button id="quickShowFollowups" class="dashboard-action-card"><span>↻</span><strong>Nachkontrollen</strong><small>Fällige Prüfungen öffnen</small></button>
+  </section>
+
+  <section class="dashboard-section">
+    <div class="section-title"><div><span>HEUTE</span><h2>Termine und neue Aufträge</h2></div><button id="syncDashboardAll" class="text-button">Alles aktualisieren</button></div>
+    <div class="dashboard-two-columns">
+      <section class="panel redesign-panel"><div class="panel-heading"><h3>Pipedrive-Termine</h3><button id="syncPipedriveActivities" class="text-button">Aktualisieren</button></div><div id="pipedriveTodayList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
+      <section class="panel redesign-panel"><div class="panel-heading"><h3>Angenommene Lexware-Angebote</h3><button id="syncAcceptedQuotations" class="text-button">Aktualisieren</button></div><div id="acceptedQuotationList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
+    </div>
+  </section>
+
+  <section class="dashboard-section">
+    <div class="section-title"><div><span>OFFEN</span><h2>Vorgänge im Blick behalten</h2></div></div>
+    <div class="dashboard-two-columns">
+      <section class="panel redesign-panel"><div class="panel-heading"><h3>Letzte Angebote</h3><button id="showAllOffers" class="text-button">Alle anzeigen</button></div><div id="recentOffers" class="compact-list"></div></section>
+      <section class="panel redesign-panel"><div class="panel-heading"><h3>Nächste Nachkontrollen</h3><button id="showAllFollowups" class="text-button">Alle anzeigen</button></div><div id="nextFollowups" class="compact-list"></div></section>
+    </div>
+  </section>
+
+  <details class="dashboard-section dashboard-details">
+    <summary><span>Alle Vorgänge, Statistik und Datensicherung</span><small>Bei Bedarf öffnen</small></summary>
+    <section class="dashboard-stat-strip">
+      <div><span>Gesamt</span><strong id="statTotal">0</strong></div>
+      <div><span>Angenommen</span><strong id="statAccepted">0</strong></div>
+      <div><span>Offen</span><strong id="statOpen">0</strong></div>
+      <div><span>Entwurf</span><strong id="statDraft">0</strong></div>
+      <div><span>Abgeschlossen</span><strong id="statCompleted">0</strong></div>
+      <div><span>Nachkontrolle</span><strong id="statFollowups">0</strong></div>
+      <div class="wide-stat"><span>Gesamtsumme</span><strong id="statAmount">0,00 €</strong></div>
+    </section>
+    <div class="archive-layout redesign-archive-layout">
+      <section class="panel archive-panel"><div class="filter-row"><input id="archiveSearch" placeholder="Kunde, Adresse, Ort oder Maßnahme suchen"><select id="archiveFilter"><option value="all">Alle Status</option><option value="draft">Entwurf</option><option value="open">Offen</option><option value="accepted">Angenommen</option><option value="completed">Abgeschlossen</option><option value="followup">Nachkontrolle</option></select></div><div class="archive-table-head"><span>Datum</span><span>Kunde / Objekt</span><span>Maßnahmen</span><span>Summe</span><span>Status</span></div><div id="archiveList" class="archive-list table-list"></div><div id="archiveEmpty" class="empty-state">Noch keine Angebote gespeichert.</div></section>
+      <aside class="panel backup-panel"><div class="panel-heading"><h3>Datensicherung</h3></div><button id="icloudSave" class="backup-action"><span>☁</span><div><strong>In iCloud sichern</strong><small>Komplettsicherung speichern</small></div></button><label class="backup-action restore-action"><span>↥</span><div><strong>Wiederherstellen</strong><small>Sicherung laden</small></div><input id="importArchive" type="file" accept="application/json"></label><button id="exportArchive" class="backup-action"><span>⇩</span><div><strong>Lokal sichern</strong><small>Datei herunterladen</small></div></button><div class="backup-info"><span>Letzte Sicherung</span><strong id="lastBackupTime">Noch keine Sicherung</strong></div></aside>
+    </div>
+  </details>
 </section>
 
 <section id="visit" class="page">
-  <div class="card visit-toolbar"><h1>Besichtigung</h1>
+  <section class="record-header">
+    <div class="record-title"><span>AKTIVER VORGANG</span><h1 id="recordHeaderCustomer">Neue Besichtigung</h1><p id="recordHeaderAddress">Kunde und Objekt noch nicht ausgewählt</p></div>
+    <div class="record-quick-actions"><button id="recordCall" class="secondary">☎ Anrufen</button><button id="recordNavigate" class="secondary">⌖ Navigation</button></div>
+    <div class="record-meta-grid"><div><span>Besichtigungs-Nr.</span><strong id="metaVisitNumber">–</strong></div><div><span>Datum</span><strong id="metaVisitDate">–</strong></div><div><span>Beginn</span><strong id="metaVisitTime">–</strong></div><div><span>Standort</span><strong id="metaVisitLocation">–</strong></div><div><span>Wetter</span><strong id="metaVisitWeather">–</strong></div></div>
+  </section>
+  <div class="card visit-toolbar"><div class="visit-toolbar-title"><span>BESICHTIGUNG</span><h2>Schritt für Schritt erfassen</h2></div>
     <div class="visit-progress">
       <button type="button" data-open-step="1">Kunde</button>
       <button type="button" data-open-step="2">Gebäude</button>
@@ -391,16 +405,15 @@
   <div id="settingsStatus" class="status"></div>
 </section>
 </main>
-<nav class="bottom-nav v14-bottom-nav">
-  <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Dashboard</small></button>
+<nav class="bottom-nav redesign-bottom-nav">
+  <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Übersicht</small></button>
   <button id="bottomCustomers"><span>♙</span><small>Kunden</small></button>
-  <button data-bottom-page="visit"><span>▣</span><small>Besichtigungen</small></button>
-  <button data-bottom-page="offer"><span>▤</span><small>Angebote</small></button>
+  <button data-bottom-page="offer"><span>☷</span><small>Vorgänge</small></button>
   <button data-bottom-page="worksites"><span>⚒</span><small>Baustellen</small></button>
   <button id="bottomMore"><span>•••</span><small>Mehr</small></button>
 </nav>
-<section id="worksiteDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Arbeitsnachweis</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="worksitePrintContent"></div></section>
-<section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/bkm-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
+<section id="worksiteDocument" class="print-document"><div class="pdf-header"><img src="assets/mainabdichter-logo.png"><div><strong>Arbeitsnachweis</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="worksitePrintContent"></div></section>
+<section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/mainabdichter-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
 <script>
 window.addEventListener("error", function(event) {
   var box = document.getElementById("startupError");

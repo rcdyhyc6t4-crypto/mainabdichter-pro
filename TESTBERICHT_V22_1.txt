@@ -1,0 +1,22 @@
+mainabdichter V22.1 – Prüfbericht sichere Bauakten-Zuordnung
+
+Ursache des Fehlers:
+Pipedrive-v1-Endpunkte lieferten trotz deal_id teilweise breitere Ergebnislisten.
+Diese wurden bisher ungefiltert an die App weitergegeben.
+
+Behoben:
+- Notizen: exakte Deal-ID
+- Aktivitäten: exakte Deal-ID
+- Dateien: exakte Deal-ID
+- weitere Deals: exakte Person-ID
+- aktueller Deal wird auf angeforderte Deal-ID validiert
+- Lexware-E-Mail-Abgleich ist exakt
+- Namensabgleich nur bei genau einem exakten Treffer
+- doppelte Workerroute entfernt
+
+Geprüft:
+- JavaScript-Syntax aller Module
+- Worker-Syntax
+- genau eine Context-Route
+- lokale Deal- und Personenfilter im Worker
+- ZIP-Integrität

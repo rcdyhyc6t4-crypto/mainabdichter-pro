@@ -567,8 +567,211 @@ export default {
         });
       }
 
+      if (
+        /^\/pipedrive\/deals\/\d+\/context$/.test(url.pathname) &&
+        request.method === "GET"
+      ) {
+        const dealId = Number(url.pathname.split("/")[3]);
+        const idFromValue = value => {
+          if (value === null || value === undefined) return 0;
+          if (typeof value === "object") {
+            return Number(value.value || value.id || 0);
+          }
+          return Number(value || 0);
+        };
 
-      if (/^\/pipedrive\/deals\/\d+\/context$/.test(url.pathname)&&request.method==="GET"){const dealId=Number(url.pathname.split("/")[3]);const dr=await pipedriveRequest(env,`/api/v1/deals/${dealId}`),deal=dr.data||dr,raw=deal.person_id||deal.person||null,personId=raw&&typeof raw==="object"?(raw.value||raw.id):raw;const req=[pipedriveRequest(env,`/api/v1/notes?deal_id=${dealId}&limit=500&sort=add_time DESC`),pipedriveRequest(env,`/api/v1/activities?deal_id=${dealId}&limit=500&sort=due_date DESC`),pipedriveRequest(env,`/api/v1/files?deal_id=${dealId}&limit=500`),personId?pipedriveRequest(env,`/api/v1/deals?person_id=${encodeURIComponent(personId)}&status=all_not_deleted&limit=500`):Promise.resolve({data:[]})];const[n,a,f,ds]=await Promise.all(req);let person=null;if(personId){try{const pr=await pipedriveRequest(env,`/api/v2/persons/${encodeURIComponent(personId)}`);person=normalizePipedrivePerson(pr.data||pr);}catch{}}return jsonResponse(request,{ok:true,context:{loaded:true,loadedAt:new Date().toISOString(),deal,person,notes:n.data||[],activities:a.data||[],files:(f.data||[]).map(x=>({id:x.id,name:x.name||x.file_name||"",add_time:x.add_time||"",size:x.file_size||0,url:x.remote_location||x.url||""})),relatedDeals:(ds.data||[]).filter(x=>Number(x.id)!==dealId).map(x=>({id:x.id,title:x.title||"",status:x.status||"",value:x.value||0,currency:x.currency||"EUR",add_time:x.add_time||"",update_time:x.update_time||""}))}});}      if(url.pathname==="/lexware/customer-history"&&request.method==="GET"){const id=String(url.searchParams.get("contactId")||"").trim(),email=String(url.searchParams.get("email")||"").trim(),name=String(url.searchParams.get("name")||"").trim();let contact=null;if(id){try{contact=normalizeLexwareContact(await lexwareRequest(env,`/contacts/${encodeURIComponent(id)}`));}catch{}}if(!contact&&(email||name)){let path="/contacts?customer=true&archived=false&page=0&size=25";path+=email?`&email=${encodeURIComponent(email)}`:`&name=${encodeURIComponent(name)}`;const cr=await lexwareRequest(env,path),first=(cr.content||[])[0];if(first)contact=normalizeLexwareContact(first);}if(!contact)return jsonResponse(request,{ok:true,contact:null,documents:[]});const vr=await lexwareRequest(env,`/voucherlist?voucherType=any&voucherStatus=any&contactId=${encodeURIComponent(contact.id)}&archived=false&size=250&sort=voucherDate,DESC`);return jsonResponse(request,{ok:true,contact,documents:(vr.content||[]).map(x=>({id:x.id,voucherType:x.voucherType||"",voucherNumber:x.voucherNumber||"",voucherDate:x.voucherDate||"",updatedDate:x.updatedDate||"",voucherStatus:x.voucherStatus||"",totalAmount:x.totalAmount||0,currency:x.currency||"EUR"}))});}
+        const dealResult = await pipedriveRequest(
+          env,
+          `/api/v1/deals/${dealId}`
+        );
+        const deal = dealResult.data || dealResult;
+
+        if (!deal || Number(deal.id) !== dealId) {
+          return jsonResponse(
+            request,
+            { ok: false, error: "Der angeforderte Pipedrive-Deal wurde nicht gefunden." },
+            404
+          );
+        }
+
+        const personId = idFromValue(deal.person_id || deal.person);
+
+        const [notesResult, activitiesResult, filesResult, dealsResult] =
+          await Promise.all([
+            pipedriveRequest(
+              env,
+              `/api/v1/notes?deal_id=${dealId}&limit=500&sort=add_time DESC`
+            ),
+            pipedriveRequest(
+              env,
+              `/api/v1/activities?deal_id=${dealId}&limit=500&sort=due_date DESC`
+            ),
+            pipedriveRequest(
+              env,
+              `/api/v1/files?deal_id=${dealId}&limit=500`
+            ),
+            personId
+              ? pipedriveRequest(
+                  env,
+                  `/api/v1/deals?person_id=${personId}&status=all_not_deleted&limit=500`
+                )
+              : Promise.resolve({ data: [] })
+          ]);
+
+        // Pipedrive liefert bei älteren v1-Endpunkten teilweise breitere
+        // Ergebnismengen. Deshalb wird jede Antwort lokal nochmals strikt
+        // anhand der Deal- bzw. Personen-ID gefiltert.
+        const notes = (notesResult.data || []).filter(item =>
+          idFromValue(item?.deal_id || item?.deal) === dealId
+        );
+
+        const activities = (activitiesResult.data || []).filter(item =>
+          idFromValue(item?.deal_id || item?.deal) === dealId
+        );
+
+        const files = (filesResult.data || [])
+          .filter(item => idFromValue(item?.deal_id || item?.deal) === dealId)
+          .map(file => ({
+            id: file.id,
+            name: file.name || file.file_name || "",
+            add_time: file.add_time || "",
+            size: file.file_size || file.size || 0,
+            url: file.remote_location || file.url || ""
+          }));
+
+        const relatedDeals = (dealsResult.data || [])
+          .filter(item =>
+            Number(item?.id) !== dealId &&
+            idFromValue(item?.person_id || item?.person) === personId
+          )
+          .map(item => ({
+            id: item.id,
+            title: item.title || "",
+            status: item.status || "",
+            value: item.value || 0,
+            currency: item.currency || "EUR",
+            stage_id: idFromValue(item.stage_id || item.stage),
+            add_time: item.add_time || "",
+            update_time: item.update_time || ""
+          }));
+
+        let person = null;
+        if (personId) {
+          try {
+            const personResult = await pipedriveRequest(
+              env,
+              `/api/v2/persons/${personId}`
+            );
+            person = normalizePipedrivePerson(
+              personResult.data || personResult
+            );
+          } catch {}
+        }
+
+        return jsonResponse(request, {
+          ok: true,
+          context: {
+            loaded: true,
+            loadedAt: new Date().toISOString(),
+            deal,
+            person,
+            notes,
+            activities,
+            files,
+            relatedDeals
+          }
+        });
+      }
+
+      if (
+        url.pathname === "/lexware/customer-history" &&
+        request.method === "GET"
+      ) {
+        const suppliedId = String(
+          url.searchParams.get("contactId") || ""
+        ).trim();
+        const email = String(
+          url.searchParams.get("email") || ""
+        ).trim().toLowerCase();
+        const name = String(
+          url.searchParams.get("name") || ""
+        ).trim();
+
+        let contact = null;
+
+        if (suppliedId) {
+          try {
+            contact = normalizeLexwareContact(
+              await lexwareRequest(
+                env,
+                `/contacts/${encodeURIComponent(suppliedId)}`
+              )
+            );
+          } catch {}
+        }
+
+        if (!contact && email) {
+          const result = await lexwareRequest(
+            env,
+            `/contacts?customer=true&archived=false&page=0&size=100&email=${encodeURIComponent(email)}`
+          );
+          const exact = (result.content || [])
+            .map(normalizeLexwareContact)
+            .find(item => String(item.email || "").trim().toLowerCase() === email);
+          if (exact) contact = exact;
+        }
+
+        // Eine reine Namenssuche kann Namensvetter oder unscharfe Treffer
+        // liefern. Sie wird deshalb nur akzeptiert, wenn genau ein exakter
+        // Treffer vorhanden ist.
+        if (!contact && name) {
+          const result = await lexwareRequest(
+            env,
+            `/contacts?customer=true&archived=false&page=0&size=100&name=${encodeURIComponent(name)}`
+          );
+          const normalizedName = name.toLocaleLowerCase("de-DE").trim();
+          const exact = (result.content || [])
+            .map(normalizeLexwareContact)
+            .filter(item =>
+              String(item.name || "").toLocaleLowerCase("de-DE").trim() === normalizedName
+            );
+          if (exact.length === 1) contact = exact[0];
+        }
+
+        if (!contact) {
+          return jsonResponse(request, {
+            ok: true,
+            contact: null,
+            documents: [],
+            warning: "Kein eindeutig passender Lexware-Kontakt gefunden."
+          });
+        }
+
+        const voucherResult = await lexwareRequest(
+          env,
+          `/voucherlist?voucherType=any&voucherStatus=any&contactId=${encodeURIComponent(contact.id)}&archived=false&size=250&sort=voucherDate,DESC`
+        );
+
+        const documents = (voucherResult.content || [])
+          .filter(item => String(item.contactId || "") === String(contact.id))
+          .map(item => ({
+            id: item.id,
+            voucherType: item.voucherType || "",
+            voucherNumber: item.voucherNumber || "",
+            voucherDate: item.voucherDate || "",
+            updatedDate: item.updatedDate || "",
+            voucherStatus: item.voucherStatus || "",
+            totalAmount: item.totalAmount || 0,
+            currency: item.currency || "EUR"
+          }));
+
+        return jsonResponse(request, {
+          ok: true,
+          contact,
+          documents
+        });
+      }
+
       if (url.pathname === "/pipedrive/activities" && request.method === "GET") {
         const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
         const result = await pipedriveRequest(env,"/api/v2/activities?done=false&sort_by=due_date&sort_direction=asc&limit=500");
