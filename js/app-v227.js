@@ -754,6 +754,18 @@ $("inquiryCamera").onchange = event => handleInquiryScreenshot(event.target.file
 $("reparseInquiryText").onclick = () => fillInquiryReview(parseInquiryText($("importRawText").value));
 $("acceptInquiryImport").onclick = acceptInquiryImport;
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
+
+$('guidedNext').onclick=()=>{const i=currentGuideStep();if(i<6&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===6){if(stepComplete(6)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
+$('goToMissingStep').onclick=()=>openGuideStep(firstMissingGuideStep());
+$('finishVisitGuide').onclick=()=>{if(!stepComplete(6))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
+$('changeCustomer').onclick=()=>{$('customerSourceActions').classList.remove('hidden');$('customerConfirmed').classList.add('hidden');};
+$('openCustomerAdvice').onclick=()=>{adviceState.stage=1;const m=adviceMeasure();if(m.type)adviceState.type=m.type;renderAdvice();show('customerAdvice');};
+$('closeCustomerAdvice').onclick=()=>show('visit');
+$('advicePrev').onclick=()=>{adviceState.stage=Math.max(1,adviceState.stage-1);renderAdvice();};
+$('adviceNext').onclick=()=>{adviceState.stage=Math.min(4,adviceState.stage+1);renderAdvice();};
+document.querySelectorAll('[data-advice-type]').forEach(b=>b.onclick=()=>{adviceState.type=b.dataset.adviceType;adviceState.stage=1;renderAdvice();});
+document.querySelectorAll('[data-open-step]').forEach((b,i)=>b.onclick=()=>openGuideStep(i===4?5:i));
+
 $("dashboardNewVisit").onclick = startNewVisit;
 $("quickCreateOffer").onclick = () => show("offer");
 $("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
@@ -1019,6 +1031,37 @@ function updateMetaBar() {
   };
   Object.entries(dashboardPairs).forEach(([id,value]) => { if ($(id)) $(id).textContent = value; });
 }
+
+
+const GUIDE_STEPS = [
+  {id:"visitStep1", label:"Kunde und Termin", instruction:"Kundendaten prüfen und bestätigen"},
+  {id:"recordContextCard", label:"Vorgeschichte", instruction:"Vorhandene Vorgänge kurz prüfen", optional:true},
+  {id:"visitStep2", label:"Gebäude", instruction:"Gebäude und Raum erfassen"},
+  {id:"visitStep3", label:"Schadensbild", instruction:"Schaden verständlich beschreiben"},
+  {id:"visitStep4", label:"Messungen und Maßnahmen", instruction:"Schadensbereiche, Messungen und Maßnahmen erfassen"},
+  {id:"visitStep5", label:"Zusatzleistungen", instruction:"Zusatzleistungen prüfen", optional:true},
+  {id:"visitCompletion", label:"Abschluss", instruction:"Vollständigkeit prüfen und Angebot öffnen"}
+];
+function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
+function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[];return[
+ {label:"Kunde und Kontaktdaten",ok:Boolean((c.firstName||c.company||c.lastName)&&(c.phone||c.email))},
+ {label:"Objektanschrift",ok:Boolean(c.objectAddress||(c.street&&c.zip&&c.city))},
+ {label:"Gebäude und Raum",ok:Boolean(b.buildingType&&b.floor&&b.roomUse)},
+ {label:"Schadensbeschreibung",ok:Boolean(String(state.visit.damageDescription||'').trim())},
+ {label:"Mindestens ein Schadensbereich",ok:areas.length>0},
+ {label:"Wandstärke und Material",ok:areas.length>0&&areas.every(x=>x.wallThickness&&(x.wallMaterial||x.wallMaterialOther))},
+ {label:"Mindestens eine Maßnahme",ok:areas.some(x=>(x.measures||[]).some(m=>m.type))}
+];}
+function stepComplete(index){const checks=guideChecks();if(index===0)return checks[0].ok&&checks[1].ok;if(index===1)return true;if(index===2)return checks[2].ok;if(index===3)return checks[3].ok;if(index===4)return checks[4].ok&&checks[5].ok&&checks[6].ok;if(index===5)return true;return checks.every(x=>x.ok);}
+function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
+function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
+function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
+function renderVisitChecklist(){const box=$('visitChecklist');if(!box)return;const checks=guideChecks();box.innerHTML=checks.map((x,i)=>`<div class="checklist-row ${x.ok?'ok':'missing'}"><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Bitte ergänzen'}</strong></div>`).join('');$('finishVisitGuide').disabled=!checks.every(x=>x.ok);}
+function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok)return 4;return 6;}
+function adviceMeasure(){const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre'].includes(m.type))||{};}
+const adviceState={type:'Horizontalsperre',stage:1};
+const ADVICE_TEXT={Horizontalsperre:[['Feuchtigkeit steigt im Mauerwerk auf','Feuchtigkeit kann über die feinen Kapillaren des Mauerwerks von unten nach oben transportiert werden.'],['Bohrlöcher werden in einer waagerechten Ebene gesetzt','Die Bohrlochkette wird passend zur Wandstärke und zum gewählten Abstand angelegt.'],['BKM HZ 250 Pro wird in die Bohrlöcher eingebracht','Das Material verteilt sich im Kapillarsystem und bildet dort einen wasserabweisenden Bereich.'],['Der weitere kapillare Feuchtetransport wird unterbunden','Die vorhandene Feuchtigkeit trocknet anschließend nach und nach aus. Das benötigt Zeit.']],Flächensperre:[['Feuchtigkeit wirkt seitlich auf die erdberührte Wand','Bei einer Querdurchfeuchtung gelangt Feuchtigkeit seitlich aus dem Erdreich in das Bauteil.'],['Bohrlöcher werden über die betroffene Fläche verteilt','Die Bohrungen werden rasterförmig über den gesamten Schadensbereich angeordnet.'],['BKM HZ 250 Pro verteilt sich flächig im Wandquerschnitt','Durch die mehreren Bohrreihen entsteht eine zusammenhängende wasserabweisende Fläche.'],['Der kapillare Feuchtetransport durch die Wand wird reduziert','Die behandelte Wandfläche kann anschließend kontrolliert austrocknen.'] ]};
+function renderAdvice(){const vis=$('adviceAnimation');if(!vis)return;vis.className=`wall-animation ${adviceState.type==='Flächensperre'?'surface-mode':'horizontal-mode'} stage-${adviceState.stage}`;const txt=ADVICE_TEXT[adviceState.type][adviceState.stage-1];$('adviceTypeLabel').textContent=adviceState.type.toUpperCase();$('adviceTitle').textContent=txt[0];$('adviceText').textContent=txt[1];$('adviceStage').textContent=`${adviceState.stage} von 4`;const m=adviceMeasure(),wall=Number(m.wall||m.areaWall||0),spacing=Number(m.spacing||0),qty=adviceState.type==='Flächensperre'?Number(m.width||0)*Number(m.height||0):Number(m.length||0);let holes=0;if(spacing>0)holes=adviceState.type==='Flächensperre'?Math.ceil(Number(m.width||0)/spacing+1)*Math.ceil(Number(m.height||0)/spacing+1):Math.ceil(qty/spacing);$('adviceObjectData').innerHTML=[['Objekt',state.visit.customer?.objectAddress||state.visit.customer?.city||'aktuelles Objekt'],['Wandstärke',wall?`${wall} cm`:'noch nicht erfasst'],['Umfang',qty?`${num(qty)} ${adviceState.type==='Flächensperre'?'m²':'lfm'}`:'noch nicht erfasst'],['Bohrlochabstand',spacing?`${num(spacing*100)} cm`:'noch nicht erfasst'],['Bohrlöcher',holes||'wird berechnet']].map(x=>`<div><span>${x[0]}</span><strong>${esc(String(x[1]))}</strong></div>`).join('');document.querySelectorAll('[data-advice-type]').forEach(b=>b.classList.toggle('active',b.dataset.adviceType===adviceState.type));}
 
 function renderVisit() {
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
