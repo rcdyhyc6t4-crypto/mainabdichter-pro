@@ -38,10 +38,6 @@ export const state = {
   discount: loadJson(KEYS.discount, DEFAULTS.discount)
 };
 
-if (!Array.isArray(state.visit.areas) || state.visit.areas.length === 0) {
-  state.visit.areas = [createArea()];
-}
-
 export function saveState() {
   localStorage.setItem(KEYS.settings, JSON.stringify(state.settings));
   localStorage.setItem(KEYS.visit, JSON.stringify(state.visit));
@@ -50,7 +46,7 @@ export function saveState() {
 
 export function resetVisit() {
   state.visit = clone(DEFAULTS.visit);
-  state.visit.areas = [createArea()];
+  state.visit.areas = [];
   saveState();
 }
 
@@ -107,7 +103,7 @@ export function replaceArchive(archive) {
 
 export function createFullBackupPayload() {
   return {
-    version: 18.0,
+    version: 21.0,
     exportedAt: new Date().toISOString(),
     settings: JSON.parse(JSON.stringify(state.settings)),
     visit: JSON.parse(JSON.stringify(state.visit)),

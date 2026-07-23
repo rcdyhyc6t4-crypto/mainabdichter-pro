@@ -169,3 +169,6 @@ export async function uploadPipedriveDealFile(dealId, blob, filename) {
     body: form
   });
 }
+
+export async function loadPipedriveDealContext(dealId){return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/context`);}
+export async function loadLexwareCustomerHistory(params={}){const q=new URLSearchParams();if(params.contactId)q.set("contactId",params.contactId);if(params.email)q.set("email",params.email);if(params.name)q.set("name",params.name);return api(`/lexware/customer-history?${q.toString()}`);}

@@ -93,10 +93,8 @@ export const DEFAULTS = {
       objectAddress: "", pipedriveId: "", pipedriveDealId: "", lexwareContactId: ""
     },
     building: {
-      yearBuilt: "", buildingType: "freistehendes Einfamilienhaus",
-      floor: "Keller", roomUse: "Kellerraum",
-      foundationType: "Streifenfundament",
-      floorCover: "", climateMeasured: false,
+      yearBuilt: "", buildingType: "", floor: "", roomUse: "",
+      foundationType: "", floorCover: "", climateMeasured: false,
       roomTemp: "", humidity: "", surfaceTemp: "", dewPoint: ""
     },
     visitDate: new Date().toISOString().slice(0, 10),
@@ -115,6 +113,7 @@ export const DEFAULTS = {
       rawText: "", screenshot: "", importedAt: ""
     },
     customerRecommendation: "",
+    recordContext: {loaded:false,loadedAt:"",deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],error:""},
     inventoryDeducted: false,
     inventoryDeductedAt: "",
     areas: [],
@@ -130,41 +129,6 @@ export const DEFAULTS = {
   }
 };
 
-export function createArea(name = "Vorderwand") {
-  return {
-    id: crypto.randomUUID(),
-    name,
-    wallMaterial: "HBL / Hohlblockstein",
-    wallMaterialOther: "",
-    wallThickness: 30,
-    wallType: "Außenwand",
-    earthContact: "erdberührt",
-    wallCover: "Putz",
-    access: "normal",
-    notes: "",
-    dryReference: "",
-    measurementRemark: "",
-    measurements: [{
-      id: crypto.randomUUID(),
-      device: "Gann Hydromette Compact B",
-      value: "",
-      unit: "Digits",
-      height: "",
-      location: "",
-      note: "", dryReference: ""
-    }],
-    measures: [{
-      id: crypto.randomUUID(),
-      type: "Horizontalsperre",
-      length: 0,
-      width: 0,
-      height: 0,
-      wall: 30,
-      spacing: 0.25,
-      extraResinKg: 0,
-      disposeDebris: false,
-      note: ""
-    }],
-    photos: []
-  };
+export function createArea(name = "") {
+  return {id:crypto.randomUUID(),name,wallMaterial:"",wallMaterialOther:"",wallThickness:"",wallType:"",earthContact:"",wallCover:"",access:"",notes:"",dryReference:"",measurementRemark:"",measurements:[],measures:[],photos:[]};
 }
