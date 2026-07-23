@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V22.2.1 Redesign</title>
+<title>mainabdichter V22.3 Navigation & Backup</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
 <header class="app-header redesign-header">
   <button id="headerHome" class="header-logo-button" aria-label="Zur Übersicht">
-    <img src="assets/mainabdichter-logo.png" alt="mainabdichter – BKM.MANNESMANN Fachbetrieb">
+    <img src="assets/mainabdichter-header-logo.png" alt="mainabdichter – Nachhaltig. Sicher. Trocken.">
   </button>
   <div class="header-actions redesign-header-actions">
     <button id="quickSave" class="header-action primary-action"><span class="header-action-icon">✓</span><span>Speichern</span></button>
@@ -19,7 +19,22 @@
     <button id="quickMenu" class="header-action"><span class="header-action-icon">☰</span><span>Menü</span></button>
   </div>
 </header>
-
+<div id="menuBackdrop" class="menu-backdrop hidden"></div>
+<aside id="appMenu" class="app-menu" aria-hidden="true">
+  <div class="app-menu-head">
+    <img src="assets/mainabdichter-header-logo.png" alt="mainabdichter">
+    <button id="closeMenu" class="menu-close" aria-label="Menü schließen">×</button>
+  </div>
+  <nav class="app-menu-nav" aria-label="Hauptmenü">
+    <button data-menu-page="dashboard"><span>⌂</span><div><strong>Übersicht</strong><small>Dashboard und heutige Termine</small></div></button>
+    <button data-menu-action="newInquiry"><span>＋</span><div><strong>Neue Anfrage</strong><small>Screenshot oder Foto importieren</small></div></button>
+    <button data-menu-action="newVisit"><span>◉</span><div><strong>Neue Besichtigung</strong><small>Leeren Vorgang starten</small></div></button>
+    <button data-menu-page="offer"><span>☷</span><div><strong>Vorgänge und Angebote</strong><small>Kalkulation und Angebotsübersicht</small></div></button>
+    <button data-menu-page="worksites"><span>⚒</span><div><strong>Baustellen</strong><small>Arbeitsnachweise und Material</small></div></button>
+    <button data-menu-page="more"><span>•••</span><div><strong>Mehr</strong><small>Datensicherung und Werkzeuge</small></div></button>
+    <button data-menu-page="settings"><span>⚙</span><div><strong>Einstellungen</strong><small>Schnittstellen, Preise und Lager</small></div></button>
+  </nav>
+</aside>
 
 <main>
 <section id="dashboard" class="page active redesign-dashboard">
@@ -83,7 +98,7 @@
     </section>
     <div class="archive-layout redesign-archive-layout">
       <section class="panel archive-panel"><div class="filter-row"><input id="archiveSearch" placeholder="Kunde, Adresse, Ort oder Maßnahme suchen"><select id="archiveFilter"><option value="all">Alle Status</option><option value="draft">Entwurf</option><option value="open">Offen</option><option value="accepted">Angenommen</option><option value="completed">Abgeschlossen</option><option value="followup">Nachkontrolle</option></select></div><div class="archive-table-head"><span>Datum</span><span>Kunde / Objekt</span><span>Maßnahmen</span><span>Summe</span><span>Status</span></div><div id="archiveList" class="archive-list table-list"></div><div id="archiveEmpty" class="empty-state">Noch keine Angebote gespeichert.</div></section>
-      <aside class="panel backup-panel"><div class="panel-heading"><h3>Datensicherung</h3></div><button id="icloudSave" class="backup-action"><span>☁</span><div><strong>In iCloud sichern</strong><small>Komplettsicherung speichern</small></div></button><label class="backup-action restore-action"><span>↥</span><div><strong>Wiederherstellen</strong><small>Sicherung laden</small></div><input id="importArchive" type="file" accept="application/json"></label><button id="exportArchive" class="backup-action"><span>⇩</span><div><strong>Lokal sichern</strong><small>Datei herunterladen</small></div></button><div class="backup-info"><span>Letzte Sicherung</span><strong id="lastBackupTime">Noch keine Sicherung</strong></div></aside>
+      <aside class="panel backup-panel backup-pointer"><div class="panel-heading"><h3>Datensicherung</h3></div><p class="hint">Import und Export findest du jetzt dauerhaft unter „Mehr“.</p><button type="button" data-page-target="more" class="primary">Datensicherung öffnen</button></aside>
     </div>
   </details>
 </section>
@@ -317,6 +332,29 @@
   </div>
 </section>
 
+<section id="more" class="page more-page">
+  <section class="page-heading-card">
+    <div><span class="dashboard-eyebrow">WERKZEUGE</span><h1>Mehr</h1><p>Datensicherung, Synchronisation und weitere Bereiche.</p></div>
+  </section>
+
+  <section class="more-action-grid">
+    <button data-more-page="settings" class="more-action"><span>⚙</span><strong>Einstellungen</strong><small>Schnittstellen, Preise und Lager</small></button>
+    <button data-more-page="worksites" class="more-action"><span>⚒</span><strong>Baustellen</strong><small>Arbeitsnachweise öffnen</small></button>
+    <button data-more-page="offer" class="more-action"><span>☷</span><strong>Vorgänge</strong><small>Angebote und Kalkulation</small></button>
+    <button data-more-action="newInquiry" class="more-action"><span>＋</span><strong>Anfrage importieren</strong><small>WhatsApp oder E-Mail</small></button>
+  </section>
+
+  <section class="card backup-page-card">
+    <div class="card-title-row"><div><span class="dashboard-eyebrow">DATENSICHERUNG</span><h2>Import und Export</h2><p class="hint">Die Sicherung enthält Kunden, Besichtigungen, Angebote, Baustellen, Lagerbestand und Einstellungen.</p></div></div>
+    <div class="backup-page-actions">
+      <button id="icloudSave" class="backup-action"><span>☁</span><div><strong>In Dateien/iCloud sichern</strong><small>Komplettsicherung als JSON speichern</small></div></button>
+      <label class="backup-action restore-action"><span>↥</span><div><strong>Sicherung importieren</strong><small>App vollständig wiederherstellen</small></div><input id="importArchive" type="file" accept="application/json,.json"></label>
+      <button id="exportArchive" class="backup-action"><span>⇩</span><div><strong>Lokal exportieren</strong><small>Sicherungsdatei herunterladen</small></div></button>
+    </div>
+    <div class="backup-info"><span>Letzte Sicherung</span><strong id="lastBackupTime">Noch keine Sicherung</strong></div>
+  </section>
+</section>
+
 <section id="settings" class="page">
   <div class="card"><h1>Einstellungen</h1><p class="hint">Diese Werte gelten dauerhaft für alle Kunden.</p></div>
   <details class="card" open><summary>Kalkulation</summary>
@@ -410,7 +448,7 @@
   <button id="bottomCustomers"><span>♙</span><small>Kunden</small></button>
   <button data-bottom-page="offer"><span>☷</span><small>Vorgänge</small></button>
   <button data-bottom-page="worksites"><span>⚒</span><small>Baustellen</small></button>
-  <button id="bottomMore"><span>•••</span><small>Mehr</small></button>
+  <button data-bottom-page="more"><span>•••</span><small>Mehr</small></button>
 </nav>
 <section id="worksiteDocument" class="print-document"><div class="pdf-header"><img src="assets/mainabdichter-logo.png"><div><strong>Arbeitsnachweis</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="worksitePrintContent"></div></section>
 <section id="reportDocument" class="print-document"><div class="pdf-header"><img src="assets/mainabdichter-logo.png"><div><strong>Besichtigungs- und Messprotokoll</strong><small>mainabdichter – BKM.MANNESMANN Fachbetrieb</small></div></div><div id="reportContent"></div></section>
