@@ -1,7 +1,11 @@
-// mainabdichter PRO Cloudflare Worker V24
-// Enthält die Adresskorrektur für Pipedrive aus V23.2.
+// mainabdichter PRO Cloudflare Worker V25.1
+// Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
+// postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
 const LEXWARE_API = "https://api.lexware.io/v1";
+
+// Cache pro Worker-Instanz für das konfigurierte Pipedrive-Adressfeld.
+let pipedrivePersonAddressFieldCache = null;
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "*";
@@ -154,23 +158,71 @@ function splitGermanAddress(value) {
 
 function parseAddress(value) {
   if (!value) return {};
+
+  // Pipedrive kann Kontaktadressen bei aktivierter Kontaktsynchronisation
+  // als Array zurückliefern. Für die App wird die primäre bzw. erste Adresse verwendet.
+  if (Array.isArray(value)) {
+    const primary =
+      value.find(entry => entry && (entry.primary === true || entry.value || entry.formatted_address)) ||
+      value[0];
+    if (!primary) return {};
+    return parseAddress(primary.value || primary.formatted_address || primary);
+  }
+
   if (typeof value === "string") return splitGermanAddress(value);
   if (typeof value !== "object") return splitGermanAddress(String(value));
-  const street = cleanText(value.street || value.street_address || (value.route ? `${value.route} ${value.street_number || ""}` : "") || value.address_line_1);
+
+  const street = cleanText(
+    value.street ||
+    value.street_address ||
+    (value.route ? `${value.route} ${value.street_number || ""}` : "") ||
+    value.address_line_1
+  );
   const zip = cleanText(value.postal_code || value.zip || value.zip_code);
   const city = cleanText(value.locality || value.city || value.admin_area_level_2);
-  const formatted = cleanText(value.formatted_address || value.formatted || value.address) || formatAddress({ street, zip, city });
+  const formatted =
+    cleanText(
+      value.formatted_address ||
+      value.formatted ||
+      value.address ||
+      value.value
+    ) || formatAddress({ street, zip, city });
+
   if ((!street || !zip || !city) && formatted) {
     const parsed = splitGermanAddress(formatted);
-    return { ...parsed, ...(street ? { street } : {}), ...(zip ? { zip } : {}), ...(city ? { city } : {}), formatted };
+    return {
+      ...parsed,
+      ...(street ? { street } : {}),
+      ...(zip ? { zip } : {}),
+      ...(city ? { city } : {}),
+      formatted
+    };
   }
+
   return { street, zip, city, formatted };
 }
 
 function normalizePipedrivePerson(person) {
   const split = splitName(person.name);
-  const address = parseAddress(person.postal_address || person.address);
+
+  const customFields =
+    person.custom_fields && typeof person.custom_fields === "object"
+      ? person.custom_fields
+      : {};
+
+  const configuredAddressValue =
+    person._mainabdichter_address_value ||
+    person.mainabdichter_address ||
+    "";
+
+  const address = parseAddress(
+    configuredAddressValue ||
+    person.postal_address ||
+    person.address
+  );
+
   const postal = address.formatted || formatAddress(address);
+
   return {
     id: person.id,
     name: person.name || "",
@@ -182,20 +234,118 @@ function normalizePipedrivePerson(person) {
     zip: address.zip || "",
     city: address.city || "",
     postalAddress: postal,
-    objectAddress: cleanText(person.object_address || person.objectAddress) || postal,
-    objectAddressDifferent: Boolean(cleanText(person.object_address || person.objectAddress) && cleanText(person.object_address || person.objectAddress) !== postal),
+    objectAddress:
+      cleanText(person.object_address || person.objectAddress) || postal,
+    objectAddressDifferent: Boolean(
+      cleanText(person.object_address || person.objectAddress) &&
+      cleanText(person.object_address || person.objectAddress) !== postal
+    ),
+    customFields
   };
 }
 
-function createPipedrivePersonPayload(input) {
-  const address = parseAddress(input.postalAddress || input.postal_address || input.address || formatAddress(input));
-  const postalAddress = address.formatted || formatAddress({ street: input.street, zip: input.zip, city: input.city });
-  return {
+async function resolvePipedrivePersonAddressField(env) {
+  if (pipedrivePersonAddressFieldCache !== null) {
+    return pipedrivePersonAddressFieldCache || null;
+  }
+
+  // Bevorzugt: exakte Feldkennung als Cloudflare-Variable setzen.
+  // Beispiel: PIPEDRIVE_PERSON_ADDRESS_FIELD=012345...abcdef
+  const configured = cleanText(env.PIPEDRIVE_PERSON_ADDRESS_FIELD);
+  if (configured) {
+    pipedrivePersonAddressFieldCache = configured;
+    return configured;
+  }
+
+  try {
+    const result = await pipedriveRequest(
+      env,
+      "/api/v2/personFields?limit=500"
+    );
+
+    const fields = Array.isArray(result.data) ? result.data : [];
+    const preferredNames = [
+      "postanschrift",
+      "anschrift",
+      "adresse",
+      "postal address",
+      "address"
+    ];
+
+    const addressFields = fields.filter(field => {
+      const type = cleanText(
+        field.field_type ||
+        field.field_type_name ||
+        field.type
+      ).toLowerCase();
+      return type === "address";
+    });
+
+    const preferred = addressFields.find(field => {
+      const name = cleanText(
+        field.field_name ||
+        field.name
+      ).toLowerCase();
+      return preferredNames.includes(name);
+    });
+
+    const selected = preferred || (addressFields.length === 1 ? addressFields[0] : null);
+    const key = cleanText(
+      selected?.field_code ||
+      selected?.key
+    );
+
+    pipedrivePersonAddressFieldCache = key || false;
+    return key || null;
+  } catch {
+    // Die Personenerstellung darf nicht daran scheitern, dass kein
+    // beschreibbares Adress-Custom-Field vorhanden ist.
+    pipedrivePersonAddressFieldCache = false;
+    return null;
+  }
+}
+
+async function createPipedrivePersonPayload(env, input) {
+  const address = parseAddress(
+    input.postalAddress ||
+    input.postal_address ||
+    input.address ||
+    formatAddress(input)
+  );
+
+  const postalAddress =
+    address.formatted ||
+    formatAddress({
+      street: input.street,
+      zip: input.zip,
+      city: input.city
+    });
+
+  const payload = {
     name: cleanText(input.name),
-    emails: input.email ? [{ value: cleanText(input.email), primary: true, label: "work" }] : [],
-    phones: input.phone ? [{ value: cleanText(input.phone), primary: true, label: "mobile" }] : [],
-    postal_address: postalAddress || undefined,
+    emails: input.email
+      ? [{ value: cleanText(input.email), primary: true, label: "work" }]
+      : [],
+    phones: input.phone
+      ? [{ value: cleanText(input.phone), primary: true, label: "mobile" }]
+      : []
   };
+
+  // postal_address ist bei Pipedrive API v2 kein reguläres beschreibbares
+  // Feld des Personen-Payloads. Eine direkte Übergabe führt zu HTTP 400.
+  // Ist ein echtes Adress-Custom-Field vorhanden oder konfiguriert,
+  // wird die Anschrift dort gespeichert.
+  const addressField = postalAddress
+    ? await resolvePipedrivePersonAddressField(env)
+    : null;
+
+  if (addressField && postalAddress) {
+    payload.custom_fields = {
+      [addressField]: postalAddress
+    };
+  }
+
+  return payload;
 }
 
 function buildLexwareContactPayload(data) {
@@ -478,6 +628,23 @@ export default {
         return jsonResponse(request, { ok: true, file: result.data || result }, 201);
       }
 
+      if (
+        url.pathname === "/pipedrive/person-address-field" &&
+        request.method === "GET"
+      ) {
+        pipedrivePersonAddressFieldCache = null;
+        const fieldCode = await resolvePipedrivePersonAddressField(env);
+        return jsonResponse(request, {
+          ok: true,
+          configured: Boolean(cleanText(env.PIPEDRIVE_PERSON_ADDRESS_FIELD)),
+          fieldCode: fieldCode || null,
+          mode: fieldCode ? "custom_field" : "note_fallback",
+          message: fieldCode
+            ? "Die Postanschrift wird im Pipedrive-Adressfeld gespeichert."
+            : "Kein eindeutiges Adressfeld gefunden. Die Anschrift bleibt sicher in der Pipedrive-Notiz gespeichert."
+        });
+      }
+
       if (url.pathname === "/pipedrive/test") {
         await pipedriveRequest(
           env,
@@ -486,8 +653,9 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "24.0",
-          addressSync: true
+          workerVersion: "25.1",
+          addressSync: true,
+          postalAddressPayloadFixed: true
         });
       }
 
@@ -504,14 +672,14 @@ export default {
         let person = await findExistingPipedrivePerson(env,email,phone);
         let created = false;
         if (!person) {
-          const payload = createPipedrivePersonPayload({ ...input, name, email, phone });
+          const payload = await createPipedrivePersonPayload(env, { ...input, name, email, phone });
           const result = await pipedriveRequest(env,"/api/v2/persons",{
             method:"POST", body:JSON.stringify(payload)
           });
           person = normalizePipedrivePerson(result.data || result);
           created = true;
         } else {
-          const updatePayload = createPipedrivePersonPayload({ ...input, name, email, phone });
+          const updatePayload = await createPipedrivePersonPayload(env, { ...input, name, email, phone });
           const updated = await pipedriveRequest(env, `/api/v2/persons/${person.id}`, {
             method: "PATCH", body: JSON.stringify(updatePayload)
           });
@@ -580,14 +748,27 @@ export default {
         // Bewusst ohne include_fields oder custom_fields:
         // Der Standard-Detailabruf ist stabil und verhindert,
         // dass Systemfelder fälschlich als Custom Fields gesendet werden.
+        const addressField = await resolvePipedrivePersonAddressField(env);
+        const customFieldQuery = addressField
+          ? `?custom_fields=${encodeURIComponent(addressField)}`
+          : "";
+
         const personData = await pipedriveRequest(
           env,
-          `/api/v2/persons/${encodeURIComponent(id)}`
+          `/api/v2/persons/${encodeURIComponent(id)}${customFieldQuery}`
         );
 
-        const person = normalizePipedrivePerson(
-          personData.data || personData
-        );
+        const rawPerson = personData.data || personData;
+        if (
+          addressField &&
+          rawPerson.custom_fields &&
+          rawPerson.custom_fields[addressField] !== undefined
+        ) {
+          rawPerson._mainabdichter_address_value =
+            rawPerson.custom_fields[addressField];
+        }
+
+        const person = normalizePipedrivePerson(rawPerson);
 
         return jsonResponse(request, {
           ok: true,
@@ -686,13 +867,24 @@ export default {
         let person = null;
         if (personId) {
           try {
+            const addressField = await resolvePipedrivePersonAddressField(env);
+            const customFieldQuery = addressField
+              ? `?custom_fields=${encodeURIComponent(addressField)}`
+              : "";
             const personResult = await pipedriveRequest(
               env,
-              `/api/v2/persons/${personId}`
+              `/api/v2/persons/${personId}${customFieldQuery}`
             );
-            person = normalizePipedrivePerson(
-              personResult.data || personResult
-            );
+            const rawPerson = personResult.data || personResult;
+            if (
+              addressField &&
+              rawPerson.custom_fields &&
+              rawPerson.custom_fields[addressField] !== undefined
+            ) {
+              rawPerson._mainabdichter_address_value =
+                rawPerson.custom_fields[addressField];
+            }
+            person = normalizePipedrivePerson(rawPerson);
           } catch {}
         }
 
