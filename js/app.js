@@ -598,15 +598,61 @@ function exportArchiveData(
 function show(pageId) {
   document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
   document.querySelectorAll(".main-nav button").forEach(button => button.classList.toggle("active", button.dataset.page === pageId));
-  $(pageId).classList.add("active");
+  const targetPage = $(pageId);
+  if (!targetPage) {
+    console.error(`Seite nicht gefunden: ${pageId}`);
+    return;
+  }
+  targetPage.classList.add("active");
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
   if (pageId === "dashboard") { renderArchive(); updateDashboardOverview(); syncDashboardSources(); }
   if (pageId === "worksites") renderWorksites();
+  if (pageId === "more") updateBackupTime();
+  document.querySelectorAll("[data-bottom-page]").forEach(button => button.classList.toggle("active", button.dataset.bottomPage === pageId));
 }
 
 document.querySelectorAll(".main-nav button").forEach(button => button.onclick = () => show(button.dataset.page));
+function openAppMenu() {
+  $("appMenu")?.classList.add("open");
+  $("appMenu")?.setAttribute("aria-hidden", "false");
+  $("menuBackdrop")?.classList.remove("hidden");
+  document.body.classList.add("menu-open");
+}
+
+function closeAppMenu() {
+  $("appMenu")?.classList.remove("open");
+  $("appMenu")?.setAttribute("aria-hidden", "true");
+  $("menuBackdrop")?.classList.add("hidden");
+  document.body.classList.remove("menu-open");
+}
+
 $("headerHome").onclick = () => show("dashboard");
+$("quickMenu").onclick = openAppMenu;
+$("closeMenu").onclick = closeAppMenu;
+$("menuBackdrop").onclick = closeAppMenu;
+
+document.querySelectorAll("[data-menu-page]").forEach(button => {
+  button.onclick = () => {
+    closeAppMenu();
+    show(button.dataset.menuPage);
+  };
+});
+
+document.querySelectorAll("[data-menu-action]").forEach(button => {
+  button.onclick = () => {
+    closeAppMenu();
+    if (button.dataset.menuAction === "newInquiry") openInquiryImport();
+    if (button.dataset.menuAction === "newVisit") startNewVisit();
+  };
+});
+
+document.querySelectorAll("[data-more-page]").forEach(button => button.onclick = () => show(button.dataset.morePage));
+document.querySelectorAll("[data-more-action]").forEach(button => {
+  button.onclick = () => {
+    if (button.dataset.moreAction === "newInquiry") openInquiryImport();
+  };
+});
 $("syncDashboardAll").onclick = syncDashboardSources;
 document.querySelectorAll("[data-scroll-target]").forEach(button => button.onclick = () => {
   const target = $(button.dataset.scrollTarget);
@@ -631,8 +677,10 @@ $("showAllOffers").onclick = () => $("archiveList").scrollIntoView({behavior:"sm
 $("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
 $("icloudSave").onclick = () => { exportArchiveData("mainabdichter-komplettsicherung.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
 document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => show(button.dataset.bottomPage));
-$("bottomCustomers").onclick = () => { show("dashboard"); $("archiveSearch").focus(); };
-$("bottomMore").onclick = () => show("settings");
+$("bottomCustomers").onclick = () => {
+  show("visit");
+  setTimeout(() => $("customerPipedrive")?.click(), 0);
+};
 function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_last_backup"); if(!$("lastBackupTime")) return; $("lastBackupTime").textContent=raw?new Date(raw).toLocaleString("de-DE"):"Noch keine Sicherung"; }
 $("archiveSearch").oninput = renderArchive;
 $("archiveFilter").onchange = renderArchive;
@@ -1961,3 +2009,5 @@ $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
+
+window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
