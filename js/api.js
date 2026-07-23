@@ -169,38 +169,3 @@ export async function uploadPipedriveDealFile(dealId, blob, filename) {
     body: form
   });
 }
-
-
-export async function loadPipedriveDealFields() {
-  return api("/pipedrive/deal-fields");
-}
-
-export async function loadPipedriveStages() {
-  return api("/pipedrive/stages");
-}
-
-export async function syncPipedriveDeal(payload) {
-  return api("/pipedrive/deals/sync", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-}
-
-export async function addPipedriveDealNote(dealId, content) {
-  return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/note`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content })
-  });
-}
-
-export async function uploadPipedriveDealFile(dealId, blob, filename) {
-  const form = new FormData();
-  form.append("file", blob, filename);
-  form.append("dealId", String(dealId));
-  return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/file`, {
-    method: "POST",
-    body: form
-  });
-}
