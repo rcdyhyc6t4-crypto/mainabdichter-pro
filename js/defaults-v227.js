@@ -108,6 +108,7 @@ export const DEFAULTS = {
     visitOutdoorTemp: "",
     visitPrecipitation: "",
     damageDescription: "",
+    damageTags: [],
     inquiry: {
       source: "", ownerStatus: "", appointment: "", message: "",
       rawText: "", screenshot: "", importedAt: ""
@@ -131,5 +132,5 @@ export const DEFAULTS = {
 };
 
 export function createArea(name = "") {
-  return {id:crypto.randomUUID(),name,wallMaterial:"",wallMaterialOther:"",wallThickness:"",wallType:"",earthContact:"",wallCover:"",access:"",notes:"",dryReference:"",measurementRemark:"",measurements:[],measures:[],photos:[]};
+  return {id:crypto.randomUUID(),name,wallMaterial:"",wallMaterialOther:"",wallThickness:"",wallType:"",earthContact:"",wallCover:"",access:"",notes:"",dryReference:"",measurements:[],measures:[],photos:[]};
 }

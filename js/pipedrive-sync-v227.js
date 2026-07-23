@@ -159,7 +159,7 @@ export function visitSyncValues(visit, offer={}) {
     measurementDevice:firstMeasurement.device,
     roomTemp:parseDecimal(visit.building?.roomTemp),
     humidity:parseDecimal(visit.building?.humidity),
-    damageDescription:visit.damageDescription,
+    damageDescription:[(visit.damageTags||[]).join(", "),visit.damageDescription].filter(Boolean).join(". "),
     wallMaterial:[...new Set(areas.map(a=>a.wallMaterialOther||a.wallMaterial).filter(Boolean))].join(", "),
     wallThickness:[...new Set(areas.map(a=>a.wallThickness).filter(Boolean))].join(", "),
     measures:measureNames,

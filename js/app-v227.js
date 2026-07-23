@@ -1047,7 +1047,7 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {label:"Kunde und Kontaktdaten",ok:Boolean((c.firstName||c.company||c.lastName)&&(c.phone||c.email))},
  {label:"Objektanschrift",ok:Boolean(c.objectAddress||(c.street&&c.zip&&c.city))},
  {label:"Gebäude und Raum",ok:Boolean(b.buildingType&&b.floor&&b.roomUse)},
- {label:"Schadensbeschreibung",ok:Boolean(String(state.visit.damageDescription||'').trim())},
+ {label:"Schadensbeschreibung",ok:Boolean((state.visit.damageTags||[]).length || String(state.visit.damageDescription||'').trim())},
  {label:"Mindestens ein Schadensbereich",ok:areas.length>0},
  {label:"Wandstärke und Material",ok:areas.length>0&&areas.every(x=>x.wallThickness&&(x.wallMaterial||x.wallMaterialOther))},
  {label:"Mindestens eine Maßnahme",ok:areas.some(x=>(x.measures||[]).some(m=>m.type))}
@@ -1062,6 +1062,49 @@ function adviceMeasure(){const measures=(state.visit.areas||[]).flatMap(a=>(a.me
 const adviceState={type:'Horizontalsperre',stage:1};
 const ADVICE_TEXT={Horizontalsperre:[['Feuchtigkeit steigt im Mauerwerk auf','Feuchtigkeit kann über die feinen Kapillaren des Mauerwerks von unten nach oben transportiert werden.'],['Bohrlöcher werden in einer waagerechten Ebene gesetzt','Die Bohrlochkette wird passend zur Wandstärke und zum gewählten Abstand angelegt.'],['BKM HZ 250 Pro wird in die Bohrlöcher eingebracht','Das Material verteilt sich im Kapillarsystem und bildet dort einen wasserabweisenden Bereich.'],['Der weitere kapillare Feuchtetransport wird unterbunden','Die vorhandene Feuchtigkeit trocknet anschließend nach und nach aus. Das benötigt Zeit.']],Flächensperre:[['Feuchtigkeit wirkt seitlich auf die erdberührte Wand','Bei einer Querdurchfeuchtung gelangt Feuchtigkeit seitlich aus dem Erdreich in das Bauteil.'],['Bohrlöcher werden über die betroffene Fläche verteilt','Die Bohrungen werden rasterförmig über den gesamten Schadensbereich angeordnet.'],['BKM HZ 250 Pro verteilt sich flächig im Wandquerschnitt','Durch die mehreren Bohrreihen entsteht eine zusammenhängende wasserabweisende Fläche.'],['Der kapillare Feuchtetransport durch die Wand wird reduziert','Die behandelte Wandfläche kann anschließend kontrolliert austrocknen.'] ]};
 function renderAdvice(){const vis=$('adviceAnimation');if(!vis)return;vis.className=`wall-animation ${adviceState.type==='Flächensperre'?'surface-mode':'horizontal-mode'} stage-${adviceState.stage}`;const txt=ADVICE_TEXT[adviceState.type][adviceState.stage-1];$('adviceTypeLabel').textContent=adviceState.type.toUpperCase();$('adviceTitle').textContent=txt[0];$('adviceText').textContent=txt[1];$('adviceStage').textContent=`${adviceState.stage} von 4`;const m=adviceMeasure(),wall=Number(m.wall||m.areaWall||0),spacing=Number(m.spacing||0),qty=adviceState.type==='Flächensperre'?Number(m.width||0)*Number(m.height||0):Number(m.length||0);let holes=0;if(spacing>0)holes=adviceState.type==='Flächensperre'?Math.ceil(Number(m.width||0)/spacing+1)*Math.ceil(Number(m.height||0)/spacing+1):Math.ceil(qty/spacing);$('adviceObjectData').innerHTML=[['Objekt',state.visit.customer?.objectAddress||state.visit.customer?.city||'aktuelles Objekt'],['Wandstärke',wall?`${wall} cm`:'noch nicht erfasst'],['Umfang',qty?`${num(qty)} ${adviceState.type==='Flächensperre'?'m²':'lfm'}`:'noch nicht erfasst'],['Bohrlochabstand',spacing?`${num(spacing*100)} cm`:'noch nicht erfasst'],['Bohrlöcher',holes||'wird berechnet']].map(x=>`<div><span>${x[0]}</span><strong>${esc(String(x[1]))}</strong></div>`).join('');document.querySelectorAll('[data-advice-type]').forEach(b=>b.classList.toggle('active',b.dataset.adviceType===adviceState.type));}
+
+const DAMAGE_TAGS = [
+  "Muffiger Geruch",
+  "Abplatzender Putz",
+  "Salzausblühungen",
+  "Feuchte Flecken",
+  "Dunkle Verfärbungen",
+  "Schimmelbildung",
+  "Wasser auf dem Boden",
+  "Sichtbarer Wassereintritt",
+  "Nasse Wandoberfläche",
+  "Risse im Mauerwerk oder Putz",
+  "Hohlliegender Putz",
+  "Beschädigter Boden-Wandanschluss",
+  "Feuchtigkeit an Rohrdurchführungen",
+  "Sonstiges"
+];
+
+function damageDescriptionText(visit = state.visit) {
+  const tags = Array.isArray(visit.damageTags) ? visit.damageTags.filter(Boolean) : [];
+  const note = String(visit.damageDescription || "").trim();
+  return [tags.join(", "), note].filter(Boolean).join(". ");
+}
+
+function renderDamageTags() {
+  const box = $("damageTagOptions");
+  if (!box) return;
+  state.visit.damageTags ||= [];
+  box.innerHTML = DAMAGE_TAGS.map(tag => `
+    <label class="damage-tag ${state.visit.damageTags.includes(tag) ? "selected" : ""}">
+      <input type="checkbox" data-damage-tag="${esc(tag)}" ${state.visit.damageTags.includes(tag) ? "checked" : ""}>
+      <span>${esc(tag)}</span>
+    </label>`).join("");
+  box.querySelectorAll("[data-damage-tag]").forEach(input => input.onchange = () => {
+    const tag = input.dataset.damageTag;
+    const selected = new Set(state.visit.damageTags || []);
+    input.checked ? selected.add(tag) : selected.delete(tag);
+    state.visit.damageTags = [...selected];
+    saveState();
+    renderDamageTags();
+    updateVisitGuide();
+  });
+}
 
 function renderVisit() {
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
@@ -1082,6 +1125,7 @@ function renderVisit() {
   customerFields.forEach(key => $(key).value = state.visit.customer[key] || "");
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
+  renderDamageTags();
   $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
   toggleClimateFields();
   renderAreas();
@@ -1108,6 +1152,7 @@ function collectVisit() {
   customerFields.forEach(key => state.visit.customer[key] = $(key).value);
   buildingFields.forEach(key => state.visit.building[key] = $(key).value);
   state.visit.damageDescription = $("damageDescription").value;
+  state.visit.damageTags ||= [];
   state.visit.building.climateMeasured = $("climateMeasured").checked;
   state.visit.customerRecommendation = generateRecommendationText();
 }
@@ -1209,7 +1254,6 @@ function renderAreas() {
       <h3>Feuchtemessung</h3>
       <div class="grid">
         <div><label>Referenzwert „trocken“</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
-        <div class="full"><label>Bemerkung zur Feuchtemessung</label><textarea data-area="${area.id}" data-field="measurementRemark">${esc(area.measurementRemark || "")}</textarea></div>
       </div>
       <h3>Messpunkte</h3><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Messpunkt</button>
       <h3>Maßnahmen</h3><div id="measures-${area.id}"></div><button class="secondary" data-add-measure="${area.id}">+ Maßnahme</button>
@@ -1234,7 +1278,7 @@ function renderAreas() {
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
-    area.measurements.push({ id: crypto.randomUUID(), device:"",value:"",unit:"",height:"",location:"" });
+    area.measurements.push({ id: crypto.randomUUID(), device:"",value:"",unit:"Digits",height:"",location:"" });
     saveState(); renderAreas();
   });
 
@@ -1263,20 +1307,30 @@ function renderAreas() {
 
 function renderMeasurements(area) {
   const box = $(`measurements-${area.id}`);
+  area.measurements.forEach(measurement => measurement.unit = "Digits");
   box.innerHTML = area.measurements.map(m => `
     <div class="sub-card item-grid">
-      <div class="wide"><label>Gerät</label><input data-mid="${m.id}" data-mf="device" value="${esc(m.device)}"></div>
-      <div><label>Messwert</label><input data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
-      <div><label>Einheit</label><input data-mid="${m.id}" data-mf="unit" value="${esc(m.unit)}"></div>
-      <div><label>Höhe cm</label><input data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
-      <div><label>Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}"></div>
+      <div class="wide"><label>Messgerät</label><select data-mid="${m.id}" data-mf="device">
+        <option value="">– bitte auswählen –</option>
+        <option value="Gann Hydromette Compact B" ${m.device === "Gann Hydromette Compact B" ? "selected" : ""}>Gann Hydromette Compact B</option>
+        <option value="Trotec Mikrowellenmessgerät" ${m.device === "Trotec Mikrowellenmessgerät" ? "selected" : ""}>Trotec Mikrowellenmessgerät</option>
+      </select></div>
+      <div><label>Messwert</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
+      <div><label>Einheit</label><input value="Digits" readonly aria-label="Einheit Digits"></div>
+      <div><label>Messhöhe cm</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
+      <div><label>Messstelle / Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}" placeholder="z. B. Nordwand unten"></div>
       <button class="danger" data-delete-measurement="${m.id}">Löschen</button>
     </div>`).join("");
 
-  box.querySelectorAll("[data-mf]").forEach(input => input.oninput = () => {
-    const measurement = area.measurements.find(item => item.id === input.dataset.mid);
-    measurement[input.dataset.mf] = input.value;
-    saveState();
+  box.querySelectorAll("[data-mf]").forEach(input => {
+    const eventName = input.tagName === "SELECT" ? "onchange" : "oninput";
+    input[eventName] = () => {
+      const measurement = area.measurements.find(item => item.id === input.dataset.mid);
+      measurement[input.dataset.mf] = input.value;
+      measurement.unit = "Digits";
+      saveState();
+      updateVisitGuide();
+    };
   });
 
   box.querySelectorAll("[data-delete-measurement]").forEach(button => button.onclick = () => {
@@ -1284,6 +1338,7 @@ function renderMeasurements(area) {
     saveState();
     renderAreas();
   });
+  saveState();
 }
 
 function renderMeasures(area) {
@@ -1588,9 +1643,9 @@ $("sendLexware").onclick = async () => {
 function buildReport() {
   let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Besichtigungsnummer</th><td>${esc(state.visit.visitNumber || "")}</td></tr><tr><th>Besichtigungsdatum</th><td>${esc(state.visit.visitDate || "")}</td></tr><tr><th>Beginn</th><td>${esc(state.visit.visitStartTime || "")}</td></tr><tr><th>Ende</th><td>${esc(state.visit.visitEndTime || "")}</td></tr><tr><th>Dauer</th><td>${esc($("visitDuration")?.value || "")}</td></tr>${state.visit.visitLatitude?`<tr><th>GPS-Standort</th><td>${esc(state.visit.visitLatitude)}, ${esc(state.visit.visitLongitude)} (${esc(state.visit.visitAccuracy)})</td></tr>`:""}${state.visit.visitWeather?`<tr><th>Wetter</th><td>${esc(state.visit.visitWeather)}, ${esc(state.visit.visitOutdoorTemp)} °C, Niederschlag ${esc(state.visit.visitPrecipitation)} mm</td></tr>`:""}<tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr>${state.visit.building.climateMeasured?`<tr><th>Raumtemperatur</th><td>${esc(state.visit.building.roomTemp)} °C</td></tr><tr><th>Luftfeuchtigkeit</th><td>${esc(state.visit.building.humidity)} %</td></tr><tr><th>Oberflächentemperatur</th><td>${esc(state.visit.building.surfaceTemp)} °C</td></tr><tr><th>Taupunkt</th><td>${esc(state.visit.building.dewPoint)} °C</td></tr>`:""}</table></div>`;
   updateGeneratedRecommendation();
-  html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(state.visit.damageDescription)}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
+  html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")}</td></tr><tr><th>Bemerkung</th><td>${esc(area.measurementRemark || "")}</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,
