@@ -194,6 +194,10 @@ function customerName(customer) {
 
 async function ensurePipedrivePerson(customer) {
   if (customer?.pipedriveId) return String(customer.pipedriveId);
+  const postalAddress = [
+    customer?.street || "",
+    [customer?.zip || "", customer?.city || ""].filter(Boolean).join(" ")
+  ].filter(Boolean).join(", ");
   const response = await createPipedrivePerson({
     name: customerName(customer),
     email: customer?.email || "",
@@ -201,7 +205,9 @@ async function ensurePipedrivePerson(customer) {
     street: customer?.street || "",
     zip: customer?.zip || "",
     city: customer?.city || "",
-    source: "mainabdichter-App"
+    postalAddress,
+    objectAddress: customer?.objectAddress || postalAddress,
+    source: customer?.lexwareContactId ? "Lexware-Import" : "mainabdichter-App"
   });
   customer.pipedriveId = String(response.person?.id || "");
   saveState();
@@ -2324,12 +2330,71 @@ function buildWorksitePrint(ws) {
   $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div></div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div></div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
-$("createWorksite").onclick = () => {
+$("backToVisitInput").onclick = () => {
   collectVisit();
-  const offer=saveCurrentToArchive(false);
-  const ws=createWorksiteFromVisit(state.settings,state.visit,offer.id);
-  if(!ws.tasks.length){ showStatus("offerStatus","Keine Maßnahme mit gültiger Menge vorhanden.",false); return; }
-  persistWorksite(ws); activeWorksiteId=ws.id; show("worksites"); showStatus("worksiteStatus","Baustelle wurde aus dem Angebot angelegt.",true);
+  saveState();
+  renderVisit();
+  show("visit");
+  showStatus("visitStatus", "Dateneingabe geöffnet. Die bisherigen Angaben bleiben erhalten.", true);
+};
+
+$("createWorksite").onclick = async () => {
+  const button = $("createWorksite");
+  button.disabled = true;
+  collectVisit();
+  showStatus("offerStatus", "Kunde und Baustelle werden mit Pipedrive synchronisiert …", true);
+
+  try {
+    const offer = saveCurrentToArchive(false);
+    const ws = createWorksiteFromVisit(state.settings, state.visit, offer.id);
+
+    if (!ws.tasks.length) {
+      showStatus("offerStatus", "Keine Maßnahme mit gültiger Menge vorhanden.", false);
+      return;
+    }
+
+    // Auch Lexware-Kunden, die noch nicht in Pipedrive vorhanden sind,
+    // werden vor dem Anlegen der Baustelle automatisch erstellt.
+    const personId = await ensurePipedrivePerson(ws.customer);
+    if (!personId) throw new Error("Der Kunde konnte in Pipedrive nicht angelegt werden.");
+
+    ws.pipedrivePersonId = String(personId);
+    ws.customer.pipedriveId = String(personId);
+
+    const dealResponse = await syncPipedriveDeal({
+      dealId: ws.pipedriveDealId || ws.customer?.pipedriveDealId || "",
+      personId,
+      title: `${worksiteCustomerName(ws)} – ${ws.objectAddress || ws.visitNumber || "Baustelle"}`,
+      stageId: stageId("executionPlanned"),
+      value: Number(offer.offerGross || offer.gross || offer.total || 0),
+      currency: "EUR",
+      customFields: visitSyncValues(state.visit, {
+        offerNumber: offer.offerNumber || state.visit.visitNumber || "",
+        offerDate: offer.createdAt || new Date().toISOString(),
+        offerValue: Number(offer.offerGross || offer.gross || offer.total || 0)
+      }),
+      note: `Baustelle aus Angebot ${offer.offerNumber || state.visit.visitNumber || ""} angelegt.`
+    });
+
+    ws.pipedriveDealId = String(dealResponse.deal?.id || "");
+    ws.customer.pipedriveDealId = ws.pipedriveDealId;
+    state.visit.customer.pipedriveId = String(personId);
+    state.visit.customer.pipedriveDealId = ws.pipedriveDealId;
+    saveState();
+
+    persistWorksite(ws);
+    activeWorksiteId = ws.id;
+    addSyncLog("Angebot → Baustelle", true, "Kunde und Baustelle wurden zu Pipedrive übertragen.", {
+      personId: ws.pipedrivePersonId,
+      dealId: ws.pipedriveDealId
+    });
+    show("worksites");
+    showStatus("worksiteStatus", "Baustelle wurde angelegt und der Kunde in Pipedrive synchronisiert.", true);
+  } catch (error) {
+    showStatus("offerStatus", `Baustelle konnte nicht vollständig angelegt werden: ${error.message}`, false);
+  } finally {
+    button.disabled = false;
+  }
 };
 $("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
 $("wsAddAttachments").onclick = () => $("wsAttachmentInput").click();
