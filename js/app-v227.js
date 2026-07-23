@@ -1153,6 +1153,15 @@ function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return
 function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
 function renderVisitChecklist(){const box=$('visitChecklist');if(!box)return;const checks=guideChecks();box.innerHTML=checks.map((x,i)=>`<div class="checklist-row ${x.ok?'ok':'missing'}"><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Bitte ergänzen'}</strong></div>`).join('');$('finishVisitGuide').disabled=!checks.every(x=>x.ok);}
+function updateVisitGuide(){
+  GUIDE_STEPS.forEach((step,i)=>{
+    const el=$(step.id);
+    if(!el)return;
+    el.classList.toggle('is-complete',stepComplete(i));
+    el.classList.toggle('is-incomplete',!stepComplete(i));
+  });
+  renderVisitChecklist();
+}
 function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok)return 4;return 6;}
 function adviceMeasure(){const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre'].includes(m.type))||{};}
 const adviceState={type:'Horizontalsperre',stage:1};
