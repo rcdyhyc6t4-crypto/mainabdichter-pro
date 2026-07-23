@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
-<title>mainabdichter V22.7 Stable Menü & Logo Fix</title>
+<title>mainabdichter V23 Geführter Auftrag Menü & Logo Fix</title>
 <link rel="stylesheet" href="css/app-v227.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -117,15 +117,25 @@
       <button type="button" data-open-step="4">Maßnahmen</button>
       <button type="button" data-open-step="5">Extras</button>
     </div>
-    <div class="customer-source-actions">
+    <div id="guidedAssistant" class="guided-assistant">
+      <div><span id="guidedStepLabel">Schritt 1 von 7</span><strong id="guidedInstruction">Kunde und Termin prüfen</strong></div>
+      <progress id="guidedProgress" max="7" value="1"></progress>
+      <button id="guidedNext" class="primary">Bestätigen und weiter</button>
+    </div>
+    <div id="customerConfirmed" class="customer-confirmed hidden">
+      <div><span>✓ Kunde übernommen</span><strong id="confirmedCustomerName">–</strong><small id="confirmedCustomerSource">Pipedrive</small></div>
+      <button id="changeCustomer" class="link-button">Kunde ändern</button>
+    </div>
+    <div id="customerSourceActions" class="customer-source-actions">
       <button id="customerPipedrive" class="primary">Pipedrive</button>
       <button id="customerLexware" class="secondary">Lexware</button>
       <button id="resetVisit" class="secondary">Neu</button>
     </div>
+    <button id="openCustomerAdvice" class="customer-advice-launch">▶ Maßnahme dem Kunden zeigen</button>
   </div>
 
-  <details class="card compact-step" open>
-    <summary>1. Kunde und Termin</summary>
+  <details id="visitStep1" class="card compact-step guided-step" open>
+    <summary>1. Kunde und Termin <span class="step-state"></span></summary>
     <div class="grid">
       <div><label>Besichtigungsnummer</label><input id="visitNumber" readonly></div>
       <div><label>Besichtigungsdatum</label><input id="visitDate" type="date"></div>
@@ -169,8 +179,8 @@
 
 
   <details id="recordContextCard" class="card compact-step hidden" open><summary>Vorgeschichte und digitale Bauakte</summary><div id="recordContextStatus" class="status"></div><div id="recordContextSummary"></div><div class="context-grid"><details class="sub-card" open><summary>Pipedrive-Deal</summary><div id="contextDeal"></div></details><details class="sub-card"><summary>Notizen und Kommunikation</summary><div id="contextNotes"></div></details><details class="sub-card"><summary>Aktivitäten und Termine</summary><div id="contextActivities"></div></details><details class="sub-card"><summary>Dokumente und Dateien</summary><div id="contextFiles"></div></details><details class="sub-card"><summary>Weitere Deals / Reklamationen</summary><div id="contextRelatedDeals"></div></details><details class="sub-card"><summary>Lexware-Angebote, Aufträge und Rechnungen</summary><div id="contextLexware"></div></details><details class="sub-card"><summary>Vorhandene App-Daten</summary><div id="contextLocal"></div></details></div><div class="context-actions"><button id="contextTypeComplaint" class="secondary">Als Reklamation kennzeichnen</button><button id="contextTypeFollowup" class="secondary">Als Nachkontrolle kennzeichnen</button><button id="contextTypeFollowOn" class="secondary">Als Folgeauftrag kennzeichnen</button></div></details>
-  <details class="card compact-step">
-    <summary>2. Gebäude und Raum</summary>
+  <details id="visitStep2" class="card compact-step guided-step">
+    <summary>2. Gebäude und Raum <span class="step-state"></span></summary>
     <div class="grid">
       <div><label>Baujahr</label><input id="yearBuilt" type="number" inputmode="numeric" pattern="[0-9]*"></div>
       <div><label>Bauart</label><select id="buildingType"><option value="">– bitte auswählen –</option><option>freistehendes Einfamilienhaus</option><option>Doppelhaushälfte</option><option>Reihenmittelhaus</option><option>Reihenendhaus</option><option>Mehrfamilienhaus</option><option>Bungalow</option><option>Gewerbeobjekt</option><option>Sonstiges</option></select></div>
@@ -188,23 +198,50 @@
     </div>
   </details>
 
-  <details class="card compact-step">
-    <summary>3. Schadensbeschreibung und Empfehlung</summary>
+  <details id="visitStep3" class="card compact-step guided-step">
+    <summary>3. Schadensbeschreibung und Empfehlung <span class="step-state"></span></summary>
     <label>Schadensbild</label><div class="speech-row"><textarea id="damageDescription"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
     <label>Automatisch erzeugte Empfehlung</label><div id="generatedRecommendation" class="generated-text">Die Empfehlung wird aus den ausgewählten Maßnahmen erstellt.</div>
   </details>
 
-  <details class="card compact-step" open>
-    <summary>4. Schadensbereiche und Maßnahmen</summary>
+  <details id="visitStep4" class="card compact-step guided-step">
+    <summary>4. Schadensbereiche und Maßnahmen <span class="step-state"></span></summary>
     <div id="areas"></div>
     <button id="addArea" class="primary">+ Schadensbereich</button>
   </details>
 
-  <details class="card compact-step">
-    <summary>5. Zusatzleistungen</summary>
+  <details id="visitStep5" class="card compact-step guided-step">
+    <summary>5. Zusatzleistungen <span class="step-state"></span></summary>
     <div id="extras"></div>
   </details>
   <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Zum Angebot</button></div>
+  <section id="visitCompletion" class="card visit-completion">
+    <span class="dashboard-eyebrow">ABSCHLUSSPRÜFUNG</span>
+    <h2>Besichtigung vollständig?</h2>
+    <div id="visitChecklist" class="visit-checklist"></div>
+    <div class="offer-actions"><button id="goToMissingStep" class="secondary">Fehlenden Schritt öffnen</button><button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button></div>
+  </section>
+</section>
+
+<section id="customerAdvice" class="page customer-advice-page">
+  <section class="page-heading-card advice-heading"><div><span class="dashboard-eyebrow">KUNDENBERATUNG</span><h1>So funktioniert die Abdichtung</h1><p>Einfach erklären – direkt mit den Daten des aktuellen Objekts.</p></div><button id="closeCustomerAdvice" class="secondary">Zurück zur Besichtigung</button></section>
+  <section class="advice-selector card">
+    <button data-advice-type="Horizontalsperre" class="advice-type active">Horizontalsperre</button>
+    <button data-advice-type="Flächensperre" class="advice-type">Flächensperre</button>
+  </section>
+  <section class="advice-layout">
+    <div class="card advice-visual">
+      <div id="adviceAnimation" class="wall-animation horizontal-mode">
+        <div class="soil"></div><div class="wall-grid"></div><div class="moisture-arrows">↑ ↑ ↑</div><div class="drill-row"></div><div class="injection-zone"></div><div class="dry-zone"></div>
+      </div>
+      <div class="animation-controls"><button id="advicePrev" class="secondary">Zurück</button><span id="adviceStage">1 von 4</span><button id="adviceNext" class="primary">Weiter</button></div>
+    </div>
+    <div class="card advice-copy">
+      <span id="adviceTypeLabel" class="dashboard-eyebrow">HORIZONTalsperre</span><h2 id="adviceTitle">Feuchtigkeit steigt im Mauerwerk auf</h2><p id="adviceText"></p>
+      <div id="adviceObjectData" class="advice-object-data"></div>
+      <div class="customer-plain-note">Die Wand ist nicht sofort trocken. Die Sperre unterbindet den weiteren kapillaren Feuchtetransport; die vorhandene Feuchtigkeit muss anschließend nach und nach austrocknen.</div>
+    </div>
+  </section>
 </section>
 
 <section id="offer" class="page">
@@ -357,6 +394,7 @@
     <button data-more-page="worksites" class="more-action"><span>⚒</span><strong>Baustellen</strong><small>Arbeitsnachweise öffnen</small></button>
     <button data-more-page="offer" class="more-action"><span>☷</span><strong>Vorgänge</strong><small>Angebote und Kalkulation</small></button>
     <button data-more-action="newInquiry" class="more-action"><span>＋</span><strong>Anfrage importieren</strong><small>WhatsApp oder E-Mail</small></button>
+    <button data-more-page="customerAdvice" class="more-action"><span>▶</span><strong>Kundenberatung</strong><small>Maßnahmen anschaulich erklären</small></button>
   </section>
 
   <section class="card backup-page-card">
