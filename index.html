@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
 <title>mainabdichter V25 Geführter Auftrag Menü & Logo Fix</title>
-<link rel="stylesheet" href="css/app-v227.css?build=20260724-v28-1">
+<link rel="stylesheet" href="css/app-v228.css?build=20260724-v28-2">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v26-7">
 <link rel="manifest" href="manifest.json">
 
@@ -15,18 +15,24 @@ body{margin:0}
 main{width:100%;max-width:100%}
 .v28-dashboard{width:100%;max-width:100%;overflow-x:hidden}
 .v28-app-header{box-sizing:border-box;width:100%;max-width:100%;height:72px;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:#fff;border-bottom:1px solid #e7ebe8}
-.v28-header-logo{display:block!important;width:160px!important;max-width:48vw!important;height:44px!important;max-height:44px!important;object-fit:contain!important;object-position:left center!important}
+.v28-wordmark{display:grid;gap:2px;line-height:1;max-width:210px;overflow:hidden}
+.v28-wordmark>span{display:block;border-top:1.5px solid #49ad36;border-bottom:1.5px solid #49ad36;padding:5px 0 4px;font-size:25px;letter-spacing:-1px;white-space:nowrap}
+.v28-wordmark b{font-weight:700;color:#3d403f}.v28-wordmark strong{font-weight:700;color:#48ad35}
+.v28-wordmark small{font-size:6px;letter-spacing:2.1px;text-align:center;color:#6e736f;white-space:nowrap}
 .v28-dashboard-content{box-sizing:border-box;width:100%;max-width:760px;margin:0 auto;padding:23px 18px 120px}
 .v28-greeting-row{display:flex;justify-content:space-between;gap:16px}
 .v28-today-card,.v28-overview-card,.v28-active-worksite,.v28-inventory-strip,.v28-quick-offer{box-sizing:border-box;max-width:100%}
-@media(max-width:460px){.v28-greeting-row{display:grid}.v28-system-pill{width:100%;box-sizing:border-box}.v28-overview-grid{grid-template-columns:1fr 1fr}.v28-header-logo{width:155px!important;max-width:55vw!important}}
+@media(max-width:460px){.v28-greeting-row{display:grid}.v28-system-pill{width:100%;box-sizing:border-box}.v28-overview-grid{grid-template-columns:1fr 1fr}.v28-wordmark{max-width:175px}.v28-wordmark>span{font-size:22px}}
 </style>
 </head>
 <body>
 <main>
 <section id="dashboard" class="page active v28-dashboard">
   <header class="v28-app-header">
-    <img src="assets/mainabdichter-header-v227.png" alt="mainabdichter" class="v28-header-logo">
+    <div class="v28-wordmark" aria-label="mainabdichter">
+      <span><b>main</b><strong>abdichter</strong></span>
+      <small>NACHHALTIG. SICHER. TROCKEN.</small>
+    </div>
     <div class="v28-header-actions">
       <button type="button" id="v28Notifications" class="v28-icon-button" aria-label="Benachrichtigungen">♧<i></i></button>
       <button type="button" id="v28Profile" class="v28-icon-button" aria-label="Profil">◎</button>
@@ -630,7 +636,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260724-v28-1"></script>
+<script type="module" src="js/app-v228.js?build=20260724-v28-2"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 </body>
 </html>
