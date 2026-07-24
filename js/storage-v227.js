@@ -57,6 +57,35 @@ export function resetSettings() {
 
 
 const ARCHIVE_KEY = "mainabdichter_v13_archive";
+const CUSTOMERS_KEY = "mainabdichter_v30_customers";
+
+export function loadCustomers() {
+  try {
+    const data = JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomer(customer) {
+  const customers = loadCustomers();
+  const now = new Date().toISOString();
+  const normalized = {
+    ...customer,
+    id: customer.id || crypto.randomUUID(),
+    createdAt: customer.createdAt || now,
+    updatedAt: now
+  };
+  const index = customers.findIndex(item =>
+    item.id === normalized.id ||
+    (normalized.pipedriveId && String(item.pipedriveId) === String(normalized.pipedriveId))
+  );
+  if (index >= 0) customers[index] = { ...customers[index], ...normalized };
+  else customers.unshift(normalized);
+  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
+  return normalized;
+}
 
 export function loadArchive() {
   try {
@@ -109,6 +138,7 @@ export function createFullBackupPayload() {
     visit: JSON.parse(JSON.stringify(state.visit)),
     discount: JSON.parse(JSON.stringify(state.discount)),
     archive: loadArchive(),
+    customers: loadCustomers(),
     worksites: JSON.parse(localStorage.getItem("mainabdichter_v18_worksites") || "[]"),
     metadata: {
       source: "mainabdichter",
@@ -143,6 +173,10 @@ export function restoreFullBackupPayload(payload) {
     replaceArchive(payload.archive);
   }
 
+  if (Array.isArray(payload.customers)) {
+    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(payload.customers));
+  }
+
   if (Array.isArray(payload.worksites)) {
     localStorage.setItem("mainabdichter_v18_worksites", JSON.stringify(payload.worksites));
   }
@@ -153,6 +187,9 @@ export function restoreFullBackupPayload(payload) {
     discountRestored: Boolean(payload.discount),
     archiveCount: Array.isArray(payload.archive)
       ? payload.archive.length
+      : 0,
+    customerCount: Array.isArray(payload.customers)
+      ? payload.customers.length
       : 0,
     worksiteCount: Array.isArray(payload.worksites)
       ? payload.worksites.length

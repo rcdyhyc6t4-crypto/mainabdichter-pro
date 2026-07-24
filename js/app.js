@@ -11,7 +11,7 @@ import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 
 
-const MAINABDICHTER_APP_VERSION = "30.1.0";
+const MAINABDICHTER_APP_VERSION = "30.2.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1263,10 +1263,17 @@ if ($("showAllOffers")) $("showAllOffers").onclick = () => $("archiveList").scro
 if ($("showAllFollowups")) $("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
 $("icloudSave").onclick = () => { exportArchiveData("mainabdichter-komplettsicherung.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
 document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => show(button.dataset.bottomPage));
-$("bottomCustomers").onclick = () => {
+if ($("bottomCustomers")) $("bottomCustomers").onclick = () => show("customers");
+window.addEventListener("mainabdichter:use-customer", event => {
+  const customer = event.detail?.customer;
+  if (!customer) return;
+  Object.assign(state.visit.customer, customer);
+  saveState();
+  renderVisit();
+  renderCustomerSourceState();
   show("visit");
-  setTimeout(() => $("customerPipedrive")?.click(), 0);
-};
+  showStatus("visitStatus", "Kunde wurde in die Besichtigung übernommen.", true);
+});
 function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_last_backup"); if(!$("lastBackupTime")) return; $("lastBackupTime").textContent=raw?new Date(raw).toLocaleString("de-DE"):"Noch keine Sicherung"; }
 if ($("archiveSearch")) $("archiveSearch").oninput = renderArchive;
 if ($("archiveFilter")) $("archiveFilter").onchange = renderArchive;
@@ -3157,6 +3164,10 @@ $("createWorksite").onclick = async () => {
   }
 };
 $("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
+if ($("closeWorksiteDetail")) $("closeWorksiteDetail").onclick = () => {
+  activeWorksiteId = null;
+  renderWorksites();
+};
 $("wsAddAttachments").onclick = () => $("wsAttachmentInput").click();
 $("wsAttachmentInput").onchange = async event => {
   const ws = saveActiveWorksite(false) || getWorksite(activeWorksiteId);
