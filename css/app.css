@@ -32,8 +32,11 @@
 .customer-search-card,.customer-editor{background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(16,33,24,.06)}
 .customer-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
 .customer-inline-status,.customer-form-status{min-height:22px;margin-top:9px;font-size:13px;line-height:1.4}
+.customer-form-status:not(:empty){padding:12px 14px;border-radius:10px;background:#eef3ee;font-weight:800}
 .customer-inline-status.is-error,.customer-form-status.is-error{color:#a12620}
 .customer-inline-status.is-success,.customer-form-status.is-success{color:#2e7425}
+.customer-form-status.is-error{background:#fff0ef;border:1px solid #ecc4c0}
+.customer-form-status.is-success{background:#e8f5e5;border:1px solid #bcdcba}
 .customer-list{display:grid;gap:10px}
 .customer-list-empty{padding:28px 16px;text-align:center;background:#fff;border:1px dashed #ccd5cc;border-radius:14px;color:#687268}
 .customer-list-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:15px;min-width:0}
@@ -58,6 +61,30 @@
 .customer-save-actions button{min-height:48px}
 .customer-save-actions .primary{min-width:190px}
 .is-auto-address{background:#f1f4f1;color:#536057}
+.customer-record{display:grid;gap:14px}
+.customer-record-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:16px}
+.customer-record-header span,.customer-record-section>header span{display:block;color:var(--brand-green-dark,#357f2a);font-size:11px;font-weight:900;letter-spacing:.1em}
+.customer-record-header h2,.customer-record-section h3{margin:3px 0}
+.customer-record-header p{margin:3px 0 0;color:#687268}
+.customer-record-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.customer-record-contact a,.customer-record-contact div{display:block;min-width:0;padding:14px;border:1px solid #dfe5df;border-radius:12px;background:#fff;color:#26362a;text-decoration:none}
+.customer-record-contact small,.customer-record-contact strong{display:block;overflow-wrap:normal;word-break:normal}
+.customer-record-contact small{margin-bottom:4px;color:#707a72}
+.customer-record-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.customer-record-actions button{min-height:48px}
+.customer-record-section{background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:16px}
+.customer-record-section>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.customer-record-section>header b{display:grid;place-items:center;min-width:34px;height:34px;border-radius:50%;background:#eaf4e6;color:#2e7425}
+.customer-record-list{display:grid}
+.customer-record-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px 0;border-top:1px solid #edf0ed}
+.customer-record-row:first-child{border-top:0}
+.customer-record-row strong,.customer-record-row span,.customer-record-row small{display:block;overflow-wrap:normal;word-break:normal}
+.customer-record-row span,.customer-record-row small{margin-top:3px;color:#6d776f}
+.customer-record-row>em{align-self:start;padding:5px 8px;border-radius:999px;background:#eef2ee;color:#4c594f;font-size:11px;font-style:normal;font-weight:800;white-space:nowrap}
+.customer-record-empty{padding:14px 0;color:#6d776f}
+.customer-record-pipedrive{padding:12px;border-radius:10px;background:#f3f7f1}
+.customer-record-pipedrive strong,.customer-record-pipedrive span{display:block}
+.customer-record-pipedrive span{margin-top:4px;color:#677168}
 @media(max-width:720px){
   .customers-page{padding:12px 10px 105px}
   .customer-module-header,.customer-editor>header{display:grid;grid-template-columns:1fr}
@@ -69,6 +96,11 @@
   .customer-list-actions a,.customer-list-actions button{width:100%;white-space:normal;text-align:center;word-break:normal;overflow-wrap:normal}
   .customer-save-actions{display:grid;grid-template-columns:1fr;bottom:68px}
   .customer-save-actions .primary{min-width:0}
+  .customer-record-header{display:grid;grid-template-columns:1fr}
+  .customer-record-header button{width:100%;min-height:46px}
+  .customer-record-contact,.customer-record-actions{grid-template-columns:1fr}
+  .customer-record-row{grid-template-columns:minmax(0,1fr)}
+  .customer-record-row>em{justify-self:start}
 }
 .compact-header img{
   width:auto;
