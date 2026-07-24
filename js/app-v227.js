@@ -5,7 +5,7 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask } from "./construction-v227.js";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction-v227.js";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf-v227.js";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
@@ -2038,6 +2038,10 @@ function renderInventorySettings() {
           <div><label>Mindestbestand</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="minimumStock" value="${Number(product.minimumStock || 0)}"></div>
           <div><label>Gebindegröße</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="packageSize" value="${Number(product.packageSize || 0)}"></div>
           <div><label>Einkauf netto je Einheit</label><input type="number" inputmode="decimal" step=".01" data-inventory-id="${product.id}" data-inventory-field="purchaseNet" value="${Number(product.purchaseNet || 0)}"></div>
+          <div><label>Hersteller optional</label><input data-inventory-id="${product.id}" data-inventory-field="manufacturer" value="${esc(product.manufacturer || "")}"></div>
+          <div class="full switch-row"><label><input type="checkbox" data-inventory-id="${product.id}" data-inventory-check="chargeTracking" ${product.chargeTracking ? "checked" : ""}> Chargennummer im Arbeitsnachweis erfassen</label></div>
+          <div class="full switch-row"><label><input type="checkbox" data-inventory-id="${product.id}" data-inventory-check="shelfLifeTracking" ${product.shelfLifeTracking ? "checked" : ""}> Mindesthaltbarkeitsdatum erfassen</label></div>
+          <div class="full switch-row"><label><input type="checkbox" data-inventory-id="${product.id}" data-inventory-check="serialTracking" ${product.serialTracking ? "checked" : ""}> Seriennummer erfassen</label></div>
           <div><label>Zugang buchen</label><input type="number" inputmode="decimal" step=".1" id="receipt-${product.id}" placeholder="Menge"></div>
           <div class="inventory-action-cell"><button class="secondary" data-inventory-receipt="${product.id}">Bestand erhöhen</button></div>
         </div>
@@ -2064,6 +2068,15 @@ function renderInventorySettings() {
         const product = inventory.products.find(item => item.id === input.dataset.inventoryActive);
         product.active = input.checked;
         saveState();
+      };
+    });
+
+    box.querySelectorAll("[data-inventory-check]").forEach(input => {
+      input.onchange = () => {
+        const product = inventory.products.find(item => item.id === input.dataset.inventoryId);
+        product[input.dataset.inventoryCheck] = input.checked;
+        saveState();
+        renderInventorySettings();
       };
     });
 
@@ -2346,6 +2359,30 @@ async function renderWorksiteAttachments(ws) {
   }
 }
 
+
+function inventoryTrackingEnabled(productId, key) {
+  const product = state.settings.inventory?.products?.find(item => item.id === productId);
+  return Boolean(product?.[key]);
+}
+
+function chargeFieldHtml(task, productId, field, label) {
+  if (!inventoryTrackingEnabled(productId, "chargeTracking")) return "";
+  return `<div><label>${esc(label)}</label><input data-ws-task="${task.id}" data-ws-field="${field}" value="${esc(task[field] || "")}" placeholder="optional"></div>`;
+}
+
+function plannedScopeHtml(task) {
+  const wallChange = Number(task.originalWall || 0) && Number(task.wall || 0) !== Number(task.originalWall || 0)
+    ? `<small class="warning-text">Laut Angebot: ${num(task.originalWall)} cm · tatsächlich: ${num(task.wall)} cm</small>`
+    : "";
+  return `<div class="planned-scope-card">
+    <strong>Geplanter Leistungsumfang laut Angebot</strong>
+    <span>${esc(task.scope || "–")}</span>
+    ${taskIsTechnical(task) && task.type !== "Harzverpressung" ? `<span>Wandstärke laut Angebot: ${num(task.originalWall || task.wall || 0)} cm</span>` : ""}
+    ${wallChange}
+    ${task.note ? `<small>${esc(task.note)}</small>` : ""}
+  </div>`;
+}
+
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
@@ -2362,38 +2399,68 @@ function renderWorksiteEditor() {
   $("wsGeneralNotes").value = ws.generalNotes || "";
   $("wsCustomerSignature").value = ws.customerSignature || "";
   $("wsWorkerSignature").value = ws.workerSignature || "";
-  $("worksiteTasks").innerHTML = ws.tasks.map(task => `
-    <div class="card worksite-task-card">
-      <div class="worksite-task-title"><div><h2>${esc(task.areaName)} – ${esc(task.type)}</h2><small>${esc(task.scope)} · Wand ${num(task.wall)} cm</small></div><label class="worksite-check"><input type="checkbox" data-ws-task="${task.id}" data-ws-field="completed" ${task.completed?"checked":""}> vollständig ausgeführt</label></div>
-      <div class="grid">
-        <div><label>Bohrlochabstand m</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>0,125 m</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>0,25 m</option></select></div>
+  $("worksiteTasks").innerHTML = ws.tasks.map(task => {
+    const technical = taskIsTechnical(task);
+    const usesHz = taskUsesHz(task);
+    const usesHs = taskUsesHs(task);
+    const usesResin = taskUsesResin(task);
+    const wallField = technical && task.type !== "Harzverpressung"
+      ? `<div><label>Tatsächliche Wandstärke</label><select data-ws-task="${task.id}" data-ws-field="wall">${[24,30,36,42,48,60].map(value => `<option value="${value}" ${Number(task.wall)===value?"selected":""}>${value} cm</option>`).join("")}</select></div>`
+      : "";
+    const hzFields = usesHz ? `
+        <div><label>Bohrlochabstand</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>12,5 cm</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>25 cm</option></select></div>
         <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
         <div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>
         <div><label>Sollmenge je Bohrloch (mind. 0,200 l)</label><input value="${num(task.targetLitersPerHole)} l" readonly></div>
         <div><label>Sollverbrauch HZ 250 Pro</label><input value="${num(task.plannedLiters)} l" readonly></div>
         <div><label>Istverbrauch HZ 250 Pro Liter</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualLiters" value="${formatDecimalInput(task.actualLiters)}"></div>
-        ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(task.type) ? `<div><label>Noch hängende Injektionsflaschen</label><input inputmode="numeric" data-ws-task="${task.id}" data-ws-field="bottlesHanging" value="${formatDecimalInput(task.bottlesHanging||0)}"></div><div><label>Bereich / Wand</label><input data-ws-task="${task.id}" data-ws-field="bottlesArea" value="${esc(task.bottlesArea||task.areaName||"")}" placeholder="z. B. Keller Nordwand"></div><div><label>Geplante Abholung</label><input type="date" data-ws-task="${task.id}" data-ws-field="bottlesPickupDue" value="${esc(task.bottlesPickupDue||"")}"></div><div><label>Bereits abgeholt</label><input value="${num(task.bottlesRetrieved||0)} Stück" readonly></div>${openBottleCount(task)>0?`<div class="full bottle-open-notice"><strong>${openBottleCount(task)} Flaschen verbleiben auf der Baustelle.</strong><span>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand. Die ausgeführte Leistung ist dennoch fertiggestellt und abrechenbar.</span><button type="button" class="secondary" data-confirm-bottle-pickup="${task.id}">Abholung bestätigen</button></div>`:""}` : ""}
-        ${task.type === "Wand-Sohlen-Anschluss" ? `<div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div><div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>` : ""}
-        ${task.type === "Harzverpressung" ? `<div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div><div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>` : ""}
         <div><label>Injektionsart</label><select data-ws-task="${task.id}" data-ws-field="injectionType"><option ${task.injectionType==="Niederdruckverfahren"?"selected":""}>Niederdruckverfahren</option><option ${task.injectionType==="drucklose Injektion"?"selected":""}>drucklose Injektion</option></select></div>
-        ${["","Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(task.type) ? `<div><label>Charge BKM HZ 250 Pro</label><input data-ws-task="${task.id}" data-ws-field="chargeHz" value="${esc(task.chargeHz)}"></div>` : ""}
-        <div class="full"><label>Was wurde gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="note">${esc(task.note)}</textarea></div>
+        ${chargeFieldHtml(task, "bkm-hz-250-pro", "chargeHz", "Charge BKM HZ 250 Pro")}
+        <div><label>Noch hängende Injektionsflaschen</label><input inputmode="numeric" data-ws-task="${task.id}" data-ws-field="bottlesHanging" value="${formatDecimalInput(task.bottlesHanging)}"></div>
+        <div><label>Bereich / Wand</label><input data-ws-task="${task.id}" data-ws-field="bottlesArea" value="${esc(task.bottlesArea || "")}"></div>
+        <div><label>Geplante Abholung</label><input type="date" data-ws-task="${task.id}" data-ws-field="bottlesPickupDue" value="${esc(task.bottlesPickupDue || "")}"></div>` : "";
+    const hsFields = usesHs ? `
+        <div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div>
+        <div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>
+        ${chargeFieldHtml(task, "bkm-hs-sperrmoertel", "chargeHs", "Charge BKM HS Sperrmörtel")}` : "";
+    const resinFields = usesResin ? `
+        <div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div>
+        <div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>
+        ${chargeFieldHtml(task, "bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K")}` : "";
+    return `
+    <div class="card worksite-task-card">
+      <div class="worksite-task-title"><div><h2>${esc(task.areaName)} – ${esc(task.type)}</h2><small>${esc(task.scope)}</small></div><label class="worksite-check"><input type="checkbox" data-ws-task="${task.id}" data-ws-field="completed" ${task.completed?"checked":""}> vollständig ausgeführt</label></div>
+      ${plannedScopeHtml(task)}
+      <div class="grid">
+        ${wallField}
+        ${hzFields}
+        ${hsFields}
+        ${resinFields}
+        <div class="full"><label>Was wurde tatsächlich gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="note">${esc(task.note)}</textarea></div>
       </div>
       <label>Fotos</label><div class="grid"><div><select id="photo-category-${task.id}"><option>Vorher</option><option>Während</option><option>Nachher</option></select></div><div><input type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></div></div>
       <div class="worksite-photo-grid">${taskPhotoHtml(task)}</div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   const totals = worksiteMaterialTotals(ws);
-  $("wsMaterialSummary").innerHTML = `<div class="worksite-material-row"><span>BKM HZ 250 Pro</span><strong>${num(totals.hzLiters)} Liter</strong></div><div class="worksite-material-row"><span>BKM HS Sperrmörtel</span><strong>${num(totals.hsKg)} kg</strong></div><div class="worksite-material-row"><span>Harz</span><strong>${num(totals.resinKg)} kg</strong></div><div class="worksite-material-row"><span>Packer</span><strong>${num(totals.packers)} Stück</strong></div>${ws.materialBooked?`<p class="booked-badge">Material bereits abgebucht</p>`:""}`;
+  const materialRows = [];
+  if (totals.hzLiters > 0) materialRows.push(`<div class="worksite-material-row"><span>BKM HZ 250 Pro</span><strong>${num(totals.hzLiters)} Liter</strong></div>`);
+  if (totals.hsKg > 0) materialRows.push(`<div class="worksite-material-row"><span>BKM HS Sperrmörtel</span><strong>${num(totals.hsKg)} kg</strong></div>`);
+  if (totals.resinKg > 0) materialRows.push(`<div class="worksite-material-row"><span>Harz / SEF-2K</span><strong>${num(totals.resinKg)} kg</strong></div>`);
+  if (totals.packers > 0) materialRows.push(`<div class="worksite-material-row"><span>Packer für Harzverpressung</span><strong>${num(totals.packers)} Stück</strong></div>`);
+  $("wsMaterialSummary").innerHTML = materialRows.length
+    ? materialRows.join("") + (ws.materialBooked ? `<p class="booked-badge">Material bereits abgebucht</p>` : "")
+    : `<p class="hint">Noch kein tatsächlich verwendetes Material eingetragen.</p>`;
   document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = event => {
     const task = ws.tasks.find(item => item.id === input.dataset.wsPhotoTask);
     const category = $(`photo-category-${task.id}`).value;
     [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
   });
   document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); renderWorksiteEditor(); });
-  document.querySelectorAll('[data-ws-field="spacing"]').forEach(select => select.onchange = () => {
-    const task=ws.tasks.find(item=>item.id===select.dataset.wsTask);
-    task.spacing=parseDecimal(select.value);
-    recalculateWorksiteTask(state.settings,task);
+  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"]').forEach(input => input.onchange = () => {
+    const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
+    task[input.dataset.wsField] = parseDecimal(input.value);
+    recalculateWorksiteTask(state.settings, task);
     persistWorksite(ws);
     renderWorksiteEditor();
   });
@@ -2423,7 +2490,8 @@ function deductWorksiteInventory(ws) {
   const totals = worksiteMaterialTotals(ws);
   const rows = [
     { id:"bkm-hz-250-pro", amount:totals.hzLiters },
-    { id:"bkm-hs-sperrmoertel", amount:totals.hsKg }
+    { id:"bkm-hs-sperrmoertel", amount:totals.hsKg },
+    { id:"bkm-sef-2k-harz", amount:totals.resinKg }
   ];
   for (const row of rows) {
     if (row.amount <= 0) continue;
@@ -2593,7 +2661,12 @@ $("addInventoryProduct").onclick = () => {
     minimumStock: 0,
     packageSize: 1,
     purchaseNet: 0,
-    active: true
+    active: true,
+    chargeTracking: false,
+    shelfLifeTracking: false,
+    serialTracking: false,
+    manufacturer: "",
+    packageSizes: [1]
   });
   saveState();
   renderInventorySettings();

@@ -34,7 +34,13 @@ export const DEFAULTS = {
           minimumStock: 20,
           packageSize: 10,
           purchaseNet: 30,
-          active: true
+          active: true,
+          chargeTracking: true,
+          shelfLifeTracking: false,
+          serialTracking: false,
+          manufacturer: "BKM.MANNESMANN",
+          packageSizes: [10]
+
         },
         {
           id: "bkm-hs-sperrmoertel",
@@ -44,7 +50,28 @@ export const DEFAULTS = {
           minimumStock: 50,
           packageSize: 25,
           purchaseNet: 0,
-          active: true
+          active: true,
+          chargeTracking: false,
+          shelfLifeTracking: false,
+          serialTracking: false,
+          manufacturer: "BKM.MANNESMANN",
+          packageSizes: [25]
+
+        },
+        {
+          id: "bkm-sef-2k-harz",
+          name: "BKM SEF-2K / Harz",
+          unit: "kg",
+          stock: 0,
+          minimumStock: 0,
+          packageSize: 1,
+          purchaseNet: 0,
+          active: true,
+          chargeTracking: false,
+          shelfLifeTracking: false,
+          serialTracking: false,
+          manufacturer: "BKM.MANNESMANN",
+          packageSizes: [1]
         }
       ],
       transactions: []

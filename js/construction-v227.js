@@ -44,19 +44,76 @@ function targetPerHole(result) {
   return Math.max(0.2, result.rawLiters / result.holes);
 }
 
+
+export function taskUsesHz(task) {
+  return ["Horizontalsperre", "Flächensperre"].includes(task?.type);
+}
+
+export function taskUsesHs(task) {
+  return task?.type === "Wand-Sohlen-Anschluss";
+}
+
+export function taskUsesResin(task) {
+  return task?.type === "Harzverpressung" || Boolean(task?.resinApplied);
+}
+
+export function taskIsTechnical(task) {
+  return ["Horizontalsperre", "Flächensperre", "Wand-Sohlen-Anschluss", "Harzverpressung"].includes(task?.type);
+}
+
+function baseTask(data = {}) {
+  return {
+    id: crypto.randomUUID(),
+    areaId: "",
+    areaName: "",
+    measureId: "",
+    type: "Sonstige Leistung",
+    wall: 0,
+    originalWall: 0,
+    spacing: 0,
+    plannedQuantity: 0,
+    unitName: "Stück",
+    scope: "",
+    plannedHoles: 0,
+    actualHoles: 0,
+    plannedLiters: 0,
+    actualLiters: 0,
+    plannedHsKg: 0,
+    actualHsKg: 0,
+    targetLitersPerHole: 0,
+    injectionType: "",
+    chargeHz: "",
+    chargeHs: "",
+    chargeResin: "",
+    packers: 0,
+    bottlesHanging: 0,
+    bottlesArea: "",
+    bottlesPickupDue: "",
+    bottlesRetrieved: 0,
+    bottlesRetrievedAt: "",
+    bottlesPickupNote: "",
+    resinKg: 0,
+    resinApplied: false,
+    completed: false,
+    note: "",
+    photos: [],
+    ...data
+  };
+}
+
 export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
   const tasks = [];
   for (const area of visit.areas || []) {
     for (const measure of area.measures || []) {
       const result = calculateMeasure(settings, measure);
       if (result.quantity <= 0) continue;
-      tasks.push({
-        id: crypto.randomUUID(),
+      tasks.push(baseTask({
         areaId: area.id,
         areaName: area.name,
         measureId: measure.id,
         type: measure.type,
         wall: Number(measure.wall || area.wallThickness || 30),
+        originalWall: Number(measure.wall || area.wallThickness || 30),
         spacing: Number(measure.spacing || .25),
         plannedQuantity: result.quantity,
         unitName: result.unitName,
@@ -68,21 +125,10 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         plannedHsKg: result.hsKg || 0,
         actualHsKg: result.hsKg || 0,
         targetLitersPerHole: targetPerHole(result),
-        injectionType: "Niederdruckverfahren",
-        chargeHz: "",
-        chargeSecondary: "",
-        packers: 0,
-        bottlesHanging: 0,
-        bottlesArea: "",
-        bottlesPickupDue: "",
-        bottlesRetrieved: 0,
-        bottlesRetrievedAt: "",
-        bottlesPickupNote: "",
-        resinKg: Number(measure.extraResinKg || 0),
-        completed: false,
-        note: "",
-        photos: []
-      });
+        injectionType: taskUsesHz({ type: measure.type }) ? "Niederdruckverfahren" : "",
+        resinKg: measure.type === "Harzverpressung" ? Number(measure.extraResinKg || 0) : 0,
+        resinApplied: measure.type === "Harzverpressung"
+      }));
     }
   }
 
@@ -123,21 +169,69 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
 
 
 export function recalculateWorksiteTask(settings, task) {
-  if (!["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(task.type)) return task;
+  if (!taskIsTechnical(task)) return task;
+
+  if (task.type === "Harzverpressung") {
+    task.plannedHoles = 0;
+    task.actualHoles = 0;
+    task.plannedLiters = 0;
+    task.actualLiters = 0;
+    task.plannedHsKg = 0;
+    task.actualHsKg = 0;
+    task.targetLitersPerHole = 0;
+    return task;
+  }
+
   let measure;
   if (task.type === "Flächensperre") {
-    measure={type:task.type,width:Number(task.plannedQuantity||0),height:1,wall:Number(task.wall||30),spacing:Number(task.spacing||.25),extraResinKg:0};
+    measure = {
+      type: task.type,
+      width: Number(task.plannedQuantity || 0),
+      height: 1,
+      wall: Number(task.wall || 30),
+      spacing: Number(task.spacing || .25),
+      extraResinKg: 0
+    };
   } else {
-    measure={type:task.type,length:Number(task.plannedQuantity||0),wall:Number(task.wall||30),spacing:Number(task.spacing||.25),extraResinKg:0};
+    measure = {
+      type: task.type,
+      length: Number(task.plannedQuantity || 0),
+      wall: Number(task.wall || 30),
+      spacing: Number(task.spacing || .25),
+      extraResinKg: 0
+    };
   }
-  const result=calculateMeasure(settings,measure);
-  task.plannedHoles=result.holes;
-  task.actualHoles=result.holes;
-  task.plannedLiters=result.saleLiters;
-  task.actualLiters=result.saleLiters;
-  task.plannedHsKg=result.hsKg||0;
-  task.actualHsKg=result.hsKg||0;
-  task.targetLitersPerHole=targetPerHole(result);
+
+  const result = calculateMeasure(settings, measure);
+
+  if (taskUsesHz(task)) {
+    task.plannedHoles = result.holes;
+    task.plannedLiters = result.saleLiters;
+    task.targetLitersPerHole = targetPerHole(result);
+    if (!Number.isFinite(Number(task.actualHoles)) || Number(task.actualHoles) === 0) {
+      task.actualHoles = result.holes;
+    }
+    if (!Number.isFinite(Number(task.actualLiters)) || Number(task.actualLiters) === 0) {
+      task.actualLiters = result.saleLiters;
+    }
+  } else {
+    task.plannedHoles = 0;
+    task.actualHoles = 0;
+    task.plannedLiters = 0;
+    task.actualLiters = 0;
+    task.targetLitersPerHole = 0;
+  }
+
+  if (taskUsesHs(task)) {
+    task.plannedHsKg = result.hsKg || 0;
+    if (!Number.isFinite(Number(task.actualHsKg)) || Number(task.actualHsKg) === 0) {
+      task.actualHsKg = result.hsKg || 0;
+    }
+  } else {
+    task.plannedHsKg = 0;
+    task.actualHsKg = 0;
+  }
+
   return task;
 }
 
@@ -152,12 +246,14 @@ export function workDurationMinutes(worksite) {
 
 export function worksiteMaterialTotals(worksite) {
   return (worksite.tasks || []).reduce((total, task) => {
-    total.hzLiters += parseDecimal(task.actualLiters);
-    total.hsKg += parseDecimal(task.actualHsKg);
-    total.resinKg += parseDecimal(task.resinKg);
-    total.packers += parseDecimal(task.packers);
+    if (taskUsesHz(task)) total.hzLiters += parseDecimal(task.actualLiters);
+    if (taskUsesHs(task)) total.hsKg += parseDecimal(task.actualHsKg);
+    if (taskUsesResin(task)) {
+      total.resinKg += parseDecimal(task.resinKg);
+      total.packers += parseDecimal(task.packers);
+    }
     return total;
-  }, { hzLiters:0, hsKg:0, resinKg:0, packers:0 });
+  }, { hzLiters: 0, hsKg: 0, resinKg: 0, packers: 0 });
 }
 
 export function backupWorksites() {
@@ -174,7 +270,8 @@ function inferMeasureType(name, description = "") {
   if (text.includes("wand-sohlen") || text.includes("wand sohlen") || text.includes("wand/sohle")) return "Wand-Sohlen-Anschluss";
   if (text.includes("flächensperre") || text.includes("flaechensperre")) return "Flächensperre";
   if (text.includes("horizontalsperre")) return "Horizontalsperre";
-  if (text.includes("harzverpress")) return "Harzverpressung";
+  if (text.includes("harzverpress") || text.includes("rissverpress") || text.includes("injektionsharz")) return "Harzverpressung";
+  if (text.includes("baustelleneinrichtung") || text.includes("an- und abfahrt") || text.includes("an und abfahrt") || text.includes("sonstige leistung")) return "Sonstige Leistung";
   return "Sonstige Leistung";
 }
 
@@ -195,7 +292,26 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
       const result = calculateMeasure(settings,{type,width:quantity,height:1,wall,spacing,extraResinKg:0});
       plannedHoles=result.holes; plannedLiters=result.saleLiters; targetLitersPerHole=targetPerHole(result);
     }
-    return {id:crypto.randomUUID(),areaId:"",areaName:item.name||`Position ${index+1}`,measureId:"",type,wall,spacing,plannedQuantity:quantity,unitName,scope:`${quantity.toLocaleString("de-DE")} ${unitName}`,plannedHoles,actualHoles:plannedHoles,plannedLiters,actualLiters:plannedLiters,plannedHsKg,actualHsKg:plannedHsKg,targetLitersPerHole,injectionType:"Niederdruckverfahren",chargeHz:"",chargeSecondary:"",packers:0,bottlesHanging:0,bottlesArea:"",bottlesPickupDue:"",bottlesRetrieved:0,bottlesRetrievedAt:"",bottlesPickupNote:"",resinKg:0,completed:false,note:item.description||"",photos:[]};
+    return baseTask({
+      areaName: item.name || `Position ${index + 1}`,
+      type,
+      wall: taskIsTechnical({ type }) && type !== "Harzverpressung" ? wall : 0,
+      originalWall: taskIsTechnical({ type }) && type !== "Harzverpressung" ? wall : 0,
+      spacing: taskUsesHz({ type }) ? spacing : 0,
+      plannedQuantity: quantity,
+      unitName,
+      scope: `${quantity.toLocaleString("de-DE")} ${unitName}`,
+      plannedHoles: taskUsesHz({ type }) ? plannedHoles : 0,
+      actualHoles: taskUsesHz({ type }) ? plannedHoles : 0,
+      plannedLiters: taskUsesHz({ type }) ? plannedLiters : 0,
+      actualLiters: taskUsesHz({ type }) ? plannedLiters : 0,
+      plannedHsKg: taskUsesHs({ type }) ? plannedHsKg : 0,
+      actualHsKg: taskUsesHs({ type }) ? plannedHsKg : 0,
+      targetLitersPerHole: taskUsesHz({ type }) ? targetLitersPerHole : 0,
+      injectionType: taskUsesHz({ type }) ? "Niederdruckverfahren" : "",
+      resinApplied: type === "Harzverpressung",
+      note: item.description || ""
+    });
   });
   const contact = quotation.contact || {};
   const address = quotation.address || {};
