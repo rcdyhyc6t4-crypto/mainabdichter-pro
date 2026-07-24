@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
 <title>mainabdichter V25 Geführter Auftrag Menü & Logo Fix</title>
-<link rel="stylesheet" href="css/app-v227.css">
-<link rel="stylesheet" href="css/phase1-v26.css?build=20260723-v26">
+<link rel="stylesheet" href="css/app-v227.css?build=20260724-v26-7">
+<link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v26-7">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -63,22 +63,35 @@
     </button>
   </section>
 
-  <details class="dashboard-section dashboard-details dashboard-material-details">
-    <summary><div><span>LAGER</span><h2>Aktueller Materialbestand</h2></div><strong id="dashboardInventorySummary">Öffnen</strong></summary>
-    <div class="details-content">
-      <div class="section-title"><div></div><button type="button" class="text-button" data-page-target="settings" data-scroll-target="inventoryProducts">Lager bearbeiten</button></div>
+  <section class="dashboard-resource-buttons">
+    <button type="button" id="openInventoryDashboard" class="dashboard-resource-button">
+      <span class="resource-icon">▣</span>
+      <span><small>LAGERBESTAND</small><strong>Materialübersicht</strong><em id="dashboardInventorySummary">Bestand prüfen</em></span>
+      <b>›</b>
+    </button>
+    <button type="button" id="openBottleDashboard" class="dashboard-resource-button">
+      <span class="resource-icon">◉</span>
+      <span><small>INJEKTIONSFLASCHEN</small><strong>Flaschen auf Baustellen</strong><em id="dashboardBottleSummary">0 unterwegs</em></span>
+      <b>›</b>
+    </button>
+  </section>
+
+  <section id="inventoryDashboardModal" class="dashboard-resource-modal hidden" aria-hidden="true">
+    <div class="dashboard-resource-dialog">
+      <div class="resource-dialog-head"><div><small>LAGER</small><h2>Aktueller Materialbestand</h2></div><button type="button" id="closeInventoryDashboard" class="resource-close">×</button></div>
+      <button type="button" class="text-button" data-page-target="settings" data-scroll-target="inventoryProducts">Lager bearbeiten</button>
       <div id="dashboardInventoryAlert" class="inventory-dashboard-alert" hidden></div>
       <div id="dashboardInventoryList" class="dashboard-inventory-grid"><div class="empty-mini">Lagerbestand wird geladen.</div></div>
     </div>
-  </details>
+  </section>
 
-  <details class="dashboard-section dashboard-details dashboard-bottle-details">
-    <summary><div><span>INJEKTIONSFLASCHEN</span><h2>Flaschen auf Baustellen</h2></div><strong id="dashboardBottleSummary">0 unterwegs</strong></summary>
-    <div class="details-content">
+  <section id="bottleDashboardModal" class="dashboard-resource-modal hidden" aria-hidden="true">
+    <div class="dashboard-resource-dialog">
+      <div class="resource-dialog-head"><div><small>INJEKTIONSFLASCHEN</small><h2>Flaschen auf Baustellen</h2></div><button type="button" id="closeBottleDashboard" class="resource-close">×</button></div>
       <div id="dashboardBottleStats" class="bottle-stat-grid"></div>
       <div id="dashboardBottleList" class="compact-list"><div class="empty-mini">Keine Flaschen auf Baustellen.</div></div>
     </div>
-  </details>
+  </section>
 
   <section class="dashboard-action-grid">
     <button id="dashboardNewVisit" class="dashboard-action-card"><span>＋</span><strong>Neue Besichtigung</strong><small>Leere Erfassung starten</small></button>
@@ -552,7 +565,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260724-v26-6"></script>
-<script type="module" src="js/phase1-v26.js?build=20260724-v26.4"></script>
+<script type="module" src="js/app-v227.js?build=20260724-v26-7"></script>
+<script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 </body>
 </html>
