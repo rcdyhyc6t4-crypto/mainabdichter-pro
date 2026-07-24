@@ -1517,3 +1517,141 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
 }
+
+/* V30.1 – korrigierter Header und sichtbare angenommene Angebote */
+.v301-header{
+  position:relative;
+  top:auto;
+  height:106px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:18px 30px 14px;
+  background:#fff;
+  border-bottom:1px solid #e3e6e4;
+  box-sizing:border-box;
+}
+.v301-header-logo{
+  display:block;
+  width:205px;
+  max-width:48vw;
+  height:auto;
+  max-height:62px;
+  object-fit:contain;
+  object-position:left center;
+}
+.v301-header .v28-header-actions{
+  display:flex;
+  align-items:center;
+  gap:18px;
+}
+.v301-header .v28-icon-button{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:47px;
+  height:47px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#343936;
+  font-size:34px;
+}
+.v301-header .v28-icon-button i{
+  position:absolute;
+  width:11px;
+  height:11px;
+  top:4px;
+  right:2px;
+  border-radius:50%;
+  background:#43b33d;
+  border:2px solid #fff;
+}
+.v301-bell-icon,.v301-profile-icon{line-height:1}
+
+.v284-accepted-section{
+  display:block!important;
+  margin:0 0 28px!important;
+}
+.v284-accepted-card{
+  width:100%;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  padding:17px 18px;
+  text-align:left;
+  border:1px solid #dfe6e1;
+  border-radius:21px;
+  background:linear-gradient(135deg,#f7fbf5,#edf7e9);
+  box-shadow:0 4px 15px rgba(31,67,39,.06);
+}
+.v284-accepted-card.has-orders{
+  border-color:#76b82a;
+  background:linear-gradient(135deg,#f0f9ec,#e4f3dd);
+}
+.v284-accepted-icon{
+  display:grid;
+  place-items:center;
+  width:51px;
+  height:51px;
+  border-radius:16px;
+  background:#dcefd5;
+  color:#2f982f;
+  font-size:25px;
+  font-weight:900;
+}
+.v284-accepted-content{
+  display:grid;
+  gap:3px;
+  min-width:0;
+}
+.v284-accepted-content small{
+  font-size:10px;
+  letter-spacing:.1em;
+  font-weight:900;
+  color:#5e7860;
+}
+.v284-accepted-content strong{
+  font-size:18px;
+  color:#202622;
+}
+.v284-accepted-content strong b{
+  font-size:27px;
+  color:#319b31;
+  margin-right:4px;
+}
+.v284-accepted-content em{
+  font-size:12px;
+  font-style:normal;
+  color:#68736b;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.v284-accepted-arrow{
+  font-size:31px;
+  color:#7c887f;
+}
+
+@media(max-width:620px){
+  .v301-header{
+    height:88px;
+    padding:15px 19px 11px;
+  }
+  .v301-header-logo{
+    width:180px;
+    max-width:52vw;
+    max-height:52px;
+  }
+  .v301-header .v28-header-actions{gap:10px}
+  .v301-header .v28-icon-button{
+    width:41px;
+    height:41px;
+    font-size:29px;
+  }
+  .v284-accepted-card{padding:14px;gap:10px}
+  .v284-accepted-icon{width:45px;height:45px}
+  .v284-accepted-content strong{font-size:15px}
+  .v284-accepted-content strong b{font-size:23px}
+}
