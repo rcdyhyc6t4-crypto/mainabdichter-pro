@@ -843,3 +843,57 @@ body.menu-open{overflow:hidden}
 .compact-planned-scope>strong{font-size:13px}
 .compact-planned-scope small{width:100%}
 @media(max-width:700px){.dashboard-resource-buttons{grid-template-columns:1fr}.dashboard-resource-modal{padding:8px}.dashboard-resource-dialog{margin:2vh auto}}
+
+/* V26.8 Digitale Baustellenakte mit separaten Seiten */
+.worksite-record-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.worksite-record-head h1{margin:3px 0 2px}
+.worksite-record-head p{margin:0;color:#657069}
+.worksite-section-nav{position:sticky;top:74px;z-index:30;display:flex;gap:8px;overflow-x:auto;padding:10px 4px;margin:0 0 14px;background:rgba(247,249,247,.96);backdrop-filter:blur(10px);scrollbar-width:none}
+.worksite-section-nav::-webkit-scrollbar{display:none}
+.worksite-section-nav button{flex:0 0 auto;background:#fff;border:1px solid #dce4de;border-radius:999px;padding:10px 15px;font-size:13px;font-weight:800;color:#505b54}
+.worksite-section-nav button.active{background:#4bae32;color:#fff;border-color:#4bae32}
+.worksite-section{display:none}
+.worksite-section.active{display:block}
+.section-intro-card{padding-bottom:12px}
+.worksite-overview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.worksite-overview-grid>div{display:grid;gap:4px;padding:14px;background:#f3f7f2;border-radius:13px}
+.worksite-overview-grid span{font-size:11px;color:#6d776f}
+.worksite-overview-grid strong{font-size:15px}
+.worksite-next-step{margin-top:14px}
+.worksite-next-step button{width:100%}
+.worksite-photo-section{border:1px solid #dfe6e1;border-radius:15px;padding:14px;margin:12px 0;background:#fff}
+.worksite-photo-section-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+.worksite-photo-section-head>div:first-child{display:grid;gap:2px}
+.worksite-photo-section-head small{color:#707a73}
+.worksite-photo-add{display:flex;gap:8px;align-items:center}
+.photo-upload-button{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:10px 14px}
+.worksite-report-checklist{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0}
+.worksite-report-checklist>div{display:flex;align-items:center;gap:8px;padding:11px;border-radius:11px;background:#f2f4f2}
+.worksite-report-checklist .ok{background:#e9f6e5;color:#2c7626}
+.worksite-report-checklist .missing{background:#fff1df;color:#975d12}
+.worksite-report-checklist span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.75);font-weight:900}
+@media(max-width:800px){
+  .worksite-record-head{display:grid}
+  .worksite-record-head button{width:100%}
+  .worksite-section-nav{top:66px}
+  .worksite-overview-grid{grid-template-columns:1fr 1fr}
+  .worksite-photo-section-head{align-items:flex-start;display:grid}
+  .worksite-photo-add{display:grid;grid-template-columns:1fr 1fr}
+  .worksite-report-checklist{grid-template-columns:1fr}
+}
+
+/* V27 - iPad-Unterschriften im Arbeitsnachweis */
+.signature-meta-grid{margin:14px 0}
+.signature-pad-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+.signature-pad-card{border:1px solid #dce4df;border-radius:15px;padding:14px;background:#f9fbf9}
+.signature-pad-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.signature-pad-head>div{display:grid;gap:2px}
+.signature-pad-head small{font-size:10px;letter-spacing:.09em;color:#6b756f}
+.signature-pad-head strong{font-size:15px}
+.signature-canvas{display:block;width:100%;height:190px;margin-top:10px;background:#fff;border:1px solid #aeb9b1;border-radius:10px;touch-action:none;cursor:crosshair}
+.signature-canvas.is-locked{background:#f2f4f2;cursor:not-allowed}
+.signature-pad-card .hint{margin:7px 0 0;font-size:11px}
+@media(max-width:760px){
+  .signature-pad-grid{grid-template-columns:1fr}
+  .signature-canvas{height:175px}
+}
