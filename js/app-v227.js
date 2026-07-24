@@ -944,7 +944,7 @@ function show(pageId) {
   targetPage.classList.add("active");
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
-  if (pageId === "dashboard") { renderArchive(); updateDashboardOverview(); syncDashboardSources(); }
+  if (pageId === "dashboard") { renderArchive(); updateDashboardOverview(); syncDashboardSources(); if (typeof renderV28Dashboard === "function") renderV28Dashboard(); }
   if (pageId === "worksites") renderWorksites();
   if (pageId === "more") updateBackupTime();
   document.querySelectorAll("[data-bottom-page]").forEach(button => button.classList.toggle("active", button.dataset.bottomPage === pageId));
@@ -965,10 +965,10 @@ function closeAppMenu() {
   document.body.classList.remove("menu-open");
 }
 
-$("headerHome").onclick = () => show("dashboard");
-$("quickMenu").onclick = openAppMenu;
-$("closeMenu").onclick = closeAppMenu;
-$("menuBackdrop").onclick = closeAppMenu;
+if ($("headerHome")) $("headerHome").onclick = () => show("dashboard");
+if ($("quickMenu")) $("quickMenu").onclick = openAppMenu;
+if ($("closeMenu")) $("closeMenu").onclick = closeAppMenu;
+if ($("menuBackdrop")) $("menuBackdrop").onclick = closeAppMenu;
 
 document.querySelectorAll("[data-menu-page]").forEach(button => {
   button.onclick = () => {
@@ -991,7 +991,7 @@ document.querySelectorAll("[data-more-action]").forEach(button => {
     if (button.dataset.moreAction === "newInquiry") openInquiryImport();
   };
 });
-$("syncDashboardAll").onclick = syncDashboardSources;
+if ($("syncDashboardAll")) $("syncDashboardAll").onclick = syncDashboardSources;
 document.querySelectorAll("[data-scroll-target]").forEach(button => button.onclick = () => {
   const target = $(button.dataset.scrollTarget);
   target?.scrollIntoView({behavior:"smooth", block:"center"});
