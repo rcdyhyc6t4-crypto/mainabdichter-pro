@@ -247,6 +247,13 @@ export async function loadDrivePhoto(fileId) {
   return response.blob();
 }
 
+export async function uploadDriveVisitDocument(file, metadata) {
+  const form = new FormData();
+  form.append("file", file, metadata.filename || file.name || "Dokument");
+  form.append("metadata", JSON.stringify(metadata));
+  return api("/drive/documents", { method: "POST", body: form });
+}
+
 export async function testGoogleDrive() {
   return api("/drive/test");
 }

@@ -150,6 +150,7 @@ export const DEFAULTS = {
     inventoryDeducted: false,
     inventoryDeductedAt: "",
     areas: [],
+    documents: [],
     extraQuantities: {}
   },
   discount: {

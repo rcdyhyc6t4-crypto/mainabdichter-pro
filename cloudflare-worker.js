@@ -126,6 +126,44 @@ async function uploadDrivePhoto(env, file, metadata) {
   return data;
 }
 
+async function uploadDriveDocument(env, file, metadata) {
+  let parent = await ensureDriveFolder(env, "mainabdichter PRO");
+  for (const name of ["Kunden", metadata.customerFolder, metadata.visitFolder, metadata.categoryFolder || "Sonstige Dokumente"]) {
+    parent = await ensureDriveFolder(env, name, parent.id);
+  }
+  const token = await googleAccessToken(env);
+  const boundary = `mainabdichter_${crypto.randomUUID()}`;
+  const fileMetadata = JSON.stringify({
+    name: metadata.filename || file.name || "Dokument",
+    parents: [parent.id],
+    description: metadata.note || "",
+    appProperties: {
+      documentId: String(metadata.documentId || ""),
+      category: String(metadata.category || "Sonstiges"),
+      source: "mainabdichter-pro"
+    }
+  });
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${fileMetadata}\r\n`,
+    `--${boundary}\r\nContent-Type: ${file.type || metadata.mimeType || "application/octet-stream"}\r\n\r\n`,
+    file,
+    `\r\n--${boundary}--`
+  ]);
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,parents", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("Google-Drive-Dateiupload fehlgeschlagen.");
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
+}
+
 function getPipedriveDomain(env) {
   const raw = String(env.PIPEDRIVE_COMPANY_DOMAIN || "")
     .trim()
@@ -828,7 +866,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "30.10",
+          workerVersion: "30.11",
           time: new Date().toISOString()
         });
       }
@@ -877,6 +915,28 @@ export default {
         headers["Content-Type"] = response.headers.get("Content-Type") || "image/jpeg";
         headers["Cache-Control"] = "private, max-age=3600";
         return new Response(response.body, { status: 200, headers });
+      }
+
+      if (url.pathname === "/drive/documents" && request.method === "POST") {
+        const form = await request.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || !file.size) {
+          return jsonResponse(request, { ok: false, error: "Eine Datei fehlt." }, 400);
+        }
+        if (file.size > 30 * 1024 * 1024) {
+          return jsonResponse(request, { ok: false, error: "Die Datei ist größer als 30 MB." }, 413);
+        }
+        let metadata = {};
+        try {
+          metadata = JSON.parse(String(form.get("metadata") || "{}"));
+        } catch {
+          return jsonResponse(request, { ok: false, error: "Die Dateizuordnung ist ungültig." }, 400);
+        }
+        if (!metadata.customerFolder || !metadata.visitFolder) {
+          return jsonResponse(request, { ok: false, error: "Kunde oder Vorgang fehlt." }, 400);
+        }
+        const uploaded = await uploadDriveDocument(env, file, metadata);
+        return jsonResponse(request, { ok: true, file: uploaded }, 201);
       }
 
 

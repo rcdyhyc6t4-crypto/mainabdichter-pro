@@ -10,9 +10,10 @@ import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, add
 import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0.0";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
+import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 
 
-const MAINABDICHTER_APP_VERSION = "30.10.0";
+const MAINABDICHTER_APP_VERSION = "30.11.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1888,6 +1889,7 @@ function renderVisit() {
   $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
   toggleClimateFields();
   renderAreas();
+  renderVisitDocuments();
   renderMeasureSuggestion();
   updateGeneratedRecommendation();
   renderExtras();
@@ -1897,6 +1899,51 @@ function renderVisit() {
   updateMetaBar();
   updateRecordHeader();
 }
+
+function documentSize(bytes) {
+  if (!Number(bytes)) return "";
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
+}
+
+function renderVisitDocuments() {
+  state.visit.documents ||= [];
+  const box = $("visitDocumentList");
+  if (!box) return;
+  box.innerHTML = state.visit.documents.length ? state.visit.documents.map(document => `
+    <article class="worksite-attachment ${esc(document.uploadStatus || "pending")}">
+      <div class="attachment-icon">${document.mimeType === "application/pdf" ? "PDF" : document.mimeType?.startsWith("image/") ? "BILD" : "DATEI"}</div>
+      <div class="attachment-main">
+        <strong>${esc(document.filename)}</strong>
+        <span>${esc(document.category)}${document.note ? ` · ${esc(document.note)}` : ""}</span>
+        <small>${esc(documentSize(document.size))}</small>
+        <small class="attachment-status">${document.uploadStatus === "uploaded" ? "✓ In Google Drive gespeichert" : document.uploadStatus === "uploading" ? "Wird hochgeladen …" : document.uploadStatus === "error" ? `Upload fehlgeschlagen: ${esc(document.uploadError || "erneuter Versuch folgt")}` : "Wartet auf Upload"}</small>
+      </div>
+      <div class="attachment-actions">
+        ${document.driveUrl ? `<a class="secondary button-link" href="${esc(document.driveUrl)}" target="_blank" rel="noopener">Öffnen</a>` : ""}
+        ${document.uploadStatus === "error" ? `<button type="button" class="secondary" data-retry-visit-document="${document.id}">Erneut versuchen</button>` : ""}
+        <button type="button" class="danger" data-delete-visit-document="${document.id}">Entfernen</button>
+      </div>
+    </article>`).join("") : `<div class="empty-mini">Noch keine Pläne oder Dokumente hinterlegt.</div>`;
+  box.querySelectorAll("[data-retry-visit-document]").forEach(button => button.onclick = syncPendingVisitDocuments);
+  box.querySelectorAll("[data-delete-visit-document]").forEach(button => button.onclick = async () => {
+    state.visit.documents = state.visit.documents.filter(document => document.id !== button.dataset.deleteVisitDocument);
+    await deleteQueuedVisitDocument(button.dataset.deleteVisitDocument);
+    saveState();
+    renderVisitDocuments();
+  });
+}
+
+if ($("addVisitDocuments")) $("addVisitDocuments").onclick = () => $("visitDocumentInput").click();
+if ($("visitDocumentInput")) $("visitDocumentInput").onchange = async event => {
+  const category = $("visitDocumentCategory").value || "Sonstiges";
+  const note = $("visitDocumentNote").value.trim();
+  for (const file of [...event.target.files]) await stageVisitDocument(file, category, note);
+  event.target.value = "";
+  $("visitDocumentNote").value = "";
+  renderVisitDocuments();
+  syncPendingVisitDocuments();
+};
+window.addEventListener("drive-document-updated", renderVisitDocuments);
 
 function collectVisit() {
   state.visit.visitDate = $("visitDate").value || todayLocal();

@@ -399,7 +399,19 @@ main{width:100%;max-width:100%}
   </details>
 
   <details id="visitStep5" class="card compact-step guided-step">
-    <summary>5. Zusatzleistungen <span class="step-state"></span></summary>
+    <summary>5. Dokumente und Pläne <span class="step-state"></span></summary>
+    <p class="hint">Grundrisse, Baupläne, Skizzen, Gutachten und PDFs werden automatisch im Google-Drive-Ordner dieses Kunden und Vorgangs gespeichert.</p>
+    <div class="grid">
+      <div><label>Kategorie</label><select id="visitDocumentCategory"><option>Grundriss</option><option>Bauplan</option><option>Skizze</option><option>Gutachten</option><option>Messung</option><option>Angebot / Rechnung</option><option>Arbeitsnachweis</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
+      <div class="full"><label>Bemerkung</label><input id="visitDocumentNote" placeholder="z. B. Kellergrundriss mit markierter Außenwand"></div>
+    </div>
+    <input id="visitDocumentInput" class="hidden" type="file" accept="image/*,.pdf,application/pdf,.doc,.docx,.xls,.xlsx" multiple>
+    <button type="button" id="addVisitDocuments" class="secondary">Dateien auswählen</button>
+    <div id="visitDocumentList" class="worksite-attachment-list"></div>
+  </details>
+
+  <details id="visitStep6" class="card compact-step guided-step">
+    <summary>6. Zusatzleistungen <span class="step-state"></span></summary>
     <div id="extras"></div>
   </details>
   <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Zum Angebot</button></div>
@@ -952,7 +964,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=30.10.0"></script>
+<script type="module" src="js/app.js?v=30.11.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

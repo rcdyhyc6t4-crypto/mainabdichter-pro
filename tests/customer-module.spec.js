@@ -98,6 +98,43 @@ test("Vor-Ort-Besichtigung schlägt eine Maßnahme vor und verlangt Messwerte", 
   expect(visit.areas[0].measures[0].type).toBe("Horizontalsperre");
 });
 
+test("Grundriss wird dem Kunden zugeordnet und zu Google Drive hochgeladen", async ({ page }) => {
+  await page.addInitScript(() => {
+    const settings = JSON.parse(localStorage.getItem("mainabdichter_v10_settings") || "{}");
+    settings.workerUrl = "https://mainabdichter-api.test";
+    settings.appSecret = "test-secret";
+    localStorage.setItem("mainabdichter_v10_settings", JSON.stringify(settings));
+  });
+  await page.route("https://mainabdichter-api.test/drive/documents", async route => {
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, file: { id: "drive-plan-1", webViewLink: "https://drive.google.com/file/d/drive-plan-1/view" } })
+    });
+  });
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+  await page.locator("#lastName").fill("Mustermann");
+  await page.locator("#firstName").fill("Max");
+  await page.locator("#visitStep5 summary").click();
+  await page.locator("#visitDocumentCategory").selectOption("Grundriss");
+  await page.locator("#visitDocumentNote").fill("Keller mit markierter Nordwand");
+  await page.locator("#visitDocumentInput").setInputFiles({
+    name: "kellergrundriss.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 Test")
+  });
+
+  await expect(page.locator("#visitDocumentList")).toContainText("In Google Drive gespeichert");
+  await expect(page.locator("#visitDocumentList")).toContainText("Keller mit markierter Nordwand");
+  const document = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("mainabdichter_v10_visit")).documents[0]
+  );
+  expect(document.category).toBe("Grundriss");
+  expect(document.driveFileId).toBe("drive-plan-1");
+});
+
 test("Kundenmodul funktioniert auf iPhone-Breite", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));
