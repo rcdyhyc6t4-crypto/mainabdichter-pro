@@ -2295,6 +2295,11 @@ function collectWorksite() {
   worksite.generalNotes = $("wsGeneralNotes").value.trim();
   worksite.customerSignature = $("wsCustomerSignature").value.trim();
   worksite.workerSignature = $("wsWorkerSignature").value.trim();
+  worksite.signaturePlace = $("wsSignaturePlace")?.value.trim() || "";
+  worksite.signatureDate = $("wsSignatureDate")?.value || worksite.date || todayLocal();
+  worksite.siteClean = Boolean($("wsSiteClean")?.checked);
+  worksite.customerSignatureData = signaturePadData("wsCustomerSignatureCanvas") || worksite.customerSignatureData || "";
+  worksite.workerSignatureData = signaturePadData("wsWorkerSignatureCanvas") || worksite.workerSignatureData || "";
   document.querySelectorAll("[data-ws-task]").forEach(input => {
     const task = worksite.tasks.find(item => item.id === input.dataset.wsTask);
     if (!task) return;
@@ -2407,6 +2412,209 @@ function plannedScopeHtml(task) {
   </div>`;
 }
 
+
+function activateWorksiteSection(sectionId) {
+  document.querySelectorAll(".worksite-section").forEach(section => {
+    section.classList.toggle("active", section.id === sectionId);
+  });
+  document.querySelectorAll("[data-worksite-section]").forEach(button => {
+    button.classList.toggle("active", button.dataset.worksiteSection === sectionId);
+  });
+  sessionStorage.setItem("mainabdichter_active_worksite_section", sectionId);
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function bindWorksiteSectionNavigation() {
+  document.querySelectorAll("[data-worksite-section]").forEach(button => {
+    button.onclick = () => {
+      if (activeWorksiteId) saveActiveWorksite(false);
+      activateWorksiteSection(button.dataset.worksiteSection);
+    };
+  });
+}
+
+function renderWorksiteOverview(ws) {
+  const summary = $("wsOverviewSummary");
+  if (summary) {
+    const completed = (ws.tasks || []).filter(task => task.completed).length;
+    const openBottles = (ws.tasks || []).reduce(
+      (sum, task) => sum + Math.max(0, Number(task.bottlesHanging || 0) - Number(task.bottlesRetrieved || 0)),
+      0
+    );
+    summary.innerHTML = `
+      <div><span>Status</span><strong>${esc(ws.status === "completed" ? "Abgeschlossen" : ws.status === "active" ? "In Ausführung" : "Geplant")}</strong></div>
+      <div><span>Maßnahmen</span><strong>${completed} von ${(ws.tasks || []).length} erledigt</strong></div>
+      <div><span>Arbeitsdatum</span><strong>${esc(ws.date || "noch offen")}</strong></div>
+      <div><span>Flaschen unterwegs</span><strong>${openBottles} Stück</strong></div>`;
+  }
+  const next = $("wsOverviewNextStep");
+  if (next) {
+    const firstOpen = (ws.tasks || []).find(task => !task.completed);
+    next.innerHTML = firstOpen
+      ? `<button type="button" class="primary" data-jump-worksite="wsSectionExecution">Nächster Schritt: ${esc(firstOpen.areaName)} – ${esc(firstOpen.type)}</button>`
+      : `<button type="button" class="primary" data-jump-worksite="wsSectionReport">Arbeitsnachweis abschließen</button>`;
+    next.querySelectorAll("[data-jump-worksite]").forEach(button => {
+      button.onclick = () => activateWorksiteSection(button.dataset.jumpWorksite);
+    });
+  }
+}
+
+function renderWorksitePhotoPage(ws) {
+  const box = $("wsPhotoPage");
+  if (!box) return;
+  box.innerHTML = (ws.tasks || []).map(task => `
+    <article class="worksite-photo-section">
+      <div class="worksite-photo-section-head">
+        <div><strong>${esc(task.areaName)}</strong><small>${esc(task.type)}</small></div>
+        <div class="worksite-photo-add">
+          <select id="photo-category-${task.id}">
+            <option>Vorher</option>
+            <option>Während</option>
+            <option>Nachher</option>
+          </select>
+          <label class="secondary photo-upload-button">Foto hinzufügen<input class="hidden" type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></label>
+        </div>
+      </div>
+      <div class="worksite-photo-grid">${taskPhotoHtml(task) || '<p class="hint">Noch keine Fotos hinterlegt.</p>'}</div>
+    </article>`).join("");
+}
+
+function renderWorksiteReportChecklist(ws) {
+  const box = $("wsReportChecklist");
+  if (!box) return;
+  const checks = [
+    ["Alle Maßnahmen geprüft", (ws.tasks || []).every(task => task.completed)],
+    ["Arbeitszeit erfasst", Boolean(ws.startTime && ws.endTime)],
+    ["Mitarbeiter erfasst", Boolean(String(ws.employees || "").trim())],
+    ["Bemerkungen geprüft", true],
+    ["Kundenbestätigung", Boolean(String(ws.customerSignature || "").trim() && ws.customerSignatureData)]
+  ];
+  box.innerHTML = checks.map(([label, ok]) => `
+    <div class="${ok ? "ok" : "missing"}"><span>${ok ? "✓" : "!"}</span><strong>${esc(label)}</strong></div>`).join("");
+}
+
+
+const signaturePadStates = new Map();
+
+function signaturePadData(canvasId) {
+  const state = signaturePadStates.get(canvasId);
+  return state?.hasInk ? state.canvas.toDataURL("image/png") : "";
+}
+
+function configureSignatureCanvas(canvas, savedData = "", locked = false) {
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(480, Math.round(rect.width || 640));
+  const height = Math.max(150, Math.round(rect.height || 190));
+  const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#18231d";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  const pad = {
+    canvas,
+    ctx,
+    width,
+    height,
+    drawing: false,
+    hasInk: false,
+    locked
+  };
+  signaturePadStates.set(canvas.id, pad);
+  canvas.classList.toggle("is-locked", locked);
+
+  const point = event => {
+    const box = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - box.left) * (width / box.width),
+      y: (event.clientY - box.top) * (height / box.height)
+    };
+  };
+
+  canvas.onpointerdown = event => {
+    if (pad.locked) return;
+    event.preventDefault();
+    canvas.setPointerCapture?.(event.pointerId);
+    const p = point(event);
+    pad.drawing = true;
+    pad.hasInk = true;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  };
+
+  canvas.onpointermove = event => {
+    if (!pad.drawing || pad.locked) return;
+    event.preventDefault();
+    const p = point(event);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const finish = event => {
+    if (!pad.drawing) return;
+    event?.preventDefault?.();
+    pad.drawing = false;
+    ctx.closePath();
+  };
+
+  canvas.onpointerup = finish;
+  canvas.onpointercancel = finish;
+  canvas.onpointerleave = finish;
+
+  if (savedData) {
+    const image = new Image();
+    image.onload = () => {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+      pad.hasInk = true;
+    };
+    image.src = savedData;
+  }
+}
+
+function clearSignatureCanvas(canvasId) {
+  const pad = signaturePadStates.get(canvasId);
+  if (!pad || pad.locked) return;
+  pad.ctx.fillStyle = "#ffffff";
+  pad.ctx.fillRect(0, 0, pad.width, pad.height);
+  pad.hasInk = false;
+}
+
+function initializeWorksiteSignatures(ws) {
+  requestAnimationFrame(() => {
+    configureSignatureCanvas(
+      $("wsCustomerSignatureCanvas"),
+      ws.customerSignatureData || "",
+      ws.status === "completed"
+    );
+    configureSignatureCanvas(
+      $("wsWorkerSignatureCanvas"),
+      ws.workerSignatureData || "",
+      ws.status === "completed"
+    );
+
+    if ($("clearCustomerSignature")) {
+      $("clearCustomerSignature").disabled = ws.status === "completed";
+      $("clearCustomerSignature").onclick = () => clearSignatureCanvas("wsCustomerSignatureCanvas");
+    }
+    if ($("clearWorkerSignature")) {
+      $("clearWorkerSignature").disabled = ws.status === "completed";
+      $("clearWorkerSignature").onclick = () => clearSignatureCanvas("wsWorkerSignatureCanvas");
+    }
+  });
+}
+
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
@@ -2423,6 +2631,20 @@ function renderWorksiteEditor() {
   $("wsGeneralNotes").value = ws.generalNotes || "";
   $("wsCustomerSignature").value = ws.customerSignature || "";
   $("wsWorkerSignature").value = ws.workerSignature || "";
+  if ($("wsSignaturePlace")) $("wsSignaturePlace").value = ws.signaturePlace || ws.customer?.city || "";
+  if ($("wsSignatureDate")) $("wsSignatureDate").value = ws.signatureDate || ws.date || todayLocal();
+  if ($("wsSiteClean")) $("wsSiteClean").checked = Boolean(ws.siteClean);
+  initializeWorksiteSignatures(ws);
+  ["wsCustomerSignature","wsWorkerSignature","wsSignaturePlace","wsSignatureDate","wsSiteClean"].forEach(id => {
+    const element = $(id);
+    if (element) element.disabled = ws.status === "completed";
+  });
+  renderWorksiteOverview(ws);
+  renderWorksitePhotoPage(ws);
+  renderWorksiteReportChecklist(ws);
+  bindWorksiteSectionNavigation();
+  const storedSection = sessionStorage.getItem("mainabdichter_active_worksite_section") || "wsSectionOverview";
+  activateWorksiteSection(document.getElementById(storedSection) ? storedSection : "wsSectionOverview");
   ws.tasks.forEach(task => {
     if (task.offerDescription === undefined) task.offerDescription = task.note || "";
     if (task.actualNote === undefined) task.actualNote = "";
@@ -2466,8 +2688,6 @@ function renderWorksiteEditor() {
         ${resinFields}
         <div class="full"><label>Was wurde tatsächlich gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="actualNote">${esc(task.actualNote || "")}</textarea></div>
       </div>
-      <label>Fotos</label><div class="grid"><div><select id="photo-category-${task.id}"><option>Vorher</option><option>Während</option><option>Nachher</option></select></div><div><input type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></div></div>
-      <div class="worksite-photo-grid">${taskPhotoHtml(task)}</div>
     </div>`;
   }).join("");
   const totals = worksiteMaterialTotals(ws);
@@ -2482,9 +2702,9 @@ function renderWorksiteEditor() {
   document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = event => {
     const task = ws.tasks.find(item => item.id === input.dataset.wsPhotoTask);
     const category = $(`photo-category-${task.id}`).value;
-    [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
+    [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
   });
-  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); renderWorksiteEditor(); });
+  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); });
   document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"]').forEach(input => {
     const recalculate = () => {
       const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
@@ -2656,8 +2876,19 @@ $("completeWorksite").onclick = async () => {
     const ws=saveActiveWorksite(false);
     if (ws.materialBooked || ws.status === "completed") throw new Error("Diese Baustelle wurde bereits abgeschlossen und das Material bereits abgebucht.");
     if(!ws.tasks.every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return;
+    if (!String(ws.customerSignature || "").trim() || !ws.customerSignatureData) {
+      sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionReport");
+      renderWorksiteEditor();
+      throw new Error("Bitte den Namen des Kunden eintragen und die Kundenunterschrift auf dem iPad erfassen.");
+    }
+    if (!String(ws.workerSignature || "").trim() || !ws.workerSignatureData) {
+      sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionReport");
+      renderWorksiteEditor();
+      throw new Error("Bitte den ausführenden Mitarbeiter eintragen und unterschreiben.");
+    }
     const oldStatus=ws.status;
     ws.status="completed";
+    ws.reportLockedAt = new Date().toISOString();
     const pdf=await createWorksitePdf(ws);
     try { await syncWorksiteDeal(ws,"executionCompleted",pdf); }
     catch(error) { ws.status=oldStatus; persistWorksite(ws); throw error; }
