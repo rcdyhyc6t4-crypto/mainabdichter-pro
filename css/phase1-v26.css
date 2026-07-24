@@ -9,6 +9,24 @@
 .v26-sync-lights small{font-size:10px;color:#9a3f39;margin-left:auto;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:700px){.v26-sync-lights{gap:5px;flex-wrap:wrap}.sync-light-row span{display:none}.v26-sync-lights small{width:100%;margin-left:0}}
 
+/* V30.7 – geführter Einstieg für neue Anfragen */
+.new-inquiry-dialog{max-width:560px!important}
+.new-inquiry-options{display:grid;gap:12px;padding-top:8px}
+.new-inquiry-option{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr);gap:2px 13px;width:100%;padding:15px;text-align:left;border:1px solid #dfe5e0;border-radius:16px;background:#fff;color:#303632}
+.new-inquiry-option>span{grid-row:1/3;display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#edf5eb;color:#3e9f35;font-size:25px}
+.new-inquiry-option strong{align-self:end;font-size:16px}
+.new-inquiry-option small{align-self:start;color:#69716c;line-height:1.35}
+.new-inquiry-option em{position:absolute;top:10px;right:11px;padding:3px 8px;border-radius:99px;background:#e8f6e5;color:#318029;font-size:9px;font-style:normal;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.new-inquiry-option.primary-option{border-color:#8bcf82;background:#f8fcf7}
+.new-inquiry-option:active{transform:scale(.99)}
+@media(max-width:620px){
+  .new-inquiry-dialog{width:calc(100% - 24px)!important;margin:auto 12px!important}
+  .new-inquiry-option{grid-template-columns:45px minmax(0,1fr);padding:13px 11px}
+  .new-inquiry-option>span{width:42px;height:42px;font-size:22px}
+  .new-inquiry-option strong{font-size:15px;padding-right:58px}
+  .new-inquiry-option small{font-size:12px}
+}
+
 /* Commit 001 – Header Schritt 2 */
 .v301-bell-icon,.v301-profile-icon{display:block;width:25px;height:25px;font-size:0!important;background-position:center;background-repeat:no-repeat;background-size:contain}
 .v301-bell-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23343a36' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9'/%3E%3Cpath d='M10 21h4'/%3E%3C/svg%3E")}

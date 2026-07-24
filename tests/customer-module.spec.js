@@ -17,6 +17,27 @@ test("Worker trennt Kundenhistorie sicher vom Personenabruf", () => {
   expect(worker).not.toContain('url.pathname.startsWith("/pipedrive/persons/")');
 });
 
+test("Plusknopf führt verständlich in eine neue Anfrage", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#v28FloatingAdd").click();
+
+  await expect(page.locator("#newInquiryModal")).not.toHaveClass(/hidden/);
+  await expect(page.getByRole("heading", { name: "Wie kommt die Anfrage rein?" })).toBeVisible();
+  await expect(page.locator("#newInquiryScreenshot")).toContainText("Screenshot übernehmen");
+  await expect(page.locator("#newInquiryExisting")).toContainText("Vorhandener Kunde");
+  await expect(page.locator("#newInquiryManual")).toContainText("Manuell erfassen");
+
+  await page.locator("#newInquiryExisting").click();
+  await expect(page.locator("#customers")).toHaveClass(/active/);
+  await expect(page.locator("#customerSearch")).toBeFocused();
+
+  await page.locator('[data-bottom-page="dashboard"]').click();
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+  await expect(page.locator("#visit")).toHaveClass(/active/);
+  await expect(page.locator("#visitNumber")).not.toHaveValue("");
+});
+
 test("Kundenmodul funktioniert auf iPhone-Breite", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));

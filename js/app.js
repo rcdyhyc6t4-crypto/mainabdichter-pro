@@ -801,7 +801,34 @@ function initializeV28Dashboard() {
   if ($("v28SaveStockMovement")) $("v28SaveStockMovement").onclick=v28SaveStockMovement;
   if ($("v28CloseInventoryModal")) $("v28CloseInventoryModal").onclick=v28CloseInventoryArticle;
   if ($("v28InventoryModal")) $("v28InventoryModal").onclick=e=>{if(e.target===$("v28InventoryModal"))v28CloseInventoryArticle();};
-  if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>show("visit");
+  const setNewInquiryModal = open => {
+    const modal = $("newInquiryModal");
+    if (!modal) return;
+    modal.classList.toggle("hidden", !open);
+    modal.setAttribute("aria-hidden", String(!open));
+    document.body.classList.toggle("resource-modal-open", open);
+  };
+  if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>setNewInquiryModal(true);
+  if ($("closeNewInquiryModal")) $("closeNewInquiryModal").onclick=()=>setNewInquiryModal(false);
+  if ($("newInquiryModal")) $("newInquiryModal").onclick=event=>{
+    if(event.target===$("newInquiryModal")) setNewInquiryModal(false);
+  };
+  if ($("newInquiryScreenshot")) $("newInquiryScreenshot").onclick=()=>{
+    setNewInquiryModal(false);
+    openInquiryImport();
+  };
+  if ($("newInquiryExisting")) $("newInquiryExisting").onclick=()=>{
+    setNewInquiryModal(false);
+    show("customers");
+    setTimeout(()=>{
+      const search=$("customerSearch");
+      if(search){ search.focus(); search.scrollIntoView({block:"center"}); }
+    },50);
+  };
+  if ($("newInquiryManual")) $("newInquiryManual").onclick=()=>{
+    setNewInquiryModal(false);
+    startNewVisit();
+  };
   if ($("v28CreateOffer")) $("v28CreateOffer").onclick=()=>show("offer");
   if ($("v28OpenFullInventory")) $("v28OpenFullInventory").onclick=()=>show("settings");
   if ($("v28ActiveWorksite")) $("v28ActiveWorksite").onclick=()=>show("worksites");
