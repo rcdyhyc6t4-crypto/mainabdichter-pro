@@ -1,0 +1,12 @@
+{
+  "name": "mainabdichter-pro",
+  "version": "30.5.1",
+  "private": true,
+  "scripts": {
+    "build": "node --check js/customers.js && node --check js/app.js && node --check cloudflare-worker.js",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  }
+}

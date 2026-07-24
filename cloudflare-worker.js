@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V30.2
+// mainabdichter PRO Cloudflare Worker V30.5.1
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -224,13 +224,29 @@ function normalizePipedrivePerson(person) {
 
   const postal = address.formatted || formatAddress(address);
 
+  const phoneEntries = Array.isArray(person.phones)
+    ? person.phones
+    : person.phone
+      ? (Array.isArray(person.phone) ? person.phone : [person.phone])
+      : [];
+  const phoneValue = entry => cleanText(
+    typeof entry === "object" ? entry.value : entry
+  );
+  const mobileEntry = phoneEntries.find(entry =>
+    /mobile|mobil|handy|whatsapp/i.test(cleanText(entry?.label))
+  );
+  const landlineEntry = phoneEntries.find(entry =>
+    entry !== mobileEntry && phoneValue(entry)
+  );
+
   return {
     id: person.id,
     name: person.name || "",
     firstName: person.first_name || split.firstName,
     lastName: person.last_name || split.lastName,
     email: firstValue(person.emails || person.email),
-    phone: firstValue(person.phones || person.phone),
+    phone: phoneValue(landlineEntry || mobileEntry) || firstValue(person.phones || person.phone),
+    mobile: phoneValue(mobileEntry),
     street: address.street || "",
     zip: address.zip || "",
     city: address.city || "",
@@ -272,6 +288,9 @@ async function resolvePipedrivePersonAddressField(env) {
 
     const fields = Array.isArray(result.data) ? result.data : [];
     const preferredNames = [
+      "postal_adress",
+      "postal_address",
+      "postal adress",
       "postanschrift",
       "anschrift",
       "adresse",
@@ -367,9 +386,14 @@ async function createPipedrivePersonPayload(env, input) {
     emails: input.email
       ? [{ value: cleanText(input.email), primary: true, label: "work" }]
       : [],
-    phones: input.phone
-      ? [{ value: cleanText(input.phone), primary: true, label: "mobile" }]
-      : []
+    phones: [
+      ...(input.phone
+        ? [{ value: cleanText(input.phone), primary: !input.mobile, label: "work" }]
+        : []),
+      ...(input.mobile
+        ? [{ value: cleanText(input.mobile), primary: true, label: "mobile" }]
+        : [])
+    ]
   };
 
   // postal_address ist bei Pipedrive API v2 kein reguläres beschreibbares
@@ -703,7 +727,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "30.2",
+          workerVersion: "30.5.1",
           time: new Date().toISOString()
         });
       }
@@ -878,7 +902,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "30.2",
+          workerVersion: "30.4",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -893,7 +917,7 @@ export default {
         const input = await request.json();
         const name = String(input.name || "").trim();
         const email = String(input.email || "").trim();
-        const phone = String(input.phone || "").trim();
+        const phone = String(input.phone || input.mobile || "").trim();
         if (!name) return jsonResponse(request,{ok:false,error:"Name fehlt."},400);
 
         const requestedPersonId = Number(input.pipedriveId || 0) || null;
@@ -993,7 +1017,68 @@ export default {
       }
 
       if (
-        url.pathname.startsWith("/pipedrive/persons/")
+        /^\/pipedrive\/persons\/\d+\/customer-history$/.test(url.pathname) &&
+        request.method === "GET"
+      ) {
+        const personId = Number(url.pathname.split("/")[3]);
+        const idFromValue = value => {
+          if (value === null || value === undefined) return 0;
+          if (typeof value === "object") return Number(value.value || value.id || 0);
+          return Number(value || 0);
+        };
+        const safeRequest = path =>
+          pipedriveRequest(env, path).catch(() => ({ data: [] }));
+
+        const [dealsResult, notesResult, activitiesResult] = await Promise.all([
+          safeRequest(`/api/v1/deals?person_id=${personId}&status=all_not_deleted&limit=500&sort=update_time DESC`),
+          safeRequest(`/api/v1/notes?person_id=${personId}&limit=500&sort=add_time DESC`),
+          safeRequest(`/api/v1/activities?person_id=${personId}&limit=500&sort=due_date DESC`)
+        ]);
+
+        const deals = (dealsResult.data || [])
+          .filter(item => idFromValue(item?.person_id || item?.person) === personId)
+          .map(item => ({
+            id: item.id,
+            title: item.title || "",
+            status: item.status || "",
+            value: item.value || 0,
+            currency: item.currency || "EUR",
+            addTime: item.add_time || "",
+            updateTime: item.update_time || ""
+          }));
+        const notes = (notesResult.data || [])
+          .filter(item => idFromValue(item?.person_id || item?.person) === personId)
+          .map(item => ({
+            id: item.id,
+            content: item.content || "",
+            addTime: item.add_time || "",
+            updateTime: item.update_time || ""
+          }));
+        const activities = (activitiesResult.data || [])
+          .filter(item => idFromValue(item?.person_id || item?.person) === personId)
+          .map(item => ({
+            id: item.id,
+            subject: item.subject || item.type_name || item.type || "",
+            type: item.type || "",
+            dueDate: item.due_date || "",
+            dueTime: item.due_time || "",
+            done: Boolean(item.done),
+            note: item.note || ""
+          }));
+
+        return jsonResponse(request, {
+          ok: true,
+          personId,
+          deals,
+          notes,
+          activities,
+          loadedAt: new Date().toISOString()
+        });
+      }
+
+      if (
+        /^\/pipedrive\/persons\/\d+$/.test(url.pathname) &&
+        request.method === "GET"
       ) {
         const id = url.pathname.split("/").pop();
 

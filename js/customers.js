@@ -57,6 +57,12 @@ function isMobile(phone) {
   return /^\+49(?:15|16|17)\d+/.test(value);
 }
 
+function whatsappPhone(customer = {}) {
+  const mobile = clean(customer.mobile);
+  if (mobile) return mobile;
+  return isMobile(customer.phone) ? clean(customer.phone) : "";
+}
+
 function loadWorksites() {
   try {
     const items = JSON.parse(localStorage.getItem("mainabdichter_v18_worksites") || "[]");
@@ -134,6 +140,7 @@ function normalizeCustomer(input = {}) {
     lastName: clean(input.lastName),
     company: clean(input.company),
     phone: clean(input.phone),
+    mobile: clean(input.mobile),
     email: clean(input.email),
     street,
     zip,
@@ -178,6 +185,7 @@ function customerFromForm() {
     lastName: formValue("customerLastName"),
     company: formValue("customerCompany"),
     phone: formValue("customerPhone"),
+    mobile: formValue("customerMobile"),
     email: formValue("customerEmail"),
     street,
     zip,
@@ -216,6 +224,7 @@ function fillForm(customer = {}) {
   $("customerFirstName").value = item.firstName;
   $("customerLastName").value = item.lastName;
   $("customerPhone").value = item.phone;
+  $("customerMobile").value = item.mobile;
   $("customerEmail").value = item.email;
   $("customerStreet").value = item.street;
   $("customerZip").value = item.zip;
@@ -251,7 +260,7 @@ function closeEditor() {
 function searchText(customer) {
   return [
     displayName(customer), customer.firstName, customer.lastName, customer.company,
-    customer.phone, customer.email, customer.street, customer.zip, customer.city,
+    customer.phone, customer.mobile, customer.email, customer.street, customer.zip, customer.city,
     customer.objectAddress
   ].join(" ").toLocaleLowerCase("de");
 }
@@ -261,7 +270,8 @@ function actionLinks(customer) {
   const email = clean(customer.email);
   const links = [];
   if (phone) links.push(`<a href="tel:${esc(phone)}" aria-label="${esc(displayName(customer))} anrufen">☎ Anrufen</a>`);
-  if (isMobile(phone)) links.push(`<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(phone).replace("+", ""))}" target="_blank" rel="noopener">WhatsApp</a>`);
+  const mobile = whatsappPhone(customer);
+  if (mobile) links.push(`<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(mobile).replace("+", ""))}" target="_blank" rel="noopener">WhatsApp</a>`);
   if (email) links.push(`<a href="mailto:${esc(email)}">E-Mail</a>`);
   links.push(`<button type="button" data-customer-record="${esc(customer.id)}">Kundenakte</button>`);
   links.push(`<button type="button" data-customer-edit="${esc(customer.id)}">Bearbeiten</button>`);
@@ -281,7 +291,7 @@ function renderList(items = null) {
         <div class="customer-list-main">
           <strong>${esc(displayName(customer))}</strong>
           <span>${esc(customer.objectAddress || customer.postalAddress || "Noch keine Adresse")}</span>
-          <small>${esc([customer.phone, customer.email].filter(Boolean).join(" · ") || "Noch keine Kontaktdaten")}${customer.pipedriveId ? " · Pipedrive" : ""}</small>
+          <small>${esc([customer.phone, customer.mobile, customer.email].filter(Boolean).join(" · ") || "Noch keine Kontaktdaten")}${customer.pipedriveId ? " · Pipedrive" : ""}</small>
         </div>
         <div class="customer-list-actions">${actionLinks(customer)}</div>
       </article>`).join("")
@@ -316,8 +326,8 @@ function renderCustomerRecord(customer) {
     item.phone
       ? `<a href="tel:${esc(item.phone)}"><small>Telefon</small><strong>${esc(item.phone)}</strong></a>`
       : `<div><small>Telefon</small><strong>Nicht hinterlegt</strong></div>`,
-    isMobile(item.phone)
-      ? `<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(item.phone).replace("+", ""))}" target="_blank" rel="noopener"><small>WhatsApp</small><strong>Chat öffnen</strong></a>`
+    whatsappPhone(item)
+      ? `<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(whatsappPhone(item)).replace("+", ""))}" target="_blank" rel="noopener"><small>WhatsApp</small><strong>${esc(item.mobile || item.phone)}</strong></a>`
       : "",
     item.email
       ? `<a href="mailto:${esc(item.email)}"><small>E-Mail</small><strong>${esc(item.email)}</strong></a>`
@@ -493,12 +503,37 @@ async function searchRemote() {
   $("customerSearchPipedrive").disabled = true;
   try {
     const result = await searchPipedrive(term);
-    const remote = (result.people || []).map(person => normalizeCustomer({
-      ...person,
-      id: `pipedrive-${person.id}`,
-      pipedriveId: person.id,
-      source: "pipedrive"
-    }));
+    const localCustomers = loadCustomers();
+    const remote = (result.people || []).map(person => {
+      const existing = localCustomers.find(item =>
+        String(item.pipedriveId || "") === String(person.id || "")
+      );
+      const incoming = normalizeCustomer({
+        ...person,
+        id: existing?.id || `pipedrive-${person.id}`,
+        pipedriveId: person.id,
+        source: "pipedrive"
+      });
+      if (!existing) return incoming;
+
+      // Pipedrive-Suchergebnisse enthalten nicht immer die Detailfelder.
+      // Leere Treffer dürfen vorhandene Kunden- und Adressdaten nicht löschen.
+      return normalizeCustomer({
+        ...existing,
+        ...Object.fromEntries(
+          Object.entries(incoming).filter(([, value]) =>
+            value !== "" && value !== null && value !== undefined
+          )
+        ),
+        id: existing.id,
+        pipedriveId: incoming.pipedriveId,
+        objectAddressDifferent: existing.objectAddressDifferent,
+        objectStreet: existing.objectStreet,
+        objectZip: existing.objectZip,
+        objectCity: existing.objectCity,
+        objectAddress: existing.objectAddress
+      });
+    });
     for (const customer of remote) saveCustomer(customer);
     renderList();
     setStatus("customerListStatus", `${remote.length} Kunde${remote.length === 1 ? "" : "n"} aus Pipedrive übernommen.`, "success");
@@ -522,6 +557,9 @@ function validate(customer) {
   }
   if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
     return "Bitte eine gültige E-Mail-Adresse eintragen.";
+  }
+  if (customer.mobile && normalizePhone(customer.mobile).replace(/\D/g, "").length < 8) {
+    return "Bitte eine vollständige Mobilnummer eintragen.";
   }
   return "";
 }
@@ -589,11 +627,18 @@ async function refreshFromPipedrive() {
   try {
     const result = await loadPipedrivePerson(pipedriveId);
     const current = customerFromForm();
+    const remote = normalizeCustomer(result.person);
+    const preserveObjectAddress = current.objectAddressDifferent;
     const refreshed = saveCustomer(normalizeCustomer({
       ...current,
-      ...result.person,
+      ...remote,
       id: current.id,
       pipedriveId,
+      objectAddressDifferent: preserveObjectAddress,
+      objectStreet: preserveObjectAddress ? current.objectStreet : remote.street,
+      objectZip: preserveObjectAddress ? current.objectZip : remote.zip,
+      objectCity: preserveObjectAddress ? current.objectCity : remote.city,
+      objectAddress: preserveObjectAddress ? current.objectAddress : remote.postalAddress,
       source: "pipedrive",
       lastPipedriveSync: { ok: true, at: new Date().toISOString() }
     }));
