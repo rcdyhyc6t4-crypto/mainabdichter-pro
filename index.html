@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V30</title>
-<link rel="stylesheet" href="css/app.css?v=30.1.0">
+<title>mainabdichter PRO V30.2</title>
+<link rel="stylesheet" href="css/app.css?v=30.2.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v26-7">
 <link rel="manifest" href="manifest.json">
 
@@ -231,7 +231,12 @@ main{width:100%;max-width:100%}
       <div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
       <div><label>PLZ</label><input id="zip" inputmode="numeric"></div>
       <div><label>Ort</label><input id="city"></div>
-      <div class="full"><label>Objektanschrift abweichend</label><input id="objectAddress"></div>
+      <div class="full object-address-control">
+        <label class="customer-checkbox"><input id="objectAddressDifferent" type="checkbox"> Objektadresse weicht von der Postanschrift ab</label>
+        <label for="objectAddress">Objektadresse</label>
+        <input id="objectAddress" autocomplete="street-address">
+        <small id="objectAddressHint" class="hint">Wird automatisch aus Straße, PLZ und Ort übernommen.</small>
+      </div>
     </div>
   </details>
 
@@ -312,6 +317,100 @@ main{width:100%;max-width:100%}
   <section class="card advice-all-steps">
     <div class="card-title-row"><div><span class="dashboard-eyebrow">ARBEITSABLAUF</span><h2 id="adviceProcessTitle">Schritt für Schritt</h2></div></div>
     <div id="adviceProcessSteps" class="advice-process-grid"></div>
+  </section>
+</section>
+
+<section id="customers" class="page customers-page">
+  <header class="customer-module-header">
+    <div>
+      <span>KUNDEN</span>
+      <h1>Kundenverwaltung</h1>
+      <p>Kundendaten, Kontaktwege und Objektadressen an einem Ort.</p>
+    </div>
+    <button type="button" id="customerCreateNew" class="primary">+ Neuer Kunde</button>
+  </header>
+
+  <section id="customerListView" class="customer-module-layout">
+    <div class="customer-search-card">
+      <label for="customerSearch">Kunden suchen</label>
+      <div class="customer-search-row">
+        <input id="customerSearch" type="search" placeholder="Name, Firma, Ort, Telefon oder E-Mail" autocomplete="off">
+        <button type="button" id="customerSearchPipedrive" class="secondary">Auch in Pipedrive suchen</button>
+      </div>
+      <div id="customerListStatus" class="customer-inline-status" role="status" aria-live="polite"></div>
+    </div>
+    <div id="customerList" class="customer-list"></div>
+  </section>
+
+  <section id="customerEditor" class="customer-editor hidden" aria-labelledby="customerEditorTitle">
+    <header>
+      <div>
+        <span id="customerEditorEyebrow">KUNDE</span>
+        <h2 id="customerEditorTitle">Neuen Kunden anlegen</h2>
+        <p id="customerSyncInfo">Noch nicht mit Pipedrive synchronisiert.</p>
+      </div>
+      <button type="button" id="customerEditorClose" class="secondary">Schließen</button>
+    </header>
+
+    <form id="customerForm" novalidate>
+      <input id="customerId" type="hidden">
+      <input id="customerPipedriveId" type="hidden">
+      <div class="customer-form-grid">
+        <div>
+          <label for="customerType">Kundentyp</label>
+          <select id="customerType">
+            <option value="person">Privatkunde</option>
+            <option value="company">Firma</option>
+          </select>
+        </div>
+        <div id="customerCompanyField">
+          <label for="customerCompany">Firmenname</label>
+          <input id="customerCompany" autocomplete="organization">
+        </div>
+        <div>
+          <label for="customerFirstName">Vorname</label>
+          <input id="customerFirstName" autocomplete="given-name">
+        </div>
+        <div>
+          <label for="customerLastName">Nachname</label>
+          <input id="customerLastName" autocomplete="family-name">
+        </div>
+        <div>
+          <label for="customerPhone">Telefon / Mobilnummer</label>
+          <input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel">
+        </div>
+        <div>
+          <label for="customerEmail">E-Mail-Adresse</label>
+          <input id="customerEmail" type="email" inputmode="email" autocomplete="email">
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>Postanschrift</legend>
+        <div class="customer-form-grid">
+          <div class="full"><label for="customerStreet">Straße und Hausnummer</label><input id="customerStreet" autocomplete="street-address"></div>
+          <div><label for="customerZip">PLZ</label><input id="customerZip" inputmode="numeric" autocomplete="postal-code"></div>
+          <div><label for="customerCity">Ort</label><input id="customerCity" autocomplete="address-level2"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Objektadresse</legend>
+        <label class="customer-checkbox"><input id="customerObjectDifferent" type="checkbox"> Objektadresse weicht von der Postanschrift ab</label>
+        <div id="customerObjectFields" class="customer-form-grid">
+          <div class="full"><label for="customerObjectStreet">Straße und Hausnummer</label><input id="customerObjectStreet" autocomplete="off"></div>
+          <div><label for="customerObjectZip">PLZ</label><input id="customerObjectZip" inputmode="numeric" autocomplete="off"></div>
+          <div><label for="customerObjectCity">Ort</label><input id="customerObjectCity" autocomplete="off"></div>
+        </div>
+        <p id="customerObjectHint" class="hint">Die Objektadresse wird automatisch aus der Postanschrift übernommen.</p>
+      </fieldset>
+
+      <div id="customerFormStatus" class="customer-form-status" role="status" aria-live="polite"></div>
+      <div class="customer-save-actions">
+        <button type="submit" id="customerSave" class="primary">Kunde speichern</button>
+        <button type="button" id="customerRefreshPipedrive" class="secondary hidden">Aus Pipedrive aktualisieren</button>
+      </div>
+    </form>
   </section>
 </section>
 
@@ -414,7 +513,7 @@ main{width:100%;max-width:100%}
         <h1 id="wsCustomer">–</h1>
         <p id="wsAddress">–</p>
       </div>
-      <button id="closeWorksite" class="secondary">Zur Baustellenübersicht</button>
+      <button id="closeWorksiteDetail" class="secondary">Zur Baustellenübersicht</button>
     </div>
 
     <nav class="worksite-section-nav" aria-label="Baustellenbereiche">
@@ -672,7 +771,7 @@ main{width:100%;max-width:100%}
 </main>
 <nav class="bottom-nav redesign-bottom-nav">
   <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Übersicht</small></button>
-  <button id="bottomCustomers"><span>♙</span><small>Kunden</small></button>
+  <button id="bottomCustomers" data-bottom-page="customers"><span>♙</span><small>Kunden</small></button>
   <button data-bottom-page="offer"><span>☷</span><small>Vorgänge</small></button>
   <button data-bottom-page="worksites"><span>⚒</span><small>Baustellen</small></button>
   <button data-bottom-page="more"><span>•••</span><small>Mehr</small></button>
@@ -691,7 +790,8 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=30.1.0"></script>
+<script type="module" src="js/app.js?v=30.2.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
+<script type="module" src="js/customers.js?v=30.2.0"></script>
 </body>
 </html>
