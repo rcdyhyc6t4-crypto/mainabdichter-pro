@@ -96,6 +96,11 @@ export async function searchPipedrive(term) {
   return api(`/pipedrive/persons/search?term=${encodeURIComponent(term)}`);
 }
 
+export async function loadPipedrivePersons(cursor = "") {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return api(`/pipedrive/persons${query}`);
+}
+
 export async function loadPipedrivePerson(id) {
   return api(`/pipedrive/persons/${encodeURIComponent(id)}`);
 }

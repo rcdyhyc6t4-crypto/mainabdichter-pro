@@ -30,7 +30,7 @@
 .customer-module-header p,.customer-editor>header p{margin:0;color:#687268;line-height:1.45}
 .customer-module-layout{display:grid;gap:14px}
 .customer-search-card,.customer-editor{background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(16,33,24,.06)}
-.customer-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.customer-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px}
 .customer-inline-status,.customer-form-status{min-height:22px;margin-top:9px;font-size:13px;line-height:1.4}
 .customer-form-status:not(:empty){padding:12px 14px;border-radius:10px;background:#eef3ee;font-weight:800}
 .customer-inline-status.is-error,.customer-form-status.is-error{color:#a12620}

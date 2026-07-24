@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V30.5.1
+// mainabdichter PRO Cloudflare Worker V30.6
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -242,6 +242,7 @@ function normalizePipedrivePerson(person) {
   return {
     id: person.id,
     name: person.name || "",
+    company: cleanText(person.org_name || person.organization?.name || person.org_id?.name),
     firstName: person.first_name || split.firstName,
     lastName: person.last_name || split.lastName,
     email: firstValue(person.emails || person.email),
@@ -727,7 +728,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "30.5.1",
+          workerVersion: "30.6",
           time: new Date().toISOString()
         });
       }
@@ -978,6 +979,43 @@ export default {
           },
           created ? 201 : 200
         );
+      }
+
+      if (
+        url.pathname === "/pipedrive/persons" &&
+        request.method === "GET"
+      ) {
+        const cursor = cleanText(url.searchParams.get("cursor"));
+        const addressField = await resolvePipedrivePersonAddressField(env);
+        const params = new URLSearchParams({ limit: "500" });
+        if (cursor) params.set("cursor", cursor);
+        if (addressField) params.set("custom_fields", addressField);
+
+        const result = await pipedriveRequest(
+          env,
+          `/api/v2/persons?${params.toString()}`
+        );
+        const people = (Array.isArray(result.data) ? result.data : [])
+          .map(person => {
+            if (
+              addressField &&
+              person.custom_fields &&
+              person.custom_fields[addressField] !== undefined
+            ) {
+              person._mainabdichter_address_value =
+                person.custom_fields[addressField];
+            }
+            return normalizePipedrivePerson(person);
+          });
+
+        return jsonResponse(request, {
+          ok: true,
+          people,
+          nextCursor:
+            result.additional_data?.next_cursor ||
+            result.additional_data?.pagination?.next_cursor ||
+            null
+        });
       }
 
       if (url.pathname === "/pipedrive/persons/search") {

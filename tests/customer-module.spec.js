@@ -110,6 +110,74 @@ test("Pipedrive-Aktualisierung erhält eine bewusst abweichende Objektadresse", 
   await expect(page.locator("#customerObjectDifferent")).toBeChecked();
 });
 
+test("Gesamte Pipedrive-Kundenliste wird seitenweise und ohne Dubletten aktualisiert", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("mainabdichter_v10_settings", JSON.stringify({
+      workerUrl: "https://worker.test",
+      appSecret: "test-secret"
+    }));
+    localStorage.setItem("mainabdichter_v30_customers", JSON.stringify([{
+      id: "local-4",
+      firstName: "Mike",
+      lastName: "Alt",
+      street: "Alte Straße 1",
+      zip: "65589",
+      city: "Hadamar",
+      objectAddressDifferent: true,
+      objectStreet: "Objektweg 3",
+      objectZip: "65549",
+      objectCity: "Limburg",
+      objectAddress: "Objektweg 3, 65549 Limburg",
+      pipedriveId: "4"
+    }]));
+  });
+
+  await page.route("https://worker.test/pipedrive/persons*", route => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    return route.fulfill({ json: cursor
+      ? {
+          ok: true,
+          people: [{
+            id: 5,
+            firstName: "Daria",
+            lastName: "Drenske",
+            street: "Dorfstraße 7",
+            zip: "35794",
+            city: "Mengerskirchen"
+          }],
+          nextCursor: null
+        }
+      : {
+          ok: true,
+          people: [{
+            id: 4,
+            firstName: "Mike",
+            lastName: "Sprager",
+            street: "Ringstr. 24",
+            zip: "65589",
+            city: "Hadamar"
+          }],
+          nextCursor: "seite-2"
+        }
+    });
+  });
+
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#bottomCustomers").click();
+  await page.locator("#customerSyncPipedrive").click();
+
+  await expect(page.locator("#customerListStatus")).toContainText("2 Pipedrive-Kunden");
+  await expect(page.locator("#customerList")).toContainText("Mike Sprager");
+  await expect(page.locator("#customerList")).toContainText("Daria Drenske");
+  await page.getByRole("button", { name: "Bearbeiten" }).first().click();
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("mainabdichter_v30_customers") || "[]")
+  );
+  expect(stored).toHaveLength(2);
+  expect(stored.find(item => item.pipedriveId === "4").objectAddress)
+    .toBe("Objektweg 3, 65549 Limburg");
+});
+
 test("Kundenakte lädt echte Pipedrive- und Lexware-Daten", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("mainabdichter_v10_settings", JSON.stringify({

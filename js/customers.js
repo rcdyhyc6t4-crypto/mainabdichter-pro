@@ -2,6 +2,7 @@ import { state, loadArchive, loadCustomers, saveCustomer } from "./storage-v227.
 import {
   hasConnectionConfig,
   searchPipedrive,
+  loadPipedrivePersons,
   loadPipedrivePerson,
   loadPipedriveCustomerHistory,
   loadLexwareCustomerHistory,
@@ -158,6 +159,34 @@ function normalizeCustomer(input = {}) {
         : "",
     source: input.source || "local"
   };
+}
+
+function mergePipedriveCustomer(existing, incoming) {
+  const remote = normalizeCustomer(incoming);
+  if (!existing) return remote;
+
+  const current = normalizeCustomer(existing);
+  const values = Object.fromEntries(
+    Object.entries(remote).filter(([, value]) =>
+      value !== "" && value !== null && value !== undefined
+    )
+  );
+  const objectDifferent = current.objectAddressDifferent;
+
+  return normalizeCustomer({
+    ...current,
+    ...values,
+    id: current.id,
+    pipedriveId: remote.pipedriveId || current.pipedriveId,
+    objectAddressDifferent: objectDifferent,
+    objectStreet: objectDifferent ? current.objectStreet : (remote.street || current.street),
+    objectZip: objectDifferent ? current.objectZip : (remote.zip || current.zip),
+    objectCity: objectDifferent ? current.objectCity : (remote.city || current.city),
+    objectAddress: objectDifferent
+      ? current.objectAddress
+      : (remote.postalAddress || current.postalAddress),
+    source: "pipedrive"
+  });
 }
 
 function setStatus(id, message = "", type = "") {
@@ -514,25 +543,7 @@ async function searchRemote() {
         pipedriveId: person.id,
         source: "pipedrive"
       });
-      if (!existing) return incoming;
-
-      // Pipedrive-Suchergebnisse enthalten nicht immer die Detailfelder.
-      // Leere Treffer dürfen vorhandene Kunden- und Adressdaten nicht löschen.
-      return normalizeCustomer({
-        ...existing,
-        ...Object.fromEntries(
-          Object.entries(incoming).filter(([, value]) =>
-            value !== "" && value !== null && value !== undefined
-          )
-        ),
-        id: existing.id,
-        pipedriveId: incoming.pipedriveId,
-        objectAddressDifferent: existing.objectAddressDifferent,
-        objectStreet: existing.objectStreet,
-        objectZip: existing.objectZip,
-        objectCity: existing.objectCity,
-        objectAddress: existing.objectAddress
-      });
+      return mergePipedriveCustomer(existing, incoming);
     });
     for (const customer of remote) saveCustomer(customer);
     renderList();
@@ -541,6 +552,55 @@ async function searchRemote() {
     setStatus("customerListStatus", `Pipedrive-Suche fehlgeschlagen: ${error.message}`, "error");
   } finally {
     $("customerSearchPipedrive").disabled = false;
+  }
+}
+
+async function syncAllPipedrive() {
+  if (!hasConnectionConfig()) {
+    setStatus("customerListStatus", "Für die Pipedrive-Aktualisierung fehlen die Verbindungsdaten in den Einstellungen.", "error");
+    return;
+  }
+
+  const button = $("customerSyncPipedrive");
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Pipedrive wird geladen …";
+  setStatus("customerListStatus", "Kunden werden aus Pipedrive aktualisiert …");
+
+  try {
+    let cursor = "";
+    let loaded = 0;
+    let pages = 0;
+    do {
+      const result = await loadPipedrivePersons(cursor);
+      const localCustomers = loadCustomers();
+      for (const person of result.people || []) {
+        const existing = localCustomers.find(item =>
+          String(item.pipedriveId || "") === String(person.id || "")
+        );
+        saveCustomer(mergePipedriveCustomer(existing, {
+          ...person,
+          id: existing?.id || `pipedrive-${person.id}`,
+          pipedriveId: person.id,
+          source: "pipedrive"
+        }));
+        loaded += 1;
+      }
+      cursor = clean(result.nextCursor);
+      pages += 1;
+    } while (cursor && pages < 20);
+
+    renderList();
+    setStatus(
+      "customerListStatus",
+      `${loaded} Pipedrive-Kunde${loaded === 1 ? "" : "n"} wurden aktualisiert.`,
+      "success"
+    );
+  } catch (error) {
+    setStatus("customerListStatus", `Pipedrive-Aktualisierung fehlgeschlagen: ${error.message}`, "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
   }
 }
 
@@ -659,6 +719,7 @@ function init() {
   $("customerForm").onsubmit = saveForm;
   $("customerSearch").oninput = () => renderList();
   $("customerSearchPipedrive").onclick = searchRemote;
+  $("customerSyncPipedrive").onclick = syncAllPipedrive;
   $("customerRefreshPipedrive").onclick = refreshFromPipedrive;
   $("customerRecordClose").onclick = closeCustomerRecord;
   $("customerRecordRefresh").onclick = refreshCustomerRecord;
