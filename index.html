@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
 <title>mainabdichter V25 Geführter Auftrag Menü & Logo Fix</title>
-<link rel="stylesheet" href="css/app-v227.css?build=20260724-v27">
+<link rel="stylesheet" href="css/app-v227.css?build=20260724-v28">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v26-7">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -38,100 +38,80 @@
 </aside>
 
 <main>
-<section id="dashboard" class="page active redesign-dashboard">
-  <section class="dashboard-welcome">
-    <div>
-      <span id="dashboardDate" class="dashboard-eyebrow"></span>
-      <h1 id="dashboardGreeting">Guten Morgen, Mike</h1>
-      <p>Was steht als Nächstes an?</p>
+<section id="dashboard" class="page active v28-dashboard">
+  <header class="v28-app-header">
+    <img src="assets/mainabdichter-header-logo.png" alt="mainabdichter" class="v28-header-logo">
+    <div class="v28-header-actions">
+      <button type="button" id="v28Notifications" class="v28-icon-button" aria-label="Benachrichtigungen">♧<i></i></button>
+      <button type="button" id="v28Profile" class="v28-icon-button" aria-label="Profil">◎</button>
     </div>
-    <button id="dashboardNewInquiry" class="dashboard-primary-action"><span>＋</span>Neue Anfrage</button>
-  </section>
+  </header>
 
-  <section class="dashboard-status-grid">
-    <button id="dashboardTodayCard" class="dashboard-status-card" data-scroll-target="pipedriveTodayList">
-      <span class="status-icon">◷</span><strong id="dashboardAppointmentCount">–</strong><small>Termine heute</small>
-    </button>
-    <button id="dashboardWorksiteCard" class="dashboard-status-card" data-page-target="worksites">
-      <span class="status-icon">⚒</span><strong id="dashboardWorksiteCount">0</strong><small>Baustellen</small>
-    </button>
-    <button id="dashboardOfferCard" class="dashboard-status-card" data-scroll-target="recentOffers">
-      <span class="status-icon">▤</span><strong id="dashboardOpenOfferCount">0</strong><small>Offene Angebote</small>
-    </button>
-    <button id="dashboardFollowupCard" class="dashboard-status-card" data-scroll-target="nextFollowups">
-      <span class="status-icon">↻</span><strong id="dashboardFollowupCount">0</strong><small>Nachkontrollen</small>
-    </button>
-  </section>
-
-  <section class="dashboard-resource-buttons">
-    <button type="button" id="openInventoryDashboard" class="dashboard-resource-button">
-      <span class="resource-icon">▣</span>
-      <span><small>LAGERBESTAND</small><strong>Materialübersicht</strong><em id="dashboardInventorySummary">Bestand prüfen</em></span>
-      <b>›</b>
-    </button>
-    <button type="button" id="openBottleDashboard" class="dashboard-resource-button">
-      <span class="resource-icon">◉</span>
-      <span><small>INJEKTIONSFLASCHEN</small><strong>Flaschen auf Baustellen</strong><em id="dashboardBottleSummary">0 unterwegs</em></span>
-      <b>›</b>
-    </button>
-  </section>
-
-  <section id="inventoryDashboardModal" class="dashboard-resource-modal hidden" aria-hidden="true">
-    <div class="dashboard-resource-dialog">
-      <div class="resource-dialog-head"><div><small>LAGER</small><h2>Aktueller Materialbestand</h2></div><button type="button" id="closeInventoryDashboard" class="resource-close">×</button></div>
-      <button type="button" class="text-button" data-page-target="settings" data-scroll-target="inventoryProducts">Lager bearbeiten</button>
-      <div id="dashboardInventoryAlert" class="inventory-dashboard-alert" hidden></div>
-      <div id="dashboardInventoryList" class="dashboard-inventory-grid"><div class="empty-mini">Lagerbestand wird geladen.</div></div>
-    </div>
-  </section>
-
-  <section id="bottleDashboardModal" class="dashboard-resource-modal hidden" aria-hidden="true">
-    <div class="dashboard-resource-dialog">
-      <div class="resource-dialog-head"><div><small>INJEKTIONSFLASCHEN</small><h2>Flaschen auf Baustellen</h2></div><button type="button" id="closeBottleDashboard" class="resource-close">×</button></div>
-      <div id="dashboardBottleStats" class="bottle-stat-grid"></div>
-      <div id="dashboardBottleList" class="compact-list"><div class="empty-mini">Keine Flaschen auf Baustellen.</div></div>
-    </div>
-  </section>
-
-  <section class="dashboard-action-grid">
-    <button id="dashboardNewVisit" class="dashboard-action-card"><span>＋</span><strong>Neue Besichtigung</strong><small>Leere Erfassung starten</small></button>
-    <button id="quickCreateOffer" class="dashboard-action-card"><span>▤</span><strong>Angebot erstellen</strong><small>Aktuellen Vorgang kalkulieren</small></button>
-    <button id="quickShowOffers" class="dashboard-action-card"><span>☷</span><strong>Vorgänge</strong><small>Angebote und Bauakten</small></button>
-    <button id="quickShowFollowups" class="dashboard-action-card"><span>↻</span><strong>Nachkontrollen</strong><small>Fällige Prüfungen öffnen</small></button>
-  </section>
-
-  <section class="dashboard-section">
-    <div class="section-title"><div><span>HEUTE</span><h2>Termine und neue Aufträge</h2></div><button id="syncDashboardAll" class="text-button">Alles aktualisieren</button></div>
-    <div class="dashboard-two-columns">
-      <section class="panel redesign-panel"><div class="panel-heading"><h3>Pipedrive-Termine</h3><button id="syncPipedriveActivities" class="text-button">Aktualisieren</button></div><div id="pipedriveTodayList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
-      <section class="panel redesign-panel"><div class="panel-heading"><h3>Angenommene Lexware-Angebote</h3><button id="syncAcceptedQuotations" class="text-button">Aktualisieren</button></div><div id="acceptedQuotationList" class="compact-list"><div class="empty-mini">Noch nicht synchronisiert.</div></div></section>
-    </div>
-  </section>
-
-  <section class="dashboard-section">
-    <div class="section-title"><div><span>OFFEN</span><h2>Vorgänge im Blick behalten</h2></div></div>
-    <div class="dashboard-two-columns">
-      <section class="panel redesign-panel"><div class="panel-heading"><h3>Letzte Angebote</h3><button id="showAllOffers" class="text-button">Alle anzeigen</button></div><div id="recentOffers" class="compact-list"></div></section>
-      <section class="panel redesign-panel"><div class="panel-heading"><h3>Nächste Nachkontrollen</h3><button id="showAllFollowups" class="text-button">Alle anzeigen</button></div><div id="nextFollowups" class="compact-list"></div></section>
-    </div>
-  </section>
-
-  <details class="dashboard-section dashboard-details">
-    <summary><span>Alle Vorgänge, Statistik und Datensicherung</span><small>Bei Bedarf öffnen</small></summary>
-    <section class="dashboard-stat-strip">
-      <div><span>Gesamt</span><strong id="statTotal">0</strong></div>
-      <div><span>Angenommen</span><strong id="statAccepted">0</strong></div>
-      <div><span>Offen</span><strong id="statOpen">0</strong></div>
-      <div><span>Entwurf</span><strong id="statDraft">0</strong></div>
-      <div><span>Abgeschlossen</span><strong id="statCompleted">0</strong></div>
-      <div><span>Nachkontrolle</span><strong id="statFollowups">0</strong></div>
-      <div class="wide-stat"><span>Gesamtsumme</span><strong id="statAmount">0,00 €</strong></div>
+  <main class="v28-dashboard-content">
+    <section class="v28-greeting-row">
+      <div><h1>Guten Morgen,<br><strong>Mike</strong> 👋</h1></div>
+      <button type="button" id="v28SystemStatus" class="v28-system-pill">
+        <i id="v28SystemDot" class="v28-status-dot v28-status-yellow"></i>
+        <span><strong id="v28SystemTitle">Wird geprüft</strong><small id="v28SystemTime">Noch keine Synchronisation</small></span>
+      </button>
     </section>
-    <div class="archive-layout redesign-archive-layout">
-      <section class="panel archive-panel"><div class="filter-row"><input id="archiveSearch" placeholder="Kunde, Adresse, Ort oder Maßnahme suchen"><select id="archiveFilter"><option value="all">Alle Status</option><option value="draft">Entwurf</option><option value="open">Offen</option><option value="accepted">Angenommen</option><option value="completed">Abgeschlossen</option><option value="followup">Nachkontrolle</option></select></div><div class="archive-table-head"><span>Datum</span><span>Kunde / Objekt</span><span>Maßnahmen</span><span>Summe</span><span>Status</span></div><div id="archiveList" class="archive-list table-list"></div><div id="archiveEmpty" class="empty-state">Noch keine Angebote gespeichert.</div></section>
-      <aside class="panel backup-panel backup-pointer"><div class="panel-heading"><h3>Datensicherung</h3></div><p class="hint">Import und Export findest du jetzt dauerhaft unter „Mehr“.</p><button type="button" data-page-target="more" class="primary">Datensicherung öffnen</button></aside>
+
+    <section class="v28-section">
+      <h2>HEUTE</h2>
+      <article id="v28NextAppointment" class="v28-today-card">
+        <div class="v28-time-column"><strong id="v28TodayTime">–</strong><span class="v28-location-icon">●</span></div>
+        <div class="v28-today-main"><small id="v28TodayType">Nächster Termin</small><h3 id="v28TodayCustomer">Heute nichts geplant</h3><p id="v28TodayAddress">Keine weiteren Termine vorhanden.</p></div>
+        <button type="button" id="v28Navigate" class="v28-navigation-button">➤ <span>Navigation starten</span></button>
+        <b class="v28-card-chevron">›</b>
+      </article>
+    </section>
+
+    <section class="v28-section">
+      <h2>AUF EINEN BLICK</h2>
+      <div class="v28-overview-grid">
+        <button type="button" class="v28-overview-card" data-v28-target="offer"><span class="v28-overview-icon v28-green-icon">▤</span><span><strong id="v28OpenOffers">0</strong><b>Offene Angebote</b><small>Warten auf Rückmeldung</small></span><em>›</em></button>
+        <button type="button" class="v28-overview-card" data-v28-target="more"><span class="v28-overview-icon v28-yellow-icon">↻</span><span><strong id="v28Followups">0</strong><b>Nachkontrolle</b><small id="v28FollowupHint">Keine fällig</small></span><em>›</em></button>
+        <button type="button" class="v28-overview-card" id="v28BottleCard"><span class="v28-overview-icon v28-red-icon">♙</span><span><strong id="v28BottleCount">0</strong><b>Flaschen abholen</b><small id="v28BottleSites">Auf 0 Baustellen</small></span><em>›</em></button>
+        <button type="button" class="v28-overview-card" data-v28-target="dashboard"><span class="v28-overview-icon v28-blue-icon">▦</span><span><strong id="v28MoreAppointments">0</strong><b>Weiterer Termin</b><small id="v28AppointmentHint">Heute nichts mehr</small></span><em>›</em></button>
+      </div>
+    </section>
+
+    <section class="v28-section">
+      <h2>AKTIVE BAUSTELLEN</h2>
+      <button type="button" id="v28ActiveWorksite" class="v28-active-worksite">
+        <span class="v28-overview-icon v28-green-icon">▥</span><span><strong id="v28ActiveWorksiteCount">0</strong><b>Baustelle aktiv</b><small id="v28ActiveWorksiteStatus">Keine aktive Baustelle</small></span><span id="v28WorksitePreview" class="v28-worksite-preview"></span><em>›</em>
+      </button>
+    </section>
+
+    <section class="v28-section">
+      <div class="v28-section-title-row"><h2>LAGERBESTAND</h2><button type="button" id="v28OpenFullInventory" class="v28-text-link">Alle anzeigen</button></div>
+      <div id="v28InventoryStrip" class="v28-inventory-strip"></div>
+    </section>
+
+    <button type="button" id="v28CreateOffer" class="v28-quick-offer"><span class="v28-overview-icon v28-green-icon">☑</span><span><strong>Neues Angebot erstellen</strong><small>Schnell und einfach ein Angebot anlegen</small></span><em>›</em></button>
+  </main>
+
+  <button type="button" id="v28FloatingAdd" class="v28-floating-add" aria-label="Neue Anfrage">+</button>
+
+  <section id="v28InventoryModal" class="v28-modal hidden" aria-hidden="true">
+    <div class="v28-modal-dialog">
+      <header><div><small>LAGER</small><h2 id="v28InventoryModalTitle">Artikel bearbeiten</h2></div><button type="button" id="v28CloseInventoryModal">×</button></header>
+      <div id="v28InventoryArticleSummary" class="v28-inventory-detail-summary"></div>
+      <div class="v28-stock-action-tabs">
+        <button type="button" class="active" data-stock-action="increase">Wareneingang</button>
+        <button type="button" data-stock-action="decrease">Entnahme</button>
+        <button type="button" data-stock-action="correct">Korrektur</button>
+      </div>
+      <div class="v28-stock-form">
+        <div><label>Menge</label><input id="v28StockAmount" inputmode="decimal" placeholder="0"></div>
+        <div id="v28ChargeField"><label>Chargennummer</label><input id="v28StockCharge" placeholder="optional"></div>
+        <div><label>Datum</label><input id="v28StockDate" type="date"></div>
+        <div><label>Grund / Bemerkung</label><input id="v28StockNote" placeholder="z. B. Lieferung, Entnahme oder Inventur"></div>
+        <button type="button" id="v28SaveStockMovement" class="primary">Lagerbewegung speichern</button>
+      </div>
+      <section class="v28-stock-history"><h3>Letzte Lagerbewegungen</h3><div id="v28StockHistory"></div></section>
     </div>
-  </details>
+  </section>
 </section>
 
 <section id="visit" class="page">
@@ -664,7 +644,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260724-v27"></script>
+<script type="module" src="js/app-v227.js?build=20260724-v28"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 </body>
 </html>
