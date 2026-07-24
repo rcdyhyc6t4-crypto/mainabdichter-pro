@@ -11,7 +11,7 @@ import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 
 
-const MAINABDICHTER_APP_VERSION = "30.0.0";
+const MAINABDICHTER_APP_VERSION = "30.1.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
