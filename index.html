@@ -507,10 +507,13 @@
   <details class="card" open><summary>Pipedrive-Synchronisation</summary>
     <p class="hint">Dealphasen und benutzerdefinierte Deal-Felder werden direkt aus deinem Pipedrive-Konto geladen. Die Zuordnung wird mit der Komplettsicherung übertragen.</p>
     <div class="connection-actions">
-      <button id="loadPipedriveSchema" class="primary">Dealphasen und Felder laden</button>
+      <button id="loadPipedriveSchema" class="primary">Pipedrive-Felder aktualisieren</button>
       <label class="check-row compact-check"><input id="pipedriveAutoSync" type="checkbox"> automatisch synchronisieren</label>
     </div>
     <div id="pipedriveSchemaStatus" class="status"></div>
+    <h3>Personenfelder</h3>
+    <p class="hint">Wähle hier, in welches Pipedrive-Feld die jeweilige Anschrift geschrieben wird. Die internen Feld-IDs werden automatisch verwaltet.</p>
+    <div id="pipedrivePersonFieldMappings" class="mapping-grid"></div>
     <h3>Dealphasen</h3><div id="pipedriveStageMappings" class="mapping-grid"></div>
     <h3>Deal-Felder</h3><div id="pipedriveFieldMappings" class="mapping-grid"></div>
     <h3>Synchronisationsprotokoll</h3><div id="pipedriveSyncLog" class="sync-log"></div>
@@ -549,7 +552,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260723-v26"></script>
+<script type="module" src="js/app-v227.js?build=20260724-v26.5"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26.4"></script>
 </body>
 </html>
