@@ -913,3 +913,22 @@ body.menu-open{overflow:hidden}
 .v28-modal{position:fixed;inset:0;z-index:2500;background:rgba(20,29,24,.48);padding:18px;overflow:auto}.v28-modal-dialog{max-width:620px;margin:4vh auto;background:#fff;border-radius:24px;padding:20px}.v28-modal-dialog>header{display:flex;justify-content:space-between;border-bottom:1px solid #e4e8e5}.v28-modal-dialog>header button{width:42px;height:42px;padding:0;border-radius:50%;font-size:26px}.v28-inventory-detail-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}.v28-inventory-detail-summary>div{display:grid;padding:12px;border-radius:13px;background:#f2f7f1}.v28-stock-action-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:4px;background:#eef2ee;border-radius:13px}.v28-stock-action-tabs button.active{background:#fff;color:#2b962e}.v28-stock-form{display:grid;gap:12px;margin-top:16px}.v28-stock-form>div{display:grid}.v28-history-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid #edf0ee}.v28-history-sign{display:grid;place-items:center;width:30px;height:30px;border-radius:50%}.v28-history-sign.positive{background:#e8f6e6;color:#2d9d31}.v28-history-sign.negative{background:#fce9e5;color:#bd382e}
 @media(max-width:720px){.v28-app-header{height:72px;padding:10px 18px}.v28-header-logo{width:160px}.v28-dashboard-content{padding:23px 18px}.v28-greeting-row h1{font-size:34px}.v28-system-pill{min-width:0;width:168px}.v28-today-card{grid-template-columns:80px 1fr 16px}.v28-navigation-button{grid-column:2}.v28-overview-grid{gap:10px}.v28-inventory-strip{grid-template-columns:1fr}.v28-inventory-item{border-right:0;border-bottom:1px solid #ecefed}.v28-active-worksite{grid-template-columns:auto 1fr auto}.v28-worksite-preview{display:none}}
 @media(max-width:460px){.v28-greeting-row{display:grid}.v28-system-pill{width:100%}.v28-overview-card{padding:13px;gap:8px}.v28-overview-icon{width:43px;height:43px}.v28-overview-card strong{font-size:22px}.v28-overview-card em{display:none}.v28-today-card{grid-template-columns:66px 1fr 14px}.v28-navigation-button span{display:none}.v28-inventory-detail-summary{grid-template-columns:1fr}}
+
+/* V28.1 Start- und Responsive-Hotfix */
+html,body{max-width:100%;overflow-x:hidden!important}
+body>.app-header,body>.menu-backdrop,body>.app-menu{display:none!important}
+.v28-dashboard,.v28-dashboard *{box-sizing:border-box}
+.v28-dashboard{width:100%;max-width:100%;overflow-x:hidden}
+.v28-app-header{width:100%;max-width:100%;height:72px!important;padding:10px 18px!important}
+.v28-header-logo{display:block;width:160px!important;max-width:48vw!important;height:44px!important;max-height:44px!important;object-fit:contain!important;object-position:left center!important}
+.v28-dashboard-content{width:100%;max-width:760px;padding-left:18px!important;padding-right:18px!important}
+.v28-today-card,.v28-overview-card,.v28-active-worksite,.v28-inventory-strip,.v28-quick-offer{min-width:0;max-width:100%}
+.v28-today-main,.v28-overview-card>span:nth-child(2),.v28-active-worksite>span:nth-child(2),.v28-inventory-item>span:nth-child(2){min-width:0}
+.v28-today-main h3,.v28-today-main p,.v28-overview-card b,.v28-overview-card small,.v28-active-worksite b,.v28-active-worksite small{overflow-wrap:anywhere}
+@media(max-width:460px){
+ .v28-header-logo{width:155px!important;max-width:55vw!important}
+ .v28-greeting-row{display:grid!important}
+ .v28-system-pill{width:100%!important}
+ .v28-overview-grid{grid-template-columns:1fr 1fr!important}
+ .v28-overview-card{min-width:0!important}
+}
