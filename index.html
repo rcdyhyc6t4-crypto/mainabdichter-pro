@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V30.2.1</title>
-<link rel="stylesheet" href="css/app.css?v=30.2.1">
+<title>mainabdichter PRO V30.3</title>
+<link rel="stylesheet" href="css/app.css?v=30.3.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v26-7">
 <link rel="manifest" href="manifest.json">
 
@@ -412,6 +412,34 @@ main{width:100%;max-width:100%}
       </div>
     </form>
   </section>
+
+  <section id="customerRecord" class="customer-record hidden" aria-labelledby="customerRecordTitle">
+    <header class="customer-record-header">
+      <div>
+        <span>KUNDENAKTE</span>
+        <h2 id="customerRecordTitle">Kunde</h2>
+        <p id="customerRecordAddress">–</p>
+      </div>
+      <button type="button" id="customerRecordClose" class="secondary">Zur Kundenliste</button>
+    </header>
+    <div id="customerRecordContact" class="customer-record-contact"></div>
+    <div class="customer-record-actions">
+      <button type="button" id="customerRecordEdit" class="secondary">Kundendaten bearbeiten</button>
+      <button type="button" id="customerRecordUse" class="primary">Für Besichtigung übernehmen</button>
+    </div>
+    <section class="customer-record-section">
+      <header><div><span>VORGÄNGE</span><h3>Besichtigungen und Angebote</h3></div><b id="customerRecordOfferCount">0</b></header>
+      <div id="customerRecordOffers" class="customer-record-list"></div>
+    </section>
+    <section class="customer-record-section">
+      <header><div><span>AUSFÜHRUNG</span><h3>Baustellen</h3></div><b id="customerRecordWorksiteCount">0</b></header>
+      <div id="customerRecordWorksites" class="customer-record-list"></div>
+    </section>
+    <section class="customer-record-section">
+      <header><div><span>VERBINDUNG</span><h3>Pipedrive</h3></div></header>
+      <div id="customerRecordPipedrive" class="customer-record-pipedrive"></div>
+    </section>
+  </section>
 </section>
 
 <section id="offer" class="page">
@@ -792,6 +820,6 @@ window.addEventListener("error", function(event) {
 </script>
 <script type="module" src="js/app.js?v=30.2.1"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
-<script type="module" src="js/customers.js?v=30.2.1"></script>
+<script type="module" src="js/customers.js?v=30.3.0"></script>
 </body>
 </html>
