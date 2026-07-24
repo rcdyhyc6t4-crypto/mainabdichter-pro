@@ -514,6 +514,102 @@ function bottleWorksites() {
   }).filter(item => item.count > 0);
 }
 
+
+let v28SelectedInventoryId = "";
+let v28StockAction = "increase";
+
+function v28InventoryProducts() {
+  return (state.settings?.inventory?.products || []).filter(product => product.active !== false);
+}
+function v28InventoryMovements() {
+  if (!state.settings.inventory) state.settings.inventory = {};
+  if (!Array.isArray(state.settings.inventory.movements)) state.settings.inventory.movements = [];
+  return state.settings.inventory.movements;
+}
+function v28OpenInventoryArticle(productId) {
+  const product = v28InventoryProducts().find(item => item.id === productId);
+  if (!product) return;
+  v28SelectedInventoryId = productId;
+  v28StockAction = "increase";
+  $("v28InventoryModalTitle").textContent = product.name;
+  $("v28StockAmount").value = "";
+  $("v28StockCharge").value = "";
+  $("v28StockNote").value = "";
+  $("v28StockDate").value = todayLocal();
+  $("v28ChargeField").hidden = !product.chargeTracking;
+  document.querySelectorAll("[data-stock-action]").forEach(button => button.classList.toggle("active", button.dataset.stockAction === "increase"));
+  $("v28InventoryArticleSummary").innerHTML = `
+    <div><span>Aktueller Bestand</span><strong>${num(product.stock || 0)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Mindestbestand</span><strong>${num(product.minimumStock || 0)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Gebindegröße</span><strong>${num(product.packageSize || 0)} ${esc(product.unit || "")}</strong></div>`;
+  v28RenderStockHistory(productId);
+  $("v28InventoryModal").classList.remove("hidden");
+  $("v28InventoryModal").setAttribute("aria-hidden", "false");
+  document.body.classList.add("resource-modal-open");
+}
+function v28CloseInventoryArticle() {
+  $("v28InventoryModal")?.classList.add("hidden");
+  $("v28InventoryModal")?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("resource-modal-open");
+}
+function v28RenderStockHistory(productId) {
+  const entries = v28InventoryMovements().filter(entry => entry.productId === productId).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,12);
+  $("v28StockHistory").innerHTML = entries.length ? entries.map(entry => `
+    <article class="v28-history-row"><span class="v28-history-sign ${entry.delta >= 0 ? "positive" : "negative"}">${entry.delta >= 0 ? "+" : "−"}</span>
+    <span><strong>${num(Math.abs(entry.delta))} ${esc(entry.unit || "")}</strong><small>${esc(entry.note || entry.actionLabel || "Lagerbewegung")}${entry.charge ? ` · Charge ${esc(entry.charge)}` : ""}</small></span><time>${esc(entry.date || "")}</time></article>`).join("") : `<p class="hint">Noch keine Lagerbewegungen vorhanden.</p>`;
+}
+function v28SaveStockMovement() {
+  const product = v28InventoryProducts().find(item => item.id === v28SelectedInventoryId);
+  if (!product) return;
+  const amount = parseDecimal($("v28StockAmount").value);
+  if (!(amount > 0)) { alert("Bitte eine Menge größer als 0 eingeben."); return; }
+  const previous = Number(product.stock || 0);
+  let next = previous, delta = 0, actionLabel = "";
+  if (v28StockAction === "increase") { delta = amount; next = previous + amount; actionLabel = "Wareneingang"; }
+  else if (v28StockAction === "decrease") { next = Math.max(0, previous - amount); delta = next - previous; actionLabel = "Materialentnahme"; }
+  else { next = Math.max(0, amount); delta = next - previous; actionLabel = "Bestandskorrektur"; }
+  product.stock = next;
+  v28InventoryMovements().push({
+    id: crypto.randomUUID(), productId: product.id, productName: product.name, action: v28StockAction, actionLabel,
+    previousStock: previous, newStock: next, delta, unit: product.unit || "", charge: $("v28StockCharge").value.trim(),
+    date: $("v28StockDate").value || todayLocal(), note: $("v28StockNote").value.trim(), createdAt: new Date().toISOString()
+  });
+  saveState();
+  renderV28Dashboard();
+  v28OpenInventoryArticle(product.id);
+}
+function renderV28Dashboard() {
+  if (!$("v28InventoryStrip")) return;
+  const worksites = typeof loadWorksites === "function" ? loadWorksites() : [];
+  const active = worksites.filter(worksite => worksite.status !== "completed");
+  $("v28ActiveWorksiteCount").textContent = active.length;
+  $("v28ActiveWorksiteStatus").textContent = active.length ? "In Arbeit" : "Keine aktive Baustelle";
+  const first = active[0];
+  const photo = first?.tasks?.flatMap(task => task.photos || [])[0]?.src;
+  $("v28WorksitePreview").innerHTML = photo ? `<img src="${photo}" alt="Baustelle">` : "";
+  const bottles = worksites.reduce((r,w)=>{const c=(w.tasks||[]).reduce((s,t)=>s+Math.max(0,Number(t.bottlesHanging||0)-Number(t.bottlesRetrieved||0)),0);if(c){r.count+=c;r.sites++}return r},{count:0,sites:0});
+  $("v28BottleCount").textContent = bottles.count;
+  $("v28BottleSites").textContent = `Auf ${bottles.sites} Baustellen`;
+  const products = v28InventoryProducts().slice(0,3);
+  $("v28InventoryStrip").innerHTML = products.length ? products.map(product => {
+    const min=Number(product.minimumStock||0), stock=Number(product.stock||0), ratio=min>0?Math.min(100,Math.max(5,(stock/Math.max(min*2,1))*100)):65;
+    return `<button type="button" class="v28-inventory-item" data-v28-inventory-id="${product.id}"><span class="v28-product-visual">${esc((product.name||"?").slice(0,2).toUpperCase())}</span><span><small>${esc(product.name)}</small><strong>${num(stock)} ${esc(product.unit||"")}</strong><em>${stock<=min?"Mindestbestand erreicht":"Verfügbar"}</em><i><b style="width:${ratio}%"></b></i></span></button>`;
+  }).join("") : `<p class="hint">Noch keine Lagerartikel angelegt.</p>`;
+  document.querySelectorAll("[data-v28-inventory-id]").forEach(button => button.onclick=()=>v28OpenInventoryArticle(button.dataset.v28InventoryId));
+  $("v28OpenOffers").textContent = (state.offers || []).filter(o=>!["accepted","completed","rejected"].includes(String(o.status||"").toLowerCase())).length;
+}
+function initializeV28Dashboard() {
+  document.querySelectorAll("[data-stock-action]").forEach(button => button.onclick=()=>{v28StockAction=button.dataset.stockAction;document.querySelectorAll("[data-stock-action]").forEach(item=>item.classList.toggle("active",item===button));$("v28StockAmount").placeholder=v28StockAction==="correct"?"Neuer Gesamtbestand":"Menge";});
+  if ($("v28SaveStockMovement")) $("v28SaveStockMovement").onclick=v28SaveStockMovement;
+  if ($("v28CloseInventoryModal")) $("v28CloseInventoryModal").onclick=v28CloseInventoryArticle;
+  if ($("v28InventoryModal")) $("v28InventoryModal").onclick=e=>{if(e.target===$("v28InventoryModal"))v28CloseInventoryArticle();};
+  if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>show("visit");
+  if ($("v28CreateOffer")) $("v28CreateOffer").onclick=()=>show("offer");
+  if ($("v28OpenFullInventory")) $("v28OpenFullInventory").onclick=()=>show("settings");
+  if ($("v28ActiveWorksite")) $("v28ActiveWorksite").onclick=()=>show("worksites");
+  document.querySelectorAll("[data-v28-target]").forEach(button=>button.onclick=()=>show(button.dataset.v28Target));
+  renderV28Dashboard();
+}
 function renderDashboardBottles() {
   const list = $("dashboardBottleList");
   const stats = $("dashboardBottleStats");
@@ -3002,3 +3098,5 @@ $("specialLabel").value = state.discount.specialLabel;
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeV28Dashboard); else initializeV28Dashboard();
