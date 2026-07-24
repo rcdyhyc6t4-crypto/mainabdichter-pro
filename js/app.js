@@ -9,9 +9,10 @@ import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWork
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0.0";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
+import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
 
 
-const MAINABDICHTER_APP_VERSION = "30.9.0";
+const MAINABDICHTER_APP_VERSION = "30.10.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2106,16 +2107,11 @@ function renderAreas() {
     saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 
-  box.querySelectorAll("[data-photo-area]").forEach(input => input.onchange = event => {
+  box.querySelectorAll("[data-photo-area]").forEach(input => input.onchange = async event => {
     const area = state.visit.areas.find(item => item.id === input.dataset.photoArea);
-    [...event.target.files].forEach(file => {
-      const reader = new FileReader();
-      reader.onload = result => {
-        area.photos.push({ id:crypto.randomUUID(), src:result.target.result, caption:"", show:true });
-        saveState(); renderAreas();
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of [...event.target.files]) await stageVisitPhoto(file, area);
+    renderAreas();
+    syncPendingVisitPhotos();
     event.target.value = "";
   });
 
@@ -2195,7 +2191,14 @@ function renderMeasures(area) {
 function renderPhotos(area) {
   const box = $(`photos-${area.id}`);
   box.innerHTML = area.photos.map(photo => `
-    <div class="photo-card"><img src="${photo.src}"><input data-photo="${photo.id}" value="${esc(photo.caption)}" placeholder="Beschreibung"><label><input type="checkbox" data-photo-show="${photo.id}" ${photo.show?"checked":""}> Kundenansicht</label><button class="danger" data-delete-photo="${photo.id}">Löschen</button></div>`).join("");
+    <div class="photo-card">
+      <img src="${localPhotoUrl(photo)}" ${photo.driveFileId ? `data-drive-file="${esc(photo.driveFileId)}"` : ""} alt="${esc(photo.caption || area.name || "Besichtigungsfoto")}">
+      <small class="photo-upload-state ${esc(photo.uploadStatus || "local")}">${photo.uploadStatus === "uploaded" ? "✓ In Google Drive gespeichert" : photo.uploadStatus === "uploading" ? "Wird hochgeladen …" : photo.uploadStatus === "error" ? "Upload fehlgeschlagen – wird erneut versucht" : "Wartet auf Upload"}</small>
+      <input data-photo="${photo.id}" value="${esc(photo.caption)}" placeholder="z. B. Keller – Außenwand – Messstelle 1">
+      <label><input type="checkbox" data-photo-show="${photo.id}" ${photo.show?"checked":""}> Kundenansicht</label>
+      <button class="danger" data-delete-photo="${photo.id}">Löschen</button>
+    </div>`).join("");
+  hydrateDrivePhotoImages(box);
   box.querySelectorAll("[data-photo]").forEach(input => input.oninput = () => {
     area.photos.find(p => p.id === input.dataset.photo).caption = input.value; saveState();
   });
@@ -2206,6 +2209,12 @@ function renderPhotos(area) {
     area.photos = area.photos.filter(p => p.id !== button.dataset.deletePhoto); saveState(); renderAreas();
   });
 }
+
+window.addEventListener("drive-photo-updated", () => {
+  (state.visit.areas || []).forEach(area => {
+    if ($(`photos-${area.id}`)) renderPhotos(area);
+  });
+});
 
 $("addArea").onclick = () => { state.visit.areas.push(createArea("")); saveState(); renderAreas(); };
 $("moisturePattern").onchange = () => {
@@ -2364,7 +2373,7 @@ function buildCustomerSnapshot() {
     const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
     return { title:article?.title||item.name, description:article?.description||item.description||"", quantity:item.quantity, unitName:article?.unitName||item.unitName };
   });
-  const photos = state.visit.areas.flatMap(area => area.photos.filter(p => p.show).map(p => ({ areaName:area.name, src:p.src, caption:p.caption })));
+  const photos = state.visit.areas.flatMap(area => area.photos.filter(p => p.show).map(p => ({ areaName:area.name, src:localPhotoUrl(p), caption:p.caption })));
   return {
     customerName:[state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "),
     company:state.visit.customer.company,
@@ -2497,7 +2506,7 @@ function buildReport() {
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,

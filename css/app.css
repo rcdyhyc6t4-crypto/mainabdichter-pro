@@ -22,6 +22,10 @@
   border-bottom:3px solid var(--green);
 }
 
+.photo-upload-state{display:block;margin:.35rem 0;color:#8a5a00;font-size:.78rem}
+.photo-upload-state.uploaded{color:#137333}
+.photo-upload-state.error{color:#b3261e}
+
 /* Kundenmodul V30.2 */
 .customers-page{max-width:980px;margin:0 auto;padding:18px 18px 110px;overflow-x:hidden}
 .customer-module-header,.customer-editor>header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}

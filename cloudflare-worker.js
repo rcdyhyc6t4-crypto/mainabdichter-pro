@@ -1,8 +1,9 @@
-// mainabdichter PRO Cloudflare Worker V30.6
+// mainabdichter PRO Cloudflare Worker V30.10
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
 const LEXWARE_API = "https://api.lexware.io/v1";
+const GOOGLE_DRIVE_API = "https://www.googleapis.com/drive/v3";
 
 // Cache pro Worker-Instanz für das konfigurierte Pipedrive-Adressfeld.
 let pipedrivePersonAddressFieldCache = null;
@@ -24,6 +25,105 @@ function jsonResponse(request, body, status = 200) {
     status,
     headers: corsHeaders(request),
   });
+}
+
+async function googleAccessToken(env) {
+  const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"];
+  const missing = required.filter(key => !env[key]);
+  if (missing.length) {
+    const error = new Error(`Google Drive ist noch nicht vollständig eingerichtet (${missing.join(", ")}).`);
+    error.status = 503;
+    throw error;
+  }
+  const body = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    refresh_token: env.GOOGLE_REFRESH_TOKEN,
+    grant_type: "refresh_token"
+  });
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  const data = await response.json();
+  if (!response.ok || !data.access_token) {
+    const error = new Error("Google-Drive-Anmeldung konnte nicht erneuert werden.");
+    error.status = response.status || 500;
+    error.details = data;
+    throw error;
+  }
+  return data.access_token;
+}
+
+async function googleDriveRequest(env, path, options = {}) {
+  const token = await googleAccessToken(env);
+  const response = await fetch(`${GOOGLE_DRIVE_API}${path}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, ...(options.headers || {}) }
+  });
+  if (options.raw && response.ok) return response;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("Google Drive API Fehler");
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
+}
+
+function driveQueryText(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function ensureDriveFolder(env, name, parentId = "root") {
+  const q = [
+    `name='${driveQueryText(name)}'`,
+    "mimeType='application/vnd.google-apps.folder'",
+    `'${driveQueryText(parentId)}' in parents`,
+    "trashed=false"
+  ].join(" and ");
+  const found = await googleDriveRequest(env, `/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink)&pageSize=1`);
+  if (found.files?.[0]) return found.files[0];
+  return googleDriveRequest(env, "/files?fields=id,name,webViewLink", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] })
+  });
+}
+
+async function uploadDrivePhoto(env, file, metadata) {
+  let parent = await ensureDriveFolder(env, "mainabdichter PRO");
+  for (const name of ["Kunden", metadata.customerFolder, metadata.visitFolder, "Fotos", metadata.areaFolder]) {
+    parent = await ensureDriveFolder(env, name, parent.id);
+  }
+  const token = await googleAccessToken(env);
+  const boundary = `mainabdichter_${crypto.randomUUID()}`;
+  const fileMetadata = JSON.stringify({
+    name: metadata.filename || file.name || "Besichtigungsfoto.jpg",
+    parents: [parent.id],
+    appProperties: { photoId: String(metadata.photoId || ""), source: "mainabdichter-pro" }
+  });
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${fileMetadata}\r\n`,
+    `--${boundary}\r\nContent-Type: ${file.type || metadata.mimeType || "image/jpeg"}\r\n\r\n`,
+    file,
+    `\r\n--${boundary}--`
+  ]);
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,parents", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("Google-Drive-Fotoupload fehlgeschlagen.");
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
 }
 
 function getPipedriveDomain(env) {
@@ -728,7 +828,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "30.6",
+          workerVersion: "30.10",
           time: new Date().toISOString()
         });
       }
@@ -744,6 +844,39 @@ export default {
           },
           401
         );
+      }
+
+      if (url.pathname === "/drive/test" && request.method === "GET") {
+        const profile = await googleDriveRequest(env, "/about?fields=user(displayName,emailAddress)");
+        return jsonResponse(request, { ok: true, user: profile.user || null });
+      }
+
+      if (url.pathname === "/drive/photos" && request.method === "POST") {
+        const form = await request.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
+          return jsonResponse(request, { ok: false, error: "Eine Bilddatei fehlt." }, 400);
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          return jsonResponse(request, { ok: false, error: "Das Foto ist größer als 20 MB." }, 413);
+        }
+        let metadata = {};
+        try {
+          metadata = JSON.parse(String(form.get("metadata") || "{}"));
+        } catch {
+          return jsonResponse(request, { ok: false, error: "Die Fotozuordnung ist ungültig." }, 400);
+        }
+        const uploaded = await uploadDrivePhoto(env, file, metadata);
+        return jsonResponse(request, { ok: true, file: uploaded }, 201);
+      }
+
+      if (/^\/drive\/photos\/[^/]+$/.test(url.pathname) && request.method === "GET") {
+        const fileId = decodeURIComponent(url.pathname.split("/")[3]);
+        const response = await googleDriveRequest(env, `/files/${encodeURIComponent(fileId)}?alt=media`, { raw: true });
+        const headers = corsHeaders(request);
+        headers["Content-Type"] = response.headers.get("Content-Type") || "image/jpeg";
+        headers["Cache-Control"] = "private, max-age=3600";
+        return new Response(response.body, { status: 200, headers });
       }
 
 
