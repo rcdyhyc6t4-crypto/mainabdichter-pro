@@ -1,10 +1,52 @@
 import { state, saveState } from "./storage-v227.js";
 
+export function normalizeWorkerUrl(value) {
+  let raw = String(value || "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s+/g, "");
+
+  if (!raw) return "";
+  if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+  raw = raw.replace(/\/+$/, "");
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("Die Worker-URL ist ungültig. Bitte die vollständige workers.dev-Adresse eintragen.");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("Die Worker-URL muss mit https:// beginnen.");
+  }
+
+  return `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`;
+}
+
 function config() {
   return {
-    url: String(state.settings.workerUrl || "").trim().replace(/\/+$/, ""),
+    url: normalizeWorkerUrl(state.settings.workerUrl || ""),
     secret: String(state.settings.appSecret || "").trim()
   };
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`Zeitüberschreitung beim Aufruf des Workers: ${url}`);
+    }
+    if (error instanceof TypeError) {
+      throw new Error(`Worker nicht erreichbar: ${url}. Bitte URL und Cloudflare-Deployment prüfen.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function hasConnectionConfig() {
@@ -16,7 +58,7 @@ export async function api(path, options = {}) {
   const { url, secret } = config();
   if (!url || !secret) throw new Error("Zugangsdaten fehlen.");
 
-  const response = await fetch(url + path, {
+  const response = await fetchWithTimeout(url + path, {
     ...options,
     headers: {
       ...(options.headers || {}),
@@ -78,9 +120,14 @@ export async function testConnections() {
   const { url } = config();
 
   try {
-    const response = await fetch(url + "/");
-    const data = await response.json();
-    result.cloudflare = Boolean(response.ok && data.ok);
+    if (!url) throw new Error("Worker-URL fehlt.");
+    const response = await fetchWithTimeout(url + "/", {}, 15000);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      throw new Error(`Worker antwortet mit HTTP ${response.status}.`);
+    }
+    result.cloudflare = true;
+    result.workerVersion = data.workerVersion || data.version || "unbekannt";
   } catch (error) {
     result.errors.cloudflare = error.message;
   }

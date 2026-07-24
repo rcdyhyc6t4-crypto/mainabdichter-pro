@@ -72,6 +72,12 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         chargeHz: "",
         chargeSecondary: "",
         packers: 0,
+        bottlesHanging: 0,
+        bottlesArea: "",
+        bottlesPickupDue: "",
+        bottlesRetrieved: 0,
+        bottlesRetrievedAt: "",
+        bottlesPickupNote: "",
         resinKg: Number(measure.extraResinKg || 0),
         completed: false,
         note: "",
@@ -189,7 +195,7 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
       const result = calculateMeasure(settings,{type,width:quantity,height:1,wall,spacing,extraResinKg:0});
       plannedHoles=result.holes; plannedLiters=result.saleLiters; targetLitersPerHole=targetPerHole(result);
     }
-    return {id:crypto.randomUUID(),areaId:"",areaName:item.name||`Position ${index+1}`,measureId:"",type,wall,spacing,plannedQuantity:quantity,unitName,scope:`${quantity.toLocaleString("de-DE")} ${unitName}`,plannedHoles,actualHoles:plannedHoles,plannedLiters,actualLiters:plannedLiters,plannedHsKg,actualHsKg:plannedHsKg,targetLitersPerHole,injectionType:"Niederdruckverfahren",chargeHz:"",chargeSecondary:"",packers:0,resinKg:0,completed:false,note:item.description||"",photos:[]};
+    return {id:crypto.randomUUID(),areaId:"",areaName:item.name||`Position ${index+1}`,measureId:"",type,wall,spacing,plannedQuantity:quantity,unitName,scope:`${quantity.toLocaleString("de-DE")} ${unitName}`,plannedHoles,actualHoles:plannedHoles,plannedLiters,actualLiters:plannedLiters,plannedHsKg,actualHsKg:plannedHsKg,targetLitersPerHole,injectionType:"Niederdruckverfahren",chargeHz:"",chargeSecondary:"",packers:0,bottlesHanging:0,bottlesArea:"",bottlesPickupDue:"",bottlesRetrieved:0,bottlesRetrievedAt:"",bottlesPickupNote:"",resinKg:0,completed:false,note:item.description||"",photos:[]};
   });
   const contact = quotation.contact || {};
   const address = quotation.address || {};

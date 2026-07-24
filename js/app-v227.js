@@ -2,7 +2,7 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask } from "./construction-v227.js";
@@ -417,6 +417,13 @@ async function acceptInquiryImport() {
 let cachedAcceptedQuotations = [];
 
 function todayIso() { return new Date().toISOString().slice(0,10); }
+function localDateDaysAgo(days = 0) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - Number(days || 0));
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
 
 function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
 async function syncPipedriveDashboard() {
@@ -435,15 +442,17 @@ async function syncAcceptedQuotationDashboard() {
   const box=$("acceptedQuotationList");
   box.innerHTML='<div class="empty-mini">Angebote werden geladen …</div>';
   try {
-    const today = todayLocal();
-    const data = await loadAcceptedLexwareQuotations(today);
+    // Alle seit vorgestern angenommenen Angebote bleiben sichtbar,
+    // bis daraus lokal eine Baustelle erstellt wurde.
+    const dateFrom = localDateDaysAgo(2);
+    const data = await loadAcceptedLexwareQuotations(dateFrom);
     cachedAcceptedQuotations = (data.quotations || []).filter(item => {
-      const updated = String(item.updatedDate || "").slice(0, 10);
-      return updated >= today;
+      const updated = String(item.updatedDate || item.voucherDate || "").slice(0, 10);
+      return updated >= dateFrom;
     });
     const existingIds=new Set(loadWorksites().map(item=>item.lexwareQuotationId).filter(Boolean));
     const items=cachedAcceptedQuotations.filter(item=>!existingIds.has(item.id));
-    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):'<div class="empty-mini">Keine heute angenommenen Angebote.</div>';
+    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):`<div class="empty-mini">Keine seit ${dateFrom.split('-').reverse().join('.')} angenommenen, noch offenen Angebote.</div>`;
     box.querySelectorAll('[data-create-lexware-worksite]').forEach(button=>button.onclick=async()=>{
       button.disabled=true;
       try {
@@ -491,6 +500,39 @@ async function syncAcceptedQuotationDashboard() {
 }
 
 
+function openBottleCount(task) {
+  return Math.max(0, Number(task?.bottlesHanging || 0) - Number(task?.bottlesRetrieved || 0));
+}
+
+function bottleWorksites() {
+  return loadWorksites().map(worksite => {
+    const tasks = (worksite.tasks || []).filter(task => openBottleCount(task) > 0);
+    const count = tasks.reduce((sum, task) => sum + openBottleCount(task), 0);
+    const dueDates = tasks.map(task => task.bottlesPickupDue).filter(Boolean).sort();
+    return { worksite, tasks, count, dueDate: dueDates[0] || "" };
+  }).filter(item => item.count > 0);
+}
+
+function renderDashboardBottles() {
+  const list = $("dashboardBottleList");
+  const stats = $("dashboardBottleStats");
+  const summary = $("dashboardBottleSummary");
+  if (!list) return;
+  const items = bottleWorksites();
+  const total = items.reduce((sum, item) => sum + item.count, 0);
+  const today = todayLocal();
+  const overdue = items.filter(item => item.dueDate && item.dueDate < today).length;
+  if (summary) summary.textContent = `${total} unterwegs · ${items.length} Baustelle${items.length === 1 ? "" : "n"}`;
+  if (stats) stats.innerHTML = `<div><span>Auf Baustellen</span><strong>${total}</strong></div><div><span>Baustellen</span><strong>${items.length}</strong></div><div><span>Überfällig</span><strong>${overdue}</strong></div>`;
+  list.innerHTML = items.length ? items.map(item => {
+    const ws=item.worksite;
+    const days=Math.max(0,Math.floor((Date.now()-new Date(ws.date||ws.createdAt).getTime())/86400000));
+    const status=item.dueDate && item.dueDate < today ? "Überfällig" : item.dueDate === today ? "Heute abholen" : "Hängen noch";
+    return `<button type="button" class="compact-row bottle-worksite-row" data-open-bottle-worksite="${ws.id}"><span><strong>${esc(worksiteCustomerName(ws))}</strong><small>${esc(ws.objectAddress||"Keine Anschrift")}</small></span><span><strong>${item.count} Flaschen</strong><small>${days} Tage · ${esc(status)}${item.dueDate?` · ${esc(item.dueDate)}`:""}</small></span></button>`;
+  }).join("") : '<div class="empty-mini">Keine Injektionsflaschen sind derzeit auf Baustellen.</div>';
+  list.querySelectorAll('[data-open-bottle-worksite]').forEach(button => button.onclick=()=>{activeWorksiteId=button.dataset.openBottleWorksite;show('worksites');renderWorksites();});
+}
+
 function renderDashboardInventory() {
   const list = $("dashboardInventoryList");
   const alertBox = $("dashboardInventoryAlert");
@@ -532,6 +574,8 @@ function renderDashboardInventory() {
     </button>`;
   }).join("");
 
+  if ($("dashboardInventorySummary")) $("dashboardInventorySummary").textContent = `${products.length} Artikel`;
+
   if (alertBox) {
     alertBox.hidden = lowProducts.length === 0;
     alertBox.innerHTML = lowProducts.length
@@ -554,6 +598,7 @@ function updateDashboardOverview() {
     $("dashboardGreeting").textContent = `${hour < 11 ? "Guten Morgen" : hour < 17 ? "Guten Tag" : "Guten Abend"}, Mike`;
   }
   renderDashboardInventory();
+  renderDashboardBottles();
 }
 function updateRecordHeader() {
   const customer = state.visit.customer || {};
@@ -2197,7 +2242,7 @@ function collectWorksite() {
     if (!task) return;
     const field = input.dataset.wsField;
     if (input.type === "checkbox") task[field] = input.checked;
-    else if (["actualHoles","actualLiters","actualHsKg","packers","resinKg","spacing"].includes(field)) task[field] = parseDecimal(input.value);
+    else if (["actualHoles","actualLiters","actualHsKg","packers","resinKg","spacing","bottlesHanging","bottlesRetrieved"].includes(field)) task[field] = parseDecimal(input.value);
     else task[field] = input.value;
   });
   return worksite;
@@ -2304,6 +2349,7 @@ function renderWorksiteEditor() {
         <div><label>Sollmenge je Bohrloch (mind. 0,200 l)</label><input value="${num(task.targetLitersPerHole)} l" readonly></div>
         <div><label>Sollverbrauch HZ 250 Pro</label><input value="${num(task.plannedLiters)} l" readonly></div>
         <div><label>Istverbrauch HZ 250 Pro Liter</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualLiters" value="${formatDecimalInput(task.actualLiters)}"></div>
+        ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(task.type) ? `<div><label>Noch hängende Injektionsflaschen</label><input inputmode="numeric" data-ws-task="${task.id}" data-ws-field="bottlesHanging" value="${formatDecimalInput(task.bottlesHanging||0)}"></div><div><label>Bereich / Wand</label><input data-ws-task="${task.id}" data-ws-field="bottlesArea" value="${esc(task.bottlesArea||task.areaName||"")}" placeholder="z. B. Keller Nordwand"></div><div><label>Geplante Abholung</label><input type="date" data-ws-task="${task.id}" data-ws-field="bottlesPickupDue" value="${esc(task.bottlesPickupDue||"")}"></div><div><label>Bereits abgeholt</label><input value="${num(task.bottlesRetrieved||0)} Stück" readonly></div>${openBottleCount(task)>0?`<div class="full bottle-open-notice"><strong>${openBottleCount(task)} Flaschen verbleiben auf der Baustelle.</strong><span>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand. Die ausgeführte Leistung ist dennoch fertiggestellt und abrechenbar.</span><button type="button" class="secondary" data-confirm-bottle-pickup="${task.id}">Abholung bestätigen</button></div>`:""}` : ""}
         ${task.type === "Wand-Sohlen-Anschluss" ? `<div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div><div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>` : ""}
         ${task.type === "Harzverpressung" ? `<div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div><div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>` : ""}
         <div><label>Injektionsart</label><select data-ws-task="${task.id}" data-ws-field="injectionType"><option ${task.injectionType==="Niederdruckverfahren"?"selected":""}>Niederdruckverfahren</option><option ${task.injectionType==="drucklose Injektion"?"selected":""}>drucklose Injektion</option></select></div>
@@ -2327,6 +2373,23 @@ function renderWorksiteEditor() {
     recalculateWorksiteTask(state.settings,task);
     persistWorksite(ws);
     renderWorksiteEditor();
+  });
+  document.querySelectorAll("[data-confirm-bottle-pickup]").forEach(button => button.onclick = () => {
+    const task = ws.tasks.find(item => item.id === button.dataset.confirmBottlePickup);
+    if (!task) return;
+    const open = openBottleCount(task);
+    const raw = prompt(`Wie viele Flaschen wurden abgeholt? Noch offen: ${open}`, String(open));
+    if (raw === null) return;
+    const amount = Math.max(0, Math.min(open, parseDecimal(raw)));
+    if (amount <= 0) return;
+    task.bottlesRetrieved = Number(task.bottlesRetrieved || 0) + amount;
+    task.bottlesRetrievedAt = new Date().toISOString();
+    const note = prompt("Bemerkung zur Abholung (optional)", task.bottlesPickupNote || "");
+    if (note !== null) task.bottlesPickupNote = note;
+    persistWorksite(ws);
+    renderWorksiteEditor();
+    updateDashboardOverview();
+    showStatus("worksiteStatus", `${amount} Flaschen wurden als abgeholt bestätigt.`, true);
   });
   applyInputModes($("worksiteEditor"));
   renderWorksiteAttachments(ws);
@@ -2352,7 +2415,7 @@ function deductWorksiteInventory(ws) {
 
 function buildWorksitePrint(ws) {
   const totals=worksiteMaterialTotals(ws);
-  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div></div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div></div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
 $("backToVisitInput").onclick = () => {
@@ -2521,7 +2584,9 @@ $("loadArticles").onclick = async () => {
 };
 function collectSettings() {
   const s = state.settings;
-  ["priceListName","priceListDate","workerUrl","appSecret"].forEach(key => s[key] = $(key).value.trim());
+  ["priceListName","priceListDate","appSecret"].forEach(key => s[key] = $(key).value.trim());
+  s.workerUrl = normalizeWorkerUrl($("workerUrl").value);
+  $("workerUrl").value = s.workerUrl;
   ["hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter"].forEach(key => s[key] = parseDecimal($(key).value));
   s.priceStrategy = {
     minimumFactor: (parseDecimal($("minimumPricePercent").value) || 90) / 100,
@@ -2550,10 +2615,21 @@ $("resetSettings").onclick = () => { if(confirm("Standardwerte laden?")){ resetS
 $("testConnection").onclick = async () => {
   collectSettings(); saveState();
   const setState = (id,label,ok,error) => { const el=$(id); el.className=`connection-state ${ok?"ok":"err"}`; el.textContent=`${label}: ${ok?"verbunden":error||"Fehler"}`; };
-  const result = await testConnections();
-  setState("stateCloudflare","Cloudflare",result.cloudflare,result.errors.cloudflare);
-  setState("stateLexware","Lexware",result.lexware,result.errors.lexware);
-  setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
+  try {
+    const result = await testConnections();
+    setState(
+      "stateCloudflare",
+      result.workerVersion ? `Cloudflare Worker ${result.workerVersion}` : "Cloudflare",
+      result.cloudflare,
+      result.errors.cloudflare
+    );
+    setState("stateLexware","Lexware",result.lexware,result.errors.lexware);
+    setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
+  } catch (error) {
+    setState("stateCloudflare","Cloudflare",false,error.message);
+    setState("stateLexware","Lexware",false,"Worker-Verbindung fehlt");
+    setState("statePipedrive","Pipedrive",false,"Worker-Verbindung fehlt");
+  }
 };
 
 state.discount.pricingTier = state.discount.pricingTier || "standard";
