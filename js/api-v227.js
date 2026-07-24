@@ -100,6 +100,10 @@ export async function loadPipedrivePerson(id) {
   return api(`/pipedrive/persons/${encodeURIComponent(id)}`);
 }
 
+export async function loadPipedriveCustomerHistory(id) {
+  return api(`/pipedrive/persons/${encodeURIComponent(id)}/customer-history`);
+}
+
 export async function searchLexwareCustomers(term) {
   return api(`/lexware/contacts/search?term=${encodeURIComponent(term)}`);
 }

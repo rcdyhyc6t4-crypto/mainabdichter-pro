@@ -3,6 +3,8 @@ import {
   hasConnectionConfig,
   searchPipedrive,
   loadPipedrivePerson,
+  loadPipedriveCustomerHistory,
+  loadLexwareCustomerHistory,
   createPipedrivePerson
 } from "./api-v227.js";
 
@@ -14,6 +16,12 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
 
 function clean(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function plainText(value) {
+  const element = document.createElement("div");
+  element.innerHTML = String(value || "");
+  return clean(element.textContent || element.innerText || "");
 }
 
 function formatAddress(street, zip, city) {
@@ -93,6 +101,16 @@ function recordStatus(value) {
     active: "In Ausführung",
     planned: "Geplant"
   })[value] || value || "Ohne Status";
+}
+
+function voucherLabel(value) {
+  return ({
+    invoice: "Rechnung",
+    quotation: "Angebot",
+    orderconfirmation: "Auftragsbestätigung",
+    creditnote: "Gutschrift",
+    downpaymentinvoice: "Abschlagsrechnung"
+  })[String(value || "").toLowerCase()] || value || "Dokument";
 }
 
 function normalizeCustomer(input = {}) {
@@ -336,6 +354,47 @@ function renderCustomerRecord(customer) {
   $("customerRecordPipedrive").innerHTML = item.pipedriveId
     ? `<strong>Mit Pipedrive verbunden</strong><span>Personen-ID ${esc(item.pipedriveId)}${item.lastPipedriveSync?.at ? ` · zuletzt ${esc(new Date(item.lastPipedriveSync.at).toLocaleString("de-DE"))}` : ""}</span>`
     : `<strong>Noch nicht mit Pipedrive verbunden</strong><span>Beim nächsten Speichern wird die Synchronisation versucht.</span>`;
+
+  const pipedrive = item.externalHistory?.pipedrive;
+  const pipedriveEntries = pipedrive
+    ? [
+        ...(pipedrive.deals || []).map(deal => ({
+          title: deal.title || "Pipedrive-Deal",
+          meta: `${formatDate(deal.updateTime || deal.addTime)}${deal.value ? ` · ${money(deal.value)}` : ""}`,
+          status: recordStatus(deal.status)
+        })),
+        ...(pipedrive.activities || []).map(activity => ({
+          title: activity.subject || "Pipedrive-Aktivität",
+          meta: `${formatDate(activity.dueDate)}${activity.note ? ` · ${plainText(activity.note).slice(0, 140)}` : ""}`,
+          status: activity.done ? "Erledigt" : "Offen"
+        })),
+        ...(pipedrive.notes || []).slice(0, 20).map(note => ({
+          title: "Pipedrive-Notiz",
+          meta: `${formatDate(note.updateTime || note.addTime)} · ${plainText(note.content).slice(0, 180)}`,
+          status: "Notiz"
+        }))
+      ]
+    : [];
+  $("customerRecordPipedriveHistory").innerHTML = pipedriveEntries.length
+    ? pipedriveEntries.map(entry => `
+      <article class="customer-record-row">
+        <div><strong>${esc(entry.title)}</strong><span>${esc(entry.meta)}</span></div>
+        <em>${esc(entry.status)}</em>
+      </article>`).join("")
+    : `<div class="customer-record-empty">${item.pipedriveId ? "Noch keine Pipedrive-Daten geladen. Bitte Kundenakte aktualisieren." : "Ohne Pipedrive-Verbindung können keine Einträge geladen werden."}</div>`;
+
+  const lexwareDocuments = item.externalHistory?.lexware?.documents || [];
+  $("customerRecordLexwareCount").textContent = String(lexwareDocuments.length);
+  $("customerRecordLexware").innerHTML = lexwareDocuments.length
+    ? lexwareDocuments.map(document => `
+      <article class="customer-record-row">
+        <div>
+          <strong>${esc(voucherLabel(document.voucherType))} ${esc(document.voucherNumber || "")}</strong>
+          <span>${esc(formatDate(document.voucherDate))} · ${esc(money(document.totalAmount))}</span>
+        </div>
+        <em>${esc(recordStatus(document.voucherStatus))}</em>
+      </article>`).join("")
+    : `<div class="customer-record-empty">${item.externalHistory?.lexware ? "Keine Lexware-Angebote oder Rechnungen für diesen Kontakt gefunden." : "Noch keine Lexware-Daten geladen. Bitte Kundenakte aktualisieren."}</div>`;
 }
 
 function openCustomerRecord(customer) {
@@ -351,6 +410,73 @@ function closeCustomerRecord() {
   $("customerRecord").classList.add("hidden");
   $("customerListView").classList.remove("hidden");
   renderList();
+}
+
+async function refreshCustomerRecord() {
+  if (!activeRecordCustomer) return;
+  if (!hasConnectionConfig()) {
+    setStatus("customerRecordSyncStatus", "Für die Aktualisierung fehlen die Verbindungsdaten in den Einstellungen.", "error");
+    return;
+  }
+  const button = $("customerRecordRefresh");
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Kundenakte wird geladen …";
+  setStatus("customerRecordSyncStatus", "Pipedrive und Lexware werden abgefragt …");
+
+  const item = normalizeCustomer(activeRecordCustomer);
+  const requests = [
+    item.pipedriveId
+      ? loadPipedriveCustomerHistory(item.pipedriveId)
+      : Promise.resolve(null),
+    loadLexwareCustomerHistory({
+      contactId: item.lexwareContactId || "",
+      email: item.email || "",
+      name: displayName(item)
+    })
+  ];
+
+  try {
+    const [pipedriveResult, lexwareResult] = await Promise.allSettled(requests);
+    const errors = [];
+    if (pipedriveResult.status === "rejected") {
+      errors.push(`Pipedrive: ${pipedriveResult.reason?.message || "Abruf fehlgeschlagen"}`);
+    }
+    if (lexwareResult.status === "rejected") {
+      errors.push(`Lexware: ${lexwareResult.reason?.message || "Abruf fehlgeschlagen"}`);
+    }
+    const updated = saveCustomer({
+      ...item,
+      lexwareContactId:
+        lexwareResult.status === "fulfilled"
+          ? lexwareResult.value?.contact?.id || item.lexwareContactId || ""
+          : item.lexwareContactId || "",
+      externalHistory: {
+        pipedrive:
+          pipedriveResult.status === "fulfilled"
+            ? pipedriveResult.value
+            : item.externalHistory?.pipedrive || null,
+        lexware:
+          lexwareResult.status === "fulfilled"
+            ? lexwareResult.value
+            : item.externalHistory?.lexware || null,
+        loadedAt: new Date().toISOString()
+      }
+    });
+    renderCustomerRecord(updated);
+    setStatus(
+      "customerRecordSyncStatus",
+      errors.length
+        ? `Teilweise aktualisiert. ${errors.join(" · ")}`
+        : "Kundenakte wurde aus Pipedrive und Lexware aktualisiert.",
+      errors.length ? "error" : "success"
+    );
+  } catch (error) {
+    setStatus("customerRecordSyncStatus", `Kundenakte konnte nicht aktualisiert werden: ${error.message}`, "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
 }
 
 async function searchRemote() {
@@ -490,6 +616,7 @@ function init() {
   $("customerSearchPipedrive").onclick = searchRemote;
   $("customerRefreshPipedrive").onclick = refreshFromPipedrive;
   $("customerRecordClose").onclick = closeCustomerRecord;
+  $("customerRecordRefresh").onclick = refreshCustomerRecord;
   $("customerRecordEdit").onclick = () => {
     if (!activeRecordCustomer) return;
     $("customerRecord").classList.add("hidden");
