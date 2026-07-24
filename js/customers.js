@@ -311,6 +311,7 @@ async function saveForm(event) {
       });
       fillForm(customer);
       setStatus("customerFormStatus", "Gespeichert und mit Pipedrive synchronisiert.", "success");
+      setTimeout(closeEditor, 900);
     } catch (syncError) {
       customer = saveCustomer({
         ...customer,
@@ -322,6 +323,8 @@ async function saveForm(event) {
         "error"
       );
     }
+  } else {
+    setTimeout(closeEditor, 900);
   }
 
   $("customerSave").disabled = false;
@@ -333,6 +336,8 @@ async function refreshFromPipedrive() {
   const pipedriveId = formValue("customerPipedriveId");
   if (!pipedriveId) return;
   $("customerRefreshPipedrive").disabled = true;
+  const originalLabel = $("customerRefreshPipedrive").textContent;
+  $("customerRefreshPipedrive").textContent = "Pipedrive wird aktualisiert …";
   setStatus("customerFormStatus", "Aktuelle Daten werden aus Pipedrive geladen …");
   try {
     const result = await loadPipedrivePerson(pipedriveId);
@@ -351,6 +356,7 @@ async function refreshFromPipedrive() {
     setStatus("customerFormStatus", `Aktualisierung fehlgeschlagen: ${error.message}`, "error");
   } finally {
     $("customerRefreshPipedrive").disabled = false;
+    $("customerRefreshPipedrive").textContent = originalLabel;
   }
 }
 
