@@ -210,6 +210,11 @@ async function ensurePipedrivePerson(customer) {
     source: customer?.lexwareContactId ? "Lexware-Import" : "mainabdichter-App"
   });
   customer.pipedriveId = String(response.person?.id || "");
+  customer.lastPipedriveSync = {
+    ok: true,
+    at: new Date().toISOString(),
+    addressMode: response.syncStatus?.pipedriveAddress || "unknown"
+  };
   saveState();
   return customer.pipedriveId;
 }
@@ -457,9 +462,29 @@ async function syncAcceptedQuotationDashboard() {
         });
         ws.pipedriveDealId=String(deal.deal?.id || "");
         ws.customer.pipedriveDealId=ws.pipedriveDealId;
+        ws.syncStatus = {
+          lexware: "success",
+          pipedrivePerson: "success",
+          pipedriveDeal: "success",
+          warnings: deal.syncStatus?.warnings || [],
+          at: new Date().toISOString()
+        };
         persistWorksite(ws);
-        addSyncLog("Lexware → Baustelle",true,`${ws.lexwareVoucherNumber || "Angebot"} übernommen.`,{dealId:ws.pipedriveDealId});
+        const warningText = ws.syncStatus.warnings.length
+          ? ` Hinweise: ${ws.syncStatus.warnings.join(" ")}`
+          : "";
+        addSyncLog(
+          "Lexware → Baustelle",
+          true,
+          `${ws.lexwareVoucherNumber || "Angebot"} übernommen.${warningText}`,
+          {dealId:ws.pipedriveDealId}
+        );
         activeWorksiteId=ws.id;renderWorksites();show('worksites');
+        showStatus(
+          "worksiteStatus",
+          `Baustelle erstellt. Lexware ✓ Pipedrive-Kunde ✓ Pipedrive-Deal ✓${warningText}`,
+          true
+        );
       } catch(error){addSyncLog("Lexware → Baustelle",false,error.message);alert(error.message);} finally{button.disabled=false;}
     });
   } catch(error) { box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
