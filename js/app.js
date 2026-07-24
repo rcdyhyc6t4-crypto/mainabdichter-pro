@@ -1,14 +1,35 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload } from "./storage.js";
-import { createArea } from "./defaults.js";
-import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator.js";
-import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils.js";
-import { hasConnectionConfig, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api.js";
-import { buildExecutionNotices } from "./texts.js";
-import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask } from "./construction.js";
-import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js";
-import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload } from "./storage-v227.js";
+import { createArea } from "./defaults-v227.js";
+import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
+import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
+import { buildExecutionNotices } from "./texts-v227.js";
+import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=30.0.0";
+import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0.0";
+import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
+
+
+const MAINABDICHTER_APP_VERSION = "30.0.0";
+window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
+const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
+
+function migrateWorkerUrl() {
+  const current = normalizeWorkerUrl(state.settings?.workerUrl || "");
+  const isOldOrMissing =
+    !current ||
+    current.includes("mainabdichter-lexoffice.cmww7htry5.workers.dev") ||
+    current.includes("mainabdichter-lexoffice.");
+
+  if (isOldOrMissing) {
+    state.settings.workerUrl = MAINABDICHTER_WORKER_URL;
+    saveState();
+  }
+
+  return state.settings.workerUrl || MAINABDICHTER_WORKER_URL;
+}
+
 function applyInputModes(root = document) {
   const decimalSelectors = [
     'input[type="number"]',
@@ -53,6 +74,30 @@ let activeArchiveId = null;
 
 const customerFields = ["salutation","firstName","lastName","company","phone","email","street","zip","city","objectAddress"];
 const buildingFields = ["yearBuilt","buildingType","floor","roomUse","foundationType","floorCover","roomTemp","humidity","surfaceTemp","dewPoint"];
+
+function postalAddress(customer = state.visit.customer) {
+  return [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")]
+    .filter(Boolean).join(", ").trim();
+}
+
+function syncObjectAddressFromPostal(force = false) {
+  const customer = state.visit.customer;
+  const different = Boolean($("objectAddressDifferent")?.checked ?? customer.objectAddressDifferent);
+  customer.objectAddressDifferent = different;
+  if (force || !different) {
+    customer.objectAddress = postalAddress(customer);
+    if ($("objectAddress")) $("objectAddress").value = customer.objectAddress;
+  }
+  if ($("objectAddress")) {
+    $("objectAddress").readOnly = !different;
+    $("objectAddress").classList.toggle("is-auto-address", !different);
+  }
+  if ($("objectAddressHint")) {
+    $("objectAddressHint").textContent = different
+      ? "Abweichende Objektanschrift bitte vollständig eintragen."
+      : "Wird automatisch aus Straße, PLZ und Ort übernommen.";
+  }
+}
 
 
 function todayLocal() {
@@ -170,6 +215,10 @@ function customerName(customer) {
 
 async function ensurePipedrivePerson(customer) {
   if (customer?.pipedriveId) return String(customer.pipedriveId);
+  const postalAddress = [
+    customer?.street || "",
+    [customer?.zip || "", customer?.city || ""].filter(Boolean).join(" ")
+  ].filter(Boolean).join(", ");
   const response = await createPipedrivePerson({
     name: customerName(customer),
     email: customer?.email || "",
@@ -177,9 +226,17 @@ async function ensurePipedrivePerson(customer) {
     street: customer?.street || "",
     zip: customer?.zip || "",
     city: customer?.city || "",
-    source: "mainabdichter-App"
+    postalAddress,
+    objectAddress: customer?.objectAddress || postalAddress,
+    personFieldMappings: state.settings.pipedriveSync?.personFieldMappings || {},
+    source: customer?.lexwareContactId ? "Lexware-Import" : "mainabdichter-App"
   });
   customer.pipedriveId = String(response.person?.id || "");
+  customer.lastPipedriveSync = {
+    ok: true,
+    at: new Date().toISOString(),
+    addressMode: response.syncStatus?.pipedriveAddress || "unknown"
+  };
   saveState();
   return customer.pipedriveId;
 }
@@ -304,9 +361,10 @@ async function syncWorksiteDeal(worksite, stageKey = null, pdf = null) {
       : `${worksiteCustomerName(worksite)} und alle Unterlagen wurden mit Pipedrive synchronisiert.`,
     {dealId:worksite.pipedriveDealId,fileId:worksite.pipedriveReportFileId||"",attachments:attachmentResult.uploadedCount});
   if (attachmentResult.errors.length) {
-    throw new Error(`Baustellendaten wurden synchronisiert, aber Dateien konnten nicht vollständig hochgeladen werden:
-${attachmentResult.errors.join("
-")}`);
+    throw new Error(
+      "Baustellendaten wurden synchronisiert, aber Dateien konnten nicht vollständig hochgeladen werden:\n" +
+      attachmentResult.errors.join("\n")
+    );
   }
   return response;
 }
@@ -357,14 +415,15 @@ async function acceptInquiryImport() {
   const data = readInquiryReview();
   if (!data.firstName && !data.lastName) { showStatus("inquiryImportStatus","Bitte einen Namen eintragen.",false); return; }
   resetVisit(); state.visit.visitDate=todayLocal(); state.visit.visitStartTime=timeLocal(); state.visit.visitNumber=createVisitNumber();
-  Object.assign(state.visit.customer,{salutation:data.salutation,firstName:data.firstName,lastName:data.lastName,phone:data.phone,email:data.email,street:data.street,zip:data.zip,city:data.city,objectAddress:[data.street,[data.zip,data.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")});
+  Object.assign(state.visit.customer,{salutation:data.salutation,firstName:data.firstName,lastName:data.lastName,phone:data.phone,email:data.email,street:data.street,zip:data.zip,city:data.city,objectAddressDifferent:false});
+  state.visit.customer.objectAddress = postalAddress(state.visit.customer);
   state.visit.damageDescription=data.message;
   state.visit.inquiry={source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message,rawText:data.rawText,screenshot:inquiryScreenshotData,importedAt:new Date().toISOString()};
   saveState();
   let pipedriveMessage="";
   if ($("importCreatePipedrive").checked) {
     try {
-      const response=await createPipedrivePerson({name:[data.firstName,data.lastName].filter(Boolean).join(" "),email:data.email,phone:data.phone,street:data.street,zip:data.zip,city:data.city,source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message});
+      const response=await createPipedrivePerson({name:[data.firstName,data.lastName].filter(Boolean).join(" "),email:data.email,phone:data.phone,street:data.street,zip:data.zip,city:data.city,postalAddress:postalAddress(state.visit.customer),objectAddress:state.visit.customer.objectAddress,source:data.source,ownerStatus:data.ownerStatus,appointment:data.appointment,message:data.message});
       state.visit.customer.pipedriveId=String(response.person?.id || ""); saveState();
       const dealResponse = await syncVisitDeal("inquiry", {
         note: `<strong>Neue Anfrage über ${esc(data.source)}</strong><br>${esc(data.message || "").replace(/\n/g,"<br>")}`
@@ -380,6 +439,13 @@ async function acceptInquiryImport() {
 let cachedAcceptedQuotations = [];
 
 function todayIso() { return new Date().toISOString().slice(0,10); }
+function localDateDaysAgo(days = 0) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - Number(days || 0));
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
 
 function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
 async function syncPipedriveDashboard() {
@@ -398,15 +464,27 @@ async function syncAcceptedQuotationDashboard() {
   const box=$("acceptedQuotationList");
   box.innerHTML='<div class="empty-mini">Angebote werden geladen …</div>';
   try {
-    const today = todayLocal();
-    const data = await loadAcceptedLexwareQuotations(today);
+    // Alle seit vorgestern angenommenen Angebote bleiben sichtbar,
+    // bis daraus lokal eine Baustelle erstellt wurde.
+    const dateFrom = localDateDaysAgo(2);
+    const data = await loadAcceptedLexwareQuotations(dateFrom);
     cachedAcceptedQuotations = (data.quotations || []).filter(item => {
-      const updated = String(item.updatedDate || "").slice(0, 10);
-      return updated >= today;
+      const updated = String(item.updatedDate || item.voucherDate || "").slice(0, 10);
+      return updated >= dateFrom;
     });
     const existingIds=new Set(loadWorksites().map(item=>item.lexwareQuotationId).filter(Boolean));
     const items=cachedAcceptedQuotations.filter(item=>!existingIds.has(item.id));
-    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):'<div class="empty-mini">Keine heute angenommenen Angebote.</div>';
+    if ($("v284AcceptedOfferCount")) $("v284AcceptedOfferCount").textContent = items.length;
+    const notificationDot = $("v28Notifications")?.querySelector("i");
+    if (notificationDot) notificationDot.hidden = items.length === 0;
+    if ($("v284AcceptedOfferHint")) {
+      $("v284AcceptedOfferHint").textContent = items.length
+        ? `${items.length === 1 ? "Ein Auftrag wartet" : `${items.length} Aufträge warten`} auf Baustellenerstellung`
+        : "Keine neuen angenommenen Angebote";
+    }
+    const card = $("v284AcceptedOffersCard");
+    if (card) card.classList.toggle("has-orders", items.length > 0);
+    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):`<div class="empty-mini">Keine seit ${dateFrom.split('-').reverse().join('.')} angenommenen, noch offenen Angebote.</div>`;
     box.querySelectorAll('[data-create-lexware-worksite]').forEach(button=>button.onclick=async()=>{
       button.disabled=true;
       try {
@@ -425,14 +503,386 @@ async function syncAcceptedQuotationDashboard() {
         });
         ws.pipedriveDealId=String(deal.deal?.id || "");
         ws.customer.pipedriveDealId=ws.pipedriveDealId;
+        ws.syncStatus = {
+          lexware: "success",
+          pipedrivePerson: "success",
+          pipedriveDeal: "success",
+          warnings: deal.syncStatus?.warnings || [],
+          at: new Date().toISOString()
+        };
         persistWorksite(ws);
-        addSyncLog("Lexware → Baustelle",true,`${ws.lexwareVoucherNumber || "Angebot"} übernommen.`,{dealId:ws.pipedriveDealId});
+        const warningText = ws.syncStatus.warnings.length
+          ? ` Hinweise: ${ws.syncStatus.warnings.join(" ")}`
+          : "";
+        addSyncLog(
+          "Lexware → Baustelle",
+          true,
+          `${ws.lexwareVoucherNumber || "Angebot"} übernommen.${warningText}`,
+          {dealId:ws.pipedriveDealId}
+        );
         activeWorksiteId=ws.id;renderWorksites();show('worksites');
+        showStatus(
+          "worksiteStatus",
+          `Baustelle erstellt. Lexware ✓ Pipedrive-Kunde ✓ Pipedrive-Deal ✓${warningText}`,
+          true
+        );
       } catch(error){addSyncLog("Lexware → Baustelle",false,error.message);alert(error.message);} finally{button.disabled=false;}
     });
-  } catch(error) { box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
+  } catch(error) {
+    if ($("v284AcceptedOfferCount")) $("v284AcceptedOfferCount").textContent = "!";
+    if ($("v284AcceptedOfferHint")) $("v284AcceptedOfferHint").textContent = "Lexware-Angebote konnten nicht geladen werden";
+    box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`;
+  }
 }
 
+
+function openBottleCount(task) {
+  return Math.max(0, Number(task?.bottlesHanging || 0) - Number(task?.bottlesRetrieved || 0));
+}
+
+function bottleWorksites() {
+  return loadWorksites().map(worksite => {
+    const tasks = (worksite.tasks || []).filter(task => openBottleCount(task) > 0);
+    const count = tasks.reduce((sum, task) => sum + openBottleCount(task), 0);
+    const dueDates = tasks.map(task => task.bottlesPickupDue).filter(Boolean).sort();
+    return { worksite, tasks, count, dueDate: dueDates[0] || "" };
+  }).filter(item => item.count > 0);
+}
+
+
+let v28SelectedInventoryId = "";
+let v28StockAction = "increase";
+
+function v28InventoryProducts() {
+  return (state.settings?.inventory?.products || []).filter(product => product.active !== false);
+}
+function v28InventoryMovements() {
+  if (!state.settings.inventory) state.settings.inventory = {};
+  if (!Array.isArray(state.settings.inventory.movements)) state.settings.inventory.movements = [];
+  return state.settings.inventory.movements;
+}
+function v28OpenInventoryArticle(productId) {
+  const product = v28InventoryProducts().find(item => item.id === productId);
+  if (!product) return;
+  v28SelectedInventoryId = productId;
+  v28StockAction = "increase";
+  $("v28InventoryModalTitle").textContent = product.name;
+  $("v28StockAmount").value = "";
+  $("v28StockCharge").value = "";
+  $("v28StockNote").value = "";
+  $("v28StockDate").value = todayLocal();
+  $("v28ChargeField").hidden = !product.chargeTracking;
+  document.querySelectorAll("[data-stock-action]").forEach(button => button.classList.toggle("active", button.dataset.stockAction === "increase"));
+  $("v28InventoryArticleSummary").innerHTML = `
+    <div><span>Aktueller Bestand</span><strong>${num(product.stock || 0)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Mindestbestand</span><strong>${num(product.minimumStock || 0)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Gebindegröße</span><strong>${num(product.packageSize || 0)} ${esc(product.unit || "")}</strong></div>`;
+  v28RenderStockHistory(productId);
+  $("v28InventoryModal").classList.remove("hidden");
+  $("v28InventoryModal").setAttribute("aria-hidden", "false");
+  document.body.classList.add("resource-modal-open");
+}
+function v28CloseInventoryArticle() {
+  $("v28InventoryModal")?.classList.add("hidden");
+  $("v28InventoryModal")?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("resource-modal-open");
+}
+function v28RenderStockHistory(productId) {
+  const entries = v28InventoryMovements().filter(entry => entry.productId === productId).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,12);
+  $("v28StockHistory").innerHTML = entries.length ? entries.map(entry => `
+    <article class="v28-history-row"><span class="v28-history-sign ${entry.delta >= 0 ? "positive" : "negative"}">${entry.delta >= 0 ? "+" : "−"}</span>
+    <span><strong>${num(Math.abs(entry.delta))} ${esc(entry.unit || "")}</strong><small>${esc(entry.note || entry.actionLabel || "Lagerbewegung")}${entry.charge ? ` · Charge ${esc(entry.charge)}` : ""}</small></span><time>${esc(entry.date || "")}</time></article>`).join("") : `<p class="hint">Noch keine Lagerbewegungen vorhanden.</p>`;
+}
+function v28SaveStockMovement() {
+  const product = v28InventoryProducts().find(item => item.id === v28SelectedInventoryId);
+  if (!product) return;
+  const amount = parseDecimal($("v28StockAmount").value);
+  if (!(amount > 0)) { alert("Bitte eine Menge größer als 0 eingeben."); return; }
+  const previous = Number(product.stock || 0);
+  let next = previous, delta = 0, actionLabel = "";
+  if (v28StockAction === "increase") { delta = amount; next = previous + amount; actionLabel = "Wareneingang"; }
+  else if (v28StockAction === "decrease") { next = Math.max(0, previous - amount); delta = next - previous; actionLabel = "Materialentnahme"; }
+  else { next = Math.max(0, amount); delta = next - previous; actionLabel = "Bestandskorrektur"; }
+  product.stock = next;
+  v28InventoryMovements().push({
+    id: crypto.randomUUID(), productId: product.id, productName: product.name, action: v28StockAction, actionLabel,
+    previousStock: previous, newStock: next, delta, unit: product.unit || "", charge: $("v28StockCharge").value.trim(),
+    date: $("v28StockDate").value || todayLocal(), note: $("v28StockNote").value.trim(), createdAt: new Date().toISOString()
+  });
+  saveState();
+  renderV28Dashboard();
+  v28OpenInventoryArticle(product.id);
+}
+function renderV28Dashboard() {
+  if (!$("v28ActiveWorksiteCount")) return;
+  const worksites = typeof loadWorksites === "function" ? loadWorksites() : [];
+  const active = worksites.filter(worksite => worksite.status !== "completed");
+  $("v28ActiveWorksiteCount").textContent = active.length;
+  $("v28ActiveWorksiteStatus").textContent = active.length ? "In Arbeit" : "Keine aktive Baustelle";
+  const first = active[0];
+  const photo = first?.tasks?.flatMap(task => task.photos || [])[0]?.src;
+  $("v28WorksitePreview").innerHTML = photo ? `<img src="${photo}" alt="Baustelle">` : "";
+  const bottles = worksites.reduce((r,w)=>{const c=(w.tasks||[]).reduce((s,t)=>s+Math.max(0,Number(t.bottlesHanging||0)-Number(t.bottlesRetrieved||0)),0);if(c){r.count+=c;r.sites++}return r},{count:0,sites:0});
+  $("v28BottleCount").textContent = bottles.count;
+  $("v28BottleSites").textContent = `Auf ${bottles.sites} Baustellen`;
+  const products = v28InventoryProducts().slice(0, 3);
+  if ($("v28InventoryStrip")) {
+    $("v28InventoryStrip").innerHTML = products.length
+      ? products.map((product, index) => {
+          const stock = Number(product.stock || 0);
+          const minimum = Number(product.minimumStock || 0);
+          const ratio = minimum > 0
+            ? Math.min(100, Math.max(8, (stock / Math.max(minimum * 2, 1)) * 100))
+            : 66;
+          const visualClass = /hz/i.test(product.name || "")
+            ? "hz"
+            : /hs|sperrmörtel/i.test(product.name || "")
+              ? "hs"
+              : "sef";
+          return `<button type="button" class="v28-inventory-item" data-v28-inventory-id="${product.id}">
+            <span class="v288-product-pack ${visualClass}" aria-hidden="true"><i></i></span>
+            <span class="v288-product-data">
+              <small>${esc(product.name)}</small>
+              <strong>${num(stock)} ${esc(product.unit || "")}</strong>
+              <em>${stock <= minimum ? "Nachbestellen" : (product.unit || "Verfügbar")}</em>
+              <span class="v288-stock-bar"><b style="width:${ratio}%"></b></span>
+            </span>
+          </button>`;
+        }).join("")
+      : `<div class="empty-mini">Noch keine Lagerartikel angelegt.</div>`;
+
+    document.querySelectorAll("[data-v28-inventory-id]").forEach(button => {
+      button.onclick = () => v28OpenInventoryArticle(button.dataset.v28InventoryId);
+    });
+  }
+  $("v28OpenOffers").textContent = (state.offers || []).filter(o=>!["accepted","completed","rejected"].includes(String(o.status||"").toLowerCase())).length;
+
+  const status = typeof v28SystemStatusFromDom === "function" ? v28SystemStatusFromDom() : "yellow";
+  const statusDot = $("v28SystemDot");
+  if (statusDot) statusDot.className = `v28-status-dot v28-status-${status}`;
+  if ($("v287SyncTitle")) $("v287SyncTitle").textContent =
+    status === "green" ? "Alles in Ordnung" : status === "red" ? "Verbindung prüfen" : "Wird geprüft";
+  if ($("v287SyncTime")) $("v287SyncTime").textContent =
+    status === "green"
+      ? `Letzte Synchronisation heute, ${new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} Uhr`
+      : "Letzte Synchronisation noch offen";
+}
+
+function v287SetModal(id, open) {
+  const modal = $(id);
+  if (!modal) return;
+  modal.classList.toggle("hidden", !open);
+  modal.setAttribute("aria-hidden", open ? "false" : "true");
+  document.body.classList.toggle("resource-modal-open", open);
+}
+
+function v287RenderBottleList() {
+  const box = $("v287BottleList");
+  if (!box) return;
+  const items = bottleWorksites();
+  const today = todayLocal();
+
+  box.innerHTML = items.length ? items.map(item => {
+    const ws = item.worksite;
+    const customer = ws.customer || {};
+    const phone = customer.phone || customer.mobile || ws.phone || "";
+    const dueText = item.dueDate
+      ? (item.dueDate < today ? `Überfällig seit ${esc(item.dueDate)}` : `Abholung: ${esc(item.dueDate)}`)
+      : "Kein Abholdatum eingetragen";
+    return `<article class="v287-bottle-row">
+      <div class="v287-row-main">
+        <strong>${esc(worksiteCustomerName(ws))}</strong>
+        <span>${esc(ws.objectAddress || "Keine Baustellenadresse hinterlegt")}</span>
+        <small>${item.count} Flaschen · ${dueText}</small>
+      </div>
+      <div class="v287-row-actions">
+        ${phone ? `<a class="secondary" href="tel:${esc(phone)}">Anrufen</a>` : ""}
+        <button type="button" class="secondary" data-v287-navigate="${esc(ws.objectAddress || "")}">Navigation</button>
+        <button type="button" class="primary" data-v287-collected="${ws.id}">Flaschen abgeholt</button>
+      </div>
+    </article>`;
+  }).join("") : `<div class="empty-mini">Aktuell sind keine Flaschen auf Baustellen.</div>`;
+
+  box.querySelectorAll("[data-v287-navigate]").forEach(button => {
+    button.onclick = () => {
+      const address = button.dataset.v287Navigate;
+      if (address) window.open(`https://maps.apple.com/?daddr=${encodeURIComponent(address)}`, "_blank");
+    };
+  });
+
+  box.querySelectorAll("[data-v287-collected]").forEach(button => {
+    button.onclick = () => {
+      const ws = getWorksite(button.dataset.v287Collected);
+      if (!ws) return;
+      const total = (ws.tasks || []).reduce((sum, task) => sum + openBottleCount(task), 0);
+      if (!total) return;
+      if (!confirm(`${total} Flaschen bei ${worksiteCustomerName(ws)} als abgeholt bestätigen?`)) return;
+
+      (ws.tasks || []).forEach(task => {
+        const open = openBottleCount(task);
+        if (open > 0) {
+          task.bottlesRetrieved = Number(task.bottlesHanging || 0);
+          task.bottlesRetrievedAt = new Date().toISOString();
+        }
+      });
+      persistWorksite(ws);
+      renderV28Dashboard();
+      v287RenderBottleList();
+    };
+  });
+}
+
+function v287RenderInventoryList() {
+  const box = $("v287InventoryList");
+  if (!box) return;
+  const products = v28InventoryProducts();
+  box.innerHTML = products.length ? products.map(product => {
+    const stock = Number(product.stock || 0);
+    const minimum = Number(product.minimumStock || 0);
+    return `<button type="button" class="v287-inventory-row ${stock <= minimum ? "low" : ""}" data-v287-product="${product.id}">
+      <span><strong>${esc(product.name)}</strong><small>${stock <= minimum ? "Mindestbestand erreicht" : "Bestand ausreichend"}</small></span>
+      <b>${num(stock)} ${esc(product.unit || "")}</b><em>›</em>
+    </button>`;
+  }).join("") : `<div class="empty-mini">Noch keine Lagerartikel vorhanden.</div>`;
+
+  box.querySelectorAll("[data-v287-product]").forEach(button => {
+    button.onclick = () => {
+      v287SetModal("v287InventoryListModal", false);
+      v28OpenInventoryArticle(button.dataset.v287Product);
+    };
+  });
+}
+
+function initializeV28Dashboard() {
+  if ($("v28BottleCard")) $("v28BottleCard").onclick = () => {
+    v287RenderBottleList();
+    v287SetModal("v287BottleModal", true);
+  };
+  if ($("v287CloseBottleModal")) $("v287CloseBottleModal").onclick = () => v287SetModal("v287BottleModal", false);
+  if ($("v287BottleModal")) $("v287BottleModal").onclick = event => {
+    if (event.target === $("v287BottleModal")) v287SetModal("v287BottleModal", false);
+  };
+
+  if ($("v287OpenInventory")) $("v287OpenInventory").onclick = () => {
+    v287RenderInventoryList();
+    v287SetModal("v287InventoryListModal", true);
+  };
+  if ($("v287CloseInventoryList")) $("v287CloseInventoryList").onclick = () => v287SetModal("v287InventoryListModal", false);
+  if ($("v287InventoryListModal")) $("v287InventoryListModal").onclick = event => {
+    if (event.target === $("v287InventoryListModal")) v287SetModal("v287InventoryListModal", false);
+  };
+  if ($("v28SystemStatus")) $("v28SystemStatus").onclick = () => $("testConnections")?.click();
+  const openAcceptedOffers = async () => {
+    const modal = $("v284AcceptedOffersModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("resource-modal-open");
+    await syncAcceptedQuotationDashboard();
+  };
+  const closeAcceptedOffers = () => {
+    const modal = $("v284AcceptedOffersModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("resource-modal-open");
+  };
+
+  if ($("v284AcceptedOffersCard")) $("v284AcceptedOffersCard").onclick = openAcceptedOffers;
+  if ($("v28Notifications")) $("v28Notifications").onclick = openAcceptedOffers;
+  if ($("v284CloseAcceptedOffers")) $("v284CloseAcceptedOffers").onclick = closeAcceptedOffers;
+  if ($("v284AcceptedOffersModal")) {
+    $("v284AcceptedOffersModal").onclick = event => {
+      if (event.target === $("v284AcceptedOffersModal")) closeAcceptedOffers();
+    };
+  }
+
+  document.querySelectorAll("[data-stock-action]").forEach(button => button.onclick=()=>{v28StockAction=button.dataset.stockAction;document.querySelectorAll("[data-stock-action]").forEach(item=>item.classList.toggle("active",item===button));$("v28StockAmount").placeholder=v28StockAction==="correct"?"Neuer Gesamtbestand":"Menge";});
+  if ($("v28SaveStockMovement")) $("v28SaveStockMovement").onclick=v28SaveStockMovement;
+  if ($("v28CloseInventoryModal")) $("v28CloseInventoryModal").onclick=v28CloseInventoryArticle;
+  if ($("v28InventoryModal")) $("v28InventoryModal").onclick=e=>{if(e.target===$("v28InventoryModal"))v28CloseInventoryArticle();};
+  if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>show("visit");
+  if ($("v28CreateOffer")) $("v28CreateOffer").onclick=()=>show("offer");
+  if ($("v28OpenFullInventory")) $("v28OpenFullInventory").onclick=()=>show("settings");
+  if ($("v28ActiveWorksite")) $("v28ActiveWorksite").onclick=()=>show("worksites");
+  document.querySelectorAll("[data-v28-target]").forEach(button=>button.onclick=()=>show(button.dataset.v28Target));
+  renderV28Dashboard();
+}
+function renderDashboardBottles() {
+  const list = $("dashboardBottleList");
+  const stats = $("dashboardBottleStats");
+  const summary = $("dashboardBottleSummary");
+  if (!list) return;
+  const items = bottleWorksites();
+  const total = items.reduce((sum, item) => sum + item.count, 0);
+  const today = todayLocal();
+  const overdue = items.filter(item => item.dueDate && item.dueDate < today).length;
+  if (summary) summary.textContent = `${total} unterwegs · ${items.length} Baustelle${items.length === 1 ? "" : "n"}`;
+  if (stats) stats.innerHTML = `<div><span>Auf Baustellen</span><strong>${total}</strong></div><div><span>Baustellen</span><strong>${items.length}</strong></div><div><span>Überfällig</span><strong>${overdue}</strong></div>`;
+  list.innerHTML = items.length ? items.map(item => {
+    const ws=item.worksite;
+    const days=Math.max(0,Math.floor((Date.now()-new Date(ws.date||ws.createdAt).getTime())/86400000));
+    const status=item.dueDate && item.dueDate < today ? "Überfällig" : item.dueDate === today ? "Heute abholen" : "Hängen noch";
+    return `<button type="button" class="compact-row bottle-worksite-row" data-open-bottle-worksite="${ws.id}"><span><strong>${esc(worksiteCustomerName(ws))}</strong><small>${esc(ws.objectAddress||"Keine Anschrift")}</small></span><span><strong>${item.count} Flaschen</strong><small>${days} Tage · ${esc(status)}${item.dueDate?` · ${esc(item.dueDate)}`:""}</small></span></button>`;
+  }).join("") : '<div class="empty-mini">Keine Injektionsflaschen sind derzeit auf Baustellen.</div>';
+  list.querySelectorAll('[data-open-bottle-worksite]').forEach(button => button.onclick=()=>{activeWorksiteId=button.dataset.openBottleWorksite;show('worksites');renderWorksites();});
+}
+
+function renderDashboardInventory() {
+  const list = $("dashboardInventoryList");
+  const alertBox = $("dashboardInventoryAlert");
+  if (!list) return;
+
+  const products = (state.settings.inventory?.products || [])
+    .filter(product => product.active !== false);
+
+  if (!products.length) {
+    list.innerHTML = '<div class="empty-mini">Noch keine aktiven Lagerartikel angelegt.</div>';
+    if (alertBox) alertBox.hidden = true;
+    return;
+  }
+
+  const lowProducts = products.filter(product =>
+    Number(product.stock || 0) <= Number(product.minimumStock || 0)
+  );
+  if ($("dashboardInventorySummary")) {
+    $("dashboardInventorySummary").textContent = lowProducts.length
+      ? `${lowProducts.length} Artikel kritisch`
+      : `${products.length} Artikel · Bestand okay`;
+  }
+
+  list.innerHTML = products.map(product => {
+    const stock = Number(product.stock || 0);
+    const minimum = Number(product.minimumStock || 0);
+    const low = stock <= minimum;
+    const empty = stock <= 0;
+    const statusText = empty ? "Leer" : low ? "Nachbestellen" : "Ausreichend";
+    const stockText = Number.isInteger(stock)
+      ? String(stock)
+      : stock.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+    const minimumText = Number.isInteger(minimum)
+      ? String(minimum)
+      : minimum.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+
+    return `<button type="button" class="dashboard-inventory-card ${low ? "low-stock" : ""} ${empty ? "empty-stock" : ""}" data-page-target="settings" data-scroll-target="inventoryProducts">
+      <div class="dashboard-inventory-card-head">
+        <strong>${esc(product.name || "Material")}</strong>
+        <span>${esc(statusText)}</span>
+      </div>
+      <div class="dashboard-inventory-value">${esc(stockText)} <small>${esc(product.unit || "")}</small></div>
+      <div class="dashboard-inventory-minimum">Mindestbestand: ${esc(minimumText)} ${esc(product.unit || "")}</div>
+    </button>`;
+  }).join("");
+
+  if ($("dashboardInventorySummary")) $("dashboardInventorySummary").textContent = `${products.length} Artikel`;
+
+  if (alertBox) {
+    alertBox.hidden = lowProducts.length === 0;
+    alertBox.innerHTML = lowProducts.length
+      ? `<strong>⚠ ${lowProducts.length} Lagerartikel ${lowProducts.length === 1 ? "muss" : "müssen"} geprüft werden.</strong><span>${lowProducts.map(item => esc(item.name)).join(", ")}</span>`
+      : "";
+  }
+}
 
 function updateDashboardOverview() {
   const archive = loadArchive();
@@ -447,6 +897,8 @@ function updateDashboardOverview() {
     const hour = new Date().getHours();
     $("dashboardGreeting").textContent = `${hour < 11 ? "Guten Morgen" : hour < 17 ? "Guten Tag" : "Guten Abend"}, Mike`;
   }
+  renderDashboardInventory();
+  renderDashboardBottles();
 }
 function updateRecordHeader() {
   const customer = state.visit.customer || {};
@@ -690,7 +1142,7 @@ function show(pageId) {
   targetPage.classList.add("active");
   if (pageId === "offer") renderOffer();
   if (pageId === "settings") renderSettings();
-  if (pageId === "dashboard") { renderArchive(); updateDashboardOverview(); syncDashboardSources(); }
+  if (pageId === "dashboard") { renderArchive(); updateDashboardOverview(); syncDashboardSources(); if (typeof renderV28Dashboard === "function") renderV28Dashboard(); }
   if (pageId === "worksites") renderWorksites();
   if (pageId === "more") updateBackupTime();
   document.querySelectorAll("[data-bottom-page]").forEach(button => button.classList.toggle("active", button.dataset.bottomPage === pageId));
@@ -711,10 +1163,10 @@ function closeAppMenu() {
   document.body.classList.remove("menu-open");
 }
 
-$("headerHome").onclick = () => show("dashboard");
-$("quickMenu").onclick = openAppMenu;
-$("closeMenu").onclick = closeAppMenu;
-$("menuBackdrop").onclick = closeAppMenu;
+if ($("headerHome")) $("headerHome").onclick = () => show("dashboard");
+if ($("quickMenu")) $("quickMenu").onclick = openAppMenu;
+if ($("closeMenu")) $("closeMenu").onclick = closeAppMenu;
+if ($("menuBackdrop")) $("menuBackdrop").onclick = closeAppMenu;
 
 document.querySelectorAll("[data-menu-page]").forEach(button => {
   button.onclick = () => {
@@ -737,28 +1189,78 @@ document.querySelectorAll("[data-more-action]").forEach(button => {
     if (button.dataset.moreAction === "newInquiry") openInquiryImport();
   };
 });
-$("syncDashboardAll").onclick = syncDashboardSources;
+if ($("syncDashboardAll")) if ($("syncDashboardAll")) $("syncDashboardAll").onclick = syncDashboardSources;
 document.querySelectorAll("[data-scroll-target]").forEach(button => button.onclick = () => {
   const target = $(button.dataset.scrollTarget);
   target?.scrollIntoView({behavior:"smooth", block:"center"});
 });
 document.querySelectorAll("[data-page-target]").forEach(button => button.onclick = () => show(button.dataset.pageTarget));
-$("syncPipedriveActivities").onclick = syncPipedriveDashboard;
-$("syncAcceptedQuotations").onclick = syncAcceptedQuotationDashboard;
-$("dashboardNewInquiry").onclick = openInquiryImport;
+function setResourceModal(id, open) {
+  const modal = $(id);
+  if (!modal) return;
+  modal.classList.toggle("hidden", !open);
+  modal.setAttribute("aria-hidden", open ? "false" : "true");
+  document.body.classList.toggle("resource-modal-open", open);
+}
+if ($("openInventoryDashboard")) $("openInventoryDashboard").onclick = () => setResourceModal("inventoryDashboardModal", true);
+if ($("closeInventoryDashboard")) $("closeInventoryDashboard").onclick = () => setResourceModal("inventoryDashboardModal", false);
+if ($("openBottleDashboard")) $("openBottleDashboard").onclick = () => setResourceModal("bottleDashboardModal", true);
+if ($("closeBottleDashboard")) $("closeBottleDashboard").onclick = () => setResourceModal("bottleDashboardModal", false);
+["inventoryDashboardModal","bottleDashboardModal"].forEach(id => {
+  const modal = $(id);
+  if (modal) modal.addEventListener("click", event => {
+    if (event.target === modal) setResourceModal(id, false);
+  });
+});
+if ($("syncPipedriveActivities")) $("syncPipedriveActivities").onclick = syncPipedriveDashboard;
+if ($("syncAcceptedQuotations")) $("syncAcceptedQuotations").onclick = syncAcceptedQuotationDashboard;
+if ($("dashboardNewInquiry")) $("dashboardNewInquiry").onclick = openInquiryImport;
 $("cancelInquiryImport").onclick = () => show("dashboard");
 $("retryInquiryImport").onclick = () => $("inquiryScreenshot").click();
 $("inquiryScreenshot").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
 $("inquiryCamera").onchange = event => handleInquiryScreenshot(event.target.files?.[0]);
 $("reparseInquiryText").onclick = () => fillInquiryReview(parseInquiryText($("importRawText").value));
 $("acceptInquiryImport").onclick = acceptInquiryImport;
+["street","zip","city"].forEach(id => {
+  const input = $(id);
+  if (!input) return;
+  input.addEventListener("input", () => {
+    state.visit.customer[id] = input.value;
+    syncObjectAddressFromPostal();
+    saveState();
+    updateRecordHeader();
+  });
+});
+if ($("objectAddressDifferent")) $("objectAddressDifferent").addEventListener("change", () => {
+  state.visit.customer.objectAddressDifferent = $("objectAddressDifferent").checked;
+  syncObjectAddressFromPostal(!state.visit.customer.objectAddressDifferent);
+  saveState();
+});
+if ($("objectAddress")) $("objectAddress").addEventListener("input", () => {
+  if (!state.visit.customer.objectAddressDifferent) return;
+  state.visit.customer.objectAddress = $("objectAddress").value;
+  saveState();
+  updateRecordHeader();
+});
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
-$("dashboardNewVisit").onclick = startNewVisit;
-$("quickCreateOffer").onclick = () => show("offer");
-$("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
-$("quickShowFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
-$("showAllOffers").onclick = () => $("archiveList").scrollIntoView({behavior:"smooth"});
-$("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
+
+$('guidedNext').onclick=()=>{const i=currentGuideStep();if(i<6&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===6){if(stepComplete(6)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
+$('goToMissingStep').onclick=()=>openGuideStep(firstMissingGuideStep());
+$('finishVisitGuide').onclick=()=>{if(!stepComplete(6))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
+$('changeCustomer').onclick=()=>{$('customerSourceActions').classList.remove('hidden');$('customerConfirmed').classList.add('hidden');};
+$('openCustomerAdvice').onclick=()=>{adviceState.stage=1;const m=adviceMeasure();if(m.type&&ADVICE_CONTENT[m.type])adviceState.type=m.type;renderAdvice();show('customerAdvice');};
+$('closeCustomerAdvice').onclick=()=>show('visit');
+$('advicePrev').onclick=()=>{adviceState.stage=Math.max(1,adviceState.stage-1);renderAdvice();};
+$('adviceNext').onclick=()=>{const max=(ADVICE_CONTENT[adviceState.type]?.steps||[]).length||1;adviceState.stage=Math.min(max,adviceState.stage+1);renderAdvice();};
+document.querySelectorAll('[data-advice-type]').forEach(b=>b.onclick=()=>{adviceState.type=b.dataset.adviceType;adviceState.stage=1;renderAdvice();});
+document.querySelectorAll('[data-open-step]').forEach((b,i)=>b.onclick=()=>openGuideStep(i===4?5:i));
+
+if ($("dashboardNewVisit")) $("dashboardNewVisit").onclick = startNewVisit;
+if ($("quickCreateOffer")) $("quickCreateOffer").onclick = () => show("offer");
+if ($("quickShowOffers")) $("quickShowOffers").onclick = () => { $("archiveFilter").value = "all"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
+if ($("quickShowFollowups")) $("quickShowFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
+if ($("showAllOffers")) $("showAllOffers").onclick = () => $("archiveList").scrollIntoView({behavior:"smooth"});
+if ($("showAllFollowups")) $("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
 $("icloudSave").onclick = () => { exportArchiveData("mainabdichter-komplettsicherung.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
 document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => show(button.dataset.bottomPage));
 $("bottomCustomers").onclick = () => {
@@ -766,8 +1268,8 @@ $("bottomCustomers").onclick = () => {
   setTimeout(() => $("customerPipedrive")?.click(), 0);
 };
 function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_last_backup"); if(!$("lastBackupTime")) return; $("lastBackupTime").textContent=raw?new Date(raw).toLocaleString("de-DE"):"Noch keine Sicherung"; }
-$("archiveSearch").oninput = renderArchive;
-$("archiveFilter").onchange = renderArchive;
+if ($("archiveSearch")) $("archiveSearch").oninput = renderArchive;
+if ($("archiveFilter")) $("archiveFilter").onchange = renderArchive;
 $("saveToArchive").onclick = () => saveCurrentToArchive(true);
 $("exportArchive").onclick = exportArchiveData;
 $("importArchive").onchange = event => {
@@ -850,33 +1352,33 @@ $("importArchive").onchange = event => {
   event.target.value = "";
 };
 
-$("quickSave").onclick = () => {
+if ($("quickSave")) $("quickSave").onclick = () => {
   collectVisit();
   saveState();
   alert("Aktueller Stand gespeichert.");
 };
-$("quickSettings").onclick = () => show("settings");
+if ($("quickSettings")) $("quickSettings").onclick = () => show("settings");
 
 if ($("bottomPipedrive")) {
-  $("bottomPipedrive").onclick = () => {
+  if ($("bottomPipedrive")) $("bottomPipedrive").onclick = () => {
     show("visit");
     choosePipedrive();
   };
 }
 
 if ($("bottomLexware")) {
-  $("bottomLexware").onclick = () => {
+  if ($("bottomLexware")) $("bottomLexware").onclick = () => {
     show("visit");
     chooseLexware();
   };
 }
 
 if ($("bottomNewVisit")) {
-  $("bottomNewVisit").onclick = startNewVisit;
+  if ($("bottomNewVisit")) $("bottomNewVisit").onclick = startNewVisit;
 }
 
 if ($("bottomFollowup")) {
-  $("bottomFollowup").onclick = () => {
+  if ($("bottomFollowup")) $("bottomFollowup").onclick = () => {
     show("dashboard");
     $("archiveFilter").value = "followup";
     renderArchive();
@@ -1019,6 +1521,167 @@ function updateMetaBar() {
   Object.entries(dashboardPairs).forEach(([id,value]) => { if ($(id)) $(id).textContent = value; });
 }
 
+
+const GUIDE_STEPS = [
+  {id:"visitStep1", label:"Kunde und Termin", instruction:"Kundendaten prüfen und bestätigen"},
+  {id:"recordContextCard", label:"Vorgeschichte", instruction:"Vorhandene Vorgänge kurz prüfen", optional:true},
+  {id:"visitStep2", label:"Gebäude", instruction:"Gebäude und Raum erfassen"},
+  {id:"visitStep3", label:"Schadensbild", instruction:"Schaden verständlich beschreiben"},
+  {id:"visitStep4", label:"Messungen und Maßnahmen", instruction:"Schadensbereiche, Messungen und Maßnahmen erfassen"},
+  {id:"visitStep5", label:"Zusatzleistungen", instruction:"Zusatzleistungen prüfen", optional:true},
+  {id:"visitCompletion", label:"Abschluss", instruction:"Vollständigkeit prüfen und Angebot öffnen"}
+];
+function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
+function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[];return[
+ {label:"Kunde und Kontaktdaten",ok:Boolean((c.firstName||c.company||c.lastName)&&(c.phone||c.email))},
+ {label:"Objektanschrift",ok:Boolean(c.objectAddress||(c.street&&c.zip&&c.city))},
+ {label:"Gebäude und Raum",ok:Boolean(b.buildingType&&b.floor&&b.roomUse)},
+ {label:"Schadensbeschreibung",ok:Boolean((state.visit.damageTags||[]).length || String(state.visit.damageDescription||'').trim())},
+ {label:"Mindestens ein Schadensbereich",ok:areas.length>0},
+ {label:"Wandstärke und Material",ok:areas.length>0&&areas.every(x=>x.wallThickness&&(x.wallMaterial||x.wallMaterialOther))},
+ {label:"Mindestens eine Maßnahme",ok:areas.some(x=>(x.measures||[]).some(m=>m.type))}
+];}
+function stepComplete(index){const checks=guideChecks();if(index===0)return checks[0].ok&&checks[1].ok;if(index===1)return true;if(index===2)return checks[2].ok;if(index===3)return checks[3].ok;if(index===4)return checks[4].ok&&checks[5].ok&&checks[6].ok;if(index===5)return true;return checks.every(x=>x.ok);}
+function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
+function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
+function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
+function renderVisitChecklist(){const box=$('visitChecklist');if(!box)return;const checks=guideChecks();box.innerHTML=checks.map((x,i)=>`<div class="checklist-row ${x.ok?'ok':'missing'}"><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Bitte ergänzen'}</strong></div>`).join('');$('finishVisitGuide').disabled=!checks.every(x=>x.ok);}
+function updateVisitGuide(){
+  GUIDE_STEPS.forEach((step,i)=>{
+    const el=$(step.id);
+    if(!el)return;
+    el.classList.toggle('is-complete',stepComplete(i));
+    el.classList.toggle('is-incomplete',!stepComplete(i));
+  });
+  renderVisitChecklist();
+}
+function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok)return 4;return 6;}
+function adviceMeasure(){
+  const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));
+  return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre','Wand-Sohlen-Anschluss'].includes(m.type))||{};
+}
+const adviceState={type:'Horizontalsperre',stage:1};
+const ADVICE_CONTENT={
+  'Horizontalsperre':{
+    image:'assets/advice/horizontalsperre.png',
+    note:'Die Sperre stoppt den weiteren kapillaren Feuchtetransport. Die bereits im Mauerwerk vorhandene Feuchtigkeit muss anschließend natürlich austrocknen.',
+    steps:[
+      {title:'Feuchtigkeit steigt aus dem Fundament auf',text:'Bei einer fehlenden oder defekten Horizontalsperre steigt Feuchtigkeit kapillar aus dem Fundament in die darüberliegende Wand.',details:['Darstellung immer mit Fundament unter der Wand','Erdreich liegt seitlich am Bauteil an','Feuchtigkeit steigt im Mauerwerk nach oben']},
+      {title:'Bohrlochreihe anzeichnen',text:'Die Bohrlöcher werden in einer waagerechten Reihe oberhalb des Fundaments angeordnet.',details:['Bohrlochabstand 25 cm oder 12,5 cm','Bohrposition entsprechend dem vorhandenen Mauerwerk festlegen']},
+      {title:'Schräg bis etwa zur Mauerwerksmitte bohren',text:'Wir bohren von innen in einem Winkel von 30–50 Grad bis ungefähr zur Mitte des Mauerwerks.',details:['Seitliche Schnittansicht','Bohrkanal endet etwa in Mauerwerksmitte','Mauerwerksschonendes Verfahren']},
+      {title:'BKM HZ 250 PRO injizieren',text:'Das Injektionsmaterial wird in die Bohrlöcher eingebracht und verteilt sich durch seine Kriecheigenschaften im Kapillarsystem.',details:['Mindestmenge grundsätzlich 200 ml je Bohrloch','Bei 12,5 cm Abstand wird die rechnerische Menge je Bohrloch halbiert, jedoch niemals unter 200 ml','Verteilung erfolgt im feuchten Mauerwerk']},
+      {title:'Neue wasserabweisende Sperrschicht',text:'Im Mauerwerk entsteht eine durchgehende wasserabweisende Zone, die den weiteren Feuchtetransport aus dem Fundament unterbindet.',details:['Kapillaren werden hydrophobiert und nicht verstopft','Restfeuchtigkeit kann anschließend austrocknen']}
+    ]
+  },
+  'Flächensperre':{
+    image:'assets/advice/flaechensperre.png',
+    note:'Die Flächensperre wird vollständig von innen ausgeführt. Ein Freischachten der Außenwand ist hierfür nicht erforderlich.',
+    steps:[
+      {title:'Feuchtigkeit aus Fundament und Erdreich',text:'Bei einer defekten oder fehlenden Vertikalabdichtung dringt Feuchtigkeit seitlich aus dem anliegenden Erdreich und zusätzlich aus dem Fundament in die Wand ein.',details:['Fundament immer unter der Wand darstellen','Erdreich immer seitlich neben der Wand darstellen','Feuchtigkeitswege von unten und von der Seite zeigen']},
+      {title:'Bohrbild von innen anlegen',text:'Die betroffene Innenwand wird rasterförmig gebohrt. Die Bohrungen beeinträchtigen die Statik des Mauerwerks nicht.',details:['Bohrabstand 25 cm oder 12,5 cm','Mehrere versetzte Bohrreihen über der gesamten Fläche']},
+      {title:'BKM HZ 250 PRO injizieren',text:'Das Material wird von innen eingebracht und verteilt sich im durchfeuchteten Wandquerschnitt.',details:['Injektion über die vollständige Schadensfläche','Verteilung auch in stark durchfeuchtetem Mauerwerk']},
+      {title:'Zusammenhängende Flächensperre entsteht',text:'Die hydrophobierte Zone reduziert den kapillaren Feuchtetransport aus Erdreich und Fundament. Die Wand kann anschließend kontrolliert austrocknen.',details:['Keine Außenarbeiten','Bohrlöcher werden anschließend verschlossen']}
+    ]
+  },
+  'Wand-Sohlen-Anschluss':{
+    image:'assets/advice/wand-sohle.png',
+    note:'Diese Maßnahme endet mit Hohlkehle und Sperrmörtel. Zweikomponentige Abdichtung und Sanierputz gehören ausschließlich zur druckwasserstabilen Innenabdichtung.',
+    steps:[
+      {title:'Estrich von innen öffnen',text:'Der Estrich wird entlang der Innenwand aufgeschnitten und in der erforderlichen Breite bis zur Bodenplatte entfernt.',details:['Arbeitsbereich von innen','Bodenplatte und Wand-Sohlen-Fuge vollständig freilegen','Ausbau in der Regel ca. 10–15 cm breit, objektabhängig']},
+      {title:'Untergrund vollständig vorbereiten',text:'Loser Putz, lose Bestandteile und haftungsmindernde Rückstände werden entfernt. Wand, Bodenplatte und Anschlussfuge werden gründlich gereinigt.',details:['Tragfähigen mineralischen Untergrund herstellen','Staub und lose Bestandteile entfernen']},
+      {title:'Dreieckige Nut 2 × 2 cm ausstemmen',text:'Direkt im Wand-Sohlen-Bereich wird von innen eine dreieckige Nut mit ungefähr 2 cm Schenkellänge und 2 cm Tiefe ausgestemmt.',details:['Dreiecksform im 90-Grad-Anschluss','Nut verläuft durchgehend entlang des abzudichtenden Anschlusses','Untergrund anschließend erneut reinigen']},
+      {title:'Harzinjektion bei Bedarf',text:'Bei aktivem oder zu erwartendem Wassereintritt wird die Fuge über geeignete Bohrungen und Packer mit Injektionsharz verpresst.',details:['Nur technisch erforderliche Bereiche','Harz stoppt Wasser und füllt vorhandene Hohlräume']},
+      {title:'Hohlkehle herstellen',text:'BKM HS Sperrmörtel wird in die ausgestemmte Nut eingebracht und mit der Kelle zu einer gleichmäßigen Hohlkehle ausgeformt.',details:['Keine scharfkantige 90-Grad-Ecke','Dauerhafte Verbindung zwischen Wand und Bodenplatte']},
+      {title:'Sperrmörtel mindestens 15 cm über Sperrbahn führen',text:'Der Sperrmörtel wird über Hohlkehle, Anschlussbereich und Wandfläche aufgetragen und mindestens 15 cm über eine vorhandene Horizontalsperre beziehungsweise Sperrbahn hinausgeführt.',details:['Überdeckung verhindert Hinterläufigkeit','Durchgehender dichter Anschluss von Wand und Bodenplatte']},
+      {title:'Wand-Sohlen-Anschluss fertigstellen',text:'Nach der Erhärtung ist der kritische Übergang von innen dauerhaft abgedichtet. Der Estrichbereich kann später fachgerecht geschlossen werden.',details:['Keine zweikomponentige Abdichtung in diesem Modul','Kein Sanierputz in diesem Modul']}
+    ]
+  },
+  'Druckwasserstabile Innenabdichtung':{
+    image:'assets/advice/druckwasser.png',
+    note:'Die druckwasserstabile Innenabdichtung ist ein eigenständiger mehrlagiger Systemaufbau und wird klar vom reinen Wand-Sohlen-Anschluss getrennt.',
+    steps:[
+      {title:'Untergrund von innen freilegen',text:'Putz, Beschichtungen und nicht tragfähige Bestandteile werden vollständig entfernt. Der mineralische Untergrund wird gereinigt und vorbereitet.',details:['Alle Arbeiten erfolgen von innen','Wand-Sohlen-Anschluss wird in das System einbezogen']},
+      {title:'Wand-Sohlen-Anschluss abdichten',text:'Der Anschluss wird vorbereitet, bei Bedarf mit Harz verpresst und mit einer Hohlkehle aus BKM HS Sperrmörtel ausgebildet.',details:['Dreieckige Nut 2 × 2 cm','Sperrmörtel mindestens 15 cm über vorhandene Sperrbahn']},
+      {title:'Mineralische Vorabdichtung und Egalisierung',text:'Unebenheiten werden mit geeignetem Sperrmörtel ausgeglichen. Dadurch entsteht ein tragfähiger, geschlossener Untergrund für die Abdichtungslagen.',details:['Hohlräume schließen','Scharfe Kanten vermeiden']},
+      {title:'Zweikomponentige Abdichtung aufbringen',text:'Die druckwasserstabile zweikomponentige Abdichtung wird in den vorgesehenen Lagen vollflächig von innen aufgetragen.',details:['BKM SEF 2K beziehungsweise der freigegebene Systemwerkstoff','Erforderliche Schichtdicke und Trocknungszeiten einhalten']},
+      {title:'Haftvermittlung und Sanierputzsystem',text:'Nach vollständiger Erhärtung der Abdichtung wird der weitere systemgerechte Putzaufbau hergestellt.',details:['Haftvermittler nach Systemvorgabe','Sanierputz als eigener Bestandteil dieses Systems','Oberflächenveredelung erst nach ausreichender Standzeit']}
+    ]
+  }
+};
+function renderAdvice(){
+  const content=ADVICE_CONTENT[adviceState.type]||ADVICE_CONTENT.Horizontalsperre;
+  const max=content.steps.length;
+  adviceState.stage=Math.max(1,Math.min(max,adviceState.stage));
+  const step=content.steps[adviceState.stage-1];
+  const img=$('adviceImage');
+  if(img){img.src=content.image;img.alt=`${adviceState.type} – Innenabdichtung`}
+  $('adviceTypeLabel').textContent=adviceState.type.toUpperCase();
+  $('adviceTitle').textContent=step.title;
+  $('adviceText').textContent=step.text;
+  $('adviceStage').textContent=`${adviceState.stage} von ${max}`;
+  $('advicePrev').disabled=adviceState.stage<=1;
+  $('adviceNext').disabled=adviceState.stage>=max;
+  $('adviceStepDetails').innerHTML=(step.details||[]).map(x=>`<div class="advice-detail-row"><span>✓</span><p>${esc(x)}</p></div>`).join('');
+  $('adviceImportantNote').textContent=content.note;
+  $('adviceProcessTitle').textContent=`${adviceState.type}: kompletter Ablauf`;
+  $('adviceProcessSteps').innerHTML=content.steps.map((x,i)=>`<button type="button" class="advice-process-step ${i+1===adviceState.stage?'active':''}" data-advice-stage="${i+1}"><span>${i+1}</span><strong>${esc(x.title)}</strong></button>`).join('');
+  $('adviceProcessSteps').querySelectorAll('[data-advice-stage]').forEach(b=>b.onclick=()=>{adviceState.stage=Number(b.dataset.adviceStage);renderAdvice();});
+  const m=adviceMeasure(),wall=Number(m.wall||m.areaWall||0),spacing=Number(m.spacing||0);
+  const isSurface=adviceState.type==='Flächensperre';
+  const qty=isSurface?Number(m.width||0)*Number(m.height||0):Number(m.length||0);
+  let holes=0;
+  if(spacing>0&&['Horizontalsperre','Flächensperre'].includes(adviceState.type)) holes=isSurface?Math.ceil(Number(m.width||0)/spacing+1)*Math.ceil(Number(m.height||0)/spacing+1):Math.ceil(qty/spacing);
+  const rows=[['Objekt',state.visit.customer?.objectAddress||state.visit.customer?.city||'aktuelles Objekt'],['Ausführung','ausschließlich von innen'],['Wandstärke',wall?`${wall} cm`:'noch nicht erfasst']];
+  if(qty)rows.push(['Umfang',`${num(qty)} ${isSurface?'m²':'lfm'}`]);
+  if(spacing&&['Horizontalsperre','Flächensperre'].includes(adviceState.type))rows.push(['Bohrlochabstand',`${num(spacing*100)} cm`]);
+  if(holes)rows.push(['Bohrlöcher',holes]);
+  $('adviceObjectData').innerHTML=rows.map(x=>`<div><span>${x[0]}</span><strong>${esc(String(x[1]))}</strong></div>`).join('');
+  document.querySelectorAll('[data-advice-type]').forEach(b=>b.classList.toggle('active',b.dataset.adviceType===adviceState.type));
+}
+
+const DAMAGE_TAGS = [
+  "Muffiger Geruch",
+  "Abplatzender Putz",
+  "Salzausblühungen",
+  "Feuchte Flecken",
+  "Dunkle Verfärbungen",
+  "Schimmelbildung",
+  "Wasser auf dem Boden",
+  "Sichtbarer Wassereintritt",
+  "Nasse Wandoberfläche",
+  "Risse im Mauerwerk oder Putz",
+  "Hohlliegender Putz",
+  "Beschädigter Boden-Wandanschluss",
+  "Feuchtigkeit an Rohrdurchführungen",
+  "Sonstiges"
+];
+
+function damageDescriptionText(visit = state.visit) {
+  const tags = Array.isArray(visit.damageTags) ? visit.damageTags.filter(Boolean) : [];
+  const note = String(visit.damageDescription || "").trim();
+  return [tags.join(", "), note].filter(Boolean).join(". ");
+}
+
+function renderDamageTags() {
+  const box = $("damageTagOptions");
+  if (!box) return;
+  state.visit.damageTags ||= [];
+  box.innerHTML = DAMAGE_TAGS.map(tag => `
+    <label class="damage-tag ${state.visit.damageTags.includes(tag) ? "selected" : ""}">
+      <input type="checkbox" data-damage-tag="${esc(tag)}" ${state.visit.damageTags.includes(tag) ? "checked" : ""}>
+      <span>${esc(tag)}</span>
+    </label>`).join("");
+  box.querySelectorAll("[data-damage-tag]").forEach(input => input.onchange = () => {
+    const tag = input.dataset.damageTag;
+    const selected = new Set(state.visit.damageTags || []);
+    input.checked ? selected.add(tag) : selected.delete(tag);
+    state.visit.damageTags = [...selected];
+    saveState();
+    renderDamageTags();
+    updateVisitGuide();
+  });
+}
+
 function renderVisit() {
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
   if (!state.visit.visitStartTime) state.visit.visitStartTime = timeLocal();
@@ -1036,8 +1699,11 @@ function renderVisit() {
   $("visitPrecipitation").value = state.visit.visitPrecipitation || "";
   updateVisitDuration();
   customerFields.forEach(key => $(key).value = state.visit.customer[key] || "");
+  if ($("objectAddressDifferent")) $("objectAddressDifferent").checked = Boolean(state.visit.customer.objectAddressDifferent);
+  syncObjectAddressFromPostal();
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
+  renderDamageTags();
   $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
   toggleClimateFields();
   renderAreas();
@@ -1062,8 +1728,11 @@ function collectVisit() {
   state.visit.visitOutdoorTemp = $("visitOutdoorTemp").value || "";
   state.visit.visitPrecipitation = $("visitPrecipitation").value || "";
   customerFields.forEach(key => state.visit.customer[key] = $(key).value);
+  state.visit.customer.objectAddressDifferent = Boolean($("objectAddressDifferent")?.checked);
+  syncObjectAddressFromPostal();
   buildingFields.forEach(key => state.visit.building[key] = $(key).value);
   state.visit.damageDescription = $("damageDescription").value;
+  state.visit.damageTags ||= [];
   state.visit.building.climateMeasured = $("climateMeasured").checked;
   state.visit.customerRecommendation = generateRecommendationText();
 }
@@ -1165,7 +1834,6 @@ function renderAreas() {
       <h3>Feuchtemessung</h3>
       <div class="grid">
         <div><label>Referenzwert „trocken“</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
-        <div class="full"><label>Bemerkung zur Feuchtemessung</label><textarea data-area="${area.id}" data-field="measurementRemark">${esc(area.measurementRemark || "")}</textarea></div>
       </div>
       <h3>Messpunkte</h3><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Messpunkt</button>
       <h3>Maßnahmen</h3><div id="measures-${area.id}"></div><button class="secondary" data-add-measure="${area.id}">+ Maßnahme</button>
@@ -1190,7 +1858,7 @@ function renderAreas() {
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
-    area.measurements.push({ id: crypto.randomUUID(), device:"",value:"",unit:"",height:"",location:"" });
+    area.measurements.push({ id: crypto.randomUUID(), device:"",value:"",unit:"Digits",height:"",location:"" });
     saveState(); renderAreas();
   });
 
@@ -1219,20 +1887,30 @@ function renderAreas() {
 
 function renderMeasurements(area) {
   const box = $(`measurements-${area.id}`);
+  area.measurements.forEach(measurement => measurement.unit = "Digits");
   box.innerHTML = area.measurements.map(m => `
     <div class="sub-card item-grid">
-      <div class="wide"><label>Gerät</label><input data-mid="${m.id}" data-mf="device" value="${esc(m.device)}"></div>
-      <div><label>Messwert</label><input data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
-      <div><label>Einheit</label><input data-mid="${m.id}" data-mf="unit" value="${esc(m.unit)}"></div>
-      <div><label>Höhe cm</label><input data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
-      <div><label>Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}"></div>
+      <div class="wide"><label>Messgerät</label><select data-mid="${m.id}" data-mf="device">
+        <option value="">– bitte auswählen –</option>
+        <option value="Gann Hydromette Compact B" ${m.device === "Gann Hydromette Compact B" ? "selected" : ""}>Gann Hydromette Compact B</option>
+        <option value="Trotec Mikrowellenmessgerät" ${m.device === "Trotec Mikrowellenmessgerät" ? "selected" : ""}>Trotec Mikrowellenmessgerät</option>
+      </select></div>
+      <div><label>Messwert</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
+      <div><label>Einheit</label><input value="Digits" readonly aria-label="Einheit Digits"></div>
+      <div><label>Messhöhe cm</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
+      <div><label>Messstelle / Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}" placeholder="z. B. Nordwand unten"></div>
       <button class="danger" data-delete-measurement="${m.id}">Löschen</button>
     </div>`).join("");
 
-  box.querySelectorAll("[data-mf]").forEach(input => input.oninput = () => {
-    const measurement = area.measurements.find(item => item.id === input.dataset.mid);
-    measurement[input.dataset.mf] = input.value;
-    saveState();
+  box.querySelectorAll("[data-mf]").forEach(input => {
+    const eventName = input.tagName === "SELECT" ? "onchange" : "oninput";
+    input[eventName] = () => {
+      const measurement = area.measurements.find(item => item.id === input.dataset.mid);
+      measurement[input.dataset.mf] = input.value;
+      measurement.unit = "Digits";
+      saveState();
+      updateVisitGuide();
+    };
   });
 
   box.querySelectorAll("[data-delete-measurement]").forEach(button => button.onclick = () => {
@@ -1240,6 +1918,7 @@ function renderMeasurements(area) {
     saveState();
     renderAreas();
   });
+  saveState();
 }
 
 function renderMeasures(area) {
@@ -1544,9 +2223,9 @@ $("sendLexware").onclick = async () => {
 function buildReport() {
   let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Besichtigungsnummer</th><td>${esc(state.visit.visitNumber || "")}</td></tr><tr><th>Besichtigungsdatum</th><td>${esc(state.visit.visitDate || "")}</td></tr><tr><th>Beginn</th><td>${esc(state.visit.visitStartTime || "")}</td></tr><tr><th>Ende</th><td>${esc(state.visit.visitEndTime || "")}</td></tr><tr><th>Dauer</th><td>${esc($("visitDuration")?.value || "")}</td></tr>${state.visit.visitLatitude?`<tr><th>GPS-Standort</th><td>${esc(state.visit.visitLatitude)}, ${esc(state.visit.visitLongitude)} (${esc(state.visit.visitAccuracy)})</td></tr>`:""}${state.visit.visitWeather?`<tr><th>Wetter</th><td>${esc(state.visit.visitWeather)}, ${esc(state.visit.visitOutdoorTemp)} °C, Niederschlag ${esc(state.visit.visitPrecipitation)} mm</td></tr>`:""}<tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr>${state.visit.building.climateMeasured?`<tr><th>Raumtemperatur</th><td>${esc(state.visit.building.roomTemp)} °C</td></tr><tr><th>Luftfeuchtigkeit</th><td>${esc(state.visit.building.humidity)} %</td></tr><tr><th>Oberflächentemperatur</th><td>${esc(state.visit.building.surfaceTemp)} °C</td></tr><tr><th>Taupunkt</th><td>${esc(state.visit.building.dewPoint)} °C</td></tr>`:""}</table></div>`;
   updateGeneratedRecommendation();
-  html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(state.visit.damageDescription)}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
+  html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")}</td></tr><tr><th>Bemerkung</th><td>${esc(area.measurementRemark || "")}</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${p.src}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,
@@ -1654,6 +2333,7 @@ function inventoryTransaction(product, amount, type, note) {
 
 function renderInventorySettings() {
   const inventory = state.settings.inventory || { products: [], transactions: [] };
+  renderDashboardInventory();
   state.settings.inventory = inventory;
   inventory.products = inventory.products || [];
   inventory.transactions = inventory.transactions || [];
@@ -1674,6 +2354,10 @@ function renderInventorySettings() {
           <div><label>Mindestbestand</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="minimumStock" value="${Number(product.minimumStock || 0)}"></div>
           <div><label>Gebindegröße</label><input type="number" inputmode="decimal" step=".1" data-inventory-id="${product.id}" data-inventory-field="packageSize" value="${Number(product.packageSize || 0)}"></div>
           <div><label>Einkauf netto je Einheit</label><input type="number" inputmode="decimal" step=".01" data-inventory-id="${product.id}" data-inventory-field="purchaseNet" value="${Number(product.purchaseNet || 0)}"></div>
+          <div><label>Hersteller optional</label><input data-inventory-id="${product.id}" data-inventory-field="manufacturer" value="${esc(product.manufacturer || "")}"></div>
+          <div class="full switch-row"><label><input type="checkbox" data-inventory-id="${product.id}" data-inventory-check="chargeTracking" ${product.chargeTracking ? "checked" : ""}> Chargennummer im Arbeitsnachweis erfassen</label></div>
+          <div class="full switch-row"><label><input type="checkbox" data-inventory-id="${product.id}" data-inventory-check="shelfLifeTracking" ${product.shelfLifeTracking ? "checked" : ""}> Mindesthaltbarkeitsdatum erfassen</label></div>
+          <div class="full switch-row"><label><input type="checkbox" data-inventory-id="${product.id}" data-inventory-check="serialTracking" ${product.serialTracking ? "checked" : ""}> Seriennummer erfassen</label></div>
           <div><label>Zugang buchen</label><input type="number" inputmode="decimal" step=".1" id="receipt-${product.id}" placeholder="Menge"></div>
           <div class="inventory-action-cell"><button class="secondary" data-inventory-receipt="${product.id}">Bestand erhöhen</button></div>
         </div>
@@ -1700,6 +2384,15 @@ function renderInventorySettings() {
         const product = inventory.products.find(item => item.id === input.dataset.inventoryActive);
         product.active = input.checked;
         saveState();
+      };
+    });
+
+    box.querySelectorAll("[data-inventory-check]").forEach(input => {
+      input.onchange = () => {
+        const product = inventory.products.find(item => item.id === input.dataset.inventoryId);
+        product[input.dataset.inventoryCheck] = input.checked;
+        saveState();
+        renderInventorySettings();
       };
     });
 
@@ -1784,8 +2477,24 @@ function mappingOptions(items, selected, labelKey="name", valueKey="key") {
 }
 
 function renderPipedriveSyncSettings() {
-  const sync=state.settings.pipedriveSync ||= {autoSync:true,fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[]};
+  const sync=state.settings.pipedriveSync ||= {autoSync:true,fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[],personFields:[],personFieldMappings:{postalAddress:"",objectAddress:""}};
   $("pipedriveAutoSync").checked=sync.autoSync !== false;
+  sync.personFields ||= [];
+  sync.personFieldMappings ||= {postalAddress:"",objectAddress:""};
+  const personDefinitions = [
+    ["postalAddress", "Postanschrift"],
+    ["objectAddress", "Objektanschrift"]
+  ];
+  const personBox = $("pipedrivePersonFieldMappings");
+  if (personBox) {
+    personBox.innerHTML = personDefinitions.map(([key,label]) => `
+      <div class="mapping-item"><label>${esc(label)}</label><select data-person-field-mapping="${key}">${mappingOptions(sync.personFields,sync.personFieldMappings?.[key],"name","key")}</select>${sync.personFieldMappings?.[key]?`<small>${esc(sync.personFields.find(f=>f.key===sync.personFieldMappings[key])?.type||"")}</small>`:""}</div>`).join("");
+    personBox.querySelectorAll("[data-person-field-mapping]").forEach(select => select.onchange = () => {
+      sync.personFieldMappings[select.dataset.personFieldMapping] = select.value;
+      saveState();
+      renderPipedriveSyncSettings();
+    });
+  }
   $("pipedriveStageMappings").innerHTML=STAGE_DEFINITIONS.map(([key,label])=>`
     <div class="mapping-item"><label>${esc(label)}</label><select data-stage-mapping="${key}">${mappingOptions(sync.stages,sync.stageMappings?.[key],"name","id")}</select></div>`).join("");
   $("pipedriveFieldMappings").innerHTML=FIELD_DEFINITIONS.map(([key,label])=>`
@@ -1799,18 +2508,25 @@ async function loadPipedriveSchema() {
   showStatus("pipedriveSchemaStatus","Pipedrive-Felder und Dealphasen werden geladen …",true);
   try {
     collectSettings(); saveState();
-    const [fieldData,stageData]=await Promise.all([loadPipedriveDealFields(),loadPipedriveStages()]);
+    const [fieldData,personFieldData,stageData]=await Promise.all([loadPipedriveDealFields(),loadPipedrivePersonFields(),loadPipedriveStages()]);
     const sync=state.settings.pipedriveSync ||= {};
     sync.fields=fieldData.fields||[];
+    sync.personFields=personFieldData.fields||[];
     sync.stages=stageData.stages||[];
+    sync.personFieldMappings ||= {postalAddress:"",objectAddress:""};
+    const normalizeName = value => String(value||"").trim().toLocaleLowerCase("de-DE");
+    const findPersonField = names => sync.personFields.find(field => names.includes(normalizeName(field.name)))?.key || "";
+    if (!sync.personFieldMappings.postalAddress) sync.personFieldMappings.postalAddress = findPersonField(["postanschrift","postal address"]);
+    if (!sync.personFieldMappings.objectAddress) sync.personFieldMappings.objectAddress = findPersonField(["objektanschrift","objektadresse","object address"]);
     sync.fieldMappings={...autoMapFields(sync.fields),...(sync.fieldMappings||{})};
     sync.stageMappings={...autoMapStages(sync.stages),...(sync.stageMappings||{})};
     saveState(); renderPipedriveSyncSettings();
-    showStatus("pipedriveSchemaStatus",`${sync.fields.length} Deal-Felder und ${sync.stages.length} Dealphasen geladen. Bitte Zuordnung kontrollieren.`,true);
+    showStatus("pipedriveSchemaStatus",`${sync.personFields.length} Personenfelder, ${sync.fields.length} Deal-Felder und ${sync.stages.length} Dealphasen geladen. Bitte Zuordnung kontrollieren.`,true);
   } catch(error) { addSyncLog("Schema",false,error.message); renderPipedriveSyncSettings(); showStatus("pipedriveSchemaStatus",error.message,false); }
 }
 
 function renderSettings() {
+  migrateWorkerUrl();
   const s = state.settings;
   ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
   $("minimumPricePercent").value = Number(s.priceStrategy?.minimumFactor || .9) * 100;
@@ -1874,12 +2590,17 @@ function collectWorksite() {
   worksite.generalNotes = $("wsGeneralNotes").value.trim();
   worksite.customerSignature = $("wsCustomerSignature").value.trim();
   worksite.workerSignature = $("wsWorkerSignature").value.trim();
+  worksite.signaturePlace = $("wsSignaturePlace")?.value.trim() || "";
+  worksite.signatureDate = $("wsSignatureDate")?.value || worksite.date || todayLocal();
+  worksite.siteClean = Boolean($("wsSiteClean")?.checked);
+  worksite.customerSignatureData = signaturePadData("wsCustomerSignatureCanvas") || worksite.customerSignatureData || "";
+  worksite.workerSignatureData = signaturePadData("wsWorkerSignatureCanvas") || worksite.workerSignatureData || "";
   document.querySelectorAll("[data-ws-task]").forEach(input => {
     const task = worksite.tasks.find(item => item.id === input.dataset.wsTask);
     if (!task) return;
     const field = input.dataset.wsField;
     if (input.type === "checkbox") task[field] = input.checked;
-    else if (["actualHoles","actualLiters","actualHsKg","packers","resinKg","spacing"].includes(field)) task[field] = parseDecimal(input.value);
+    else if (["wall","actualQuantity","actualHoles","actualLiters","actualHsKg","packers","resinKg","spacing","bottlesHanging","bottlesRetrieved"].includes(field)) task[field] = parseDecimal(input.value);
     else task[field] = input.value;
   });
   return worksite;
@@ -1960,6 +2681,235 @@ async function renderWorksiteAttachments(ws) {
   }
 }
 
+
+function inventoryTrackingEnabled(productId, key) {
+  const product = state.settings.inventory?.products?.find(item => item.id === productId);
+  return Boolean(product?.[key]);
+}
+
+function chargeFieldHtml(task, productId, field, label) {
+  if (!inventoryTrackingEnabled(productId, "chargeTracking")) return "";
+  return `<div><label>${esc(label)}</label><input data-ws-task="${task.id}" data-ws-field="${field}" value="${esc(task[field] || "")}" placeholder="optional"></div>`;
+}
+
+function plannedScopeHtml(task) {
+  const wallChange = Number(task.originalWall || 0) && Number(task.wall || 0) !== Number(task.originalWall || 0)
+    ? `<small class="warning-text">Angebot: ${num(task.originalWall)} cm · tatsächlich: ${num(task.wall)} cm</small>`
+    : "";
+  const values = [
+    task.scope || "",
+    taskIsTechnical(task) && task.type !== "Harzverpressung" ? `${num(task.wall || task.originalWall || 0)} cm Wand` : ""
+  ].filter(Boolean).join(" · ");
+  return `<div class="planned-scope-card compact-planned-scope">
+    <span>AUFTRAG</span>
+    <strong>${esc(values || task.type || "Leistung")}</strong>
+    ${wallChange}
+  </div>`;
+}
+
+
+function activateWorksiteSection(sectionId) {
+  document.querySelectorAll(".worksite-section").forEach(section => {
+    section.classList.toggle("active", section.id === sectionId);
+  });
+  document.querySelectorAll("[data-worksite-section]").forEach(button => {
+    button.classList.toggle("active", button.dataset.worksiteSection === sectionId);
+  });
+  sessionStorage.setItem("mainabdichter_active_worksite_section", sectionId);
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function bindWorksiteSectionNavigation() {
+  document.querySelectorAll("[data-worksite-section]").forEach(button => {
+    button.onclick = () => {
+      if (activeWorksiteId) saveActiveWorksite(false);
+      activateWorksiteSection(button.dataset.worksiteSection);
+    };
+  });
+}
+
+function renderWorksiteOverview(ws) {
+  const summary = $("wsOverviewSummary");
+  if (summary) {
+    const completed = (ws.tasks || []).filter(task => task.completed).length;
+    const openBottles = (ws.tasks || []).reduce(
+      (sum, task) => sum + Math.max(0, Number(task.bottlesHanging || 0) - Number(task.bottlesRetrieved || 0)),
+      0
+    );
+    summary.innerHTML = `
+      <div><span>Status</span><strong>${esc(ws.status === "completed" ? "Abgeschlossen" : ws.status === "active" ? "In Ausführung" : "Geplant")}</strong></div>
+      <div><span>Maßnahmen</span><strong>${completed} von ${(ws.tasks || []).length} erledigt</strong></div>
+      <div><span>Arbeitsdatum</span><strong>${esc(ws.date || "noch offen")}</strong></div>
+      <div><span>Flaschen unterwegs</span><strong>${openBottles} Stück</strong></div>`;
+  }
+  const next = $("wsOverviewNextStep");
+  if (next) {
+    const firstOpen = (ws.tasks || []).find(task => !task.completed);
+    next.innerHTML = firstOpen
+      ? `<button type="button" class="primary" data-jump-worksite="wsSectionExecution">Nächster Schritt: ${esc(firstOpen.areaName)} – ${esc(firstOpen.type)}</button>`
+      : `<button type="button" class="primary" data-jump-worksite="wsSectionReport">Arbeitsnachweis abschließen</button>`;
+    next.querySelectorAll("[data-jump-worksite]").forEach(button => {
+      button.onclick = () => activateWorksiteSection(button.dataset.jumpWorksite);
+    });
+  }
+}
+
+function renderWorksitePhotoPage(ws) {
+  const box = $("wsPhotoPage");
+  if (!box) return;
+  box.innerHTML = (ws.tasks || []).map(task => `
+    <article class="worksite-photo-section">
+      <div class="worksite-photo-section-head">
+        <div><strong>${esc(task.areaName)}</strong><small>${esc(task.type)}</small></div>
+        <div class="worksite-photo-add">
+          <select id="photo-category-${task.id}">
+            <option>Vorher</option>
+            <option>Während</option>
+            <option>Nachher</option>
+          </select>
+          <label class="secondary photo-upload-button">Foto hinzufügen<input class="hidden" type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></label>
+        </div>
+      </div>
+      <div class="worksite-photo-grid">${taskPhotoHtml(task) || '<p class="hint">Noch keine Fotos hinterlegt.</p>'}</div>
+    </article>`).join("");
+}
+
+function renderWorksiteReportChecklist(ws) {
+  const box = $("wsReportChecklist");
+  if (!box) return;
+  const checks = [
+    ["Alle Maßnahmen geprüft", (ws.tasks || []).every(task => task.completed)],
+    ["Arbeitszeit erfasst", Boolean(ws.startTime && ws.endTime)],
+    ["Mitarbeiter erfasst", Boolean(String(ws.employees || "").trim())],
+    ["Bemerkungen geprüft", true],
+    ["Kundenbestätigung", Boolean(String(ws.customerSignature || "").trim() && ws.customerSignatureData)]
+  ];
+  box.innerHTML = checks.map(([label, ok]) => `
+    <div class="${ok ? "ok" : "missing"}"><span>${ok ? "✓" : "!"}</span><strong>${esc(label)}</strong></div>`).join("");
+}
+
+
+const signaturePadStates = new Map();
+
+function signaturePadData(canvasId) {
+  const state = signaturePadStates.get(canvasId);
+  return state?.hasInk ? state.canvas.toDataURL("image/png") : "";
+}
+
+function configureSignatureCanvas(canvas, savedData = "", locked = false) {
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(480, Math.round(rect.width || 640));
+  const height = Math.max(150, Math.round(rect.height || 190));
+  const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#18231d";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  const pad = {
+    canvas,
+    ctx,
+    width,
+    height,
+    drawing: false,
+    hasInk: false,
+    locked
+  };
+  signaturePadStates.set(canvas.id, pad);
+  canvas.classList.toggle("is-locked", locked);
+
+  const point = event => {
+    const box = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - box.left) * (width / box.width),
+      y: (event.clientY - box.top) * (height / box.height)
+    };
+  };
+
+  canvas.onpointerdown = event => {
+    if (pad.locked) return;
+    event.preventDefault();
+    canvas.setPointerCapture?.(event.pointerId);
+    const p = point(event);
+    pad.drawing = true;
+    pad.hasInk = true;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  };
+
+  canvas.onpointermove = event => {
+    if (!pad.drawing || pad.locked) return;
+    event.preventDefault();
+    const p = point(event);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const finish = event => {
+    if (!pad.drawing) return;
+    event?.preventDefault?.();
+    pad.drawing = false;
+    ctx.closePath();
+  };
+
+  canvas.onpointerup = finish;
+  canvas.onpointercancel = finish;
+  canvas.onpointerleave = finish;
+
+  if (savedData) {
+    const image = new Image();
+    image.onload = () => {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+      pad.hasInk = true;
+    };
+    image.src = savedData;
+  }
+}
+
+function clearSignatureCanvas(canvasId) {
+  const pad = signaturePadStates.get(canvasId);
+  if (!pad || pad.locked) return;
+  pad.ctx.fillStyle = "#ffffff";
+  pad.ctx.fillRect(0, 0, pad.width, pad.height);
+  pad.hasInk = false;
+}
+
+function initializeWorksiteSignatures(ws) {
+  requestAnimationFrame(() => {
+    configureSignatureCanvas(
+      $("wsCustomerSignatureCanvas"),
+      ws.customerSignatureData || "",
+      ws.status === "completed"
+    );
+    configureSignatureCanvas(
+      $("wsWorkerSignatureCanvas"),
+      ws.workerSignatureData || "",
+      ws.status === "completed"
+    );
+
+    if ($("clearCustomerSignature")) {
+      $("clearCustomerSignature").disabled = ws.status === "completed";
+      $("clearCustomerSignature").onclick = () => clearSignatureCanvas("wsCustomerSignatureCanvas");
+    }
+    if ($("clearWorkerSignature")) {
+      $("clearWorkerSignature").disabled = ws.status === "completed";
+      $("clearWorkerSignature").onclick = () => clearSignatureCanvas("wsWorkerSignatureCanvas");
+    }
+  });
+}
+
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
@@ -1976,39 +2926,141 @@ function renderWorksiteEditor() {
   $("wsGeneralNotes").value = ws.generalNotes || "";
   $("wsCustomerSignature").value = ws.customerSignature || "";
   $("wsWorkerSignature").value = ws.workerSignature || "";
-  $("worksiteTasks").innerHTML = ws.tasks.map(task => `
-    <div class="card worksite-task-card">
-      <div class="worksite-task-title"><div><h2>${esc(task.areaName)} – ${esc(task.type)}</h2><small>${esc(task.scope)} · Wand ${num(task.wall)} cm</small></div><label class="worksite-check"><input type="checkbox" data-ws-task="${task.id}" data-ws-field="completed" ${task.completed?"checked":""}> vollständig ausgeführt</label></div>
-      <div class="grid">
-        <div><label>Bohrlochabstand m</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>0,125 m</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>0,25 m</option></select></div>
+  if ($("wsSignaturePlace")) $("wsSignaturePlace").value = ws.signaturePlace || ws.customer?.city || "";
+  if ($("wsSignatureDate")) $("wsSignatureDate").value = ws.signatureDate || ws.date || todayLocal();
+  if ($("wsSiteClean")) $("wsSiteClean").checked = Boolean(ws.siteClean);
+  initializeWorksiteSignatures(ws);
+  ["wsCustomerSignature","wsWorkerSignature","wsSignaturePlace","wsSignatureDate","wsSiteClean"].forEach(id => {
+    const element = $(id);
+    if (element) element.disabled = ws.status === "completed";
+  });
+  renderWorksiteOverview(ws);
+  renderWorksitePhotoPage(ws);
+  renderWorksiteReportChecklist(ws);
+  bindWorksiteSectionNavigation();
+  const storedSection = sessionStorage.getItem("mainabdichter_active_worksite_section") || "wsSectionOverview";
+  activateWorksiteSection(document.getElementById(storedSection) ? storedSection : "wsSectionOverview");
+  ws.tasks.forEach(task => {
+    if (task.offerDescription === undefined) task.offerDescription = task.note || "";
+    if (task.actualNote === undefined) task.actualNote = "";
+    if (task.workArea === undefined) task.workArea = "";
+    if (task.wallMaterial === undefined) task.wallMaterial = "";
+    if (task.isInteriorWall === undefined) task.isInteriorWall = false;
+    if (task.isExteriorWall === undefined) task.isExteriorWall = false;
+    if (task.actualQuantity === undefined || task.actualQuantity === null) task.actualQuantity = Number(task.plannedQuantity || 0);
+    if (task.injectionPressureless === undefined) task.injectionPressureless = /drucklos/i.test(task.injectionType || "");
+    if (task.injectionLowPressure === undefined) task.injectionLowPressure = /niederdruck/i.test(task.injectionType || "");
+  });
+  $("worksiteTasks").innerHTML = ws.tasks.map(task => {
+    const technical = taskIsTechnical(task);
+    const usesHz = taskUsesHz(task);
+    const usesHs = taskUsesHs(task);
+    const usesResin = taskUsesResin(task);
+    const wallField = technical && task.type !== "Harzverpressung"
+      ? `<div><label>Tatsächliche Wandstärke</label><select data-ws-task="${task.id}" data-ws-field="wall">${[24,30,36,36.5,42,48,60].map(value => `<option value="${value}" ${Number(task.wall)===value?"selected":""}>${String(value).replace(".",",")} cm</option>`).join("")}</select></div>`
+      : "";
+    const wallMaterialOptions = ["", "Beton", "Ziegelmauerwerk", "HBL", "Kalksandstein", "Naturstein", "Bruchstein", "Mischmauerwerk", "Porenbeton", "Sonstiges"];
+    const locationFields = technical ? `
+        <div><label>Bereich</label><input data-ws-task="${task.id}" data-ws-field="workArea" value="${esc(task.workArea || "")}" placeholder="z. B. Keller, Lagerraum, Garage"></div>
+        <div><label>Wandmaterial</label><select data-ws-task="${task.id}" data-ws-field="wallMaterial">${wallMaterialOptions.map(value => `<option value="${esc(value)}" ${task.wallMaterial===value?"selected":""}>${esc(value || "Bitte auswählen")}</option>`).join("")}</select></div>
+        <div class="full wall-type-choice"><label>Bauteil</label>
+          <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="isInteriorWall" ${task.isInteriorWall?"checked":""}> Innenwand</label>
+          <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="isExteriorWall" ${task.isExteriorWall?"checked":""}> Außenwand</label>
+        </div>` : "";
+    const quantityLabel = task.type === "Flächensperre" ? "Tatsächliche Fläche m²" : "Tatsächliche Laufmeter";
+    const hzFields = usesHz ? `
+        <div><label>${quantityLabel}</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>
+        <div><label>Bohrlochabstand</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>12,5 cm</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>25 cm</option></select></div>
         <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
         <div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>
-        <div><label>Sollmenge je Bohrloch (mind. 0,200 l)</label><input value="${num(task.targetLitersPerHole)} l" readonly></div>
-        <div><label>Sollverbrauch HZ 250 Pro</label><input value="${num(task.plannedLiters)} l" readonly></div>
-        <div><label>Istverbrauch HZ 250 Pro Liter</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualLiters" value="${formatDecimalInput(task.actualLiters)}"></div>
-        ${task.type === "Wand-Sohlen-Anschluss" ? `<div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div><div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>` : ""}
-        ${task.type === "Harzverpressung" ? `<div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div><div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>` : ""}
-        <div><label>Injektionsart</label><select data-ws-task="${task.id}" data-ws-field="injectionType"><option ${task.injectionType==="Niederdruckverfahren"?"selected":""}>Niederdruckverfahren</option><option ${task.injectionType==="drucklose Injektion"?"selected":""}>drucklose Injektion</option></select></div>
-        ${["","Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(task.type) ? `<div><label>Charge BKM HZ 250 Pro</label><input data-ws-task="${task.id}" data-ws-field="chargeHz" value="${esc(task.chargeHz)}"></div>` : ""}
-        <div class="full"><label>Was wurde gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="note">${esc(task.note)}</textarea></div>
+        <div><label>Sollmenge je Bohrloch</label><input value="${num(task.targetLitersPerHole)} l" readonly></div>
+        <div><label>Sollverbrauch ohne Reserve</label><input value="${num(task.plannedLiters)} l" readonly></div>
+        <div><label>Istverbrauch HZ 250 PRO</label><input value="${num(task.actualLiters)} l" readonly></div>
+        <div class="full injection-choice"><label>Injektionsart</label>
+          <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="injectionPressureless" ${task.injectionPressureless?"checked":""}> Drucklos</label>
+          <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="injectionLowPressure" ${task.injectionLowPressure?"checked":""}> Niederdruck</label>
+        </div>
+        ${chargeFieldHtml(task, "bkm-hz-250-pro", "chargeHz", "Charge BKM HZ 250 PRO")}
+        <div><label>Noch hängende Injektionsflaschen</label><input inputmode="numeric" data-ws-task="${task.id}" data-ws-field="bottlesHanging" value="${formatDecimalInput(task.bottlesHanging)}"></div>
+        <div><label>Bereich / Wand der Flaschen</label><input data-ws-task="${task.id}" data-ws-field="bottlesArea" value="${esc(task.bottlesArea || "")}"></div>
+        <div><label>Geplante Abholung</label><input type="date" data-ws-task="${task.id}" data-ws-field="bottlesPickupDue" value="${esc(task.bottlesPickupDue || "")}"></div>` : "";
+    const hsFields = usesHs ? `
+        <div><label>Tatsächliche Laufmeter</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>
+        <div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div>
+        <div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>
+        ${chargeFieldHtml(task, "bkm-hs-sperrmoertel", "chargeHs", "Charge BKM HS Sperrmörtel")}` : "";
+    const resinFields = usesResin ? `
+        <div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div>
+        <div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>
+        ${chargeFieldHtml(task, "bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K")}` : "";
+    return `
+    <div class="card worksite-task-card">
+      <div class="worksite-task-title"><div><h2>${esc(task.areaName)} – ${esc(task.type)}</h2><small>${esc(task.scope)}</small></div><label class="worksite-check"><input type="checkbox" data-ws-task="${task.id}" data-ws-field="completed" ${task.completed?"checked":""}> vollständig ausgeführt</label></div>
+      ${plannedScopeHtml(task)}
+      <div class="grid">
+        ${locationFields}
+        ${wallField}
+        ${hzFields}
+        ${hsFields}
+        ${resinFields}
+        <div class="full"><label>Was wurde tatsächlich gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="actualNote">${esc(task.actualNote || "")}</textarea></div>
       </div>
-      <label>Fotos</label><div class="grid"><div><select id="photo-category-${task.id}"><option>Vorher</option><option>Während</option><option>Nachher</option></select></div><div><input type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></div></div>
-      <div class="worksite-photo-grid">${taskPhotoHtml(task)}</div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   const totals = worksiteMaterialTotals(ws);
-  $("wsMaterialSummary").innerHTML = `<div class="worksite-material-row"><span>BKM HZ 250 Pro</span><strong>${num(totals.hzLiters)} Liter</strong></div><div class="worksite-material-row"><span>BKM HS Sperrmörtel</span><strong>${num(totals.hsKg)} kg</strong></div><div class="worksite-material-row"><span>Harz</span><strong>${num(totals.resinKg)} kg</strong></div><div class="worksite-material-row"><span>Packer</span><strong>${num(totals.packers)} Stück</strong></div>${ws.materialBooked?`<p class="booked-badge">Material bereits abgebucht</p>`:""}`;
+  const materialRows = [];
+  if (totals.hzLiters > 0) materialRows.push(`<div class="worksite-material-row"><span>BKM HZ 250 Pro</span><strong>${num(totals.hzLiters)} Liter</strong></div>`);
+  if (totals.hsKg > 0) materialRows.push(`<div class="worksite-material-row"><span>BKM HS Sperrmörtel</span><strong>${num(totals.hsKg)} kg</strong></div>`);
+  if (totals.resinKg > 0) materialRows.push(`<div class="worksite-material-row"><span>Harz / SEF-2K</span><strong>${num(totals.resinKg)} kg</strong></div>`);
+  if (totals.packers > 0) materialRows.push(`<div class="worksite-material-row"><span>Packer für Harzverpressung</span><strong>${num(totals.packers)} Stück</strong></div>`);
+  $("wsMaterialSummary").innerHTML = materialRows.length
+    ? materialRows.join("") + (ws.materialBooked ? `<p class="booked-badge">Material bereits abgebucht</p>` : "")
+    : `<p class="hint">Noch kein tatsächlich verwendetes Material eingetragen.</p>`;
   document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = event => {
     const task = ws.tasks.find(item => item.id === input.dataset.wsPhotoTask);
     const category = $(`photo-category-${task.id}`).value;
-    [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
+    [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
   });
-  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); renderWorksiteEditor(); });
-  document.querySelectorAll('[data-ws-field="spacing"]').forEach(select => select.onchange = () => {
-    const task=ws.tasks.find(item=>item.id===select.dataset.wsTask);
-    task.spacing=parseDecimal(select.value);
-    recalculateWorksiteTask(state.settings,task);
+  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); });
+  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"]').forEach(input => {
+    const recalculate = () => {
+      const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
+      if (!task) return;
+      const field = input.dataset.wsField;
+      task[field] = parseDecimal(input.value);
+
+      // Quantity is the leading value when manually edited.
+      if (field === "actualQuantity") {
+        if (task.type === "Horizontalsperre") {
+          task.actualHoles = Math.ceil(Number(task.actualQuantity || 0) / Number(task.spacing || .25));
+        } else if (task.type === "Flächensperre") {
+          task.actualHoles = Math.ceil(Number(task.actualQuantity || 0) / (Number(task.spacing || .25) * .25));
+        }
+      }
+
+      recalculateWorksiteTask(state.settings, task, field);
+      persistWorksite(ws);
+      renderWorksiteEditor();
+    };
+    input.onchange = recalculate;
+    if (["actualHoles","actualQuantity"].includes(input.dataset.wsField)) input.onblur = recalculate;
+  });
+  document.querySelectorAll("[data-confirm-bottle-pickup]").forEach(button => button.onclick = () => {
+    const task = ws.tasks.find(item => item.id === button.dataset.confirmBottlePickup);
+    if (!task) return;
+    const open = openBottleCount(task);
+    const raw = prompt(`Wie viele Flaschen wurden abgeholt? Noch offen: ${open}`, String(open));
+    if (raw === null) return;
+    const amount = Math.max(0, Math.min(open, parseDecimal(raw)));
+    if (amount <= 0) return;
+    task.bottlesRetrieved = Number(task.bottlesRetrieved || 0) + amount;
+    task.bottlesRetrievedAt = new Date().toISOString();
+    const note = prompt("Bemerkung zur Abholung (optional)", task.bottlesPickupNote || "");
+    if (note !== null) task.bottlesPickupNote = note;
     persistWorksite(ws);
     renderWorksiteEditor();
+    updateDashboardOverview();
+    showStatus("worksiteStatus", `${amount} Flaschen wurden als abgeholt bestätigt.`, true);
   });
   applyInputModes($("worksiteEditor"));
   renderWorksiteAttachments(ws);
@@ -2019,7 +3071,8 @@ function deductWorksiteInventory(ws) {
   const totals = worksiteMaterialTotals(ws);
   const rows = [
     { id:"bkm-hz-250-pro", amount:totals.hzLiters },
-    { id:"bkm-hs-sperrmoertel", amount:totals.hsKg }
+    { id:"bkm-hs-sperrmoertel", amount:totals.hsKg },
+    { id:"bkm-sef-2k-harz", amount:totals.resinKg }
   ];
   for (const row of rows) {
     if (row.amount <= 0) continue;
@@ -2034,15 +3087,74 @@ function deductWorksiteInventory(ws) {
 
 function buildWorksitePrint(ws) {
   const totals=worksiteMaterialTotals(ws);
-  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div></div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div></div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
-$("createWorksite").onclick = () => {
+$("backToVisitInput").onclick = () => {
   collectVisit();
-  const offer=saveCurrentToArchive(false);
-  const ws=createWorksiteFromVisit(state.settings,state.visit,offer.id);
-  if(!ws.tasks.length){ showStatus("offerStatus","Keine Maßnahme mit gültiger Menge vorhanden.",false); return; }
-  persistWorksite(ws); activeWorksiteId=ws.id; show("worksites"); showStatus("worksiteStatus","Baustelle wurde aus dem Angebot angelegt.",true);
+  saveState();
+  renderVisit();
+  show("visit");
+  showStatus("visitStatus", "Dateneingabe geöffnet. Die bisherigen Angaben bleiben erhalten.", true);
+};
+
+$("createWorksite").onclick = async () => {
+  const button = $("createWorksite");
+  button.disabled = true;
+  collectVisit();
+  showStatus("offerStatus", "Kunde und Baustelle werden mit Pipedrive synchronisiert …", true);
+
+  try {
+    const offer = saveCurrentToArchive(false);
+    const ws = createWorksiteFromVisit(state.settings, state.visit, offer.id);
+
+    if (!ws.tasks.length) {
+      showStatus("offerStatus", "Keine Maßnahme mit gültiger Menge vorhanden.", false);
+      return;
+    }
+
+    // Auch Lexware-Kunden, die noch nicht in Pipedrive vorhanden sind,
+    // werden vor dem Anlegen der Baustelle automatisch erstellt.
+    const personId = await ensurePipedrivePerson(ws.customer);
+    if (!personId) throw new Error("Der Kunde konnte in Pipedrive nicht angelegt werden.");
+
+    ws.pipedrivePersonId = String(personId);
+    ws.customer.pipedriveId = String(personId);
+
+    const dealResponse = await syncPipedriveDeal({
+      dealId: ws.pipedriveDealId || ws.customer?.pipedriveDealId || "",
+      personId,
+      title: `${worksiteCustomerName(ws)} – ${ws.objectAddress || ws.visitNumber || "Baustelle"}`,
+      stageId: stageId("executionPlanned"),
+      value: Number(offer.offerGross || offer.gross || offer.total || 0),
+      currency: "EUR",
+      customFields: visitSyncValues(state.visit, {
+        offerNumber: offer.offerNumber || state.visit.visitNumber || "",
+        offerDate: offer.createdAt || new Date().toISOString(),
+        offerValue: Number(offer.offerGross || offer.gross || offer.total || 0)
+      }),
+      note: `Baustelle aus Angebot ${offer.offerNumber || state.visit.visitNumber || ""} angelegt.`
+    });
+
+    ws.pipedriveDealId = String(dealResponse.deal?.id || "");
+    ws.customer.pipedriveDealId = ws.pipedriveDealId;
+    state.visit.customer.pipedriveId = String(personId);
+    state.visit.customer.pipedriveDealId = ws.pipedriveDealId;
+    saveState();
+
+    persistWorksite(ws);
+    activeWorksiteId = ws.id;
+    addSyncLog("Angebot → Baustelle", true, "Kunde und Baustelle wurden zu Pipedrive übertragen.", {
+      personId: ws.pipedrivePersonId,
+      dealId: ws.pipedriveDealId
+    });
+    show("worksites");
+    showStatus("worksiteStatus", "Baustelle wurde angelegt und der Kunde in Pipedrive synchronisiert.", true);
+  } catch (error) {
+    showStatus("offerStatus", `Baustelle konnte nicht vollständig angelegt werden: ${error.message}`, false);
+  } finally {
+    button.disabled = false;
+  }
 };
 $("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
 $("wsAddAttachments").onclick = () => $("wsAttachmentInput").click();
@@ -2092,8 +3204,19 @@ $("completeWorksite").onclick = async () => {
     const ws=saveActiveWorksite(false);
     if (ws.materialBooked || ws.status === "completed") throw new Error("Diese Baustelle wurde bereits abgeschlossen und das Material bereits abgebucht.");
     if(!ws.tasks.every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return;
+    if (!String(ws.customerSignature || "").trim() || !ws.customerSignatureData) {
+      sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionReport");
+      renderWorksiteEditor();
+      throw new Error("Bitte den Namen des Kunden eintragen und die Kundenunterschrift auf dem iPad erfassen.");
+    }
+    if (!String(ws.workerSignature || "").trim() || !ws.workerSignatureData) {
+      sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionReport");
+      renderWorksiteEditor();
+      throw new Error("Bitte den ausführenden Mitarbeiter eintragen und unterschreiben.");
+    }
     const oldStatus=ws.status;
     ws.status="completed";
+    ws.reportLockedAt = new Date().toISOString();
     const pdf=await createWorksitePdf(ws);
     try { await syncWorksiteDeal(ws,"executionCompleted",pdf); }
     catch(error) { ws.status=oldStatus; persistWorksite(ws); throw error; }
@@ -2130,7 +3253,12 @@ $("addInventoryProduct").onclick = () => {
     minimumStock: 0,
     packageSize: 1,
     purchaseNet: 0,
-    active: true
+    active: true,
+    chargeTracking: false,
+    shelfLifeTracking: false,
+    serialTracking: false,
+    manufacturer: "",
+    packageSizes: [1]
   });
   saveState();
   renderInventorySettings();
@@ -2144,7 +3272,16 @@ $("loadArticles").onclick = async () => {
 };
 function collectSettings() {
   const s = state.settings;
-  ["priceListName","priceListDate","workerUrl","appSecret"].forEach(key => s[key] = $(key).value.trim());
+  ["priceListName","priceListDate","appSecret"].forEach(key => s[key] = $(key).value.trim());
+  s.workerUrl = normalizeWorkerUrl($("workerUrl").value);
+  if (
+    !s.workerUrl ||
+    s.workerUrl.includes("mainabdichter-lexoffice.cmww7htry5.workers.dev") ||
+    s.workerUrl.includes("mainabdichter-lexoffice.")
+  ) {
+    s.workerUrl = MAINABDICHTER_WORKER_URL;
+  }
+  $("workerUrl").value = s.workerUrl;
   ["hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter"].forEach(key => s[key] = parseDecimal($(key).value));
   s.priceStrategy = {
     minimumFactor: (parseDecimal($("minimumPricePercent").value) || 90) / 100,
@@ -2164,7 +3301,7 @@ function collectSettings() {
     wallSole: $("noticeWallSole").value.trim(),
     resin: $("noticeResin").value.trim()
   };
-  s.pipedriveSync = s.pipedriveSync || {fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[]};
+  s.pipedriveSync = s.pipedriveSync || {fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[],personFields:[],personFieldMappings:{postalAddress:"",objectAddress:""}};
   s.pipedriveSync.autoSync = $("pipedriveAutoSync").checked;
 }
 $("saveConnection").onclick = () => { collectSettings(); saveState(); showStatus("connectionStatus","Zugangsdaten gespeichert.",true); };
@@ -2173,10 +3310,21 @@ $("resetSettings").onclick = () => { if(confirm("Standardwerte laden?")){ resetS
 $("testConnection").onclick = async () => {
   collectSettings(); saveState();
   const setState = (id,label,ok,error) => { const el=$(id); el.className=`connection-state ${ok?"ok":"err"}`; el.textContent=`${label}: ${ok?"verbunden":error||"Fehler"}`; };
-  const result = await testConnections();
-  setState("stateCloudflare","Cloudflare",result.cloudflare,result.errors.cloudflare);
-  setState("stateLexware","Lexware",result.lexware,result.errors.lexware);
-  setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
+  try {
+    const result = await testConnections();
+    setState(
+      "stateCloudflare",
+      result.workerVersion ? `Cloudflare Worker ${result.workerVersion}` : "Cloudflare",
+      result.cloudflare,
+      result.errors.cloudflare
+    );
+    setState("stateLexware","Lexware",result.lexware,result.errors.lexware);
+    setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
+  } catch (error) {
+    setState("stateCloudflare","Cloudflare",false,error.message);
+    setState("stateLexware","Lexware",false,"Worker-Verbindung fehlt");
+    setState("statePipedrive","Pipedrive",false,"Worker-Verbindung fehlt");
+  }
 };
 
 state.discount.pricingTier = state.discount.pricingTier || "standard";
@@ -2186,6 +3334,9 @@ $("specialType").value = state.discount.specialType;
 $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
+migrateWorkerUrl();
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeV28Dashboard); else initializeV28Dashboard();
