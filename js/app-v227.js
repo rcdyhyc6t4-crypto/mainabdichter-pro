@@ -2,7 +2,7 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask } from "./construction-v227.js";
@@ -207,6 +207,7 @@ async function ensurePipedrivePerson(customer) {
     city: customer?.city || "",
     postalAddress,
     objectAddress: customer?.objectAddress || postalAddress,
+    personFieldMappings: state.settings.pipedriveSync?.personFieldMappings || {},
     source: customer?.lexwareContactId ? "Lexware-Import" : "mainabdichter-App"
   });
   customer.pipedriveId = String(response.person?.id || "");
@@ -2147,8 +2148,24 @@ function mappingOptions(items, selected, labelKey="name", valueKey="key") {
 }
 
 function renderPipedriveSyncSettings() {
-  const sync=state.settings.pipedriveSync ||= {autoSync:true,fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[]};
+  const sync=state.settings.pipedriveSync ||= {autoSync:true,fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[],personFields:[],personFieldMappings:{postalAddress:"",objectAddress:""}};
   $("pipedriveAutoSync").checked=sync.autoSync !== false;
+  sync.personFields ||= [];
+  sync.personFieldMappings ||= {postalAddress:"",objectAddress:""};
+  const personDefinitions = [
+    ["postalAddress", "Postanschrift"],
+    ["objectAddress", "Objektanschrift"]
+  ];
+  const personBox = $("pipedrivePersonFieldMappings");
+  if (personBox) {
+    personBox.innerHTML = personDefinitions.map(([key,label]) => `
+      <div class="mapping-item"><label>${esc(label)}</label><select data-person-field-mapping="${key}">${mappingOptions(sync.personFields,sync.personFieldMappings?.[key],"name","key")}</select>${sync.personFieldMappings?.[key]?`<small>${esc(sync.personFields.find(f=>f.key===sync.personFieldMappings[key])?.type||"")}</small>`:""}</div>`).join("");
+    personBox.querySelectorAll("[data-person-field-mapping]").forEach(select => select.onchange = () => {
+      sync.personFieldMappings[select.dataset.personFieldMapping] = select.value;
+      saveState();
+      renderPipedriveSyncSettings();
+    });
+  }
   $("pipedriveStageMappings").innerHTML=STAGE_DEFINITIONS.map(([key,label])=>`
     <div class="mapping-item"><label>${esc(label)}</label><select data-stage-mapping="${key}">${mappingOptions(sync.stages,sync.stageMappings?.[key],"name","id")}</select></div>`).join("");
   $("pipedriveFieldMappings").innerHTML=FIELD_DEFINITIONS.map(([key,label])=>`
@@ -2162,14 +2179,20 @@ async function loadPipedriveSchema() {
   showStatus("pipedriveSchemaStatus","Pipedrive-Felder und Dealphasen werden geladen …",true);
   try {
     collectSettings(); saveState();
-    const [fieldData,stageData]=await Promise.all([loadPipedriveDealFields(),loadPipedriveStages()]);
+    const [fieldData,personFieldData,stageData]=await Promise.all([loadPipedriveDealFields(),loadPipedrivePersonFields(),loadPipedriveStages()]);
     const sync=state.settings.pipedriveSync ||= {};
     sync.fields=fieldData.fields||[];
+    sync.personFields=personFieldData.fields||[];
     sync.stages=stageData.stages||[];
+    sync.personFieldMappings ||= {postalAddress:"",objectAddress:""};
+    const normalizeName = value => String(value||"").trim().toLocaleLowerCase("de-DE");
+    const findPersonField = names => sync.personFields.find(field => names.includes(normalizeName(field.name)))?.key || "";
+    if (!sync.personFieldMappings.postalAddress) sync.personFieldMappings.postalAddress = findPersonField(["postanschrift","postal address"]);
+    if (!sync.personFieldMappings.objectAddress) sync.personFieldMappings.objectAddress = findPersonField(["objektanschrift","objektadresse","object address"]);
     sync.fieldMappings={...autoMapFields(sync.fields),...(sync.fieldMappings||{})};
     sync.stageMappings={...autoMapStages(sync.stages),...(sync.stageMappings||{})};
     saveState(); renderPipedriveSyncSettings();
-    showStatus("pipedriveSchemaStatus",`${sync.fields.length} Deal-Felder und ${sync.stages.length} Dealphasen geladen. Bitte Zuordnung kontrollieren.`,true);
+    showStatus("pipedriveSchemaStatus",`${sync.personFields.length} Personenfelder, ${sync.fields.length} Deal-Felder und ${sync.stages.length} Dealphasen geladen. Bitte Zuordnung kontrollieren.`,true);
   } catch(error) { addSyncLog("Schema",false,error.message); renderPipedriveSyncSettings(); showStatus("pipedriveSchemaStatus",error.message,false); }
 }
 
@@ -2606,7 +2629,7 @@ function collectSettings() {
     wallSole: $("noticeWallSole").value.trim(),
     resin: $("noticeResin").value.trim()
   };
-  s.pipedriveSync = s.pipedriveSync || {fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[]};
+  s.pipedriveSync = s.pipedriveSync || {fields:[],stages:[],fieldMappings:{},stageMappings:{},log:[],personFields:[],personFieldMappings:{postalAddress:"",objectAddress:""}};
   s.pipedriveSync.autoSync = $("pipedriveAutoSync").checked;
 }
 $("saveConnection").onclick = () => { collectSettings(); saveState(); showStatus("connectionStatus","Zugangsdaten gespeichert.",true); };

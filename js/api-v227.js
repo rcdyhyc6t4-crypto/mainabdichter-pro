@@ -187,6 +187,10 @@ export async function loadPipedriveDealFields() {
   return api("/pipedrive/deal-fields");
 }
 
+export async function loadPipedrivePersonFields() {
+  return api("/pipedrive/person-fields");
+}
+
 export async function loadPipedriveStages() {
   return api("/pipedrive/stages");
 }

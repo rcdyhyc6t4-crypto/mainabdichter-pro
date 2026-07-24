@@ -78,8 +78,10 @@ export const DEFAULTS = {
     pipedriveSync: {
       autoSync: true,
       fields: [],
+      personFields: [],
       stages: [],
       fieldMappings: {},
+      personFieldMappings: { postalAddress: "", objectAddress: "" },
       stageMappings: {},
       log: []
     },
