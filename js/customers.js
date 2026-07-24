@@ -1,4 +1,4 @@
-import { state, loadCustomers, saveCustomer } from "./storage-v227.js";
+import { state, loadArchive, loadCustomers, saveCustomer } from "./storage-v227.js";
 import {
   hasConnectionConfig,
   searchPipedrive,
@@ -7,6 +7,7 @@ import {
 } from "./api-v227.js";
 
 const $ = id => document.getElementById(id);
+let activeRecordCustomer = null;
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
 }[char]));
@@ -46,6 +47,52 @@ function normalizePhone(phone) {
 function isMobile(phone) {
   const value = normalizePhone(phone);
   return /^\+49(?:15|16|17)\d+/.test(value);
+}
+
+function loadWorksites() {
+  try {
+    const items = JSON.parse(localStorage.getItem("mainabdichter_v18_worksites") || "[]");
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+}
+
+function sameCustomer(customer, candidate = {}) {
+  const source = candidate.customer || candidate.visit?.customer || candidate;
+  if (customer.pipedriveId && source.pipedriveId) {
+    return String(customer.pipedriveId) === String(source.pipedriveId);
+  }
+  if (customer.email && source.email) {
+    return clean(customer.email).toLowerCase() === clean(source.email).toLowerCase();
+  }
+  const customerPhone = normalizePhone(customer.phone);
+  const sourcePhone = normalizePhone(source.phone);
+  if (customerPhone && sourcePhone) return customerPhone === sourcePhone;
+  return displayName(customer).toLowerCase() === displayName(source).toLowerCase();
+}
+
+function formatDate(value) {
+  if (!value) return "Datum nicht hinterlegt";
+  const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString("de-DE");
+}
+
+function money(value) {
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" })
+    .format(Number(value || 0));
+}
+
+function recordStatus(value) {
+  return ({
+    draft: "Entwurf",
+    open: "Offen",
+    accepted: "Angenommen",
+    completed: "Abgeschlossen",
+    followup: "Nachkontrolle",
+    active: "In Ausführung",
+    planned: "Geplant"
+  })[value] || value || "Ohne Status";
 }
 
 function normalizeCustomer(input = {}) {
@@ -198,6 +245,7 @@ function actionLinks(customer) {
   if (phone) links.push(`<a href="tel:${esc(phone)}" aria-label="${esc(displayName(customer))} anrufen">☎ Anrufen</a>`);
   if (isMobile(phone)) links.push(`<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(phone).replace("+", ""))}" target="_blank" rel="noopener">WhatsApp</a>`);
   if (email) links.push(`<a href="mailto:${esc(email)}">E-Mail</a>`);
+  links.push(`<button type="button" data-customer-record="${esc(customer.id)}">Kundenakte</button>`);
   links.push(`<button type="button" data-customer-edit="${esc(customer.id)}">Bearbeiten</button>`);
   links.push(`<button type="button" data-customer-use="${esc(customer.id)}">Für Besichtigung</button>`);
   return links.join("");
@@ -224,12 +272,85 @@ function renderList(items = null) {
   document.querySelectorAll("[data-customer-edit]").forEach(button => {
     button.onclick = () => openEditor(loadCustomers().find(item => item.id === button.dataset.customerEdit));
   });
+  document.querySelectorAll("[data-customer-record]").forEach(button => {
+    button.onclick = () => {
+      const customer = loadCustomers().find(item => item.id === button.dataset.customerRecord);
+      if (customer) openCustomerRecord(customer);
+    };
+  });
   document.querySelectorAll("[data-customer-use]").forEach(button => {
     button.onclick = () => {
       const customer = loadCustomers().find(item => item.id === button.dataset.customerUse);
       if (customer) window.dispatchEvent(new CustomEvent("mainabdichter:use-customer", { detail: { customer } }));
     };
   });
+}
+
+function renderCustomerRecord(customer) {
+  const item = normalizeCustomer(customer);
+  const offers = loadArchive().filter(record => sameCustomer(item, record));
+  const worksites = loadWorksites().filter(worksite => sameCustomer(item, worksite));
+  activeRecordCustomer = item;
+
+  $("customerRecordTitle").textContent = displayName(item);
+  $("customerRecordAddress").textContent = item.objectAddress || item.postalAddress || "Keine Adresse hinterlegt";
+  $("customerRecordContact").innerHTML = [
+    item.phone
+      ? `<a href="tel:${esc(item.phone)}"><small>Telefon</small><strong>${esc(item.phone)}</strong></a>`
+      : `<div><small>Telefon</small><strong>Nicht hinterlegt</strong></div>`,
+    isMobile(item.phone)
+      ? `<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(item.phone).replace("+", ""))}" target="_blank" rel="noopener"><small>WhatsApp</small><strong>Chat öffnen</strong></a>`
+      : "",
+    item.email
+      ? `<a href="mailto:${esc(item.email)}"><small>E-Mail</small><strong>${esc(item.email)}</strong></a>`
+      : `<div><small>E-Mail</small><strong>Nicht hinterlegt</strong></div>`,
+    `<div><small>Postanschrift</small><strong>${esc(item.postalAddress || "Nicht hinterlegt")}</strong></div>`
+  ].filter(Boolean).join("");
+
+  $("customerRecordOfferCount").textContent = String(offers.length);
+  $("customerRecordOffers").innerHTML = offers.length
+    ? offers.sort((a, b) => String(b.visitDate || "").localeCompare(String(a.visitDate || ""))).map(record => `
+      <article class="customer-record-row">
+        <div>
+          <strong>${esc(record.visitNumber || "Besichtigung / Angebot")}</strong>
+          <span>${esc(formatDate(record.visitDate))} · ${esc((record.measures || []).join(", ") || "Noch keine Maßnahme")}</span>
+          <small>${esc(record.objectAddress || item.objectAddress || "")}${record.offerGross ? ` · ${esc(money(record.offerGross))}` : ""}</small>
+        </div>
+        <em>${esc(recordStatus(record.status))}</em>
+      </article>`).join("")
+    : `<div class="customer-record-empty">Für diesen Kunden sind noch keine gespeicherten Besichtigungen oder Angebote vorhanden.</div>`;
+
+  $("customerRecordWorksiteCount").textContent = String(worksites.length);
+  $("customerRecordWorksites").innerHTML = worksites.length
+    ? worksites.sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).map(worksite => `
+      <article class="customer-record-row">
+        <div>
+          <strong>${esc(worksite.visitNumber || "Baustelle")}</strong>
+          <span>${esc(formatDate(worksite.date))} · ${esc(worksite.objectAddress || item.objectAddress || "")}</span>
+          <small>${esc((worksite.tasks || []).map(task => task.type).filter(Boolean).join(", ") || "Keine Maßnahmen hinterlegt")}</small>
+        </div>
+        <em>${esc(recordStatus(worksite.status))}</em>
+      </article>`).join("")
+    : `<div class="customer-record-empty">Für diesen Kunden ist noch keine Baustelle gespeichert.</div>`;
+
+  $("customerRecordPipedrive").innerHTML = item.pipedriveId
+    ? `<strong>Mit Pipedrive verbunden</strong><span>Personen-ID ${esc(item.pipedriveId)}${item.lastPipedriveSync?.at ? ` · zuletzt ${esc(new Date(item.lastPipedriveSync.at).toLocaleString("de-DE"))}` : ""}</span>`
+    : `<strong>Noch nicht mit Pipedrive verbunden</strong><span>Beim nächsten Speichern wird die Synchronisation versucht.</span>`;
+}
+
+function openCustomerRecord(customer) {
+  renderCustomerRecord(customer);
+  $("customerListView").classList.add("hidden");
+  $("customerEditor").classList.add("hidden");
+  $("customerRecord").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeCustomerRecord() {
+  activeRecordCustomer = null;
+  $("customerRecord").classList.add("hidden");
+  $("customerListView").classList.remove("hidden");
+  renderList();
 }
 
 async function searchRemote() {
@@ -368,6 +489,18 @@ function init() {
   $("customerSearch").oninput = () => renderList();
   $("customerSearchPipedrive").onclick = searchRemote;
   $("customerRefreshPipedrive").onclick = refreshFromPipedrive;
+  $("customerRecordClose").onclick = closeCustomerRecord;
+  $("customerRecordEdit").onclick = () => {
+    if (!activeRecordCustomer) return;
+    $("customerRecord").classList.add("hidden");
+    openEditor(activeRecordCustomer);
+  };
+  $("customerRecordUse").onclick = () => {
+    if (!activeRecordCustomer) return;
+    window.dispatchEvent(new CustomEvent("mainabdichter:use-customer", {
+      detail: { customer: activeRecordCustomer }
+    }));
+  };
   $("customerObjectDifferent").onchange = syncObjectFields;
   ["customerStreet", "customerZip", "customerCity"].forEach(id => {
     $(id).addEventListener("input", syncObjectFields);
