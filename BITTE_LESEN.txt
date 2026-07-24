@@ -1,26 +1,53 @@
-mainabdichter PRO V28.7 – Dashboard-Freigabe und Baustellenfix
+mainabdichter PRO V30 – Konsolidierter Neustart
 
-NUR DIESE DATEIEN BEI GITHUB HOCHLADEN:
-- index.html ersetzen
-- css/app-v233.css neu hochladen
-- js/app-v234.js neu hochladen
-- js/construction-v229.js neu hochladen
-- js/pdf-v228.js ersetzen
+ZIEL
+V30 beendet das Versionswirrwarr der aktiv bearbeiteten Hauptdateien.
 
-UMGESETZT:
-- Importfehler „workDurationMinutes is not found“ behoben.
-- Oberer Dashboard-Bereich nach der freigegebenen Bildvorlage.
-- Logo links, Benachrichtigung und Profil rechts.
-- Begrüßung und kleine Synchronisationskarte.
-- Große grüne Karte für den nächsten Termin.
-- Untertitel „Schnell und einfach ein Angebot anlegen“ entfernt.
-- Lagerbestand auf dem Dashboard nur noch als kompakter Button.
-- Erst nach Antippen öffnet sich die große Lagerübersicht.
-- Lagerartikel können weiterhin direkt geändert werden.
-- „Flaschen abholen“ öffnet jetzt eine echte Übersicht.
-- Anzeige von Kunde, Baustellenadresse, Anzahl und Abholdatum.
-- Buttons für Anruf, Navigation und „Flaschen abgeholt“.
-- Nach Bestätigung werden die Flaschen aus der offenen Liste entfernt.
-- JavaScript-Syntaxprüfung bestanden.
+NEUE FESTE DATEINAMEN
+- index.html
+- css/app.css
+- js/app.js
+- js/construction.js
+- js/pdf.js
 
-Cloudflare Worker und Assets bleiben unverändert.
+WICHTIG
+Die bereits im Repository vorhandenen unveränderten Hilfsmodule bleiben bestehen:
+storage-v227.js, defaults-v227.js, calculator-v227.js, utils-v227.js,
+api-v227.js, texts-v227.js, importer-v227.js, pipedrive-sync-v227.js,
+attachments-v227.js sowie phase1-v26.js und phase1-v26.css.
+
+Diese Hilfsmodule werden nicht unnötig umbenannt. Dadurch bleiben Pipedrive,
+Lexware, Speicherung, Kalkulation und Anhänge funktionsfähig. Ab V30 werden
+aber alle regelmäßig geänderten Hauptmodule nur noch unter den festen Namen
+app.js, construction.js und pdf.js weiterentwickelt.
+
+BEI GITHUB HOCHLADEN
+1. index.html ersetzen
+2. Ordner css öffnen und app.css neu hochladen
+3. Ordner js öffnen und folgende Dateien neu hochladen:
+   - app.js
+   - construction.js
+   - pdf.js
+4. version.json optional im Hauptverzeichnis hochladen
+
+DIE ALTEN DATEIEN
+app-v235.js, construction-v229.js, pdf-v228.js und app-v234.css können zunächst
+liegen bleiben. Die neue index.html und app.js verwenden sie nicht mehr.
+
+ENTHALTEN
+- Dashboard nach der final freigegebenen Bildvorlage
+- angenommene Lexware-Angebote über die Glocke
+- Flaschenübersicht mit Adresse, Navigation und Abholbestätigung
+- Lagerartikel direkt bearbeitbar
+- Baustellenlogik mit Bereich, Wandmaterial, Innen-/Außenwand
+- Drucklos und Niederdruck einzeln oder gemeinsam
+- Sollverbrauch auf der Baustelle ohne Reserve
+- angepasster Arbeitsnachweis und iPad-Unterschriften
+- richtige Worker-URL:
+  https://mainabdichter-api.cmww7htry5.workers.dev
+- Schutz vor alten fehlenden Dashboard-Elementen
+- JavaScript-Syntaxprüfung bestanden
+
+NACH DEM UPLOAD
+Die Seite vollständig neu laden. In Safari gegebenenfalls den Tab schließen
+und die Seite erneut öffnen. Die Hauptdatei muss jetzt /js/app.js?v=30.0.0 sein.
