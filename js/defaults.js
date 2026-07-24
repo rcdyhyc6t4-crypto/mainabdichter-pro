@@ -110,7 +110,9 @@ export const DEFAULTS = {
     damageDescription: "",
     inquiry: {
       source: "", ownerStatus: "", appointment: "", message: "",
-      rawText: "", screenshot: "", importedAt: ""
+      rawText: "", screenshot: "", importedAt: "", concern: "",
+      symptoms: [], urgency: "normal", appointmentStatus: "open",
+      appointmentDate: "", appointmentTime: "", updatedAt: ""
     },
     customerRecommendation: "",
     recordContext: {loaded:false,loadedAt:"",deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:"",error:""},

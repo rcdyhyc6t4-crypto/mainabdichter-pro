@@ -38,6 +38,35 @@ test("Plusknopf führt verständlich in eine neue Anfrage", async ({ page }) => 
   await expect(page.locator("#visitNumber")).not.toHaveValue("");
 });
 
+test("Anfrage wird geführt erfasst und zur Vor-Ort-Besichtigung übergeben", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+
+  await expect(page.locator("#inquiryPlanningCard")).toBeVisible();
+  await page.locator("#inquirySource").selectOption({ label: "Telefon" });
+  await page.locator("#inquiryConcern").selectOption({ label: "Feuchter Keller / feuchte Wand" });
+  await page.locator('[data-inquiry-symptom="Muffiger Geruch"]').check();
+  await page.locator('[data-inquiry-symptom="Abplatzender Putz"]').check();
+  await page.locator('[data-inquiry-urgency="soon"]').click();
+  await page.locator("#inquiryAppointmentStatus").selectOption("scheduled");
+  await page.locator("#inquiryAppointmentDate").fill("2026-07-28");
+  await page.locator("#inquiryAppointmentTime").fill("09:30");
+  await page.locator("#saveInquiryPlanning").click();
+
+  await expect(page.locator("#inquiryPlanningState")).toHaveText("✓ geplant");
+  await expect(page.locator("#inquiryNextAction")).toContainText("28.07.2026");
+  await page.locator("#startOnsiteVisit").click();
+  await expect(page.locator("#visitDate")).toHaveValue("2026-07-28");
+  await expect(page.locator("#visitStartTime")).toHaveValue("09:30");
+
+  const inquiry = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("mainabdichter_v10_visit")).inquiry
+  );
+  expect(inquiry.symptoms).toEqual(["Muffiger Geruch", "Abplatzender Putz"]);
+  expect(inquiry.urgency).toBe("soon");
+});
+
 test("Kundenmodul funktioniert auf iPhone-Breite", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));

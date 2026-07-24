@@ -140,7 +140,9 @@ export const DEFAULTS = {
     damageTags: [],
     inquiry: {
       source: "", ownerStatus: "", appointment: "", message: "",
-      rawText: "", screenshot: "", importedAt: ""
+      rawText: "", screenshot: "", importedAt: "", concern: "",
+      symptoms: [], urgency: "normal", appointmentStatus: "open",
+      appointmentDate: "", appointmentTime: "", updatedAt: ""
     },
     customerRecommendation: "",
     guideStep: 0,

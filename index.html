@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V30.7</title>
-<link rel="stylesheet" href="css/app.css?v=30.7.0">
-<link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-7">
+<title>mainabdichter PRO V30.8</title>
+<link rel="stylesheet" href="css/app.css?v=30.8.0">
+<link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
 <style id="v28-critical-layout">
@@ -222,6 +222,76 @@ main{width:100%;max-width:100%}
     </div>
     <button id="openCustomerAdvice" class="customer-advice-launch">▶ Maßnahme dem Kunden zeigen</button>
   </div>
+
+  <details id="inquiryPlanningCard" class="card compact-step inquiry-planning-card" open>
+    <summary>0. Anfrage und Termin <span id="inquiryPlanningState" class="step-state"></span></summary>
+    <p class="hint">Hier wird festgehalten, was der Kunde gemeldet hat. Die fachliche Feststellung erfolgt später bei der Besichtigung.</p>
+    <div class="grid inquiry-planning-grid">
+      <div>
+        <label>Anfragequelle</label>
+        <select id="inquirySource">
+          <option value="">– bitte auswählen –</option>
+          <option>Screenshot</option>
+          <option>Telefon</option>
+          <option>WhatsApp</option>
+          <option>E-Mail</option>
+          <option>Website / Kontaktformular</option>
+          <option>Google</option>
+          <option>Empfehlung</option>
+          <option>Pipedrive</option>
+          <option>Lexware</option>
+          <option>Sonstiges</option>
+        </select>
+      </div>
+      <div>
+        <label>Anliegen</label>
+        <select id="inquiryConcern">
+          <option value="">– bitte auswählen –</option>
+          <option>Feuchter Keller / feuchte Wand</option>
+          <option>Wassereintritt</option>
+          <option>Schimmel / Geruch</option>
+          <option>Horizontalsperre</option>
+          <option>Flächensperre</option>
+          <option>Wand-Sohlen-Anschluss</option>
+          <option>Nachkontrolle</option>
+          <option>Reklamation</option>
+          <option>Sonstiges</option>
+        </select>
+      </div>
+      <div class="full">
+        <label>Vom Kunden gemeldet – Mehrfachauswahl möglich</label>
+        <div id="inquirySymptomOptions" class="damage-tag-grid inquiry-symptom-grid"></div>
+      </div>
+      <div class="full">
+        <label>Kurze Kundenangabe optional</label>
+        <textarea id="inquiryMessage" placeholder="z. B. Kellerwand seit dem Starkregen nass"></textarea>
+      </div>
+      <div>
+        <label>Dringlichkeit</label>
+        <div id="inquiryUrgencyOptions" class="urgency-options">
+          <button type="button" data-inquiry-urgency="normal">Normal</button>
+          <button type="button" data-inquiry-urgency="soon">Zeitnah</button>
+          <button type="button" data-inquiry-urgency="urgent">Akut</button>
+        </div>
+      </div>
+      <div>
+        <label>Terminstatus</label>
+        <select id="inquiryAppointmentStatus">
+          <option value="open">Noch zu vereinbaren</option>
+          <option value="scheduled">Termin vereinbart</option>
+          <option value="callback">Rückruf erforderlich</option>
+        </select>
+      </div>
+      <div><label>Besichtigung am</label><input id="inquiryAppointmentDate" type="date"></div>
+      <div><label>Uhrzeit</label><input id="inquiryAppointmentTime" type="time"></div>
+    </div>
+    <div id="inquiryNextAction" class="inquiry-next-action"></div>
+    <div class="inquiry-planning-actions">
+      <button type="button" id="saveInquiryPlanning" class="secondary">Anfrage speichern</button>
+      <button type="button" id="startOnsiteVisit" class="primary">Vor-Ort-Besichtigung starten</button>
+    </div>
+    <div id="inquiryPlanningStatus" class="status"></div>
+  </details>
 
   <details id="visitStep1" class="card compact-step guided-step" open>
     <summary>1. Kunde und Termin <span class="step-state"></span></summary>
@@ -861,7 +931,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=30.7.0"></script>
+<script type="module" src="js/app.js?v=30.8.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

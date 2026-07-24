@@ -1690,6 +1690,96 @@ const DAMAGE_TAGS = [
   "Sonstiges"
 ];
 
+const INQUIRY_SYMPTOMS = [
+  "Muffiger Geruch",
+  "Abplatzender Putz",
+  "Feuchte Flecken",
+  "Salzausblühungen",
+  "Schimmel",
+  "Wasser auf dem Boden",
+  "Sichtbarer Wassereintritt",
+  "Nasse Wand",
+  "Risse",
+  "Feuchtigkeit nach Starkregen",
+  "Sonstiges"
+];
+
+function ensureInquiry() {
+  state.visit.inquiry ||= {};
+  const inquiry = state.visit.inquiry;
+  inquiry.source ||= "";
+  inquiry.concern ||= "";
+  inquiry.symptoms = Array.isArray(inquiry.symptoms) ? inquiry.symptoms : [];
+  inquiry.urgency ||= "normal";
+  inquiry.appointmentStatus ||= inquiry.appointment ? "scheduled" : "open";
+  inquiry.appointmentDate ||= "";
+  inquiry.appointmentTime ||= "";
+  inquiry.message ||= "";
+  return inquiry;
+}
+
+function formatInquiryDate(value) {
+  const [year, month, day] = String(value || "").split("-");
+  return year && month && day ? `${day}.${month}.${year}` : value;
+}
+
+function renderInquiryPlanning() {
+  const inquiry = ensureInquiry();
+  $("inquirySource").value = inquiry.source || "";
+  $("inquiryConcern").value = inquiry.concern || "";
+  $("inquiryMessage").value = inquiry.message || "";
+  $("inquiryAppointmentStatus").value = inquiry.appointmentStatus;
+  $("inquiryAppointmentDate").value = inquiry.appointmentDate || "";
+  $("inquiryAppointmentTime").value = inquiry.appointmentTime || "";
+
+  const symptoms = $("inquirySymptomOptions");
+  symptoms.innerHTML = INQUIRY_SYMPTOMS.map(symptom => `
+    <label class="damage-tag ${inquiry.symptoms.includes(symptom) ? "selected" : ""}">
+      <input type="checkbox" data-inquiry-symptom="${esc(symptom)}" ${inquiry.symptoms.includes(symptom) ? "checked" : ""}>
+      <span>${esc(symptom)}</span>
+    </label>`).join("");
+  symptoms.querySelectorAll("[data-inquiry-symptom]").forEach(input => input.onchange = () => {
+    const selected = new Set(ensureInquiry().symptoms);
+    input.checked ? selected.add(input.dataset.inquirySymptom) : selected.delete(input.dataset.inquirySymptom);
+    state.visit.inquiry.symptoms = [...selected];
+    saveState();
+    renderInquiryPlanning();
+  });
+
+  document.querySelectorAll("[data-inquiry-urgency]").forEach(button => {
+    button.classList.toggle("selected", button.dataset.inquiryUrgency === inquiry.urgency);
+  });
+
+  const scheduled = inquiry.appointmentStatus === "scheduled";
+  $("inquiryAppointmentDate").disabled = !scheduled;
+  $("inquiryAppointmentTime").disabled = !scheduled;
+  const complete = Boolean(inquiry.source && inquiry.concern && inquiry.symptoms.length);
+  const ready = complete && scheduled && inquiry.appointmentDate && inquiry.appointmentTime;
+  $("inquiryPlanningState").textContent = ready ? "✓ geplant" : complete ? "Termin offen" : "Bitte ergänzen";
+  $("inquiryNextAction").className = `inquiry-next-action ${ready ? "ready" : inquiry.urgency === "urgent" ? "urgent" : ""}`;
+  $("inquiryNextAction").innerHTML = ready
+    ? `<strong>Nächster Schritt: Besichtigung am ${esc(formatInquiryDate(inquiry.appointmentDate))} um ${esc(inquiry.appointmentTime)} Uhr</strong><span>Vor Ort „Vor-Ort-Besichtigung starten“ antippen.</span>`
+    : inquiry.appointmentStatus === "callback"
+      ? "<strong>Nächster Schritt: Kunden zurückrufen</strong><span>Danach Terminstatus auf „Termin vereinbart“ setzen.</span>"
+      : "<strong>Nächster Schritt: Besichtigungstermin vereinbaren</strong><span>Quelle, Anliegen und gemeldete Symptome bleiben bereits gespeichert.</span>";
+}
+
+function collectInquiryPlanning() {
+  const inquiry = ensureInquiry();
+  inquiry.source = $("inquirySource").value;
+  inquiry.concern = $("inquiryConcern").value;
+  inquiry.message = $("inquiryMessage").value.trim();
+  inquiry.appointmentStatus = $("inquiryAppointmentStatus").value;
+  inquiry.appointmentDate = $("inquiryAppointmentDate").value;
+  inquiry.appointmentTime = $("inquiryAppointmentTime").value;
+  inquiry.appointment = inquiry.appointmentStatus === "scheduled"
+    ? [inquiry.appointmentDate, inquiry.appointmentTime].filter(Boolean).join(" ")
+    : "";
+  inquiry.updatedAt = new Date().toISOString();
+  saveState();
+  return inquiry;
+}
+
 function damageDescriptionText(visit = state.visit) {
   const tags = Array.isArray(visit.damageTags) ? visit.damageTags.filter(Boolean) : [];
   const note = String(visit.damageDescription || "").trim();
@@ -1737,6 +1827,7 @@ function renderVisit() {
   syncObjectAddressFromPostal();
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
+  renderInquiryPlanning();
   renderDamageTags();
   $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
   toggleClimateFields();
@@ -1770,6 +1861,61 @@ function collectVisit() {
   state.visit.building.climateMeasured = $("climateMeasured").checked;
   state.visit.customerRecommendation = generateRecommendationText();
 }
+
+["inquirySource","inquiryConcern","inquiryMessage","inquiryAppointmentDate","inquiryAppointmentTime"].forEach(id => {
+  $(id).onchange = () => {
+    collectInquiryPlanning();
+    renderInquiryPlanning();
+  };
+});
+$("inquiryAppointmentStatus").onchange = () => {
+  collectInquiryPlanning();
+  renderInquiryPlanning();
+};
+document.querySelectorAll("[data-inquiry-urgency]").forEach(button => {
+  button.onclick = () => {
+    ensureInquiry().urgency = button.dataset.inquiryUrgency;
+    saveState();
+    renderInquiryPlanning();
+  };
+});
+$("saveInquiryPlanning").onclick = () => {
+  const inquiry = collectInquiryPlanning();
+  renderInquiryPlanning();
+  const missing = [
+    !inquiry.source && "Anfragequelle",
+    !inquiry.concern && "Anliegen",
+    !inquiry.symptoms.length && "mindestens ein gemeldetes Symptom"
+  ].filter(Boolean);
+  showStatus(
+    "inquiryPlanningStatus",
+    missing.length
+      ? `Zwischengespeichert. Bitte noch ergänzen: ${missing.join(", ")}.`
+      : "Anfrage und nächster Schritt wurden gespeichert.",
+    missing.length === 0
+  );
+};
+$("startOnsiteVisit").onclick = () => {
+  const inquiry = collectInquiryPlanning();
+  if (!inquiry.source || !inquiry.concern || !inquiry.symptoms.length) {
+    showStatus("inquiryPlanningStatus", "Bitte zuerst Anfragequelle, Anliegen und mindestens ein gemeldetes Symptom erfassen.", false);
+    return;
+  }
+  if (inquiry.appointmentStatus === "scheduled" && inquiry.appointmentDate) {
+    state.visit.visitDate = inquiry.appointmentDate;
+    state.visit.visitStartTime = inquiry.appointmentTime || timeLocal();
+  } else {
+    state.visit.visitDate = todayLocal();
+    state.visit.visitStartTime = timeLocal();
+  }
+  state.visit.guideStep = 0;
+  saveState();
+  renderVisit();
+  $("inquiryPlanningCard").open = false;
+  $("visitStep1").open = true;
+  $("visitStep1").scrollIntoView({ behavior: "smooth", block: "start" });
+  showStatus("visitStatus", "Anfrage vollständig. Jetzt Kundendaten prüfen und die Vor-Ort-Besichtigung durchführen.", true);
+};
 
 
 function toggleClimateFields() {

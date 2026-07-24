@@ -27,6 +27,28 @@
   .new-inquiry-option small{font-size:12px}
 }
 
+/* V30.8 – Anfrage erfassen und Besichtigung planen */
+.inquiry-planning-card{border:2px solid #cfe4ca;background:linear-gradient(180deg,#fbfefb 0,#fff 100%)}
+.inquiry-planning-card>summary{color:#2f7030}
+.inquiry-planning-grid{margin-top:12px}
+.inquiry-symptom-grid{margin-top:4px}
+.urgency-options{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.urgency-options button{min-height:44px;padding:8px;border:1px solid #d9e0db;border-radius:11px;background:#fff;color:#4d5650;font-weight:700}
+.urgency-options button.selected[data-inquiry-urgency="normal"]{border-color:#67a85d;background:#edf7eb;color:#2f7130}
+.urgency-options button.selected[data-inquiry-urgency="soon"]{border-color:#e2a32e;background:#fff6df;color:#845b0d}
+.urgency-options button.selected[data-inquiry-urgency="urgent"]{border-color:#d85a50;background:#fff0ee;color:#a52f27}
+.inquiry-next-action{display:grid;gap:3px;margin-top:14px;padding:12px 14px;border-radius:13px;background:#f0f5f1;color:#3d4741}
+.inquiry-next-action strong{font-size:15px}.inquiry-next-action span{font-size:12px;color:#68716c}
+.inquiry-next-action.ready{background:#eaf7e8;color:#2f7130}
+.inquiry-next-action.urgent{background:#fff0ee;color:#a52f27}
+.inquiry-planning-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+@media(max-width:620px){
+  .urgency-options{grid-template-columns:1fr}
+  .urgency-options button{min-height:40px}
+  .inquiry-planning-actions{display:grid;grid-template-columns:1fr}
+  .inquiry-planning-actions button{width:100%}
+}
+
 /* Commit 001 – Header Schritt 2 */
 .v301-bell-icon,.v301-profile-icon{display:block;width:25px;height:25px;font-size:0!important;background-position:center;background-repeat:no-repeat;background-size:contain}
 .v301-bell-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23343a36' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9'/%3E%3Cpath d='M10 21h4'/%3E%3C/svg%3E")}

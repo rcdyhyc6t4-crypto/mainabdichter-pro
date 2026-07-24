@@ -1,6 +1,6 @@
 {
   "name": "mainabdichter-pro",
-  "version": "30.7.0",
+  "version": "30.8.0",
   "private": true,
   "scripts": {
     "build": "node --check js/customers.js && node --check js/app.js && node --check cloudflare-worker.js",
