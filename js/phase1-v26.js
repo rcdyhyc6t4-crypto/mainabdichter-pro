@@ -7,6 +7,24 @@ const q = (s, root=document) => root.querySelector(s);
 const qa = (s, root=document) => [...root.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
+function bindById(id, eventName, handler){
+  const el=$(id);
+  if(!el){
+    console.warn(`[V26] Element fehlt, Bindung übersprungen: #${id}`);
+    return false;
+  }
+  el[eventName]=handler;
+  return true;
+}
+function safeInit(name, fn){
+  try { fn(); }
+  catch(error){
+    console.error(`[V26] Initialisierung fehlgeschlagen: ${name}`, error);
+    window.mainabdichterInitErrors ||= [];
+    window.mainabdichterInitErrors.push({name,message:error?.message||String(error)});
+  }
+}
+
 function readJson(key, fallback){ try { const v=JSON.parse(localStorage.getItem(key)||'null'); return v ?? fallback; } catch { return fallback; } }
 function writeJson(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
 function customerName(){
@@ -66,7 +84,7 @@ function deleteDraft(id){ writeJson(DRAFT_KEY,readJson(DRAFT_KEY,[]).filter(d=>d
 function resumeDraft(id){ const d=readJson(DRAFT_KEY,[]).find(x=>x.id===id); if(!d)return; localStorage.setItem(LAST_DRAFT_KEY,id); restoreForm(d.form); const target=q(`[data-bottom-page="${d.page}"]`)||q(`[data-menu-page="${d.page}"]`); if(target)target.click(); else q('[data-bottom-page="dashboard"]')?.click(); toast(`„${d.name}“ wurde geöffnet.`); }
 function renderDrafts(){
   const box=$('dashboardDraftList'); if(!box)return; const drafts=readJson(DRAFT_KEY,[]);
-  $('dashboardDraftCount').textContent=String(drafts.length);
+  const count=$('dashboardDraftCount'); if(count) count.textContent=String(drafts.length);
   box.innerHTML=drafts.length?drafts.map(d=>`<article class="v26-draft-card"><button class="v26-draft-open" data-resume-draft="${esc(d.id)}"><span><strong>${esc(d.name)}</strong><small>${esc(d.address||'Adresse noch offen')}</small></span><span class="v26-progress"><i style="width:${d.progress}%"></i></span><b>${d.progress}%</b><small>zuletzt ${new Date(d.updatedAt).toLocaleString('de-DE')}</small></button><button class="v26-icon-button" data-delete-draft="${esc(d.id)}" aria-label="Entwurf löschen">×</button></article>`).join(''):'<div class="empty-mini">Keine angefangene Datenerfassung.</div>';
   qa('[data-resume-draft]',box).forEach(b=>b.onclick=()=>resumeDraft(b.dataset.resumeDraft));
   qa('[data-delete-draft]',box).forEach(b=>b.onclick=()=>confirm('Zwischenstand wirklich löschen?')&&deleteDraft(b.dataset.deleteDraft));
@@ -117,18 +135,20 @@ function injectDashboard(){
   if($('dashboardDraftList'))return;
   const inventory=q('.dashboard-inventory-section');
   const html=`<section class="dashboard-section v26-workflow-section"><div class="section-title"><div><span>WEITERMACHEN</span><h2>In Bearbeitung <b id="dashboardDraftCount">0</b></h2></div></div><div id="dashboardDraftList" class="v26-draft-list"></div></section><section class="dashboard-section"><div class="section-title"><div><span>ASSISTENT</span><h2>Nicht vergessen</h2></div></div><div class="v26-reminder-entry"><input id="dashboardReminderInput" placeholder="z. B. Herrn Schulz zurückrufen"><button id="dashboardReminderAdd" class="primary">Hinzufügen</button></div><div id="dashboardReminderList"></div></section>`;
-  inventory?.insertAdjacentHTML('beforebegin',html);
-  $('dashboardReminderAdd').onclick=addReminder; $('dashboardReminderInput').onkeydown=e=>{if(e.key==='Enter')addReminder();};
+  if(!inventory){ console.warn('[V26] Dashboard-Lagerbereich fehlt; Phase-1-Dashboard-Erweiterung wird später erneut versucht.'); return; }
+  inventory.insertAdjacentHTML('beforebegin',html);
+  bindById('dashboardReminderAdd','onclick',addReminder);
+  bindById('dashboardReminderInput','onkeydown',e=>{if(e.key==='Enter')addReminder();});
 }
 function injectVisitStatus(){
   if($('autosaveStamp'))return;
-  const toolbar=q('.visit-toolbar'); toolbar?.insertAdjacentHTML('afterend',`<section class="card v26-visit-status"><div><strong id="visitCompletionText">0% vollständig</strong><span id="autosaveStamp">Noch nicht automatisch gespeichert</span></div><div class="v26-progress-wide"><i id="visitCompletionBar"></i></div><p id="visitMissingFields"></p><button id="saveDraftNow" class="secondary">Jetzt zwischenspeichern</button></section>`);
-  $('saveDraftNow').onclick=()=>saveDraft(true);
+  const toolbar=q('.visit-toolbar'); if(!toolbar){ console.warn('[V26] Besuchs-Toolbar fehlt; Statusleiste wird übersprungen.'); return; } toolbar.insertAdjacentHTML('afterend',`<section class="card v26-visit-status"><div><strong id="visitCompletionText">0% vollständig</strong><span id="autosaveStamp">Noch nicht automatisch gespeichert</span></div><div class="v26-progress-wide"><i id="visitCompletionBar"></i></div><p id="visitMissingFields"></p><button id="saveDraftNow" class="secondary">Jetzt zwischenspeichern</button></section>`);
+  bindById('saveDraftNow','onclick',()=>saveDraft(true));
 }
 function removeMaterialButton(){ $('deductInventory')?.remove(); }
 function makeSettingsSearch(){
-  if($('settingsSearch'))return; const first=q('#settings > .card'); first?.insertAdjacentHTML('beforeend','<input id="settingsSearch" class="v26-settings-search" placeholder="Einstellung suchen, z. B. Packer oder Lexware">');
-  $('settingsSearch').oninput=e=>{const term=e.target.value.trim().toLowerCase();qa('#settings details').forEach(d=>{const hit=!term||d.textContent.toLowerCase().includes(term);d.hidden=!hit;if(term&&hit)d.open=true;});};
+  if($('settingsSearch'))return; const first=q('#settings > .card'); if(!first){ console.warn('[V26] Einstellungscontainer fehlt; Suche wird übersprungen.'); return; } first.insertAdjacentHTML('beforeend','<input id="settingsSearch" class="v26-settings-search" placeholder="Einstellung suchen, z. B. Packer oder Lexware">');
+  bindById('settingsSearch','oninput',e=>{const term=e.target.value.trim().toLowerCase();qa('#settings details').forEach(d=>{const hit=!term||d.textContent.toLowerCase().includes(term);d.hidden=!hit;if(term&&hit)d.open=true;});});
 }
 function bindAutosave(){
   let timer; const handler=e=>{if(!e.target.closest('#visit,#offer,#worksites'))return;clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),700);};
@@ -137,8 +157,27 @@ function bindAutosave(){
 function enhanceWorksite(){
   const title=q('#worksites h1'); if(title&&!$('worksitePhase1Hint')) title.insertAdjacentHTML('afterend','<p id="worksitePhase1Hint" class="v26-worksite-hint">Baustellen bleiben vollständig nutzbar: Ist-Werte, Wandstärke, Material, Fotos, PDF, Pipedrive und Abschluss.</p>');
 }
+let v26Started=false;
 function start(){
-  injectDashboard();injectVisitStatus();addSyncPanel();removeMaterialButton();convertOfferCards();collapseSettings();makeSettingsSearch();markRequiredFields();bindAutosave();enhanceWorksite();renderDrafts();renderReminders();updateRequiredUi();observeStatuses();
-  window.mainabdichterV26={saveDraft,resumeDraft,setSync};
+  if(v26Started) return;
+  v26Started=true;
+  [
+    ['Dashboard erweitern',injectDashboard],
+    ['Besichtigungsstatus einfügen',injectVisitStatus],
+    ['Synchronisationsanzeige einfügen',addSyncPanel],
+    ['Materialabbuchung entfernen',removeMaterialButton],
+    ['Angebotsbereiche umwandeln',convertOfferCards],
+    ['Einstellungen einklappen',collapseSettings],
+    ['Einstellungssuche einfügen',makeSettingsSearch],
+    ['Pflichtfelder markieren',markRequiredFields],
+    ['Autosave aktivieren',bindAutosave],
+    ['Baustellenhinweis einfügen',enhanceWorksite],
+    ['Entwürfe anzeigen',renderDrafts],
+    ['Erinnerungen anzeigen',renderReminders],
+    ['Pflichtfeldstatus aktualisieren',updateRequiredUi],
+    ['Statusmeldungen beobachten',observeStatuses]
+  ].forEach(([name,fn])=>safeInit(name,fn));
+  window.mainabdichterV26={saveDraft,resumeDraft,setSync,initErrors:window.mainabdichterInitErrors||[]};
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,300));else setTimeout(start,300);
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(start,300),{once:true});
+else setTimeout(start,300);
