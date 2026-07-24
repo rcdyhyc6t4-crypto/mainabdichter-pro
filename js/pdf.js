@@ -383,5 +383,148 @@ export async function createWorksitePdf(worksite) {
   return { blob: doc.output("blob"), filename };
 }
 
-export async function createVisitPdf(visit){const C=await jsPDF();const doc=new C({unit:"mm",format:"a4"});let y=18;doc.setFontSize(17);doc.setFont("helvetica","bold");doc.text("Besichtigungs- und Messprotokoll",15,y);y+=9;doc.setFontSize(9);doc.setFont("helvetica","normal");const name=[visit.customer?.salutation,visit.customer?.firstName,visit.customer?.lastName].filter(Boolean).join(" ")||visit.customer?.company||"Kunde";y=textBlock(doc,`${name}\n${visit.customer?.objectAddress||[visit.customer?.street,visit.customer?.zip,visit.customer?.city].filter(Boolean).join(", ")}\nBesichtigung: ${visit.visitDate||""} ${visit.visitStartTime||""}`,15,y,180,5);y+=4;y=heading(doc,"Schadensbild",y);y=textBlock(doc,[(visit.damageTags||[]).join(", "),visit.damageDescription].filter(Boolean).join(". ")||"–",15,y,180,5);y+=3;y=heading(doc,"Empfehlung",y);y=textBlock(doc,visit.customerRecommendation||"–",15,y,180,5);for(const area of visit.areas||[]){y+=3;y=heading(doc,area.name||"Schadensbereich",y);const ms=(area.measurements||[]).map(m=>`${m.device}: ${m.value} ${m.unit} (${m.location||""})`).join("\n");const measures=(area.measures||[]).map(m=>m.type).join(", ");y=textBlock(doc,`Wandmaterial: ${area.wallMaterialOther||area.wallMaterial||"–"}\nWandstärke: ${area.wallThickness||"–"} cm\nReferenz trocken: ${area.dryReference||"–"}\nMessungen:\n${ms||"–"}\nMaßnahmen: ${measures||"–"}`,15,y,180,4.7);}const filename=`${visit.visitDate||new Date().toISOString().slice(0,10)}_Besichtigungsprotokoll_${safeName(name)}.pdf`;return {blob:doc.output("blob"),filename};}
+export async function createVisitPdf(visit) {
+  const C = await jsPDF();
+  const doc = new C({ unit: "mm", format: "a4", orientation: "portrait" });
+  const green = [95, 165, 59];
+  const lightGreen = [225, 240, 216];
+  const gray = [242, 242, 242];
+  const customer = visit.customer || {};
+  const building = visit.building || {};
+  const name = [customer.salutation, customer.firstName, customer.lastName].filter(Boolean).join(" ") || customer.company || "Kunde";
+  const postalAddress = [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const objectAddress = customer.objectAddress || postalAddress;
+  const logo = await imageToDataUrl("./assets/mainabdichter-header-logo.png");
+  let y = 0;
+
+  const footer = () => {
+    const fy = 280;
+    doc.setDrawColor(...green);
+    doc.setLineWidth(0.55);
+    doc.line(13, fy - 4, 197, fy - 4);
+    drawText(doc, "mainabdichter - Mike Sprager | Zum Tannengarten 10 | 35794 Mengerskirchen | Tel.: +49 (0) 6476 736 939-0", 13, fy, { size: 5.4, bold: true });
+    drawText(doc, "info@mainabdichter.de | www.mainabdichter.de | USt-IdNr.: DE228953591 | Steuernummer: 03887060428", 13, fy + 3.5, { size: 5.2 });
+  };
+  const header = () => {
+    if (logo) {
+      try { doc.addImage(logo, "PNG", 13, 8, 58, 17, undefined, "FAST"); } catch {}
+    } else {
+      drawText(doc, "mainabdichter", 14, 18, { size: 18, bold: true, color: green });
+    }
+    drawText(doc, "Besichtigungsprotokoll", 196, 12, { size: 13, bold: true, align: "right" });
+    drawText(doc, "Bauwerksabdichtung im Bestand", 196, 17, { size: 6.5, align: "right", color: green });
+    y = 29;
+  };
+  const newPage = () => {
+    if (doc.getNumberOfPages() > 0 && y) footer();
+    doc.addPage();
+    header();
+  };
+  const ensure = height => {
+    if (y + height > 273) newPage();
+  };
+  const sectionTitle = title => {
+    ensure(9);
+    drawBox(doc, 13, y, 184, 7, green);
+    drawText(doc, title, 15, y + 4.7, { size: 7.4, bold: true });
+    y += 7;
+  };
+  const row = (label, value, height = 7) => {
+    ensure(height);
+    drawBox(doc, 13, y, 184, height);
+    drawText(doc, label, 15, y + 4.4, { size: 6.4, bold: true });
+    drawText(doc, value || "–", 59, y + 4.4, { size: 6.5, maxWidth: 135 });
+    y += height;
+  };
+  const flowBox = (label, value) => {
+    const lines = doc.splitTextToSize(String(value || "–"), 178);
+    const height = Math.max(12, 8 + lines.length * 3.6);
+    ensure(height);
+    drawBox(doc, 13, y, 184, height);
+    drawText(doc, label, 15, y + 4.3, { size: 6.4, bold: true });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.4);
+    doc.setTextColor(25, 25, 25);
+    doc.text(lines, 15, y + 8.2);
+    y += height;
+  };
+
+  header();
+  drawBox(doc, 13, y, 88, 24);
+  drawBox(doc, 101, y, 96, 24);
+  drawText(doc, "Kunde:", 15, y + 4, { size: 6.3, bold: true });
+  drawText(doc, name, 15, y + 9, { size: 7.2, bold: true, maxWidth: 82 });
+  drawText(doc, postalAddress, 15, y + 14, { size: 6.7, maxWidth: 82 });
+  drawText(doc, "Besichtigung für Objekt:", 103, y + 4, { size: 6.3, bold: true });
+  drawText(doc, objectAddress, 103, y + 9, { size: 7.1, bold: true, maxWidth: 90 });
+  y += 26;
+
+  sectionTitle("Besichtigungsangaben");
+  [
+    ["Besichtigungsnummer:", visit.visitNumber || ""],
+    ["Datum / Uhrzeit:", `${visit.visitDate || ""} · ${visit.visitStartTime || ""}${visit.visitEndTime ? ` bis ${visit.visitEndTime}` : ""}`],
+    ["Gebäude / Bereich:", [building.buildingType, building.floor, building.roomUse].filter(Boolean).join(" · ")],
+    ["Baujahr / Fundament:", [building.yearBuilt, building.foundationType].filter(Boolean).join(" · ")],
+    ["Wetter:", [visit.visitWeather, visit.visitOutdoorTemp && `${visit.visitOutdoorTemp} °C`].filter(Boolean).join(" · ")]
+  ].forEach(item => row(item[0], item[1]));
+
+  sectionTitle("Festgestelltes Schadensbild");
+  flowBox("Schadenbeschreibung:", [(visit.damageTags || []).join(", "), visit.damageDescription].filter(Boolean).join(". "));
+  row("Feuchteverlauf:", visit.moisturePattern || "");
+  row("Aktiver Wassereintritt:", visit.activeWaterIngress ? "Ja" : "Nein");
+  if (building.climateMeasured) {
+    row("Raumklima:", [
+      building.roomTemp && `${building.roomTemp} °C`,
+      building.humidity && `${building.humidity} % r. F.`,
+      building.surfaceTemp && `Oberfläche ${building.surfaceTemp} °C`,
+      building.dewPoint && `Taupunkt ${building.dewPoint} °C`
+    ].filter(Boolean).join(" · "));
+  }
+
+  for (const [index, area] of (visit.areas || []).entries()) {
+    ensure(30);
+    sectionTitle(`${index + 1}. Schadensbereich – ${area.name || "ohne Bezeichnung"}`);
+    row("Bauteil:", [area.wallMaterialOther || area.wallMaterial, area.wallThickness && `${area.wallThickness} cm`, area.earthContact].filter(Boolean).join(" · "));
+    row("Referenzwert trocken:", area.dryReference ? `${area.dryReference} Digits` : "");
+    const measurements = area.measurements || [];
+    if (measurements.length) {
+      ensure(7 + measurements.length * 7);
+      drawBox(doc, 13, y, 184, 7, lightGreen);
+      ["Messgerät", "Messwert", "Höhe", "Position"].forEach((text, col) => drawText(doc, text, [15, 83, 116, 145][col], y + 4.5, { size: 6.5, bold: true }));
+      y += 7;
+      measurements.forEach(measurement => {
+        drawBox(doc, 13, y, 184, 7);
+        drawText(doc, measurement.device || "–", 15, y + 4.4, { size: 6.2, maxWidth: 64 });
+        drawText(doc, `${measurement.value || "–"} Digits`, 83, y + 4.4, { size: 6.3 });
+        drawText(doc, measurement.height || "–", 116, y + 4.4, { size: 6.3 });
+        drawText(doc, measurement.location || "–", 145, y + 4.4, { size: 6.3, maxWidth: 49 });
+        y += 7;
+      });
+    } else {
+      row("Messungen:", "–");
+    }
+    flowBox("Bemerkung zur Messung:", area.measurementNote || area.note || "");
+    const measures = (area.measures || []).filter(measure => measure.type);
+    flowBox("Empfohlene Maßnahmen:", measures.map(measure => {
+      const scope = [
+        measure.length && `${measure.length} lfm`,
+        measure.width && measure.height && `${measure.width} × ${measure.height} m`,
+        measure.wall && `${measure.wall} cm Wandstärke`
+      ].filter(Boolean).join(", ");
+      return `${measure.type}${scope ? ` – ${scope}` : ""}`;
+    }).join("\n"));
+    row("Fotodokumentation:", `${(area.photos || []).filter(photo => photo.show !== false).length} Foto(s)`);
+  }
+
+  sectionTitle("Fachliche Empfehlung");
+  flowBox("Empfehlung:", visit.customerRecommendation || "");
+  const documents = visit.documents || [];
+  flowBox("Pläne und Dokumente:", documents.length
+    ? documents.map(document => `${document.category || "Dokument"}: ${document.name || document.filename || ""}`).join("\n")
+    : "Keine zusätzlichen Dokumente hinterlegt.");
+
+  footer();
+  const filename = `${visit.visitDate || new Date().toISOString().slice(0,10)}_Besichtigungsprotokoll_${safeName(name)}.pdf`;
+  return { blob: doc.output("blob"), filename };
+}
 export function downloadBlob(blob,filename){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}

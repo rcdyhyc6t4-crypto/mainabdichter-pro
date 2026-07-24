@@ -7,13 +7,13 @@ import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=30.0.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0.0";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=31.1.0";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 
 
-const MAINABDICHTER_APP_VERSION = "30.11.0";
+const MAINABDICHTER_APP_VERSION = "31.1.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1274,8 +1274,14 @@ if ($("objectAddress")) $("objectAddress").addEventListener("input", () => {
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
 
 $('guidedNext').onclick=()=>{const i=currentGuideStep();const last=GUIDE_STEPS.length-1;if(i<last&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===last){if(stepComplete(last)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
-$('goToMissingStep').onclick=()=>openGuideStep(firstMissingGuideStep());
+$('goToMissingStep').onclick=()=>{const missing=guideChecks().find(x=>!x.ok);if(missing)jumpToVisitCheck(missing);else openGuideStep(9);};
 $('finishVisitGuide').onclick=()=>{const last=GUIDE_STEPS.length-1;if(!stepComplete(last))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
+$("visitOfferBasis")?.querySelector("summary")?.addEventListener("click",event=>{
+  const missing=guideChecks().find(check=>!check.ok);
+  if(!missing)return;
+  event.preventDefault();
+  jumpToVisitCheck(missing);
+});
 $('changeCustomer').onclick=()=>{$('customerSourceActions').classList.remove('hidden');$('customerConfirmed').classList.add('hidden');};
 $('openCustomerAdvice').onclick=()=>{adviceState.stage=1;const m=adviceMeasure();if(m.type&&ADVICE_CONTENT[m.type])adviceState.type=m.type;renderAdvice();show('customerAdvice');};
 $('closeCustomerAdvice').onclick=()=>show('visit');
@@ -1566,26 +1572,38 @@ const GUIDE_STEPS = [
   {id:"visitStep4", label:"Messungen und Maßnahmen", instruction:"Schadensbereiche, Messungen und Maßnahmen erfassen"},
   {id:"visitStep5", label:"Dokumente", instruction:"Fotos, Pläne und Dokumente prüfen", optional:true},
   {id:"visitStep6", label:"Zusatzleistungen", instruction:"Zusatzleistungen prüfen", optional:true},
-  {id:"visitSummary", label:"Zusammenfassung", instruction:"Befunde und Angebotsgrundlage prüfen"},
-  {id:"visitCompletion", label:"Abschluss", instruction:"Vollständigkeit prüfen und Angebot öffnen"}
+  {id:"visitSummary", label:"Besichtigungsprotokoll", instruction:"Das vollständige Protokoll prüfen"},
+  {id:"visitCompletion", label:"Vollständigkeit", instruction:"Fehlende Informationen direkt ergänzen"},
+  {id:"visitOfferBasis", label:"Angebotsgrundlage", instruction:"Ganz zum Schluss die Angebotsgrundlage freigeben"}
 ];
 function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
 function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[];return[
- {label:"Kunde und Kontaktdaten",ok:Boolean((c.firstName||c.company||c.lastName)&&(c.phone||c.email))},
- {label:"Objektanschrift",ok:Boolean(c.objectAddress||(c.street&&c.zip&&c.city))},
- {label:"Gebäude und Raum",ok:Boolean(b.buildingType&&b.floor&&b.roomUse)},
- {label:"Schadensbeschreibung und Feuchteverlauf",ok:Boolean(((state.visit.damageTags||[]).length || String(state.visit.damageDescription||'').trim())&&state.visit.moisturePattern)},
- {label:"Mindestens ein Schadensbereich",ok:areas.length>0},
- {label:"Wandstärke und Material",ok:areas.length>0&&areas.every(x=>x.wallThickness&&(x.wallMaterial||x.wallMaterialOther))},
- {label:"Feuchtemessung mit Gerät und Digits",ok:areas.length>0&&areas.every(x=>(x.measurements||[]).some(m=>m.device&&String(m.value).trim()))},
- {label:"Mindestens eine Maßnahme",ok:areas.some(x=>(x.measures||[]).some(m=>m.type))}
+ {label:"Kunde und Kontaktdaten",ok:Boolean((c.firstName||c.company||c.lastName)&&(c.phone||c.email)),step:0,selector:"#firstName, #company"},
+ {label:"Objektanschrift",ok:Boolean(c.objectAddress||(c.street&&c.zip&&c.city)),step:0,selector:"#objectAddress"},
+ {label:"Gebäude und Raum",ok:Boolean(b.buildingType&&b.floor&&b.roomUse),step:2,selector:"#buildingType"},
+ {label:"Schadensbeschreibung und Feuchteverlauf",ok:Boolean(((state.visit.damageTags||[]).length || String(state.visit.damageDescription||'').trim())&&state.visit.moisturePattern),step:3,selector:"#moisturePattern"},
+ {label:"Mindestens ein Schadensbereich",ok:areas.length>0,step:4,selector:"#addArea"},
+ {label:"Wandstärke und Material",ok:areas.length>0&&areas.every(x=>x.wallThickness&&(x.wallMaterial||x.wallMaterialOther)),step:4,selector:'[data-field="wallThickness"], [data-field="wallMaterial"]'},
+ {label:"Feuchtemessung mit Gerät und Digits",ok:areas.length>0&&areas.every(x=>(x.measurements||[]).some(m=>m.device&&String(m.value).trim())),step:4,selector:'[data-add-measurement], [data-mf="device"], [data-mf="value"]'},
+ {label:"Mindestens eine Maßnahme",ok:areas.some(x=>(x.measures||[]).some(m=>m.type)),step:4,selector:'[data-add-measure], [data-mfield="type"]'}
 ];}
 function offerBasisApproved(){return Boolean(state.visit.offerBasis?.approved);}
-function stepComplete(index){const checks=guideChecks();if(index===0)return checks[0].ok&&checks[1].ok;if(index===1)return true;if(index===2)return checks[2].ok;if(index===3)return checks[3].ok;if(index===4)return checks[4].ok&&checks[5].ok&&checks[6].ok&&checks[7].ok;if(index===5||index===6)return true;if(index===7)return checks.every(x=>x.ok)&&offerBasisApproved();return checks.every(x=>x.ok)&&offerBasisApproved();}
+function stepComplete(index){const checks=guideChecks();if(index===0)return checks[0].ok&&checks[1].ok;if(index===1)return true;if(index===2)return checks[2].ok;if(index===3)return checks[3].ok;if(index===4)return checks[4].ok&&checks[5].ok&&checks[6].ok&&checks[7].ok;if(index===5||index===6)return true;if(index===7||index===8)return checks.every(x=>x.ok);if(index===9)return checks.every(x=>x.ok)&&offerBasisApproved();return checks.every(x=>x.ok)&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
 function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
-function renderVisitChecklist(){const box=$('visitChecklist');if(!box)return;const checks=[...guideChecks(),{label:"Angebotsgrundlage fachlich bestätigt",ok:offerBasisApproved()}];box.innerHTML=checks.map(x=>`<div class="checklist-row ${x.ok?'ok':'missing'}"><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Bitte ergänzen'}</strong></div>`).join('');$('finishVisitGuide').disabled=!checks.every(x=>x.ok);}
+function jumpToVisitCheck(check){
+  openGuideStep(check.step);
+  window.setTimeout(()=>{
+    const field=document.querySelector(check.selector);
+    if(!field)return;
+    field.scrollIntoView({behavior:"smooth",block:"center"});
+    field.classList.add("field-jump-highlight");
+    if(typeof field.focus==="function")field.focus({preventScroll:true});
+    window.setTimeout(()=>field.classList.remove("field-jump-highlight"),1800);
+  },180);
+}
+function renderVisitChecklist(){const box=$('visitChecklist');if(!box)return;const checks=guideChecks();box.innerHTML=checks.map((x,i)=>`<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join('');box.querySelectorAll("[data-missing-check]").forEach(button=>button.onclick=()=>jumpToVisitCheck(checks[Number(button.dataset.missingCheck)]));$('finishVisitGuide').disabled=!(checks.every(x=>x.ok)&&offerBasisApproved());const basis=$("visitOfferBasis");if(basis){basis.classList.toggle("is-locked",!checks.every(x=>x.ok));if(!checks.every(x=>x.ok))basis.removeAttribute("open");}}
 function updateVisitGuide(){
   GUIDE_STEPS.forEach((step,i)=>{
     const el=$(step.id);
@@ -1595,7 +1613,7 @@ function updateVisitGuide(){
   });
   renderVisitChecklist();
 }
-function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok||!c[7].ok)return 4;if(!offerBasisApproved())return 7;return 8;}
+function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;return 9;}
 
 function renderInspectionSummary(){
   const box=$("inspectionSummary");if(!box)return;

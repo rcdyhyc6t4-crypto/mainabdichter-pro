@@ -102,6 +102,15 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   await page.goto("http://127.0.0.1:4173/index.html");
   await page.locator("#v28FloatingAdd").click();
   await page.locator("#newInquiryManual").click();
+  await page.locator("#firstName").fill("Max");
+  await page.locator("#phone").fill("0171 1234567");
+  await page.locator("#street").fill("Musterstraße 1");
+  await page.locator("#zip").fill("35794");
+  await page.locator("#city").fill("Mengerskirchen");
+  await page.locator("#visitStep2 summary").click();
+  await page.locator("#buildingType").selectOption({ label: "freistehendes Einfamilienhaus" });
+  await page.locator("#floor").selectOption({ label: "Keller" });
+  await page.locator("#roomUse").selectOption({ label: "Kellerraum" });
   await page.locator("#visitStep3 summary").click();
   await page.locator('[data-damage-tag="Feuchte Flecken"]').check();
   await page.locator("#moisturePattern").selectOption("rising");
@@ -124,6 +133,7 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   await expect(page.locator("#inspectionSummary")).toContainText("120");
   await expect(page.locator("#inspectionSummary")).toContainText("Horizontalsperre");
 
+  await page.locator("#visitOfferBasis summary").click();
   await page.locator("#offerBasisNote").fill("Zugang vor Ausführung freiräumen.");
   await page.locator("#offerBasisApproved").check();
   const offerBasis = await page.evaluate(() =>
@@ -131,6 +141,27 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   );
   expect(offerBasis.approved).toBe(true);
   expect(offerBasis.note).toBe("Zugang vor Ausführung freiräumen.");
+});
+
+test("Fehlende Information springt direkt ins Feld und Angebotsgrundlage bleibt zuletzt", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+  await page.locator("#toOffer").click();
+
+  const missingCustomer = page.locator('[data-missing-check="0"]');
+  await expect(missingCustomer).toContainText("Antippen und ergänzen");
+  await missingCustomer.click();
+  await expect(page.locator("#visitStep1")).toHaveAttribute("open", "");
+  await expect(page.locator("#firstName")).toBeFocused();
+
+  const order = await page.evaluate(() => {
+    const completion = document.querySelector("#visitCompletion");
+    const basis = document.querySelector("#visitOfferBasis");
+    return Boolean(completion.compareDocumentPosition(basis) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(order).toBe(true);
+  await expect(page.locator("#visitOfferBasis")).toHaveClass(/is-locked/);
 });
 
 test("Grundriss wird dem Kunden zugeordnet und zu Google Drive hochgeladen", async ({ page }) => {

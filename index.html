@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V30.8</title>
-<link rel="stylesheet" href="css/app.css?v=31.0.0">
+<title>mainabdichter PRO V31.1</title>
+<link rel="stylesheet" href="css/app.css?v=31.1.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
@@ -415,21 +415,26 @@ main{width:100%;max-width:100%}
     <div id="extras"></div>
   </details>
   <details id="visitSummary" class="card compact-step guided-step">
-    <summary>7. Zusammenfassung und Angebotsgrundlage <span class="step-state"></span></summary>
-    <p class="hint">Prüfe die fachlichen Angaben noch einmal. Erst nach deiner Bestätigung werden sie als Grundlage für das Angebot übernommen.</p>
+    <summary>7. Besichtigungsprotokoll prüfen <span class="step-state"></span></summary>
+    <p class="hint">Prüfe hier zuerst das vollständige Besichtigungsprotokoll mit Befunden, Messwerten, Fotos und Dokumenten.</p>
     <div id="inspectionSummary" class="inspection-summary"></div>
-    <label>Interne Hinweise für das Angebot</label>
-    <textarea id="offerBasisNote" placeholder="z. B. besondere Ausführung, Zugänglichkeit oder noch zu klärende Punkte"></textarea>
-    <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox"> Ich habe Befunde, Messwerte, Mengen und Maßnahmen geprüft. Diese Angaben dürfen als Angebotsgrundlage verwendet werden.</label>
-    <div id="offerBasisStatus" class="status"></div>
   </details>
-  <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Angebotsgrundlage prüfen</button></div>
   <section id="visitCompletion" class="card visit-completion">
     <span class="dashboard-eyebrow">ABSCHLUSSPRÜFUNG</span>
     <h2>Besichtigung vollständig?</h2>
+    <p class="hint">Fehlende Informationen antippen, um direkt zum richtigen Eingabefeld zu springen.</p>
     <div id="visitChecklist" class="visit-checklist"></div>
-    <div class="offer-actions"><button id="goToMissingStep" class="secondary">Fehlenden Schritt öffnen</button><button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button></div>
+    <div class="offer-actions"><button id="goToMissingStep" class="secondary">Erste fehlende Information öffnen</button></div>
   </section>
+  <details id="visitOfferBasis" class="card compact-step guided-step">
+    <summary>8. Angebotsgrundlage <span class="step-state"></span></summary>
+    <p class="hint">Dieser letzte Schritt wird erst freigegeben, wenn das Besichtigungsprotokoll vollständig ist.</p>
+    <label>Interne Hinweise für das Angebot</label>
+    <textarea id="offerBasisNote" placeholder="z. B. besondere Ausführung, Zugänglichkeit oder noch zu klärende Punkte"></textarea>
+    <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox"> Ich habe das vollständige Besichtigungsprotokoll geprüft. Die Angaben dürfen als Angebotsgrundlage verwendet werden.</label>
+    <div id="offerBasisStatus" class="status"></div>
+  </details>
+  <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Protokoll prüfen</button><button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button></div>
 </section>
 
 <section id="customerAdvice" class="page customer-advice-page">
@@ -973,7 +978,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=31.0.0"></script>
+<script type="module" src="js/app.js?v=31.1.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

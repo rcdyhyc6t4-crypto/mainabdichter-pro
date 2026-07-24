@@ -933,6 +933,18 @@ body.menu-open{overflow:hidden}
 .compact-planned-scope small{width:100%}
 @media(max-width:700px){.dashboard-resource-buttons{grid-template-columns:1fr}.dashboard-resource-modal{padding:8px}.dashboard-resource-dialog{margin:2vh auto}}
 
+/* V31.1 – klickbare Vollständigkeitsprüfung */
+.visit-checklist .checklist-row{width:100%;border:0;text-align:left;align-items:center;cursor:pointer}
+.visit-checklist .checklist-row:disabled{cursor:default;opacity:1}
+.visit-checklist .checklist-row.missing{background:#fff4df;border:1px solid #f0c46d}
+.visit-checklist .checklist-row.missing:active{transform:scale(.99)}
+.field-jump-highlight{outline:4px solid rgba(78,173,53,.28)!important;border-color:#4ead35!important;box-shadow:0 0 0 7px rgba(78,173,53,.12)!important;transition:.2s}
+#visitOfferBasis.is-locked{opacity:.62}
+#visitOfferBasis.is-locked>summary{cursor:not-allowed}
+#visitOfferBasis.is-locked>summary:after{content:" · erst nach vollständiger Besichtigung";font-size:11px;color:#9a6718}
+#visit>.sticky-actions{grid-template-columns:repeat(3,1fr)}
+@media(max-width:700px){#visit>.sticky-actions{grid-template-columns:1fr 1fr}#visit>.sticky-actions #finishVisitGuide{grid-column:1/-1}}
+
 /* V26.8 Digitale Baustellenakte mit separaten Seiten */
 .worksite-record-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
 .worksite-record-head h1{margin:3px 0 2px}

@@ -1,9 +1,9 @@
 {
   "name": "mainabdichter-pro",
-  "version": "31.0.0",
+  "version": "31.1.0",
   "private": true,
   "scripts": {
-    "build": "node --check js/customers.js && node --check js/app.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js",
+    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js",
     "test": "playwright test"
   },
   "devDependencies": {
