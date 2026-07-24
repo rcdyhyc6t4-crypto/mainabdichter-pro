@@ -67,6 +67,37 @@ test("Anfrage wird geführt erfasst und zur Vor-Ort-Besichtigung übergeben", as
   expect(inquiry.urgency).toBe("soon");
 });
 
+test("Vor-Ort-Besichtigung schlägt eine Maßnahme vor und verlangt Messwerte", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+
+  await page.locator("#visitStep3 summary").click();
+  await page.locator('[data-damage-tag="Feuchte Flecken"]').check();
+  await page.locator("#moisturePattern").selectOption("rising");
+  await page.locator("#visitStep4 summary").click();
+  await page.locator("#addArea").click();
+  await page.locator('[data-field="name"]').fill("Keller Außenwand");
+  await page.locator('[data-field="wallMaterial"]').selectOption({ label: "HBL / Hohlblockstein" });
+  await page.locator('[data-field="wallThickness"]').selectOption("30");
+  await page.locator('[data-field="earthContact"]').selectOption({ label: "erdberührt" });
+  await page.locator("[data-add-measurement]").click();
+  await page.locator('[data-mf="device"]').selectOption("Gann Hydromette Compact B");
+  await page.locator('[data-mf="value"]').fill("120");
+
+  await page.locator("#visitStep3 summary").click();
+  await page.locator("#checkMeasureSuggestion").click();
+  await expect(page.locator("#measureSuggestion")).toContainText("Horizontalsperre");
+  await page.locator("#acceptMeasureSuggestion").click();
+  await expect(page.locator("#generatedRecommendation")).toContainText("Horizontalsperre");
+
+  const visit = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("mainabdichter_v10_visit"))
+  );
+  expect(visit.areas[0].measurements[0].unit).toBe("Digits");
+  expect(visit.areas[0].measures[0].type).toBe("Horizontalsperre");
+});
+
 test("Kundenmodul funktioniert auf iPhone-Breite", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));

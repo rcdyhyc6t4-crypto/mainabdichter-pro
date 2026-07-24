@@ -11,7 +11,7 @@ import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=30.0
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 
 
-const MAINABDICHTER_APP_VERSION = "30.2.1";
+const MAINABDICHTER_APP_VERSION = "30.9.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1570,12 +1570,13 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {label:"Kunde und Kontaktdaten",ok:Boolean((c.firstName||c.company||c.lastName)&&(c.phone||c.email))},
  {label:"Objektanschrift",ok:Boolean(c.objectAddress||(c.street&&c.zip&&c.city))},
  {label:"Gebäude und Raum",ok:Boolean(b.buildingType&&b.floor&&b.roomUse)},
- {label:"Schadensbeschreibung",ok:Boolean((state.visit.damageTags||[]).length || String(state.visit.damageDescription||'').trim())},
+ {label:"Schadensbeschreibung und Feuchteverlauf",ok:Boolean(((state.visit.damageTags||[]).length || String(state.visit.damageDescription||'').trim())&&state.visit.moisturePattern)},
  {label:"Mindestens ein Schadensbereich",ok:areas.length>0},
  {label:"Wandstärke und Material",ok:areas.length>0&&areas.every(x=>x.wallThickness&&(x.wallMaterial||x.wallMaterialOther))},
+ {label:"Feuchtemessung mit Gerät und Digits",ok:areas.length>0&&areas.every(x=>(x.measurements||[]).some(m=>m.device&&String(m.value).trim()))},
  {label:"Mindestens eine Maßnahme",ok:areas.some(x=>(x.measures||[]).some(m=>m.type))}
 ];}
-function stepComplete(index){const checks=guideChecks();if(index===0)return checks[0].ok&&checks[1].ok;if(index===1)return true;if(index===2)return checks[2].ok;if(index===3)return checks[3].ok;if(index===4)return checks[4].ok&&checks[5].ok&&checks[6].ok;if(index===5)return true;return checks.every(x=>x.ok);}
+function stepComplete(index){const checks=guideChecks();if(index===0)return checks[0].ok&&checks[1].ok;if(index===1)return true;if(index===2)return checks[2].ok;if(index===3)return checks[3].ok;if(index===4)return checks[4].ok&&checks[5].ok&&checks[6].ok&&checks[7].ok;if(index===5)return true;return checks.every(x=>x.ok);}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
 function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
@@ -1589,7 +1590,7 @@ function updateVisitGuide(){
   });
   renderVisitChecklist();
 }
-function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok)return 4;return 6;}
+function firstMissingGuideStep(){const c=guideChecks();if(!c[0].ok||!c[1].ok)return 0;if(!c[2].ok)return 2;if(!c[3].ok)return 3;if(!c[4].ok||!c[5].ok||!c[6].ok||!c[7].ok)return 4;return 6;}
 function adviceMeasure(){
   const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));
   return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre','Wand-Sohlen-Anschluss'].includes(m.type))||{};
@@ -1806,6 +1807,58 @@ function renderDamageTags() {
   });
 }
 
+function measureSuggestion() {
+  const pattern = state.visit.moisturePattern || "";
+  const activeWater = Boolean(state.visit.activeWaterIngress);
+  const areas = state.visit.areas || [];
+  const earthContact = areas.some(area => area.earthContact === "erdberührt");
+  const measurements = areas.flatMap(area => area.measurements || [])
+    .map(item => Number(String(item.value).replace(",", ".")))
+    .filter(Number.isFinite);
+
+  if (!pattern) return { type:"", text:"Bitte zuerst den Feuchteverlauf auswählen." };
+  if (!areas.length) return { type:"", text:"Bitte zuerst mindestens einen Schadensbereich anlegen." };
+
+  let type = "";
+  let reason = "";
+  if (pattern === "wallSole") {
+    type = "Wand-Sohlen-Anschluss";
+    reason = "Der auffällige Bereich liegt am Übergang zwischen Wand und Boden.";
+  } else if (pattern === "localWater" || activeWater) {
+    type = "Harzverpressung";
+    reason = "Der Befund ist örtlich begrenzt oder es liegt aktiver Wassereintritt vor.";
+  } else if (pattern === "lateral" && earthContact) {
+    type = "Flächensperre";
+    reason = "Die Feuchte tritt seitlich beziehungsweise flächig an einer erdberührten Wand auf.";
+  } else if (pattern === "rising") {
+    type = "Horizontalsperre";
+    reason = "Der dokumentierte Feuchteverlauf steigt vom unteren Wandbereich nach oben.";
+  }
+
+  const measurementNote = measurements.length
+    ? ` ${measurements.length} Messwert${measurements.length === 1 ? "" : "e"} wurden berücksichtigt.`
+    : " Vor der endgültigen Festlegung müssen noch Messwerte dokumentiert werden.";
+  if (!type) return {
+    type:"",
+    text:`Der Befund ist noch nicht eindeutig. Bitte Messwerte, Erdkontakt und Feuchteverlauf prüfen.${measurementNote}`
+  };
+  return {
+    type,
+    text:`Vorschlag zur fachlichen Prüfung: ${type}. ${reason}${measurementNote} Die endgültige Auswahl bleibt deine Entscheidung.`
+  };
+}
+
+function renderMeasureSuggestion() {
+  const result = measureSuggestion();
+  const box = $("measureSuggestion");
+  const accept = $("acceptMeasureSuggestion");
+  if (box) box.textContent = result.text;
+  if (accept) {
+    accept.classList.toggle("hidden", !result.type);
+    accept.dataset.suggestedMeasure = result.type || "";
+  }
+}
+
 function renderVisit() {
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
   if (!state.visit.visitStartTime) state.visit.visitStartTime = timeLocal();
@@ -1827,11 +1880,14 @@ function renderVisit() {
   syncObjectAddressFromPostal();
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
+  $("moisturePattern").value = state.visit.moisturePattern || "";
+  $("activeWaterIngress").checked = Boolean(state.visit.activeWaterIngress);
   renderInquiryPlanning();
   renderDamageTags();
   $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
   toggleClimateFields();
   renderAreas();
+  renderMeasureSuggestion();
   updateGeneratedRecommendation();
   renderExtras();
   bindSpeechButtons();
@@ -1858,6 +1914,8 @@ function collectVisit() {
   buildingFields.forEach(key => state.visit.building[key] = $(key).value);
   state.visit.damageDescription = $("damageDescription").value;
   state.visit.damageTags ||= [];
+  state.visit.moisturePattern = $("moisturePattern").value;
+  state.visit.activeWaterIngress = $("activeWaterIngress").checked;
   state.visit.building.climateMeasured = $("climateMeasured").checked;
   state.visit.customerRecommendation = generateRecommendationText();
 }
@@ -2150,6 +2208,40 @@ function renderPhotos(area) {
 }
 
 $("addArea").onclick = () => { state.visit.areas.push(createArea("")); saveState(); renderAreas(); };
+$("moisturePattern").onchange = () => {
+  state.visit.moisturePattern = $("moisturePattern").value;
+  saveState();
+  renderMeasureSuggestion();
+  updateVisitGuide();
+};
+$("activeWaterIngress").onchange = () => {
+  state.visit.activeWaterIngress = $("activeWaterIngress").checked;
+  saveState();
+  renderMeasureSuggestion();
+};
+$("checkMeasureSuggestion").onclick = () => {
+  collectVisit();
+  saveState();
+  renderMeasureSuggestion();
+};
+$("acceptMeasureSuggestion").onclick = () => {
+  const type = $("acceptMeasureSuggestion").dataset.suggestedMeasure;
+  if (!type) return;
+  const area = state.visit.areas[0];
+  if (!area) return renderMeasureSuggestion();
+  if (!(area.measures || []).some(measure => measure.type === type)) {
+    area.measures.push({
+      id:crypto.randomUUID(), type, length:"", width:"", height:"",
+      wall:area.wallThickness || "", spacing:"", extraResinKg:"", note:"Fachlich vor Ort bestätigt"
+    });
+  }
+  saveState();
+  renderAreas();
+  updateGeneratedRecommendation();
+  updateVisitGuide();
+  $("measureSuggestion").textContent = `${type} wurde als bestätigte Maßnahme übernommen. Mengen und Ausführung bitte im Schadensbereich ergänzen.`;
+  $("acceptMeasureSuggestion").classList.add("hidden");
+};
 
 function renderExtras() {
   $("extras").innerHTML = state.settings.extras.filter(extra => extra.active).map(extra => {
