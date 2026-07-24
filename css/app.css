@@ -21,6 +21,55 @@
   z-index:40;
   border-bottom:3px solid var(--green);
 }
+
+/* Kundenmodul V30.2 */
+.customers-page{max-width:980px;margin:0 auto;padding:18px 18px 110px;overflow-x:hidden}
+.customer-module-header,.customer-editor>header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.customer-module-header span,.customer-editor>header span{display:block;color:var(--brand-green-dark,#357f2a);font-size:11px;font-weight:900;letter-spacing:.1em}
+.customer-module-header h1,.customer-editor>header h2{margin:3px 0 4px;overflow-wrap:normal;word-break:normal}
+.customer-module-header p,.customer-editor>header p{margin:0;color:#687268;line-height:1.45}
+.customer-module-layout{display:grid;gap:14px}
+.customer-search-card,.customer-editor{background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(16,33,24,.06)}
+.customer-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.customer-inline-status,.customer-form-status{min-height:22px;margin-top:9px;font-size:13px;line-height:1.4}
+.customer-inline-status.is-error,.customer-form-status.is-error{color:#a12620}
+.customer-inline-status.is-success,.customer-form-status.is-success{color:#2e7425}
+.customer-list{display:grid;gap:10px}
+.customer-list-empty{padding:28px 16px;text-align:center;background:#fff;border:1px dashed #ccd5cc;border-radius:14px;color:#687268}
+.customer-list-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;background:#fff;border:1px solid #dfe5df;border-radius:14px;padding:15px;min-width:0}
+.customer-list-main{min-width:0}
+.customer-list-main strong,.customer-list-main span,.customer-list-main small{display:block;overflow-wrap:normal;word-break:normal}
+.customer-list-main strong{font-size:16px}
+.customer-list-main span{margin-top:4px;color:#4f5c52}
+.customer-list-main small{margin-top:3px;color:#778078}
+.customer-list-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}
+.customer-list-actions a,.customer-list-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 12px;border-radius:9px;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
+.customer-list-actions a{background:#edf1ed;color:#26362a}
+.customer-list-actions .customer-whatsapp{background:#dff3df;color:#236b2a}
+.customer-editor{margin-top:2px}
+.customer-editor form{display:grid;gap:16px}
+.customer-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.customer-editor fieldset{min-width:0;margin:0;border:1px solid #e0e6e0;border-radius:12px;padding:14px}
+.customer-editor legend{padding:0 6px;font-weight:900}
+.customer-checkbox{display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border-radius:9px;background:#f2f7ef;font-size:14px;line-height:1.35;cursor:pointer}
+.customer-checkbox input{width:20px;min-width:20px;height:20px;margin:0}
+.object-address-control .customer-checkbox{margin:7px 0 10px}
+.customer-save-actions{display:flex;flex-wrap:wrap;gap:9px;position:sticky;bottom:76px;padding:12px 0;background:rgba(255,255,255,.96);z-index:5}
+.customer-save-actions button{min-height:48px}
+.customer-save-actions .primary{min-width:190px}
+.is-auto-address{background:#f1f4f1;color:#536057}
+@media(max-width:720px){
+  .customers-page{padding:12px 10px 105px}
+  .customer-module-header,.customer-editor>header{display:grid;grid-template-columns:1fr}
+  .customer-module-header>button,.customer-editor>header>button{width:100%;min-height:48px}
+  .customer-search-row,.customer-form-grid{grid-template-columns:minmax(0,1fr)}
+  .customer-search-row button{min-height:48px}
+  .customer-list-card{grid-template-columns:minmax(0,1fr)}
+  .customer-list-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));justify-content:stretch}
+  .customer-list-actions a,.customer-list-actions button{width:100%;white-space:normal;text-align:center;word-break:normal;overflow-wrap:normal}
+  .customer-save-actions{display:grid;grid-template-columns:1fr;bottom:68px}
+  .customer-save-actions .primary{min-width:0}
+}
 .compact-header img{
   width:auto;
   height:38px;
