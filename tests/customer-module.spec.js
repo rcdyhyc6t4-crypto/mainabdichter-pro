@@ -98,6 +98,41 @@ test("Vor-Ort-Besichtigung schlägt eine Maßnahme vor und verlangt Messwerte", 
   expect(visit.areas[0].measures[0].type).toBe("Horizontalsperre");
 });
 
+test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+  await page.locator("#visitStep3 summary").click();
+  await page.locator('[data-damage-tag="Feuchte Flecken"]').check();
+  await page.locator("#moisturePattern").selectOption("rising");
+  await page.locator("#visitStep4 summary").click();
+  await page.locator("#addArea").click();
+  await page.locator('[data-field="name"]').fill("Keller Außenwand");
+  await page.locator('[data-field="wallMaterial"]').selectOption({ label: "HBL / Hohlblockstein" });
+  await page.locator('[data-field="wallThickness"]').selectOption("30");
+  await page.locator("[data-add-measurement]").click();
+  await page.locator('[data-mf="device"]').selectOption("Gann Hydromette Compact B");
+  await page.locator('[data-mf="value"]').fill("120");
+  await page.locator("[data-add-measure]").click();
+  await page.locator('[data-mfield="type"]').selectOption("Horizontalsperre");
+  await page.locator('[data-mfield="length"]').fill("12");
+  await page.locator("#toOffer").click();
+
+  await expect(page.locator("#visit")).toHaveClass(/active/);
+  await expect(page.locator("#visitSummary")).toHaveAttribute("open", "");
+  await expect(page.locator("#inspectionSummary")).toContainText("Keller Außenwand");
+  await expect(page.locator("#inspectionSummary")).toContainText("120");
+  await expect(page.locator("#inspectionSummary")).toContainText("Horizontalsperre");
+
+  await page.locator("#offerBasisNote").fill("Zugang vor Ausführung freiräumen.");
+  await page.locator("#offerBasisApproved").check();
+  const offerBasis = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("mainabdichter_v10_visit")).offerBasis
+  );
+  expect(offerBasis.approved).toBe(true);
+  expect(offerBasis.note).toBe("Zugang vor Ausführung freiräumen.");
+});
+
 test("Grundriss wird dem Kunden zugeordnet und zu Google Drive hochgeladen", async ({ page }) => {
   await page.addInitScript(() => {
     const settings = JSON.parse(localStorage.getItem("mainabdichter_v10_settings") || "{}");
