@@ -95,6 +95,8 @@ function baseTask(data = {}) {
     resinKg: 0,
     resinApplied: false,
     completed: false,
+    offerDescription: "",
+    actualNote: "",
     note: "",
     photos: [],
     ...data
@@ -127,7 +129,9 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         targetLitersPerHole: targetPerHole(result),
         injectionType: taskUsesHz({ type: measure.type }) ? "Niederdruckverfahren" : "",
         resinKg: measure.type === "Harzverpressung" ? Number(measure.extraResinKg || 0) : 0,
-        resinApplied: measure.type === "Harzverpressung"
+        resinApplied: measure.type === "Harzverpressung",
+        offerDescription: measure.note || "",
+        actualNote: ""
       }));
     }
   }
@@ -211,9 +215,11 @@ export function recalculateWorksiteTask(settings, task) {
     if (!Number.isFinite(Number(task.actualHoles)) || Number(task.actualHoles) === 0) {
       task.actualHoles = result.holes;
     }
-    if (!Number.isFinite(Number(task.actualLiters)) || Number(task.actualLiters) === 0) {
-      task.actualLiters = result.saleLiters;
-    }
+    const actualHoleCount = Number.isFinite(Number(task.actualHoles)) && Number(task.actualHoles) > 0
+      ? Number(task.actualHoles)
+      : Number(result.holes || 0);
+    task.actualHoles = actualHoleCount;
+    task.actualLiters = Number((actualHoleCount * task.targetLitersPerHole).toFixed(3));
   } else {
     task.plannedHoles = 0;
     task.actualHoles = 0;
@@ -310,7 +316,8 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
       targetLitersPerHole: taskUsesHz({ type }) ? targetLitersPerHole : 0,
       injectionType: taskUsesHz({ type }) ? "Niederdruckverfahren" : "",
       resinApplied: type === "Harzverpressung",
-      note: item.description || ""
+      offerDescription: item.description || "",
+      actualNote: ""
     });
   });
   const contact = quotation.contact || {};

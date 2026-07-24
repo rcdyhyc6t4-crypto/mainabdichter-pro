@@ -121,13 +121,28 @@ function convertOfferCards(){
 }
 function addSyncPanel(){
   if($('syncResultPanel'))return;
-  const panel=document.createElement('section'); panel.id='syncResultPanel'; panel.className='v26-sync-panel'; panel.innerHTML='<strong>Synchronisationsstatus</strong><div><span>Lexware</span><b id="v26LexwareState">Noch nicht geprüft</b></div><div><span>Pipedrive</span><b id="v26PipedriveState">Noch nicht geprüft</b></div><small>Nach Importen und Baustellenanlagen werden beide Systeme getrennt angezeigt.</small>';
+  const panel=document.createElement('section');
+  panel.id='syncResultPanel';
+  panel.className='v26-sync-lights';
+  panel.innerHTML='<span class="sync-title">System</span><button type="button" class="sync-light-row" title="Cloudflare"><i id="v26CloudflareDot" class="sync-dot sync-yellow"></i><span>Cloudflare</span></button><button type="button" class="sync-light-row" title="Lexware"><i id="v26LexwareDot" class="sync-dot sync-yellow"></i><span>Lexware</span></button><button type="button" class="sync-light-row" title="Pipedrive"><i id="v26PipedriveDot" class="sync-dot sync-yellow"></i><span>Pipedrive</span></button><small id="v26SyncHint">Noch nicht geprüft</small>';
   $('dashboard')?.querySelector('.dashboard-welcome')?.after(panel);
   window.addEventListener('unhandledrejection',e=>{const msg=String(e.reason?.message||e.reason||'Fehler'); if(/lexware/i.test(msg))setSync('lexware',false,msg); if(/pipedrive/i.test(msg))setSync('pipedrive',false,msg);});
 }
-function setSync(system,ok,msg){const el=$(system==='lexware'?'v26LexwareState':'v26PipedriveState');if(!el)return;el.textContent=(ok?'✓ ':'✕ ')+(msg|| (ok?'erfolgreich':'Fehler'));el.className=ok?'sync-ok':'sync-error';}
+function setSync(system,ok,msg){
+  const map={lexware:'v26LexwareDot',pipedrive:'v26PipedriveDot',cloudflare:'v26CloudflareDot'};
+  const dot=$(map[system]);
+  if(!dot)return;
+  const warning=/teilweise|fallback|notiz|verzögert|erneut/i.test(String(msg||''));
+  dot.className=`sync-dot ${ok?(warning?'sync-yellow':'sync-green'):'sync-red'}`;
+  dot.parentElement.title=`${system}: ${msg|| (ok?'verbunden':'Fehler')}`;
+  const hint=$('v26SyncHint');
+  if(hint){
+    hint.textContent=!ok?`${system}: ${String(msg||'Fehler').slice(0,70)}`:warning?`${system}: Hinweis`:'';
+    hint.hidden=ok&&!warning;
+  }
+}
 function observeStatuses(){
-  const obs=new MutationObserver(records=>records.forEach(r=>{const t=r.target.textContent||''; if(!t.trim())return; if(/lexware/i.test(t))setSync('lexware',!/fehler|nicht|abgebrochen|konnte/i.test(t),t.slice(0,120)); if(/pipedrive/i.test(t))setSync('pipedrive',!/fehler|nicht|abgebrochen|konnte/i.test(t),t.slice(0,120));}));
+  const obs=new MutationObserver(records=>records.forEach(r=>{const t=r.target.textContent||''; if(!t.trim())return; if(/cloudflare/i.test(t))setSync('cloudflare',!/fehler|nicht|abgebrochen|konnte/i.test(t),t.slice(0,120)); if(/lexware/i.test(t))setSync('lexware',!/fehler|nicht|abgebrochen|konnte/i.test(t),t.slice(0,120)); if(/pipedrive/i.test(t))setSync('pipedrive',!/fehler|nicht|abgebrochen|konnte/i.test(t),t.slice(0,120));}));
   qa('.status').forEach(el=>obs.observe(el,{childList:true,subtree:true,characterData:true}));
 }
 function toast(text){let el=$('v26Toast');if(!el){el=document.createElement('div');el.id='v26Toast';el.className='v26-toast';document.body.appendChild(el);}el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800);}

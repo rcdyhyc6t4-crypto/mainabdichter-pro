@@ -44,8 +44,9 @@ ${worksite.objectAddress||""}`,15,y,180,5);
       lines.push(`Injektionsflaschen noch in der Wand: ${Math.max(0,Number(task.bottlesHanging||0)-Number(task.bottlesRetrieved||0))} Stück`);
       lines.push(`Geplante Abholung: ${task.bottlesPickupDue||"noch offen"}`);
     }
+    if(task.offerDescription) lines.push(`Leistungsbeschreibung laut Angebot: ${task.offerDescription}`);
     lines.push(`Vollständig ausgeführt: ${task.completed?"Ja":"Nein"}`);
-    lines.push(`Tatsächliche Ausführung/Besonderheiten: ${task.note||"–"}`);
+    lines.push(`Tatsächliche Ausführung/Besonderheiten: ${task.actualNote||task.note||"–"}`);
     y=textBlock(doc,lines.join("\n"),15,y,180,4.7);
   }
 

@@ -551,6 +551,11 @@ function renderDashboardInventory() {
   const lowProducts = products.filter(product =>
     Number(product.stock || 0) <= Number(product.minimumStock || 0)
   );
+  if ($("dashboardInventorySummary")) {
+    $("dashboardInventorySummary").textContent = lowProducts.length
+      ? `${lowProducts.length} Artikel kritisch`
+      : `${products.length} Artikel · Bestand okay`;
+  }
 
   list.innerHTML = products.map(product => {
     const stock = Number(product.stock || 0);
@@ -896,6 +901,23 @@ document.querySelectorAll("[data-scroll-target]").forEach(button => button.oncli
   target?.scrollIntoView({behavior:"smooth", block:"center"});
 });
 document.querySelectorAll("[data-page-target]").forEach(button => button.onclick = () => show(button.dataset.pageTarget));
+function setResourceModal(id, open) {
+  const modal = $(id);
+  if (!modal) return;
+  modal.classList.toggle("hidden", !open);
+  modal.setAttribute("aria-hidden", open ? "false" : "true");
+  document.body.classList.toggle("resource-modal-open", open);
+}
+if ($("openInventoryDashboard")) $("openInventoryDashboard").onclick = () => setResourceModal("inventoryDashboardModal", true);
+if ($("closeInventoryDashboard")) $("closeInventoryDashboard").onclick = () => setResourceModal("inventoryDashboardModal", false);
+if ($("openBottleDashboard")) $("openBottleDashboard").onclick = () => setResourceModal("bottleDashboardModal", true);
+if ($("closeBottleDashboard")) $("closeBottleDashboard").onclick = () => setResourceModal("bottleDashboardModal", false);
+["inventoryDashboardModal","bottleDashboardModal"].forEach(id => {
+  const modal = $(id);
+  if (modal) modal.addEventListener("click", event => {
+    if (event.target === modal) setResourceModal(id, false);
+  });
+});
 $("syncPipedriveActivities").onclick = syncPipedriveDashboard;
 $("syncAcceptedQuotations").onclick = syncAcceptedQuotationDashboard;
 $("dashboardNewInquiry").onclick = openInquiryImport;
@@ -2372,14 +2394,16 @@ function chargeFieldHtml(task, productId, field, label) {
 
 function plannedScopeHtml(task) {
   const wallChange = Number(task.originalWall || 0) && Number(task.wall || 0) !== Number(task.originalWall || 0)
-    ? `<small class="warning-text">Laut Angebot: ${num(task.originalWall)} cm · tatsächlich: ${num(task.wall)} cm</small>`
+    ? `<small class="warning-text">Angebot: ${num(task.originalWall)} cm · tatsächlich: ${num(task.wall)} cm</small>`
     : "";
-  return `<div class="planned-scope-card">
-    <strong>Geplanter Leistungsumfang laut Angebot</strong>
-    <span>${esc(task.scope || "–")}</span>
-    ${taskIsTechnical(task) && task.type !== "Harzverpressung" ? `<span>Wandstärke laut Angebot: ${num(task.originalWall || task.wall || 0)} cm</span>` : ""}
+  const values = [
+    task.scope || "",
+    taskIsTechnical(task) && task.type !== "Harzverpressung" ? `${num(task.wall || task.originalWall || 0)} cm Wand` : ""
+  ].filter(Boolean).join(" · ");
+  return `<div class="planned-scope-card compact-planned-scope">
+    <span>AUFTRAG</span>
+    <strong>${esc(values || task.type || "Leistung")}</strong>
     ${wallChange}
-    ${task.note ? `<small>${esc(task.note)}</small>` : ""}
   </div>`;
 }
 
@@ -2399,6 +2423,10 @@ function renderWorksiteEditor() {
   $("wsGeneralNotes").value = ws.generalNotes || "";
   $("wsCustomerSignature").value = ws.customerSignature || "";
   $("wsWorkerSignature").value = ws.workerSignature || "";
+  ws.tasks.forEach(task => {
+    if (task.offerDescription === undefined) task.offerDescription = task.note || "";
+    if (task.actualNote === undefined) task.actualNote = "";
+  });
   $("worksiteTasks").innerHTML = ws.tasks.map(task => {
     const technical = taskIsTechnical(task);
     const usesHz = taskUsesHz(task);
@@ -2436,7 +2464,7 @@ function renderWorksiteEditor() {
         ${hzFields}
         ${hsFields}
         ${resinFields}
-        <div class="full"><label>Was wurde tatsächlich gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="note">${esc(task.note)}</textarea></div>
+        <div class="full"><label>Was wurde tatsächlich gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="actualNote">${esc(task.actualNote || "")}</textarea></div>
       </div>
       <label>Fotos</label><div class="grid"><div><select id="photo-category-${task.id}"><option>Vorher</option><option>Während</option><option>Nachher</option></select></div><div><input type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></div></div>
       <div class="worksite-photo-grid">${taskPhotoHtml(task)}</div>
@@ -2457,12 +2485,17 @@ function renderWorksiteEditor() {
     [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
   });
   document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); renderWorksiteEditor(); });
-  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"]').forEach(input => input.onchange = () => {
-    const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
-    task[input.dataset.wsField] = parseDecimal(input.value);
-    recalculateWorksiteTask(state.settings, task);
-    persistWorksite(ws);
-    renderWorksiteEditor();
+  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"]').forEach(input => {
+    const recalculate = () => {
+      const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
+      if (!task) return;
+      task[input.dataset.wsField] = parseDecimal(input.value);
+      recalculateWorksiteTask(state.settings, task);
+      persistWorksite(ws);
+      renderWorksiteEditor();
+    };
+    input.onchange = recalculate;
+    if (input.dataset.wsField === "actualHoles") input.onblur = recalculate;
   });
   document.querySelectorAll("[data-confirm-bottle-pickup]").forEach(button => button.onclick = () => {
     const task = ws.tasks.find(item => item.id === button.dataset.confirmBottlePickup);
