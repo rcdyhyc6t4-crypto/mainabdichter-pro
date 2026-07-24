@@ -1,0 +1,33 @@
+mainabdichter PRO V28.6 – Baustellenlogik und Arbeitsnachweis
+
+NUR DIESE DATEIEN BEI GITHUB HOCHLADEN:
+- index.html ersetzen
+- css/app-v232.css neu hochladen
+- js/app-v233.js neu hochladen
+- js/construction-v228.js neu hochladen
+- js/pdf-v228.js neu hochladen
+
+NICHT ERSETZEN:
+- assets/
+- assets/advice/
+- Cloudflare Worker
+- übrige Dateien
+
+UMGESETZT:
+- Bereich frei eintragbar (Keller, Garage, Lagerraum usw.); leer bleibt im PDF leer.
+- Wandmaterial auswählbar und änderbar.
+- Innenwand und Außenwand einzeln oder gemeinsam auswählbar.
+- Drucklos und Niederdruck einzeln oder gemeinsam auswählbar.
+- PDF übernimmt exakt nur die gesetzten Haken.
+- Sollverbrauch auf der Baustelle ohne Reserve.
+- Reserve bleibt ausschließlich für die Ladeliste vorgesehen.
+- Wandstärke, Bohrlochabstand, Bohrlochanzahl und Umfang aktualisieren sich gegenseitig.
+- Laufmeter bzw. Quadratmeter werden aus geänderten Bohrlöchern neu abgeleitet.
+- Istverbrauch wird automatisch aus Ist-Bohrlöchern und aktuellem Verbrauch je Bohrloch berechnet.
+- PDF-Bereich enthält nur den tatsächlichen Bereich.
+- PDF-Bauteil enthält nur Innenwand, Außenwand oder beides.
+- Maßnahmen stehen separat als ausgeführte Arbeiten.
+- JavaScript-Syntaxprüfung bestanden.
+
+CLOUDFLARE WORKER:
+Keine Änderung erforderlich.
