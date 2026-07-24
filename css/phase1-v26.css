@@ -8,3 +8,30 @@
 .sync-green{background:#39a852}.sync-yellow{background:#e5a92e}.sync-red{background:#d84b43}
 .v26-sync-lights small{font-size:10px;color:#9a3f39;margin-left:auto;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:700px){.v26-sync-lights{gap:5px;flex-wrap:wrap}.sync-light-row span{display:none}.v26-sync-lights small{width:100%;margin-left:0}}
+
+/* Commit 001 – Header Schritt 2 */
+.v301-bell-icon,.v301-profile-icon{display:block;width:25px;height:25px;font-size:0!important;background-position:center;background-repeat:no-repeat;background-size:contain}
+.v301-bell-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23343a36' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9'/%3E%3Cpath d='M10 21h4'/%3E%3C/svg%3E")}
+.v301-profile-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23343a36' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4.5 21a7.5 7.5 0 0 1 15 0'/%3E%3C/svg%3E")}
+.v287-greeting>span{font-size:0!important;line-height:1!important}
+.v287-greeting>span::before{content:"Hallo,";display:block;font-size:30px;line-height:1.05;color:#4a4f4c;font-weight:400;letter-spacing:-.8px}
+.v287-greeting>strong{display:block;margin-top:3px;line-height:1!important}
+.v287-sync-card{width:158px!important;min-width:158px!important;padding:10px 12px!important;gap:4px!important;border-radius:16px!important}
+.v287-sync-line{gap:7px!important}
+.v287-sync-line strong{font-size:13px!important}
+.v287-sync-card small{font-size:9px!important;line-height:1.25!important}
+.v28-today-card{min-height:118px!important;padding:14px 16px!important;border-radius:21px!important}
+.v28-time-column strong{font-size:24px!important}
+.v28-location-icon{width:40px!important;height:40px!important;margin-top:8px!important}
+.v28-today-main h3{font-size:20px!important;margin:3px 0!important}
+.v28-today-main p{font-size:13px!important;line-height:1.25!important}
+.v28-navigation-button{padding:10px 13px!important;font-size:12px!important}
+@media(max-width:620px){
+  .v287-greeting-row{grid-template-columns:minmax(0,1fr) 142px!important;gap:10px!important}
+  .v287-greeting>span::before{font-size:25px}
+  .v287-greeting>strong{font-size:37px!important}
+  .v287-sync-card{width:142px!important;min-width:142px!important;padding:9px 10px!important}
+  .v287-sync-line strong{font-size:12px!important}
+  .v287-sync-card small{font-size:8px!important}
+  .v28-today-card{min-height:108px!important;padding:12px 13px!important}
+}
