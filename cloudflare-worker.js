@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V25.2
+// mainabdichter PRO Cloudflare Worker V26.3
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -6,6 +6,7 @@ const LEXWARE_API = "https://api.lexware.io/v1";
 
 // Cache pro Worker-Instanz für das konfigurierte Pipedrive-Adressfeld.
 let pipedrivePersonAddressFieldCache = null;
+let pipedriveDealFieldSchemaCache = null;
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "*";
@@ -381,11 +382,164 @@ async function createPipedrivePersonPayload(env, input) {
 
   if (addressField && postalAddress) {
     payload.custom_fields = {
-      [addressField]: postalAddress
+      [addressField]: { value: postalAddress }
     };
   }
 
   return payload;
+}
+
+
+function normalizeIsoDate(value) {
+  const text = cleanText(value);
+  if (!text) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  const german = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (german) {
+    return `${german[3]}-${german[2].padStart(2, "0")}-${german[1].padStart(2, "0")}`;
+  }
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function isCustomFieldCode(value) {
+  return /^[a-zA-Z0-9]{20,}$/.test(cleanText(value));
+}
+
+async function loadPipedriveDealFieldSchema(env, force = false) {
+  if (!force && pipedriveDealFieldSchemaCache) {
+    return pipedriveDealFieldSchemaCache;
+  }
+
+  const result = await pipedriveRequest(env, "/api/v2/dealFields?limit=500");
+  const fields = Array.isArray(result.data) ? result.data : [];
+  const schema = {};
+
+  for (const field of fields) {
+    const key = cleanText(field.field_code || field.key);
+    if (!isCustomFieldCode(key)) continue;
+    schema[key] = {
+      key,
+      name: cleanText(field.field_name || field.name),
+      type: cleanText(
+        field.field_type || field.field_type_name || field.type
+      ).toLowerCase()
+    };
+  }
+
+  pipedriveDealFieldSchemaCache = schema;
+  return schema;
+}
+
+function normalizeDealCustomFieldValue(field, rawValue) {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return undefined;
+  }
+
+  const type = field.type;
+
+  if (type === "date") {
+    return normalizeIsoDate(rawValue) || undefined;
+  }
+
+  if (type === "address") {
+    const address = parseAddress(rawValue);
+    const formatted = address.formatted || formatAddress(address);
+    return formatted ? { value: formatted } : undefined;
+  }
+
+  if (["double", "monetary", "numeric", "number"].includes(type)) {
+    const value = Number(rawValue);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (["int", "integer"].includes(type)) {
+    const value = Number(rawValue);
+    return Number.isFinite(value) ? Math.round(value) : undefined;
+  }
+
+  if (type === "set") {
+    if (Array.isArray(rawValue)) return rawValue.filter(Boolean);
+    return String(rawValue).split(",").map(item => item.trim()).filter(Boolean);
+  }
+
+  if (type === "enum") {
+    if (typeof rawValue === "object" && rawValue !== null) {
+      return rawValue.id ?? rawValue.value ?? undefined;
+    }
+    return rawValue;
+  }
+
+  if (typeof rawValue === "object") {
+    if ("value" in rawValue && Object.keys(rawValue).length === 1) {
+      return rawValue.value;
+    }
+    return rawValue;
+  }
+
+  return String(rawValue);
+}
+
+async function sanitizeDealCustomFields(env, customFields) {
+  if (!customFields || typeof customFields !== "object") {
+    return { fields: {}, warnings: [] };
+  }
+
+  const schema = await loadPipedriveDealFieldSchema(env);
+  const fields = {};
+  const warnings = [];
+
+  for (const [key, rawValue] of Object.entries(customFields)) {
+    if (!isCustomFieldCode(key)) {
+      warnings.push(`Ungültiger Pipedrive-Feldschlüssel wurde ausgelassen: ${key}`);
+      continue;
+    }
+
+    const field = schema[key];
+    if (!field) {
+      warnings.push(`Nicht vorhandenes Pipedrive-Deal-Feld wurde ausgelassen: ${key}`);
+      continue;
+    }
+
+    const value = normalizeDealCustomFieldValue(field, rawValue);
+    if (value === undefined) {
+      warnings.push(`Ungültiger Wert für „${field.name || key}“ wurde ausgelassen.`);
+      continue;
+    }
+
+    fields[key] = value;
+  }
+
+  return { fields, warnings };
+}
+
+function isAddressValidationError(error) {
+  const details = JSON.stringify(error?.details || {}).toLowerCase();
+  return details.includes("address field") || details.includes("expected 'object'");
+}
+
+async function savePipedrivePersonWithFallback(env, method, path, payload) {
+  try {
+    return await pipedriveRequest(env, path, {
+      method,
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    if (!payload.custom_fields || !isAddressValidationError(error)) throw error;
+
+    const fallback = { ...payload };
+    delete fallback.custom_fields;
+    const result = await pipedriveRequest(env, path, {
+      method,
+      body: JSON.stringify(fallback)
+    });
+    result._addressFallbackUsed = true;
+    return result;
+  }
 }
 
 function buildLexwareContactPayload(data) {
@@ -549,6 +703,8 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
+          workerVersion: "26.3",
+          time: new Date().toISOString()
         });
       }
 
@@ -595,9 +751,13 @@ export default {
         let dealId = Number(input.dealId || 0) || null;
         const personId = Number(input.personId || 0) || null;
         const title = String(input.title || "Baustelle").trim();
-        const customFields = input.customFields && typeof input.customFields === "object"
-          ? input.customFields
-          : {};
+        const customFieldResult = await sanitizeDealCustomFields(
+          env,
+          input.customFields && typeof input.customFields === "object"
+            ? input.customFields
+            : {}
+        );
+        const customFields = customFieldResult.fields;
 
         if (!dealId && personId) {
           const found = await findDealForPerson(env, personId, title);
@@ -640,7 +800,20 @@ export default {
           });
         }
 
-        return jsonResponse(request, { ok: true, deal, created }, created ? 201 : 200);
+        return jsonResponse(
+          request,
+          {
+            ok: true,
+            deal,
+            created,
+            syncStatus: {
+              pipedriveDeal: "success",
+              customFieldsSent: Object.keys(customFields).length,
+              warnings: customFieldResult.warnings
+            }
+          },
+          created ? 201 : 200
+        );
       }
 
       if (/^\/pipedrive\/deals\/\d+\/note$/.test(url.pathname) && request.method === "POST") {
@@ -693,9 +866,11 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "25.2",
+          workerVersion: "26.3",
           addressSync: true,
-          postalAddressPayloadFixed: true
+          postalAddressPayloadFixed: true,
+          dealFieldSchemaValidation: true,
+          dateNormalization: true
         });
       }
 
@@ -713,17 +888,25 @@ export default {
         let created = false;
         if (!person) {
           const payload = await createPipedrivePersonPayload(env, { ...input, name, email, phone });
-          const result = await pipedriveRequest(env,"/api/v2/persons",{
-            method:"POST", body:JSON.stringify(payload)
-          });
+          const result = await savePipedrivePersonWithFallback(
+            env,
+            "POST",
+            "/api/v2/persons",
+            payload
+          );
           person = normalizePipedrivePerson(result.data || result);
+          person.addressFallbackUsed = result._addressFallbackUsed === true;
           created = true;
         } else {
           const updatePayload = await createPipedrivePersonPayload(env, { ...input, name, email, phone });
-          const updated = await pipedriveRequest(env, `/api/v2/persons/${person.id}`, {
-            method: "PATCH", body: JSON.stringify(updatePayload)
-          });
+          const updated = await savePipedrivePersonWithFallback(
+            env,
+            "PATCH",
+            `/api/v2/persons/${person.id}`,
+            updatePayload
+          );
           person = normalizePipedrivePerson(updated.data || updated);
+          person.addressFallbackUsed = updated._addressFallbackUsed === true;
         }
 
         const address = cleanText(input.postalAddress) || formatAddress({street:input.street,zip:input.zip,city:input.city});
@@ -741,7 +924,21 @@ export default {
             method:"POST", body:JSON.stringify({person_id:person.id,content,pinned_to_person_flag:1})
           });
         }
-        return jsonResponse(request,{ok:true,person,created},created ? 201 : 200);
+        return jsonResponse(
+          request,
+          {
+            ok: true,
+            person,
+            created,
+            syncStatus: {
+              pipedrivePerson: "success",
+              pipedriveAddress: person.addressFallbackUsed
+                ? "note_fallback"
+                : "custom_field"
+            }
+          },
+          created ? 201 : 200
+        );
       }
 
       if (url.pathname === "/pipedrive/persons/search") {

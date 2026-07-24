@@ -63,16 +63,22 @@
     </button>
   </section>
 
-  <section class="dashboard-section dashboard-inventory-section">
-    <div class="section-title">
-      <div><span>LAGER</span><h2>Aktueller Materialbestand</h2></div>
-      <button type="button" class="text-button" data-page-target="settings" data-scroll-target="inventoryProducts">Lager bearbeiten</button>
+  <details class="dashboard-section dashboard-details dashboard-material-details">
+    <summary><div><span>LAGER</span><h2>Aktueller Materialbestand</h2></div><strong id="dashboardInventorySummary">Öffnen</strong></summary>
+    <div class="details-content">
+      <div class="section-title"><div></div><button type="button" class="text-button" data-page-target="settings" data-scroll-target="inventoryProducts">Lager bearbeiten</button></div>
+      <div id="dashboardInventoryAlert" class="inventory-dashboard-alert" hidden></div>
+      <div id="dashboardInventoryList" class="dashboard-inventory-grid"><div class="empty-mini">Lagerbestand wird geladen.</div></div>
     </div>
-    <div id="dashboardInventoryAlert" class="inventory-dashboard-alert" hidden></div>
-    <div id="dashboardInventoryList" class="dashboard-inventory-grid">
-      <div class="empty-mini">Lagerbestand wird geladen.</div>
+  </details>
+
+  <details class="dashboard-section dashboard-details dashboard-bottle-details">
+    <summary><div><span>INJEKTIONSFLASCHEN</span><h2>Flaschen auf Baustellen</h2></div><strong id="dashboardBottleSummary">0 unterwegs</strong></summary>
+    <div class="details-content">
+      <div id="dashboardBottleStats" class="bottle-stat-grid"></div>
+      <div id="dashboardBottleList" class="compact-list"><div class="empty-mini">Keine Flaschen auf Baustellen.</div></div>
     </div>
-  </section>
+  </details>
 
   <section class="dashboard-action-grid">
     <button id="dashboardNewVisit" class="dashboard-action-card"><span>＋</span><strong>Neue Besichtigung</strong><small>Leere Erfassung starten</small></button>
