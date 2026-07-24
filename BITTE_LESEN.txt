@@ -1,53 +1,21 @@
-mainabdichter PRO V30 – Konsolidierter Neustart
+mainabdichter PRO V30.1 – Header und angenommene Angebote korrigiert
 
-ZIEL
-V30 beendet das Versionswirrwarr der aktiv bearbeiteten Hauptdateien.
-
-NEUE FESTE DATEINAMEN
+NUR DIESE DATEIEN BEI GITHUB ERSETZEN:
 - index.html
 - css/app.css
 - js/app.js
+
+UNVERÄNDERT:
 - js/construction.js
 - js/pdf.js
+- Cloudflare Worker
+- assets/
+- übrige Hilfsmodule
 
-WICHTIG
-Die bereits im Repository vorhandenen unveränderten Hilfsmodule bleiben bestehen:
-storage-v227.js, defaults-v227.js, calculator-v227.js, utils-v227.js,
-api-v227.js, texts-v227.js, importer-v227.js, pipedrive-sync-v227.js,
-attachments-v227.js sowie phase1-v26.js und phase1-v26.css.
-
-Diese Hilfsmodule werden nicht unnötig umbenannt. Dadurch bleiben Pipedrive,
-Lexware, Speicherung, Kalkulation und Anhänge funktionsfähig. Ab V30 werden
-aber alle regelmäßig geänderten Hauptmodule nur noch unter den festen Namen
-app.js, construction.js und pdf.js weiterentwickelt.
-
-BEI GITHUB HOCHLADEN
-1. index.html ersetzen
-2. Ordner css öffnen und app.css neu hochladen
-3. Ordner js öffnen und folgende Dateien neu hochladen:
-   - app.js
-   - construction.js
-   - pdf.js
-4. version.json optional im Hauptverzeichnis hochladen
-
-DIE ALTEN DATEIEN
-app-v235.js, construction-v229.js, pdf-v228.js und app-v234.css können zunächst
-liegen bleiben. Die neue index.html und app.js verwenden sie nicht mehr.
-
-ENTHALTEN
-- Dashboard nach der final freigegebenen Bildvorlage
-- angenommene Lexware-Angebote über die Glocke
-- Flaschenübersicht mit Adresse, Navigation und Abholbestätigung
-- Lagerartikel direkt bearbeitbar
-- Baustellenlogik mit Bereich, Wandmaterial, Innen-/Außenwand
-- Drucklos und Niederdruck einzeln oder gemeinsam
-- Sollverbrauch auf der Baustelle ohne Reserve
-- angepasster Arbeitsnachweis und iPad-Unterschriften
-- richtige Worker-URL:
-  https://mainabdichter-api.cmww7htry5.workers.dev
-- Schutz vor alten fehlenden Dashboard-Elementen
-- JavaScript-Syntaxprüfung bestanden
-
-NACH DEM UPLOAD
-Die Seite vollständig neu laden. In Safari gegebenenfalls den Tab schließen
-und die Seite erneut öffnen. Die Hauptdatei muss jetzt /js/app.js?v=30.0.0 sein.
+KORRIGIERT:
+- Angenommene Lexware-Angebote sind wieder direkt im Dashboard sichtbar.
+- Die Glocke öffnet zusätzlich dieselbe Angebotsliste.
+- Der Header verwendet wieder das echte mainabdichter-Logo.
+- Glocke und Profil stehen rechts wie in der freigegebenen Vorlage.
+- Keine weiteren Dashboard-Elemente wurden verändert.
+- JavaScript-Syntaxprüfung bestanden.
