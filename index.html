@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#76b82a">
 <title>mainabdichter V25 Geführter Auftrag Menü & Logo Fix</title>
-<link rel="stylesheet" href="css/app-v227.css?build=20260724-v26-7">
+<link rel="stylesheet" href="css/app-v227.css?build=20260724-v27">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v26-7">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -381,51 +381,150 @@
   </div>
   <div id="worksiteList" class="card"></div>
   <div id="worksiteEditor" class="hidden">
-    <div class="card">
-      <div class="metric"><span>Kunde</span><strong id="wsCustomer">–</strong></div>
-      <div class="metric"><span>Objekt</span><strong id="wsAddress">–</strong></div>
-      <div class="grid">
-        <div><label>Ausführungsdatum</label><input id="wsDate" type="date"></div>
-        <div><label>Mitarbeiter</label><input id="wsEmployees"></div>
-        <div><label>Arbeitsbeginn</label><input id="wsStart" type="time"></div>
-        <div><label>Arbeitsende</label><input id="wsEnd" type="time"></div>
-        <div><label>Pause Minuten</label><input id="wsPause" inputmode="decimal"></div>
-        <div><label>Netto-Arbeitszeit</label><input id="wsDuration" readonly></div>
-        <div><label>Wetter</label><input id="wsWeather"></div>
-        <div><label>Außentemperatur °C</label><input id="wsOutdoorTemp" inputmode="decimal"></div>
+    <div class="card worksite-record-head">
+      <div>
+        <span class="dashboard-eyebrow">BAUSTELLENAKTE</span>
+        <h1 id="wsCustomer">–</h1>
+        <p id="wsAddress">–</p>
       </div>
-      <label>Allgemeine Bemerkungen</label><textarea id="wsGeneralNotes"></textarea>
+      <button id="closeWorksite" class="secondary">Zur Baustellenübersicht</button>
     </div>
-    <div id="worksiteTasks"></div>
-    <div class="card worksite-files-card">
-      <div class="card-title-row">
-        <div><h2>Dateien, Pläne und Unterlagen</h2><p class="hint">Fotos, PDFs, Grundrisse, Gebäudequerschnitte und sonstige Unterlagen werden in der Bauakte gespeichert und zum zugehörigen Pipedrive-Deal hochgeladen.</p></div>
+
+    <nav class="worksite-section-nav" aria-label="Baustellenbereiche">
+      <button type="button" class="active" data-worksite-section="wsSectionOverview">Übersicht</button>
+      <button type="button" data-worksite-section="wsSectionExecution">Ausführung</button>
+      <button type="button" data-worksite-section="wsSectionPhotos">Fotos</button>
+      <button type="button" data-worksite-section="wsSectionDocuments">Dokumente</button>
+      <button type="button" data-worksite-section="wsSectionMaterial">Material</button>
+      <button type="button" data-worksite-section="wsSectionTime">Arbeitszeit</button>
+      <button type="button" data-worksite-section="wsSectionNotes">Bemerkungen</button>
+      <button type="button" data-worksite-section="wsSectionReport">Arbeitsnachweis</button>
+    </nav>
+
+    <section id="wsSectionOverview" class="worksite-section active">
+      <div class="card">
+        <h2>Baustelle im Überblick</h2>
+        <div id="wsOverviewSummary" class="worksite-overview-grid"></div>
+        <div id="wsOverviewNextStep" class="worksite-next-step"></div>
       </div>
-      <div class="grid">
-        <div><label>Kategorie</label><select id="wsAttachmentCategory"><option>Grundriss</option><option>Gebäudequerschnitt</option><option>Schadensbild</option><option>Messstelle</option><option>Vorher</option><option>Während</option><option>Nachher</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
-        <div class="full"><label>Bemerkung zur Datei</label><input id="wsAttachmentNote" placeholder="z. B. Kellergrundriss mit markierter Nordwand"></div>
+    </section>
+
+    <section id="wsSectionExecution" class="worksite-section">
+      <div class="card section-intro-card">
+        <span class="dashboard-eyebrow">AUSFÜHRUNG</span>
+        <h2>Was muss ausgeführt werden?</h2>
+        <p>Hier stehen nur die für die Ausführung notwendigen Werte.</p>
       </div>
-      <input id="wsAttachmentInput" class="hidden" type="file" accept="image/*,.pdf,application/pdf" multiple>
-      <div class="offer-actions">
-        <button id="wsAddAttachments" class="secondary">Bilder oder PDFs hinzufügen</button>
-        <button id="wsUploadAttachments" class="secondary">Offene Dateien zu Pipedrive hochladen</button>
+      <div id="worksiteTasks"></div>
+    </section>
+
+    <section id="wsSectionPhotos" class="worksite-section">
+      <div class="card">
+        <div class="card-title-row">
+          <div><span class="dashboard-eyebrow">FOTODOKUMENTATION</span><h2>Fotos</h2><p class="hint">Vorher-, Während- und Nachher-Fotos getrennt nach Maßnahme.</p></div>
+        </div>
+        <div id="wsPhotoPage"></div>
       </div>
-      <div id="wsAttachmentList" class="worksite-attachment-list"></div>
-    </div>
-    <div class="card">
-      <h2>Materialzusammenfassung</h2><div id="wsMaterialSummary"></div>
-      <div class="grid">
-        <div class="full"><label>Kundenunterschrift / Name</label><input id="wsCustomerSignature"></div>
-        <div class="full"><label>Ausführender Mitarbeiter / Unterschrift</label><input id="wsWorkerSignature"></div>
+    </section>
+
+    <section id="wsSectionDocuments" class="worksite-section">
+      <div class="card worksite-files-card">
+        <div class="card-title-row">
+          <div><span class="dashboard-eyebrow">BAUAKTE</span><h2>Dokumente und Pläne</h2><p class="hint">Angebot, Aufmaß, Grundrisse, PDFs, Gutachten und Skizzen.</p></div>
+        </div>
+        <div class="grid">
+          <div><label>Kategorie</label><select id="wsAttachmentCategory"><option>Grundriss</option><option>Gebäudequerschnitt</option><option>Schadensbild</option><option>Messstelle</option><option>Vorher</option><option>Während</option><option>Nachher</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
+          <div class="full"><label>Bemerkung zur Datei</label><input id="wsAttachmentNote" placeholder="z. B. Kellergrundriss mit markierter Nordwand"></div>
+        </div>
+        <input id="wsAttachmentInput" class="hidden" type="file" accept="image/*,.pdf,application/pdf" multiple>
+        <div class="offer-actions">
+          <button id="wsAddAttachments" class="secondary">Bilder oder PDFs hinzufügen</button>
+          <button id="wsUploadAttachments" class="secondary">Offene Dateien zu Pipedrive hochladen</button>
+        </div>
+        <div id="wsAttachmentList" class="worksite-attachment-list"></div>
       </div>
-      <div class="offer-actions">
-        <button id="saveWorksite" class="secondary">Arbeitsnachweis speichern</button>
-        <button id="printWorksite" class="secondary">Arbeitsnachweis als PDF</button>
-        <button id="syncWorksitePipedrive" class="secondary">Mit Pipedrive synchronisieren</button>
-        <button id="completeWorksite" class="primary">Abschließen, PDF hochladen und Material abbuchen</button>
+    </section>
+
+    <section id="wsSectionMaterial" class="worksite-section">
+      <div class="card">
+        <span class="dashboard-eyebrow">IST-VERBRAUCH</span>
+        <h2>Tatsächlich verwendetes Material</h2>
+        <p class="hint">Es werden nur Materialien angezeigt, die für diese Baustelle tatsächlich erfasst wurden.</p>
+        <div id="wsMaterialSummary"></div>
       </div>
-      <div id="worksiteStatus" class="status"></div>
-    </div>
+    </section>
+
+    <section id="wsSectionTime" class="worksite-section">
+      <div class="card">
+        <span class="dashboard-eyebrow">ARBEITSZEIT</span>
+        <h2>Mitarbeiter und Zeiten</h2>
+        <div class="grid">
+          <div><label>Ausführungsdatum</label><input id="wsDate" type="date"></div>
+          <div><label>Mitarbeiter</label><input id="wsEmployees"></div>
+          <div><label>Arbeitsbeginn</label><input id="wsStart" type="time"></div>
+          <div><label>Arbeitsende</label><input id="wsEnd" type="time"></div>
+          <div><label>Pause Minuten</label><input id="wsPause" inputmode="decimal"></div>
+          <div><label>Netto-Arbeitszeit</label><input id="wsDuration" readonly></div>
+          <div><label>Wetter</label><input id="wsWeather"></div>
+          <div><label>Außentemperatur °C</label><input id="wsOutdoorTemp" inputmode="decimal"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="wsSectionNotes" class="worksite-section">
+      <div class="card">
+        <span class="dashboard-eyebrow">DOKUMENTATION</span>
+        <h2>Absprachen und Besonderheiten</h2>
+        <label>Allgemeine Bemerkungen</label>
+        <textarea id="wsGeneralNotes" rows="10" placeholder="Absprachen, zusätzliche Kundenwünsche, Abweichungen oder Besonderheiten der Ausführung"></textarea>
+      </div>
+    </section>
+
+    <section id="wsSectionReport" class="worksite-section">
+      <div class="card">
+        <span class="dashboard-eyebrow">ABSCHLUSS</span>
+        <h2>Arbeitsnachweis</h2>
+        <p class="hint">Alle Angaben aus den vorherigen Bereichen werden automatisch zusammengeführt.</p>
+        <div id="wsReportChecklist" class="worksite-report-checklist"></div>
+        <div class="grid signature-meta-grid">
+          <div><label>Ort</label><input id="wsSignaturePlace" placeholder="Ort der Ausführung"></div>
+          <div><label>Datum</label><input id="wsSignatureDate" type="date"></div>
+          <div class="full switch-row"><label><input id="wsSiteClean" type="checkbox"> Baustelle sauber verlassen</label></div>
+        </div>
+
+        <div class="signature-pad-grid">
+          <section class="signature-pad-card">
+            <div class="signature-pad-head">
+              <div><small>KUNDE ODER VERTRETER</small><strong>Unterschrift Kunde</strong></div>
+              <button type="button" id="clearCustomerSignature" class="secondary small-button">Löschen</button>
+            </div>
+            <label>Name in Druckschrift</label>
+            <input id="wsCustomerSignature" placeholder="Name des Kunden oder Vertreters">
+            <canvas id="wsCustomerSignatureCanvas" class="signature-canvas" aria-label="Unterschriftsfeld Kunde"></canvas>
+            <p class="hint">Mit Finger oder Apple Pencil unterschreiben.</p>
+          </section>
+
+          <section class="signature-pad-card">
+            <div class="signature-pad-head">
+              <div><small>AUSFÜHRENDER</small><strong>Unterschrift Mitarbeiter</strong></div>
+              <button type="button" id="clearWorkerSignature" class="secondary small-button">Löschen</button>
+            </div>
+            <label>Name in Druckschrift</label>
+            <input id="wsWorkerSignature" placeholder="Name des ausführenden Mitarbeiters">
+            <canvas id="wsWorkerSignatureCanvas" class="signature-canvas" aria-label="Unterschriftsfeld Mitarbeiter"></canvas>
+            <p class="hint">Mit Finger oder Apple Pencil unterschreiben.</p>
+          </section>
+        </div>
+        <div class="offer-actions">
+          <button id="saveWorksite" class="secondary">Arbeitsnachweis speichern</button>
+          <button id="printWorksite" class="secondary">Arbeitsnachweis als PDF</button>
+          <button id="syncWorksitePipedrive" class="secondary">Mit Pipedrive synchronisieren</button>
+          <button id="completeWorksite" class="primary">Abschließen, PDF hochladen und Material abbuchen</button>
+        </div>
+        <div id="worksiteStatus" class="status"></div>
+      </div>
+    </section>
+  </div>
   </div>
 </section>
 
@@ -565,7 +664,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app-v227.js?build=20260724-v26-7"></script>
+<script type="module" src="js/app-v227.js?build=20260724-v27"></script>
 <script type="module" src="js/phase1-v26.js?build=20260724-v26-7"></script>
 </body>
 </html>
