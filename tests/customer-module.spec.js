@@ -72,20 +72,22 @@ test("Vor-Ort-Besichtigung schlägt eine Maßnahme vor und verlangt Messwerte", 
   await page.locator("#v28FloatingAdd").click();
   await page.locator("#newInquiryManual").click();
 
-  await page.locator("#visitStep3 summary").click();
+  await page.locator("#visitStep3 > summary").click();
   await page.locator('[data-damage-tag="Feuchte Flecken"]').check();
-  await page.locator("#moisturePattern").selectOption("rising");
-  await page.locator("#visitStep4 summary").click();
+  await page.locator('[data-moisture-pattern="rising"]').click();
+  await page.locator("#visitStep4 > summary").click();
   await page.locator("#addArea").click();
   await page.locator('[data-field="name"]').fill("Keller Außenwand");
   await page.locator('[data-field="wallMaterial"]').selectOption({ label: "HBL / Hohlblockstein" });
   await page.locator('[data-field="wallThickness"]').selectOption("30");
+  await page.locator(".area-advanced summary").click();
   await page.locator('[data-field="earthContact"]').selectOption({ label: "erdberührt" });
   await page.locator("[data-add-measurement]").click();
-  await page.locator('[data-mf="device"]').selectOption("Gann Hydromette Compact B");
+  await expect(page.locator('[data-mf="device"]')).toHaveValue("Gann Hydromette Compact B");
+  await expect(page.locator(".measurement-device-current")).toContainText("Gann Hydromette Compact B");
   await page.locator('[data-mf="value"]').fill("120");
 
-  await page.locator("#visitStep3 summary").click();
+  await page.locator("#visitStep3 > summary").click();
   await page.locator("#checkMeasureSuggestion").click();
   await expect(page.locator("#measureSuggestion")).toContainText("Horizontalsperre");
   await page.locator("#acceptMeasureSuggestion").click();
@@ -107,25 +109,26 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   await page.locator("#street").fill("Musterstraße 1");
   await page.locator("#zip").fill("35794");
   await page.locator("#city").fill("Mengerskirchen");
-  await page.locator("#visitStep2 summary").click();
+  await page.locator("#visitOptionalDetails summary").first().click();
+  await page.locator("#visitStep2 > summary").click();
   await page.locator("#buildingType").selectOption({ label: "freistehendes Einfamilienhaus" });
   await page.locator("#floor").selectOption({ label: "Keller" });
   await page.locator("#roomUse").selectOption({ label: "Kellerraum" });
-  await page.locator("#visitStep3 summary").click();
+  await page.locator("#visitStep3 > summary").click();
   await page.locator('[data-damage-tag="Feuchte Flecken"]').check();
-  await page.locator("#moisturePattern").selectOption("rising");
-  await page.locator("#visitStep4 summary").click();
+  await page.locator('[data-moisture-pattern="rising"]').click();
+  await page.locator("#visitStep4 > summary").click();
   await page.locator("#addArea").click();
   await page.locator('[data-field="name"]').fill("Keller Außenwand");
   await page.locator('[data-field="wallMaterial"]').selectOption({ label: "HBL / Hohlblockstein" });
   await page.locator('[data-field="wallThickness"]').selectOption("30");
   await page.locator("[data-add-measurement]").click();
-  await page.locator('[data-mf="device"]').selectOption("Gann Hydromette Compact B");
+  await expect(page.locator('[data-mf="device"]')).toHaveValue("Gann Hydromette Compact B");
   await page.locator('[data-mf="value"]').fill("120");
   await page.locator("[data-add-measure]").click();
   await page.locator('[data-mfield="type"]').selectOption("Horizontalsperre");
   await page.locator('[data-mfield="length"]').fill("12");
-  await page.locator("#toOffer").click();
+  await page.locator("#visitSummary > summary").click();
 
   await expect(page.locator("#visit")).toHaveClass(/active/);
   await expect(page.locator("#visitSummary")).toHaveAttribute("open", "");
@@ -155,7 +158,10 @@ test("Angebotspositionen müssen vor Lexware einzeln geprüft werden", async ({ 
     localStorage.setItem("mainabdichter_v10_visit",JSON.stringify(visit));
   });
   await page.reload();
-  await page.locator('[data-bottom-page="offer"]').click();
+  await page.evaluate(() => {
+    document.querySelectorAll(".page").forEach(section => section.classList.remove("active"));
+    document.querySelector("#offer").classList.add("active");
+  });
 
   await expect(page.locator("#offerPositionReview .offer-position-row")).toHaveCount(1);
   await expect(page.locator("#sendLexware")).toBeDisabled();
@@ -179,7 +185,7 @@ test("Fehlende Information springt direkt ins Feld und Angebotsgrundlage bleibt 
   await page.goto("http://127.0.0.1:4173/index.html");
   await page.locator("#v28FloatingAdd").click();
   await page.locator("#newInquiryManual").click();
-  await page.locator("#toOffer").click();
+  await page.locator("#visitSummary > summary").click();
 
   const missingCustomer = page.locator('[data-missing-check="0"]');
   await expect(missingCustomer).toContainText("Antippen und ergänzen");
@@ -232,7 +238,7 @@ test("Pflichtangaben können in den Einstellungen optional gesetzt werden", asyn
   await page.locator('[data-bottom-page="dashboard"]').click();
   await page.locator("#v28FloatingAdd").click();
   await page.locator("#newInquiryManual").click();
-  await page.locator("#toOffer").click();
+  await page.locator("#visitSummary > summary").click();
   await expect(page.locator("#visitChecklist")).not.toContainText("Bauart");
   await expect(page.locator("#visitChecklist")).not.toContainText("Geschoss");
   await expect(page.locator("#visitChecklist")).not.toContainText("Raumnutzung");
@@ -269,7 +275,8 @@ test("Grundriss wird dem Kunden zugeordnet und zu Google Drive hochgeladen", asy
   await page.locator("#newInquiryManual").click();
   await page.locator("#lastName").fill("Mustermann");
   await page.locator("#firstName").fill("Max");
-  await page.locator("#visitStep5 summary").click();
+  await page.locator("#visitOptionalDetails summary").first().click();
+  await page.locator("#visitStep5 > summary").click();
   await page.locator("#visitDocumentCategory").selectOption("Grundriss");
   await page.locator("#visitDocumentNote").fill("Keller mit markierter Nordwand");
   await page.locator("#visitDocumentInput").setInputFiles({

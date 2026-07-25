@@ -108,6 +108,8 @@ export const DEFAULTS = {
     visitOutdoorTemp: "",
     visitPrecipitation: "",
     damageDescription: "",
+    damageTags: [],
+    measurementDevice: "Gann Hydromette Compact B",
     inquiry: {
       source: "", ownerStatus: "", appointment: "", message: "",
       rawText: "", screenshot: "", importedAt: "", concern: "",

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.1</title>
-<link rel="stylesheet" href="css/app.css?v=32.1.0">
+<title>mainabdichter PRO V32.3</title>
+<link rel="stylesheet" href="css/app.css?v=32.3.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
@@ -199,12 +199,8 @@ main{width:100%;max-width:100%}
     <div class="record-meta-grid"><div><span>Besichtigungs-Nr.</span><strong id="metaVisitNumber">–</strong></div><div><span>Datum</span><strong id="metaVisitDate">–</strong></div><div><span>Beginn</span><strong id="metaVisitTime">–</strong></div><div><span>Standort</span><strong id="metaVisitLocation">–</strong></div><div><span>Wetter</span><strong id="metaVisitWeather">–</strong></div></div>
   </section>
   <div class="card visit-toolbar"><div class="visit-toolbar-title"><span>BESICHTIGUNG</span><h2>Schritt für Schritt erfassen</h2></div>
-    <div class="visit-progress">
-      <button type="button" data-open-step="1">Kunde</button>
-      <button type="button" data-open-step="2">Gebäude</button>
-      <button type="button" data-open-step="3">Beschreibung</button>
-      <button type="button" data-open-step="4">Maßnahmen</button>
-      <button type="button" data-open-step="5">Extras</button>
+    <div class="simple-visit-progress" aria-label="Ablauf der Besichtigung">
+      <span>1 Kunde</span><span>2 Schaden</span><span>3 Messen</span><span>4 Fertig</span>
     </div>
     <div id="guidedAssistant" class="guided-assistant">
       <div><span id="guidedStepLabel">Schritt 1 von 7</span><strong id="guidedInstruction">Kunde und Termin prüfen</strong></div>
@@ -293,6 +289,12 @@ main{width:100%;max-width:100%}
     <div id="inquiryPlanningStatus" class="status"></div>
   </details>
 
+  <details id="visitOptionalDetails" class="card optional-data-hub">
+    <summary>Weitere Angaben – nur bei Bedarf <span class="optional-badge">optional</span></summary>
+    <p class="hint">Gebäudedaten, Wetter, Vorgeschichte, Dokumente und Zusatzleistungen. Öffne diesen Bereich nur, wenn du etwas davon wirklich brauchst.</p>
+    <div id="visitOptionalDetailsContent"></div>
+  </details>
+
   <details id="visitStep1" class="card compact-step guided-step" open>
     <summary>1. Kunde und Termin <span class="step-state"></span></summary>
     <div class="grid">
@@ -368,8 +370,15 @@ main{width:100%;max-width:100%}
     <div id="damageTagOptions" class="damage-tag-grid"></div>
     <div class="grid onsite-assessment-grid">
       <div class="full">
-        <label>Feuchteverlauf / auffälliger Bereich</label>
-        <select id="moisturePattern">
+        <label>Wo zeigt sich die Feuchtigkeit?</label>
+        <div id="moisturePatternChoices" class="quick-choice-grid">
+          <button type="button" data-moisture-pattern="rising">⬆ Von unten</button>
+          <button type="button" data-moisture-pattern="lateral">▦ Seitlich / flächig</button>
+          <button type="button" data-moisture-pattern="wallSole">⌞ Wand–Boden</button>
+          <button type="button" data-moisture-pattern="localWater">● Einzelne nasse Stelle</button>
+          <button type="button" data-moisture-pattern="unclear">? Noch unklar</button>
+        </div>
+        <select id="moisturePattern" class="hidden" aria-label="Feuchteverlauf">
           <option value="">– bitte auswählen –</option>
           <option value="rising">Von unten aufsteigend</option>
           <option value="lateral">Seitlich oder flächig in der Wand</option>
@@ -394,6 +403,14 @@ main{width:100%;max-width:100%}
 
   <details id="visitStep4" class="card compact-step guided-step">
     <summary>4. Schadensbereiche und Maßnahmen <span class="step-state"></span></summary>
+    <div class="measurement-device-default">
+      <label for="defaultMeasurementDevice">Messgerät für diese Besichtigung</label>
+      <select id="defaultMeasurementDevice">
+        <option value="Gann Hydromette Compact B">Gann Hydromette Compact B</option>
+        <option value="Trotec Mikrowellenmessgerät">Trotec Mikrowellenmessgerät</option>
+      </select>
+      <small>Einmal auswählen – gilt automatisch für alle Messpunkte. Nur bei einer abweichenden Messung musst du das Gerät ändern.</small>
+    </div>
     <div id="areas"></div>
     <button id="addArea" class="primary">+ Schadensbereich</button>
   </details>
@@ -989,8 +1006,8 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=32.1.0"></script>
-<script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
+<script type="module" src="js/app.js?v=32.3.0"></script>
+<script type="module" src="js/phase1-v26.js?build=20260725-v32-2"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>
 </html>
