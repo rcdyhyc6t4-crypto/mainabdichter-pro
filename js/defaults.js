@@ -118,6 +118,7 @@ export const DEFAULTS = {
     recordContext: {loaded:false,loadedAt:"",deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:"",error:""},
     inventoryDeducted: false,
     inventoryDeductedAt: "",
+    offerDraft: { items: {}, approved: false, approvedAt: "" },
     areas: [],
     extraQuantities: {}
   },

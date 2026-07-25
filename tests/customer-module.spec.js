@@ -143,6 +143,32 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   expect(offerBasis.note).toBe("Zugang vor Ausführung freiräumen.");
 });
 
+test("Angebotspositionen müssen vor Lexware einzeln geprüft werden", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.evaluate(() => {
+    const visit=JSON.parse(localStorage.getItem("mainabdichter_v10_visit"));
+    visit.customer={...visit.customer,firstName:"Max",lastName:"Mustermann",street:"Musterstraße 1",zip:"35794",city:"Mengerskirchen"};
+    visit.areas=[{
+      id:"area-1",name:"Keller",wallMaterial:"HBL",wallThickness:"30",measurements:[],photos:[],
+      measures:[{id:"measure-1",type:"Horizontalsperre",length:"12",wall:"30",spacing:".25",note:""}]
+    }];
+    localStorage.setItem("mainabdichter_v10_visit",JSON.stringify(visit));
+  });
+  await page.reload();
+  await page.locator('[data-bottom-page="offer"]').click();
+
+  await expect(page.locator("#offerPositionReview .offer-position-row")).toHaveCount(1);
+  await expect(page.locator("#sendLexware")).toBeDisabled();
+  await page.locator("[data-offer-price]").fill("250");
+  await page.locator("[data-offer-price]").blur();
+  await expect(page.locator(".offer-review-total")).toContainText("3.000,00");
+  await page.locator("#offerPositionsApproved").click({force:true});
+  await expect(page.locator("#sendLexware")).toBeEnabled();
+  await page.locator("[data-offer-include]").click({force:true});
+  await expect(page.locator("#sendLexware")).toBeDisabled();
+  await expect(page.locator("#offerPositionsApproved")).not.toBeChecked();
+});
+
 test("Fehlende Information springt direkt ins Feld und Angebotsgrundlage bleibt zuletzt", async ({ page }) => {
   await page.goto("http://127.0.0.1:4173/index.html");
   await page.locator("#v28FloatingAdd").click();

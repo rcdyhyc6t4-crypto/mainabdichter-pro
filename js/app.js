@@ -7,13 +7,13 @@ import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=30.0.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=31.2.0";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.0.0";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 
 
-const MAINABDICHTER_APP_VERSION = "31.2.0";
+const MAINABDICHTER_APP_VERSION = "32.0.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -986,7 +986,7 @@ function buildArchiveRecord() {
     visitDate: state.visit.visitDate || "",
     visitNumber: state.visit.visitNumber || "",
     measures,
-    offerGross: offer.offerGross,
+    offerGross: reviewedOffer(offer).totalGross,
     status: $("offerArchiveStatus")?.value || "draft",
     followupDate: $("followupDate")?.value || "",
     lexwareQuotationId: state.visit.lexwareQuotationId || ""
@@ -2423,6 +2423,64 @@ async function chooseLexware() {
 $("customerPipedrive").onclick = choosePipedrive;
 $("customerLexware").onclick = chooseLexware;
 
+function offerItemKey(item, index) {
+  return [
+    item.kind || "item",
+    item.areaName || "",
+    item.name || "",
+    item.linkedToMeasure || "",
+    index
+  ].join("|");
+}
+
+function reviewedOffer(result) {
+  state.visit.offerDraft ||= { items:{}, approved:false, approvedAt:"" };
+  state.visit.offerDraft.items ||= {};
+  const adjustmentFactor = result.baseGross > 0 ? result.offerGross / result.baseGross : 1;
+  const items = result.lineItems.map((item, index) => {
+    const key = offerItemKey(item, index);
+    const saved = state.visit.offerDraft.items[key] || {};
+    const quantity = item.pricingMode === "flat" ? 1 : Number(item.quantity);
+    const calculatedUnitGross = item.pricingMode === "flat"
+      ? Number(item.totalGross) * adjustmentFactor
+      : Number(item.grossUnit) * adjustmentFactor;
+    const unitGross = Number.isFinite(Number(saved.unitGross))
+      ? Number(saved.unitGross)
+      : Number(calculatedUnitGross.toFixed(2));
+    const included = saved.included !== false;
+    return { ...item, key, quantity, unitGross, included, reviewedTotal: included ? quantity * unitGross : 0 };
+  });
+  return { items, totalGross:items.reduce((sum,item)=>sum+item.reviewedTotal,0) };
+}
+
+function renderOfferPositionReview(result) {
+  const box = $("offerPositionReview");
+  if (!box) return;
+  const review = reviewedOffer(result);
+  box.innerHTML = review.items.length ? review.items.map(item => `
+    <div class="offer-position-row" data-offer-position="${esc(item.key)}">
+      <label title="Position übernehmen"><input type="checkbox" data-offer-include="${esc(item.key)}" ${item.included?"checked":""}></label>
+      <div class="offer-position-name"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><small>${esc(item.scope || item.description || "")}</small></div>
+      <div><label>Menge</label><input value="${num(item.quantity)}" readonly></div>
+      <div><label>Einzelpreis brutto</label><input type="number" inputmode="decimal" step=".01" min="0" data-offer-price="${esc(item.key)}" value="${item.unitGross.toFixed(2)}"></div>
+      <div class="offer-total-field"><label>Gesamt brutto</label><input value="${eur(item.reviewedTotal)}" readonly></div>
+    </div>`).join("") + `<div class="offer-review-total"><span>Geprüfte Angebotssumme</span><strong>${eur(review.totalGross)}</strong></div>` : `<div class="status err">Es wurden noch keine kalkulierbaren Positionen ermittelt.</div>`;
+  box.querySelectorAll("[data-offer-include]").forEach(input => input.onchange = () => {
+    const key=input.dataset.offerInclude;
+    state.visit.offerDraft.items[key] = {...(state.visit.offerDraft.items[key]||{}),included:input.checked};
+    state.visit.offerDraft.approved=false;
+    saveState(); setTimeout(renderOffer,0);
+  });
+  box.querySelectorAll("[data-offer-price]").forEach(input => input.onchange = () => {
+    const key=input.dataset.offerPrice,price=Math.max(0,parseDecimal(input.value));
+    state.visit.offerDraft.items[key] = {...(state.visit.offerDraft.items[key]||{}),unitGross:price};
+    state.visit.offerDraft.approved=false;
+    saveState(); setTimeout(renderOffer,0);
+  });
+  if ($("offerPositionsApproved")) $("offerPositionsApproved").checked=Boolean(state.visit.offerDraft.approved);
+  if ($("sendLexware")) $("sendLexware").disabled=!state.visit.offerDraft.approved || !review.items.some(item=>item.included);
+}
+
 function renderOffer() {
   collectVisit();
   updateMetaBar();
@@ -2447,7 +2505,8 @@ function renderOffer() {
   renderMaterialRequirement(result);
   $("offerCustomer").textContent = [state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" ") || "–";
   $("offerAddress").textContent = state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ") || "–";
-  $("offerGross").textContent = eur(result.offerGross);
+  const review = reviewedOffer(result);
+  $("offerGross").textContent = eur(review.totalGross);
   if ($("dashPriceList")) {
     $("dashPriceList").textContent = state.settings.priceListName;
   }
@@ -2461,6 +2520,7 @@ function renderOffer() {
     $("dashOffer").textContent = eur(result.offerGross);
   }
   $("internalCalc").innerHTML = result.lineItems.map(item => `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${item.holes!==undefined?`<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div><div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div>${Number(item.hsKg)>0?`<div class="metric"><span>BKM HS Sperrmörtel</span><strong>${num(item.hsKg)} kg</strong></div>`:""}${item.smallJobIntegrated?`<div class="metric"><span>Kleinmengenaufschlag integriert</span><strong>${eur(item.smallJobSurchargePerUnit)} je ${esc(item.unitName)}</strong></div>`:""}<div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`:""}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
+  renderOfferPositionReview(result);
   return result;
 }
 
@@ -2471,6 +2531,7 @@ function renderOffer() {
     state.discount.specialType = $("specialType").value;
     state.discount.specialValue = parseDecimal($("specialValue").value);
     state.discount.specialLabel = $("specialLabel").value;
+    state.visit.offerDraft = {items:{},approved:false,approvedAt:""};
     saveState(); renderOffer();
   };
 });
@@ -2478,17 +2539,32 @@ function renderOffer() {
 document.querySelectorAll("[data-pricing-tier]").forEach(button => {
   button.onclick = () => {
     state.discount.pricingTier = button.dataset.pricingTier;
+    state.visit.offerDraft = {items:{},approved:false,approvedAt:""};
     saveState();
     renderOffer();
   };
 });
+$("resetOfferPositions").onclick = () => {
+  state.visit.offerDraft = {items:{},approved:false,approvedAt:""};
+  saveState(); renderOffer();
+  showStatus("offerReviewStatus","Die automatisch berechneten Positionen wurden wiederhergestellt.",true);
+};
+$("offerPositionsApproved").onchange = () => {
+  state.visit.offerDraft ||= {items:{},approved:false,approvedAt:""};
+  state.visit.offerDraft.approved=$("offerPositionsApproved").checked;
+  state.visit.offerDraft.approvedAt=state.visit.offerDraft.approved?new Date().toISOString():"";
+  saveState(); setTimeout(renderOffer,0);
+  showStatus("offerReviewStatus",state.visit.offerDraft.approved?"Angebotspositionen sind geprüft und freigegeben.":"Freigabe wurde aufgehoben.",state.visit.offerDraft.approved);
+};
 $("deductInventory").onclick = deductCurrentOrderInventory;
 $("toggleInternal").onclick = () => $("internalCalc").classList.toggle("hidden");
 
 function buildCustomerSnapshot() {
   updateGeneratedRecommendation();
   const result = renderOffer();
-  const measures = result.lineItems.filter(item => item.kind === "measure").map(item => {
+  const reviewed = reviewedOffer(result);
+  const visibleItems = reviewed.items.filter(item=>item.included);
+  const measures = visibleItems.filter(item => item.kind === "measure").map(item => {
     const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
     return {
       areaName: item.areaName,
@@ -2497,7 +2573,7 @@ function buildCustomerSnapshot() {
       scope: item.scope
     };
   });
-  const extras = result.lineItems.filter(item => item.kind !== "measure" && !item.hiddenToCustomer).map(item => {
+  const extras = visibleItems.filter(item => item.kind !== "measure" && !item.hiddenToCustomer).map(item => {
     const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
     return { title:article?.title||item.name, description:article?.description||item.description||"", quantity:item.quantity, unitName:article?.unitName||item.unitName };
   });
@@ -2508,10 +2584,10 @@ function buildCustomerSnapshot() {
     address:state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "),
     recommendation:state.visit.customerRecommendation,
     measures, extras, photos,
-    normalGross:result.baseGross,
+    normalGross:reviewed.totalGross,
     specialLabel:state.discount.specialLabel,
     specialAmount:result.specialAmount,
-    offerGross:result.offerGross,
+    offerGross:reviewed.totalGross,
     skontoPct:result.skontoPct,
     skontoGross:result.skontoGross
   };
@@ -2536,10 +2612,12 @@ $("openCustomerView").onclick = () => {
 
 function buildQuotationPayload() {
   const result = renderOffer();
-  const factor = result.baseGross > 0 ? result.offerGross / result.baseGross : 1;
-  const lineItems = result.lineItems
-    .filter(item => !item.hiddenToCustomer)
-    .filter(item => Number(item.quantity) > 0 && Number(item.totalGross) >= 0)
+  if (!state.visit.offerDraft?.approved) {
+    throw new Error("Bitte Positionen, Mengen und Preise zuerst prüfen und freigeben.");
+  }
+  const lineItems = reviewedOffer(result).items
+    .filter(item => !item.hiddenToCustomer && item.included)
+    .filter(item => Number(item.quantity) > 0 && Number(item.unitGross) >= 0)
     .map((item, index) => {
       const article = state.settings.lexwareArticles.find(a => a.id === item.articleId);
 
@@ -2551,11 +2629,7 @@ function buildQuotationPayload() {
         ? (article?.unitName || item.unitName || "pauschal")
         : (article?.unitName || item.unitName || "Stück");
 
-      const baseUnitGross = item.pricingMode === "flat"
-        ? Number(item.totalGross)
-        : Number(item.totalGross) / Math.max(Number(item.quantity), 1);
-
-      const adjustedUnitGross = Number((baseUnitGross * factor).toFixed(2));
+      const adjustedUnitGross = Number(Number(item.unitGross).toFixed(2));
       const name = String(article?.title || item.name || `Position ${index + 1}`).trim().slice(0, 255);
       const description = String(article?.description || item.description || "").slice(0, 2000);
       const taxRate = Number(article?.price?.taxRate ?? 19);
@@ -2616,7 +2690,7 @@ $("sendLexware").onclick = async () => {
       await syncVisitDeal("offerSent", {
         offerNumber: response.voucherNumber || response.quotationNumber || "",
         offerDate: todayLocal(),
-        offerValue: renderOffer().offerGross,
+        offerValue: reviewedOffer(renderOffer()).totalGross,
         note: `Lexware-Angebot ${esc(response.voucherNumber || response.quotationId || "")} wurde erstellt und versendet.`
       });
       showStatus("offerStatus","Lexware-Angebot wurde erstellt, archiviert und mit Pipedrive synchronisiert.",true);

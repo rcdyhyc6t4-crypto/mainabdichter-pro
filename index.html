@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
 <title>mainabdichter PRO V31.1</title>
-<link rel="stylesheet" href="css/app.css?v=31.2.0">
+<link rel="stylesheet" href="css/app.css?v=32.0.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
@@ -632,6 +632,12 @@ main{width:100%;max-width:100%}
     <div id="inventoryDeductStatus" class="status"></div>
   </div>
   <div class="card"><div class="card-title-row"><h2>Interne Kalkulation</h2><button id="toggleInternal" class="secondary">ein-/ausblenden</button></div><div id="internalCalc" class="hidden"></div></div>
+  <div class="card offer-review-card">
+    <div class="card-title-row"><div><h2>Angebotspositionen prüfen</h2><p class="hint">Nur aktivierte Positionen werden an Lexware übergeben. Preise können vor der Freigabe angepasst werden.</p></div><button id="resetOfferPositions" class="secondary">Berechnung wiederherstellen</button></div>
+    <div id="offerPositionReview"></div>
+    <label class="offer-basis-confirm"><input id="offerPositionsApproved" type="checkbox"> Ich habe Positionen, Mengen und Preise geprüft. Das Angebot darf an Lexware übergeben werden.</label>
+    <div id="offerReviewStatus" class="status"></div>
+  </div>
   <div class="card">
     <div class="metric"><span>Kunde</span><strong id="offerCustomer">–</strong></div>
     <div class="metric"><span>Objekt</span><strong id="offerAddress">–</strong></div>
@@ -643,7 +649,7 @@ main{width:100%;max-width:100%}
     <button id="saveToArchive" class="primary">Im Archiv speichern</button>
     <button id="openCustomerView" class="secondary">Kundenansicht öffnen</button>
     <button id="reportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
-    <button id="sendLexware" class="secondary">An Lexware senden</button>
+    <button id="sendLexware" class="secondary">Geprüften Entwurf an Lexware übergeben</button>
     <button id="createWorksite" class="primary">Baustelle aus Angebot anlegen</button>
   </div>
   <div class="card compact-status-card">
@@ -983,8 +989,8 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=31.2.0"></script>
-<script type="module" src="js/phase1-v26.js?build=20260725-v31-2"></script>
+<script type="module" src="js/app.js?v=32.0.0"></script>
+<script type="module" src="js/phase1-v26.js?build=20260725-v32-0"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>
 </html>
