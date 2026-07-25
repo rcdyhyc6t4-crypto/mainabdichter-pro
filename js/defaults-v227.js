@@ -1,8 +1,25 @@
-import { DEFAULT_DOCUMENT_IDENTITY } from "./document-identity.js";
-
 export const DEFAULTS = {
   settings: {
-    documentIdentity: { ...DEFAULT_DOCUMENT_IDENTITY },
+    documentProfile: {
+      businessName: "mainabdichter",
+      ownerName: "Mike Sprager",
+      street: "Zum Tannengarten 10",
+      zip: "35794",
+      city: "Mengerskirchen",
+      phone: "+49 (0) 6476 736 939-0",
+      email: "info@mainabdichter.de",
+      website: "www.mainabdichter.de",
+      bankName: "N26",
+      iban: "DE19 1001 1001 2620 0531 83",
+      bic: "NTSBDEB1XXX",
+      vatId: "DE228953591",
+      taxNumber: "03887060428",
+      tradeLine: "BKM.MANNESMANN Fachbetrieb",
+      serviceLine: "Abdichtung feuchter Keller und Wände",
+      tagline: "Nachhaltig. Sicher. Trocken.",
+      documentSubtitle: "Bauwerksabdichtung im Bestand",
+      logoDataUrl: ""
+    },
     priceListName: "mainabdichter Kalkulationsbasis",
     priceListDate: "2026-07-01",
     hzPurchaseNet: 30,
@@ -12,6 +29,8 @@ export const DEFAULTS = {
     fillRate: 60,
     closeRate: 40,
     setupHours: 1,
+    wallSoleHoursPerMeter: 0.4,
+    resinHoursPerMeter: 0,
     wallSoleGrossPerMeter: 300,
     extraResinKgNet: 98,
     hsKgPerWallSoleMeter: 7,
@@ -110,6 +129,25 @@ export const DEFAULTS = {
       smallJob: ""
     },
     lexwareArticles: [],
+    offerTexts: {
+      introduction: `{{ANREDE}},
+
+auf Grundlage unserer Ortsbesichtigung und der durchgeführten Schadenanalyse am Objekt {{OBJEKTANSCHRIFT}} erhalten Sie nachfolgend unser Angebot über die mit Ihnen abgestimmten Abdichtungsmaßnahmen.
+
+Das Angebot basiert auf den zum Zeitpunkt der Besichtigung erkennbaren Schadensmerkmalen, den vor Ort festgestellten Gegebenheiten sowie den gemeinsam abgestimmten technischen Anforderungen. Es umfasst ausschließlich die besprochenen und im Aufmaß gekennzeichneten Wand- beziehungsweise Bauteilbereiche. Nach Abschluss der Arbeiten kann die Situation gemeinsam bewertet und bei Bedarf über weitere Maßnahmen entschieden werden.
+
+Für die Ausführung verwenden wir aufeinander abgestimmte Abdichtungssysteme aus dem Hause BKM.MANNESMANN, die speziell für die Sanierung von feuchtem Mauerwerk entwickelt wurden.
+
+Ihre Vorteile:
+– Aufeinander abgestimmtes Produktsystem für eine technisch sichere und nachhaltige Ausführung
+– Jahrzehntelange europaweite Erfahrung in der Bauwerksabdichtung und Mauertrocknung
+– Attraktives Preis-Leistungs-Verhältnis
+– Schnelle, saubere und zuverlässige Ausführung
+– Praxiserprobte Produkte für die Bauwerksabdichtung
+{{HZ_VOC_VORTEIL}}
+
+Die Auswahl des Abdichtungssystems erfolgt passend zur festgestellten Schadenssituation und zu den technischen Anforderungen des jeweiligen Bauteils.`
+    },
     noticeTexts: {
       standard: "Feuchteschäden können unterschiedliche Ursachen und Folgeschäden aufweisen. Die Bearbeitung erfolgt daher im Ausschlussverfahren. Es werden zunächst die sichtbaren und messbaren Schadensursachen bearbeitet. Nach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Weitere Maßnahmen erfolgen nur nach gesonderter Feststellung und Abstimmung mit dem Auftraggeber. Werden infolge des Schadensbildes nach der Injektion zusätzliche Fehlstellen, zum Beispiel Risse oder Kiesnester, sichtbar, sind ergänzende Maßnahmen, zum Beispiel eine Harzverpressung, gesondert zu beauftragen und abzurechnen.\n\nDie angebotene Abdichtungsmaßnahme dient ausschließlich der Unterbindung des kapillaren Feuchtetransports im Bauteil. Nicht Bestandteil des Angebots sind Schäden oder Feuchteeintritte infolge von drückendem Wasser, Rissen im Mauerwerk oder Putz, Undichtigkeiten im Boden-Wand-Anschluss, mangelhaften Wanddurchführungen oder vergleichbaren Fremdeinflüssen.\n\nMaßnahmen gegen drückendes Wasser beziehungsweise eindringendes Wasser sind nicht enthalten und werden, soweit erforderlich, gesondert berechnet (98,00 € brutto je Packer). Maßnahmen gegen eine Über- oder Unterwanderung der Abdichtung sind ebenfalls nicht enthalten. Hierfür können ergänzende Abdichtungsmaßnahmen, zum Beispiel eine Erweiterung der Horizontalsperre oder Flächensperre, erforderlich werden.\n\nNach ausreichender Austrocknung kann ein Austausch des salzbelasteten Putzsystems erforderlich sein. Diese Leistung ist nicht Bestandteil des Angebots.\n\nGewährleistungsansprüche bestehen nicht für Schäden infolge außergewöhnlicher Naturereignisse, insbesondere Hochwasser, Starkregen oder Überflutung, soweit diese außerhalb des vereinbarten Leistungsumfangs liegen.\n\nGrundlage der Ausführung ist die jeweils gültige Richtlinie „Flächensperre / Horizontalsperre mit flüssigen Injektionsmitteln“ der BKM.MANNESMANN AG. Im Übrigen gelten die gesetzlichen Vorschriften des BGB.",
       wallSole: "Der Wand-Sohlen-Anschluss wird grundsätzlich im Ausschlussverfahren ausgeführt. Der Leistungsumfang umfasst das Öffnen des Estrichs auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte, die Reinigung des Anschlussbereiches, die Herstellung einer Dichtkehle, das Aufbringen des Dichtmörtels bis mindestens 15 cm über eine vorhandene Sperrbahn sowie das anschließende Einbringen einer Horizontalsperre mit BKM HZ 250 Pro.\n\nNach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Sollte sich dabei zeigen, dass eine ergänzende Harzverpressung erforderlich ist, wird diese ausschließlich in den tatsächlich notwendigen Bereichen ausgeführt und nach dem tatsächlich ausgeführten Umfang gesondert berechnet.",

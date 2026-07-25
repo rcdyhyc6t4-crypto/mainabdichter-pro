@@ -1,0 +1,18 @@
+mainabdichter PRO V32.7.7 – Prüfbericht
+
+Bestanden:
+- JavaScript-Syntax der App, PDF-Erzeugung und Kundenansicht
+- vollständige Admin-Felder für Dokumentdesign und Firmendaten
+- Standardmigration für bereits bestehende App-Installationen
+- zentrale Bankverbindung in Kundenansicht und PDF-Footer
+- Angebotsansicht verwendet das zentrale Dokumentprofil
+- Besichtigungsprotokoll verwendet das zentrale Dokumentprofil
+- Arbeitsnachweis verwendet das zentrale Dokumentprofil
+- Lexoffice-Briefpapier-PDF verwendet denselben Kopf und Footer
+- alle neuen HTML-Elemente sind eindeutig vorhanden und angebunden
+- Versions- und Cachewechsel auf V32.7.7
+
+Die installierte Playwright-Testsuite konnte bis auf den browserlosen Worker-Test
+nicht ausgeführt werden, weil in der Testumgebung keine Chromium-Browserdatei
+vorhanden ist. Die gezielten Struktur-, Daten- und Syntaxprüfungen waren
+erfolgreich.

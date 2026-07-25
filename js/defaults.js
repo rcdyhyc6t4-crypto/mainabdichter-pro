@@ -9,6 +9,8 @@ export const DEFAULTS = {
     fillRate: 60,
     closeRate: 40,
     setupHours: 1,
+    wallSoleHoursPerMeter: 0.4,
+    resinHoursPerMeter: 0,
     wallSoleGrossPerMeter: 300,
     extraResinKgNet: 98,
     hsKgPerWallSoleMeter: 7,
@@ -70,10 +72,29 @@ export const DEFAULTS = {
       smallJob: ""
     },
     lexwareArticles: [],
+    offerTexts: {
+      introduction: `{{ANREDE}},
+
+auf Grundlage unserer Ortsbesichtigung und der durchgeführten Schadenanalyse am Objekt {{OBJEKTANSCHRIFT}} erhalten Sie nachfolgend unser Angebot über die mit Ihnen abgestimmten Abdichtungsmaßnahmen.
+
+Das Angebot basiert auf den zum Zeitpunkt der Besichtigung erkennbaren Schadensmerkmalen, den vor Ort festgestellten Gegebenheiten sowie den gemeinsam abgestimmten technischen Anforderungen. Es umfasst ausschließlich die besprochenen und im Aufmaß gekennzeichneten Wand- beziehungsweise Bauteilbereiche. Nach Abschluss der Arbeiten kann die Situation gemeinsam bewertet und bei Bedarf über weitere Maßnahmen entschieden werden.
+
+Für die Ausführung verwenden wir aufeinander abgestimmte Abdichtungssysteme aus dem Hause BKM.MANNESMANN, die speziell für die Sanierung von feuchtem Mauerwerk entwickelt wurden.
+
+Ihre Vorteile:
+– Aufeinander abgestimmtes Produktsystem für eine technisch sichere und nachhaltige Ausführung
+– Jahrzehntelange europaweite Erfahrung in der Bauwerksabdichtung und Mauertrocknung
+– Attraktives Preis-Leistungs-Verhältnis
+– Schnelle, saubere und zuverlässige Ausführung
+– Praxiserprobte Produkte für die Bauwerksabdichtung
+{{HZ_VOC_VORTEIL}}
+
+Die Auswahl des Abdichtungssystems erfolgt passend zur festgestellten Schadenssituation und zu den technischen Anforderungen des jeweiligen Bauteils.`
+    },
     noticeTexts: {
-      standard: "Feuchteschäden können unterschiedliche Ursachen und Folgeschäden aufweisen. Die Bearbeitung erfolgt daher im Ausschlussverfahren. Es werden zunächst die sichtbaren und messbaren Schadensursachen bearbeitet. Nach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Weitere Maßnahmen erfolgen nur nach gesonderter Feststellung und Abstimmung mit dem Auftraggeber. Werden infolge des Schadensbildes nach der Injektion zusätzliche Fehlstellen, zum Beispiel Risse oder Kiesnester, sichtbar, sind ergänzende Maßnahmen, zum Beispiel eine Harzverpressung, gesondert zu beauftragen und abzurechnen.\n\nDie angebotene Abdichtungsmaßnahme dient ausschließlich der Unterbindung des kapillaren Feuchtetransports im Bauteil. Nicht Bestandteil des Angebots sind Schäden oder Feuchteeintritte infolge von drückendem Wasser, Rissen im Mauerwerk oder Putz, Undichtigkeiten im Boden-Wand-Anschluss, mangelhaften Wanddurchführungen oder vergleichbaren Fremdeinflüssen.\n\nMaßnahmen gegen drückendes Wasser beziehungsweise eindringendes Wasser sind nicht enthalten und werden, soweit erforderlich, gesondert berechnet (98,00 € brutto je Packer). Maßnahmen gegen eine Über- oder Unterwanderung der Abdichtung sind ebenfalls nicht enthalten. Hierfür können ergänzende Abdichtungsmaßnahmen, zum Beispiel eine Erweiterung der Horizontalsperre oder Flächensperre, erforderlich werden.\n\nNach ausreichender Austrocknung kann ein Austausch des salzbelasteten Putzsystems erforderlich sein. Diese Leistung ist nicht Bestandteil des Angebots.\n\nGewährleistungsansprüche bestehen nicht für Schäden infolge außergewöhnlicher Naturereignisse, insbesondere Hochwasser, Starkregen oder Überflutung, soweit diese außerhalb des vereinbarten Leistungsumfangs liegen.\n\nGrundlage der Ausführung ist die jeweils gültige Richtlinie „Flächensperre / Horizontalsperre mit flüssigen Injektionsmitteln“ der BKM.MANNESMANN AG. Im Übrigen gelten die gesetzlichen Vorschriften des BGB.",
-      wallSole: "Der Wand-Sohlen-Anschluss wird grundsätzlich im Ausschlussverfahren ausgeführt. Der Leistungsumfang umfasst das Öffnen des Estrichs auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte, die Reinigung des Anschlussbereiches, die Herstellung einer Dichtkehle, das Aufbringen des Dichtmörtels bis mindestens 15 cm über eine vorhandene Sperrbahn sowie das anschließende Einbringen einer Horizontalsperre mit BKM HZ 250 Pro.\n\nNach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Sollte sich dabei zeigen, dass eine ergänzende Harzverpressung erforderlich ist, wird diese ausschließlich in den tatsächlich notwendigen Bereichen ausgeführt und nach dem tatsächlich ausgeführten Umfang gesondert berechnet.",
-      resin: "Harzverpressungen erfassen ausschließlich die zum Zeitpunkt der Ausführung festgestellten und zugänglichen Fehlstellen. Weitere Fehlstellen können erst im Zuge der Austrocknung oder nach einer angemessenen Standzeit sichtbar werden. Hieraus entstehende ergänzende Maßnahmen sind gesondert festzustellen, mit dem Auftraggeber abzustimmen, zu beauftragen und abzurechnen."
+      standard: "Feuchteschäden können mehrere Ursachen haben. Die Bearbeitung erfolgt deshalb im Ausschlussverfahren nach dem bei der Besichtigung sicht- und messbaren Schadensbild. Nach angemessener Standzeit wird die Wirkung bewertet. Später erkennbare Fehlstellen, etwa Risse oder Kiesnester, und daraus folgende Zusatzmaßnahmen sind nicht enthalten und werden gesondert abgestimmt, beauftragt und abgerechnet.\n\nDie Maßnahme betrifft nur die beschriebenen und im Aufmaß gekennzeichneten Bauteilbereiche. Soweit nicht ausdrücklich angeboten, sind Feuchteeintritte durch drückendes oder eindringendes Wasser, Risse, undichte Boden-Wand-Anschlüsse, mangelhafte Durchführungen sowie eine Über- oder Unterwanderung der Abdichtung ausgeschlossen. Erforderliche Harzverpressungen werden mit 98,00 € brutto je tatsächlich eingesetztem Packer abgerechnet.\n\nEin nach der Austrocknung erforderlicher Austausch salzbelasteter Putze ist nicht enthalten. Dies gilt auch für Schäden durch Hochwasser, Starkregen oder Überflutung außerhalb des vereinbarten Leistungsumfangs.\n\nGrundlage ist die jeweils gültige BKM.MANNESMANN-Richtlinie für Flächen- beziehungsweise Horizontalsperren mit flüssigen Injektionsmitteln. Im Übrigen gelten die gesetzlichen Vorschriften des BGB.",
+      wallSole: "Wand-Sohlen-Anschluss: Enthalten sind das Öffnen des Estrichs auf ca. 15–20 cm Breite bis zur Bodenplatte, Reinigung, Dichtkehle, Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn sowie eine Horizontalsperre mit BKM HZ 250 PRO. Die Ausführung erfolgt im Ausschlussverfahren. Eine erst nach angemessener Standzeit erkennbare Harzverpressung wird im notwendigen Umfang gesondert beauftragt und abgerechnet.",
+      resin: "Harzverpressung: Erfasst werden nur die bei Ausführung festgestellten und zugänglichen Fehlstellen. Später erkennbare weitere Fehlstellen und erforderliche Ergänzungen werden gesondert abgestimmt, beauftragt und abgerechnet."
     },
     pipedriveSync: {
       autoSync: true,

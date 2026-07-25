@@ -1,4 +1,4 @@
-import { documentFooterColumns, getDocumentIdentity } from "./document-identity.js";
+import { getDocumentProfile, documentFooterColumns } from "./document-profile.js?v=32.7.8";
 
 const JSPDF_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 let loader=null;
@@ -121,31 +121,60 @@ function drawText(doc, text, x, y, options = {}) {
   }
 }
 
-function drawDocumentFooter(doc, settings, green = [95, 165, 59]) {
-  const footerY = 282;
-  const starts = [13, 49, 84, 122, 163];
-  const widths = [33, 32, 35, 38, 34];
+async function documentLogoData(profile) {
+  return profile.logoDataUrl || await imageToDataUrl("./assets/mainabdichter-header-logo.png");
+}
+
+function addDocumentLogo(doc, logo, x = 13, y = 8, w = 58, h = 17) {
+  if (!logo) return false;
+  try {
+    const format = String(logo).startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+    doc.addImage(logo, format, x, y, w, h, undefined, "FAST");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function drawSharedFooter(doc, settings = {}, footerY = 286, notice = "") {
+  const green = [95, 165, 59];
   const columns = documentFooterColumns(settings);
+  const anchors = [
+    { x: 13, align: "left" },
+    { x: 58, align: "center" },
+    { x: 96, align: "center" },
+    { x: 144, align: "center" },
+    { x: 197, align: "right" }
+  ];
   doc.setDrawColor(...green);
   doc.setLineWidth(0.55);
-  doc.line(13, footerY - 4, 197, footerY - 4);
-  columns.forEach((column, columnIndex) => {
-    column.forEach((line, lineIndex) => {
-      const bold = lineIndex === 0;
-      doc.setFont("helvetica", bold ? "bold" : "normal");
-      let size = 4.65;
-      doc.setFontSize(size);
-      while (size > 3.6 && doc.getTextWidth(line) > widths[columnIndex]) {
-        size -= 0.15;
-        doc.setFontSize(size);
-      }
-      drawText(doc, line, starts[columnIndex], footerY + lineIndex * 3.4, {
-        size,
-        bold,
-        color: [70, 76, 78]
+  doc.line(13, footerY - 3, 197, footerY - 3);
+  columns.forEach((column, index) => {
+    const anchor = anchors[index];
+    column.slice(0, 4).forEach((line, lineIndex) => {
+      drawText(doc, line, anchor.x, footerY + lineIndex * 2.3, {
+        size: lineIndex === 0 ? 4.2 : 3.85,
+        bold: lineIndex === 0,
+        align: anchor.align
       });
     });
   });
+  if (notice) {
+    drawText(doc, notice, 13, footerY - 5.5, { size: 4.5, color: green, bold: true });
+  }
+}
+
+function drawSharedHeader(doc, profile, logo, title = "") {
+  const green = [95, 165, 59];
+  const dark = [45, 45, 45];
+  if (!addDocumentLogo(doc, logo)) {
+    drawText(doc, profile.businessName || "mainabdichter", 14, 18, { size: 18, bold: true, color: green });
+  }
+  if (title) drawText(doc, title, 196, 12, { size: 13, bold: true, align: "right", color: dark });
+  drawText(doc, profile.documentSubtitle || "", 196, 17, { size: 6.5, align: "right", color: green });
+  doc.setDrawColor(...green);
+  doc.setLineWidth(0.45);
+  doc.line(13, 27, 197, 27);
 }
 
 function labelValue(doc, x, y, w, label, value) {
@@ -212,18 +241,9 @@ export async function createWorksitePdf(worksite, settings = {}) {
   const dark = [45, 45, 45];
   const lightGray = [242, 242, 242];
 
-  const identity = getDocumentIdentity(settings);
-  const logo = await imageToDataUrl("./assets/mainabdichter-header-logo.png");
-  if (logo) {
-    try {
-      doc.addImage(logo, "PNG", 13, 8, 58, 17, undefined, "FAST");
-    } catch {}
-  } else {
-    drawText(doc, identity.companyName, 14, 18, { size: 18, bold: true, color: green });
-  }
-
-  drawText(doc, "Arbeitsnachweis", 196, 12, { size: 13, bold: true, align: "right", color: dark });
-  drawText(doc, identity.documentSubtitle, 196, 17, { size: 6.5, align: "right", color: green });
+  const profile = getDocumentProfile(settings);
+  const logo = await documentLogoData(profile);
+  drawSharedHeader(doc, profile, logo, "Arbeitsnachweis");
 
   // Customer / object address
   drawBox(doc, 13, 29, 88, 24);
@@ -422,7 +442,12 @@ export async function createWorksitePdf(worksite, settings = {}) {
   }
 
   // Footer
-  drawDocumentFooter(doc, settings, green);
+  drawSharedFooter(
+    doc,
+    settings,
+    286,
+    "Die Notwendigkeit einer Harzverpressung wird nach einer angemessenen Standzeit geprüft."
+  );
 
   const name = safeName(
     [customer.firstName, customer.lastName].filter(Boolean).join("_") ||
@@ -443,21 +468,13 @@ export async function createVisitPdf(visit, settings = {}) {
   const name = [customer.salutation, customer.firstName, customer.lastName].filter(Boolean).join(" ") || customer.company || "Kunde";
   const postalAddress = [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const objectAddress = customer.objectAddress || postalAddress;
-  const logo = await imageToDataUrl("./assets/mainabdichter-header-logo.png");
-  const identity = getDocumentIdentity(settings);
+  const profile = getDocumentProfile(settings);
+  const logo = await documentLogoData(profile);
   let y = 0;
 
-  const footer = () => {
-    drawDocumentFooter(doc, settings, green);
-  };
+  const footer = () => drawSharedFooter(doc, settings, 286);
   const header = () => {
-    if (logo) {
-      try { doc.addImage(logo, "PNG", 13, 8, 58, 17, undefined, "FAST"); } catch {}
-    } else {
-      drawText(doc, "mainabdichter", 14, 18, { size: 18, bold: true, color: green });
-    }
-    drawText(doc, "Besichtigungsprotokoll", 196, 12, { size: 13, bold: true, align: "right" });
-    drawText(doc, identity.documentSubtitle, 196, 17, { size: 6.5, align: "right", color: green });
+    drawSharedHeader(doc, profile, logo, "Besichtigungsprotokoll");
     y = 29;
   };
   const newPage = () => {
@@ -483,15 +500,42 @@ export async function createVisitPdf(visit, settings = {}) {
   };
   const flowBox = (label, value) => {
     const lines = doc.splitTextToSize(String(value || "–"), 178);
-    const height = Math.max(12, 8 + lines.length * 3.6);
-    ensure(height);
-    drawBox(doc, 13, y, 184, height);
-    drawText(doc, label, 15, y + 4.3, { size: 6.4, bold: true });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.4);
-    doc.setTextColor(25, 25, 25);
-    doc.text(lines, 15, y + 8.2);
-    y += height;
+    const lineHeight = 3.6;
+    const minimumHeight = 12;
+    const completeHeight = Math.max(minimumHeight, 8 + lines.length * lineHeight);
+    if (completeHeight <= 244) {
+      ensure(completeHeight);
+      drawBox(doc, 13, y, 184, completeHeight);
+      drawText(doc, label, 15, y + 4.3, { size: 6.4, bold: true });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.4);
+      doc.setTextColor(25, 25, 25);
+      doc.text(lines, 15, y + 8.2);
+      y += completeHeight;
+      return;
+    }
+
+    let remaining = [...lines];
+    let firstPart = true;
+    while (remaining.length) {
+      const available = 273 - y;
+      const capacity = Math.max(1, Math.floor((available - 8) / lineHeight));
+      if (capacity < 2) {
+        newPage();
+        continue;
+      }
+      const part = remaining.splice(0, capacity);
+      const height = Math.max(minimumHeight, 8 + part.length * lineHeight);
+      drawBox(doc, 13, y, 184, height);
+      drawText(doc, firstPart ? label : `${label} (Fortsetzung)`, 15, y + 4.3, { size: 6.4, bold: true });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.4);
+      doc.setTextColor(25, 25, 25);
+      doc.text(part, 15, y + 8.2);
+      y += height;
+      firstPart = false;
+      if (remaining.length) newPage();
+    }
   };
 
   header();
@@ -541,11 +585,18 @@ export async function createVisitPdf(visit, settings = {}) {
     row("Referenzwert trocken:", area.dryReference ? `${area.dryReference} Digits` : "");
     const measurements = area.measurements || [];
     if (measurements.length) {
-      ensure(7 + measurements.length * 7);
-      drawBox(doc, 13, y, 184, 7, lightGreen);
-      ["Messgerät", "Messwert", "Höhe", "Position"].forEach((text, col) => drawText(doc, text, [15, 83, 116, 145][col], y + 4.5, { size: 6.5, bold: true }));
-      y += 7;
+      const measurementHeader = () => {
+        drawBox(doc, 13, y, 184, 7, lightGreen);
+        ["Messgerät", "Messwert", "Höhe", "Position"].forEach((text, col) => drawText(doc, text, [15, 83, 116, 145][col], y + 4.5, { size: 6.5, bold: true }));
+        y += 7;
+      };
+      ensure(14);
+      measurementHeader();
       measurements.forEach(measurement => {
+        if (y + 7 > 273) {
+          newPage();
+          measurementHeader();
+        }
         drawBox(doc, 13, y, 184, 7);
         drawText(doc, measurement.device || "–", 15, y + 4.4, { size: 6.2, maxWidth: 64 });
         drawText(doc, `${measurement.value || "–"} Digits`, 83, y + 4.4, { size: 6.3 });
@@ -579,5 +630,18 @@ export async function createVisitPdf(visit, settings = {}) {
   footer();
   const filename = `${visit.visitDate || new Date().toISOString().slice(0,10)}_Besichtigungsprotokoll_${safeName(name)}.pdf`;
   return { blob: doc.output("blob"), filename };
+}
+
+export async function createLexofficeLetterheadPdf(settings = {}) {
+  const C = await jsPDF();
+  const doc = new C({ unit: "mm", format: "a4", orientation: "portrait" });
+  const profile = getDocumentProfile(settings);
+  const logo = await documentLogoData(profile);
+  drawSharedHeader(doc, profile, logo, "");
+  drawSharedFooter(doc, settings, 286);
+  return {
+    blob: doc.output("blob"),
+    filename: "mainabdichter_Lexoffice_Briefpapier.pdf"
+  };
 }
 export function downloadBlob(blob,filename){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}

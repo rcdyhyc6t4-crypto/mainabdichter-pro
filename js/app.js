@@ -1,21 +1,21 @@
 import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload } from "./storage-v227.js";
-import { createArea } from "./defaults-v227.js";
+import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.6";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.8";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.6";
-import { getDocumentIdentity } from "./document-identity.js";
+import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
+import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
-import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.6";
+import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
-import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.6";
+import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.7.6";
+const MAINABDICHTER_APP_VERSION = "32.7.9";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -42,7 +42,9 @@ function applyInputModes(root = document) {
     '[data-mfield="length"]',
     '[data-mfield="width"]',
     '[data-mfield="height"]',
-    '[data-mfield="extraResinKg"]',
+    '[data-mfield="resinHolesPerMeter"]',
+    '[data-mfield="resinIncludedKgPerMeter"]',
+    '[data-mfield="resinTotalKg"]',
     '[data-extra-qty]',
     '[data-extra-field="grossPrice"]',
     '[data-inventory-field="stock"]',
@@ -1279,7 +1281,7 @@ if ($("objectAddress")) $("objectAddress").addEventListener("input", () => {
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
 
 $('guidedNext').onclick=()=>{const i=currentGuideStep();const last=GUIDE_STEPS.length-1;if(i<last&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===last){if(stepComplete(last)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
-$('goToMissingStep').onclick=()=>{const missing=guideChecks().find(x=>!x.ok);if(missing)jumpToVisitCheck(missing);else openGuideStep(9);};
+$('goToMissingStep').onclick=()=>{const missing=guideChecks().find(x=>!x.ok);if(missing)jumpToVisitCheck(missing);else openGuideStep(7);};
 $('finishVisitGuide').onclick=()=>{const last=GUIDE_STEPS.length-1;if(!stepComplete(last))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
 $("visitOfferBasis")?.querySelector("summary")?.addEventListener("click",event=>{
   const missing=guideChecks().find(check=>!check.ok);
@@ -1569,7 +1571,26 @@ if ($("openOffer")) $("openOffer").onclick = () => show("offer");
 if ($("openSettings")) $("openSettings").onclick = () => show("settings");
 $("resetVisit").onclick = () => { if (confirm("Aktuelle Besichtigung löschen?")) { resetVisit(); renderVisit(); } };
 $("saveVisit").onclick = () => { collectVisit(); saveState(); alert("Besichtigung gespeichert."); };
-$("toOffer").onclick = () => { collectVisit(); saveState(); openGuideStep(7); };
+$("toOffer").onclick = () => {
+  collectVisit();
+  const missing=guideChecks().find(check=>!check.ok);
+  if(missing){
+    state.visit.offerBasis ||= {approved:false,note:"",approvedAt:""};
+    Object.assign(state.visit.offerBasis,{reviewedAt:"",reviewFingerprint:"",approved:false,approvedAt:""});
+    saveState();
+    updateVisitGuide();
+    showStatus("visitStatus",`Das Protokoll ist noch nicht vollständig: ${missing.label}.`,false);
+    jumpToVisitCheck(missing);
+    return;
+  }
+  state.visit.offerBasis ||= {approved:false,note:"",approvedAt:""};
+  state.visit.offerBasis.reviewedAt=new Date().toISOString();
+  state.visit.offerBasis.reviewFingerprint=visitReviewFingerprint();
+  saveState();
+  renderInspectionSummary();
+  openGuideStep(7);
+  showStatus("visitStatus","Protokoll vollständig. Bitte die Zusammenfassung prüfen und anschließend die Angebotsgrundlage bestätigen.",true);
+};
 
 const VISIT_TOOLBAR_TARGETS = {
   1: "visitStep1",
@@ -1726,6 +1747,21 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"measure",label:"Mindestens eine Maßnahme",valid:areas.some(x=>(x.measures||[]).some(m=>m.type)),step:4,selector:'[data-add-measure], [data-mfield="type"]'}
 ].map(check=>({...check,required:visitRequirementEnabled(check.key),ok:!visitRequirementEnabled(check.key)||check.valid}));}
 function offerBasisApproved(){return Boolean(state.visit.offerBasis?.approved);}
+function visitReviewFingerprint(){
+  const visit=state.visit||{};
+  return JSON.stringify({
+    visitDate:visit.visitDate||"",visitEmployee:visit.visitEmployee||"",
+    visitStartTime:visit.visitStartTime||"",visitEndTime:visit.visitEndTime||"",
+    customer:visit.customer||{},building:visit.building||{},
+    damageDescription:visit.damageDescription||"",damageTags:visit.damageTags||[],
+    moisturePattern:visit.moisturePattern||"",activeWaterIngress:Boolean(visit.activeWaterIngress),
+    areas:visit.areas||[],documents:visit.documents||[],extras:visit.extras||[]
+  });
+}
+function visitProtocolReviewed(){
+  const basis=state.visit.offerBasis||{};
+  return Boolean(basis.reviewedAt&&basis.reviewFingerprint===visitReviewFingerprint());
+}
 function moisturePatternLabel(value){
   return {
     rising:"Von unten aufsteigend",
@@ -1735,7 +1771,7 @@ function moisturePatternLabel(value){
     unclear:"Noch nicht eindeutig"
   }[value]||value||"–";
 }
-function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7||index===8)return checks.every(x=>x.ok);if(index===9)return checks.every(x=>x.ok)&&offerBasisApproved();return checks.every(x=>x.ok)&&offerBasisApproved();}
+function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7)return checks.every(x=>x.ok);if(index===8)return checks.every(x=>x.ok)&&visitProtocolReviewed();if(index===9)return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
 function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexoffice übernommen':'Manuell erfasst';}}
@@ -1750,7 +1786,19 @@ function jumpToVisitCheck(check){
     window.setTimeout(()=>field.classList.remove("field-jump-highlight"),1800);
   },180);
 }
-function renderVisitChecklist(){const box=$('visitChecklist');if(!box)return;const checks=guideChecks(),requiredChecks=checks.filter(x=>x.required);box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>`<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';box.querySelectorAll("[data-missing-check]").forEach(button=>button.onclick=()=>jumpToVisitCheck(requiredChecks[Number(button.dataset.missingCheck)]));$('finishVisitGuide').disabled=!(checks.every(x=>x.ok)&&offerBasisApproved());const basis=$("visitOfferBasis");if(basis){basis.classList.toggle("is-locked",!checks.every(x=>x.ok));if(!checks.every(x=>x.ok))basis.removeAttribute("open");}}
+function renderVisitChecklist(){
+  const box=$('visitChecklist');if(!box)return;
+  const checks=guideChecks(),requiredChecks=checks.filter(x=>x.required);
+  const complete=checks.every(x=>x.ok),reviewed=complete&&visitProtocolReviewed(),approved=reviewed&&offerBasisApproved();
+  box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>`<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';
+  box.querySelectorAll("[data-missing-check]").forEach(button=>button.onclick=()=>jumpToVisitCheck(requiredChecks[Number(button.dataset.missingCheck)]));
+  $('finishVisitGuide').disabled=!approved;
+  if($("finishVisitReason"))$("finishVisitReason").textContent=!complete?"Noch nicht möglich: Pflichtangaben fehlen.":!reviewed?"Noch nicht möglich: Bitte zuerst „Protokoll prüfen“.":!approved?"Noch nicht möglich: Bitte die Angebotsgrundlage bestätigen.":"Alles vollständig – das Angebot kann geöffnet werden.";
+  if($("offerBasisApproved"))$("offerBasisApproved").disabled=!reviewed;
+  const basis=$("visitOfferBasis");
+  if(basis){basis.classList.toggle("is-locked",!reviewed);if(!reviewed)basis.removeAttribute("open");}
+  if($("offerBasisStatus")&&!reviewed)showStatus("offerBasisStatus",complete?"Bitte zuerst unten auf „Protokoll prüfen“ tippen.":"Die Angebotsgrundlage wird nach vollständigem Protokoll freigegeben.",false);
+}
 function updateVisitGuide(){
   GUIDE_STEPS.forEach((step,i)=>{
     const el=$(step.id);
@@ -1760,7 +1808,7 @@ function updateVisitGuide(){
   });
   renderVisitChecklist();
 }
-function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;return 9;}
+function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;if(!visitProtocolReviewed())return 7;return 9;}
 
 function renderInspectionSummary(){
   const box=$("inspectionSummary");if(!box)return;
@@ -1771,17 +1819,18 @@ function renderInspectionSummary(){
   const tags=(state.visit.damageTags||[]).join(", ")||state.visit.damageDescription||"Kein Schadenbild erfasst";
   box.innerHTML=`
     <div class="summary-metrics">
-      <div><strong>${areas.length}</strong><span>Schadensbereiche</span></div>
+      <div><strong>${areas.length}</strong><span>${areas.length===1?"Schadensbereich":"Schadensbereiche"}</span></div>
       <div><strong>${measurementCount}</strong><span>Messwerte</span></div>
-      <div><strong>${measureCount}</strong><span>Maßnahmen</span></div>
-      <div><strong>${photoCount+documents.length}</strong><span>Dateien</span></div>
+      <div><strong>${measureCount}</strong><span>${measureCount===1?"Maßnahme":"Maßnahmen"}</span></div>
+      <div><strong>${photoCount}</strong><span>${photoCount===1?"Foto":"Fotos"}</span></div>
+      <div><strong>${documents.length}</strong><span>${documents.length===1?"Dokument":"Dokumente"}</span></div>
     </div>
     <article class="summary-overview"><span>Festgestelltes Schadenbild</span><strong>${esc(tags)}</strong><small>Feuchteverlauf: ${esc(moisturePatternLabel(state.visit.moisturePattern))}${state.visit.activeWaterIngress?" · aktiver Wassereintritt":""}</small></article>
     ${areas.map(area=>`<article class="summary-area">
       <header><div><span>Schadensbereich</span><h3>${esc(area.name||"Ohne Bezeichnung")}</h3></div><b>${esc(area.wallThickness||"–")} cm</b></header>
       <div class="summary-area-grid">
         <div><span>Bauteil</span><strong>${esc(area.wallMaterialOther||area.wallMaterial||"–")}</strong><small>Erdkontakt: ${esc(area.earthContact||"–")}</small></div>
-        <div><span>Messwerte in Digits</span><strong>${(area.measurements||[]).map(m=>`${esc(m.value||"–")} (${esc(m.device||"Gerät fehlt")})`).join(", ")||"–"}</strong></div>
+        <div><span>Messwerte in Digits</span><strong>${Object.entries((area.measurements||[]).reduce((groups,m)=>{const device=m.device||"Gerät fehlt";(groups[device]||=[]).push(m.value||"–");return groups;},{})).map(([device,values])=>`${esc(device)}: ${values.map(esc).join(", ")} Digits`).join("<br>")||"–"}</strong></div>
         <div><span>Bestätigte Maßnahmen</span><strong>${(area.measures||[]).filter(m=>m.type).map(m=>`${esc(m.type)} – ${esc([m.length&&`${m.length} lfm`,m.width&&m.height&&`${m.width} × ${m.height} m`,m.wall&&`${m.wall} cm`].filter(Boolean).join(", ")||"Menge prüfen")}`).join("<br>")||"–"}</strong></div>
         <div><span>Nachweise</span><strong>${(area.photos||[]).length} Foto${(area.photos||[]).length===1?"":"s"}</strong></div>
       </div>
@@ -2314,6 +2363,15 @@ if ($("offerBasisNote")) $("offerBasisNote").oninput = () => {
 };
 if ($("offerBasisApproved")) $("offerBasisApproved").onchange = () => {
   state.visit.offerBasis ||= {approved:false,note:"",approvedAt:""};
+  if(!visitProtocolReviewed()){
+    $("offerBasisApproved").checked=false;
+    state.visit.offerBasis.approved=false;
+    state.visit.offerBasis.approvedAt="";
+    saveState();
+    updateVisitGuide();
+    showStatus("offerBasisStatus","Bitte zuerst das vollständige Protokoll prüfen.",false);
+    return;
+  }
   state.visit.offerBasis.approved = $("offerBasisApproved").checked;
   state.visit.offerBasis.approvedAt = state.visit.offerBasis.approved ? new Date().toISOString() : "";
   saveState();
@@ -2515,7 +2573,19 @@ function renderAreas() {
 
   box.querySelectorAll("[data-add-measure]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasure);
-    area.measures.push({ id:crypto.randomUUID(), type:"",length:"",width:"",height:"",wall:area.wallThickness||"",spacing:"",extraResinKg:"",note:"" });
+    area.measures.push({
+      id:crypto.randomUUID(),
+      type:"",
+      length:"",
+      width:"",
+      height:"",
+      wall:area.wallThickness||"",
+      spacing:"",
+      resinHolesPerMeter:15,
+      resinIncludedKgPerMeter:4,
+      resinTotalKg:"",
+      note:""
+    });
     saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 
@@ -2575,7 +2645,10 @@ function renderMeasures(area) {
       <div class="wide"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
       <div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>
       ${m.type==="Flächensperre" ? `<div><label>Breite m</label><input data-measure="${m.id}" data-mfield="width" value="${m.width}"></div><div><label>Höhe m</label><input data-measure="${m.id}" data-mfield="height" value="${m.height}"></div>` : `<div><label>Länge lfm</label><input data-measure="${m.id}" data-mfield="length" value="${m.length}"></div>`}
-      ${m.type==="Harzverpressung" ? `<div><label>zusätzliches Harz kg</label><input data-measure="${m.id}" data-mfield="extraResinKg" value="${m.extraResinKg}"></div>` : ""}
+      ${m.type==="Harzverpressung" ? `
+        <div><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
+        <div><label>Enthaltenes Harz je lfm (3–5 kg)</label><select data-measure="${m.id}" data-mfield="resinIncludedKgPerMeter"><option value="3" ${Number(m.resinIncludedKgPerMeter||4)===3?"selected":""}>3 kg</option><option value="4" ${Number(m.resinIncludedKgPerMeter||4)===4?"selected":""}>4 kg</option><option value="5" ${Number(m.resinIncludedKgPerMeter||4)===5?"selected":""}>5 kg</option></select></div>
+        <div><label>Tatsächlicher Harzverbrauch gesamt kg</label><input type="number" min="0" step=".1" data-measure="${m.id}" data-mfield="resinTotalKg" value="${m.resinTotalKg||""}"></div>` : ""}
       ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>
       <button class="danger" data-delete-measure="${m.id}">Löschen</button>
@@ -2653,7 +2726,12 @@ $("acceptMeasureSuggestion").onclick = () => {
   if (!(area.measures || []).some(measure => measure.type === type)) {
     area.measures.push({
       id:crypto.randomUUID(), type, length:"", width:"", height:"",
-      wall:area.wallThickness || "", spacing:"", extraResinKg:"", note:"Fachlich vor Ort bestätigt"
+      wall:area.wallThickness || "",
+      spacing:"",
+      resinHolesPerMeter:15,
+      resinIncludedKgPerMeter:4,
+      resinTotalKg:"",
+      note:"Fachlich vor Ort bestätigt"
     });
   }
   saveState();
@@ -2717,6 +2795,14 @@ function offerItemKey(item, index) {
   ].join("|");
 }
 
+function money(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function offerUnitPrice(value) {
+  return Number(Number(value).toFixed(4));
+}
+
 function reviewedOffer(result) {
   state.visit.offerDraft ||= { items:{}, approved:false, approvedAt:"" };
   state.visit.offerDraft.items ||= {};
@@ -2728,13 +2814,35 @@ function reviewedOffer(result) {
     const calculatedUnitGross = item.pricingMode === "flat"
       ? Number(item.totalGross) * adjustmentFactor
       : Number(item.grossUnit) * adjustmentFactor;
-    const unitGross = Number.isFinite(Number(saved.unitGross))
+    const hasManualUnitPrice = saved.unitGross !== undefined
+      && saved.unitGross !== null
+      && saved.unitGross !== ""
+      && Number.isFinite(Number(saved.unitGross));
+    const unitGross = hasManualUnitPrice
       ? Number(saved.unitGross)
-      : Number(calculatedUnitGross.toFixed(2));
+      : offerUnitPrice(calculatedUnitGross);
     const included = saved.included !== false;
-    return { ...item, key, quantity, unitGross, included, reviewedTotal: included ? quantity * unitGross : 0 };
+    const calculatedTotalGross = item.pricingMode === "flat"
+      ? Number(item.totalGross) * adjustmentFactor
+      : Number(item.totalGross) * adjustmentFactor;
+    return {
+      ...item,
+      key,
+      quantity,
+      unitGross,
+      included,
+      // Solange der Preis nicht bewusst geändert wurde, bleibt die bereits
+      // centgenau kalkulierte Positionssumme maßgeblich. So kann die Anzeige
+      // eines gerundeten Einzelpreises den Endbetrag nicht verändern.
+      reviewedTotal: included
+        ? money(hasManualUnitPrice ? quantity * unitGross : calculatedTotalGross)
+        : 0
+    };
   });
-  return { items, totalGross:items.reduce((sum,item)=>sum+item.reviewedTotal,0) };
+  return {
+    items,
+    totalGross: money(items.reduce((sum,item)=>sum+item.reviewedTotal,0))
+  };
 }
 
 function renderOfferPositionReview(result) {
@@ -2745,8 +2853,8 @@ function renderOfferPositionReview(result) {
     <div class="offer-position-row" data-offer-position="${esc(item.key)}">
       <label title="Position übernehmen"><input type="checkbox" data-offer-include="${esc(item.key)}" ${item.included?"checked":""}></label>
       <div class="offer-position-name"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><small>${esc(item.scope || item.description || "")}</small></div>
-      <div><label>Menge</label><input value="${num(item.quantity)}" readonly></div>
-      <div><label>Einzelpreis brutto</label><input type="number" inputmode="decimal" step=".01" min="0" data-offer-price="${esc(item.key)}" value="${item.unitGross.toFixed(2)}"></div>
+      <div class="offer-quantity-field"><label>Menge</label><input value="${num(item.quantity)}" readonly></div>
+      <div class="offer-unit-field"><label>Einzelpreis brutto</label><input type="number" inputmode="decimal" step=".0001" min="0" data-offer-price="${esc(item.key)}" value="${offerUnitPrice(item.unitGross)}"></div>
       <div class="offer-total-field"><label>Gesamt brutto</label><input value="${eur(item.reviewedTotal)}" readonly></div>
     </div>`).join("") + `<div class="offer-review-total"><span>Geprüfte Angebotssumme</span><strong>${eur(review.totalGross)}</strong></div>` : `<div class="status err">Es wurden noch keine kalkulierbaren Positionen ermittelt.</div>`;
   box.querySelectorAll("[data-offer-include]").forEach(input => input.onchange = () => {
@@ -2811,7 +2919,22 @@ function renderOffer() {
   if ($("dashOffer")) {
     $("dashOffer").textContent = eur(result.offerGross);
   }
-  $("internalCalc").innerHTML = result.lineItems.map(item => `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${item.holes!==undefined?`<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div><div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div>${Number(item.hsKg)>0?`<div class="metric"><span>BKM HS Sperrmörtel</span><strong>${num(item.hsKg)} kg</strong></div>`:""}${item.smallJobIntegrated?`<div class="metric"><span>Kleinmengenaufschlag integriert</span><strong>${eur(item.smallJobSurchargePerUnit)} je ${esc(item.unitName)}</strong></div>`:""}<div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`:""}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
+  $("internalCalc").innerHTML = result.lineItems.map(item => {
+    const technicalDetails = item.type === "Harzverpressung"
+      ? `<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div>
+         <div class="metric"><span>Harz im Grundpreis enthalten</span><strong>${num(item.resinIncludedKg)} kg</strong></div>
+         <div class="metric"><span>Tatsächlicher Harzverbrauch</span><strong>${num(item.resinTotalKg)} kg</strong></div>
+         <div class="metric"><span>Zusätzlich abzurechnen</span><strong>${num(item.resinExtraKg)} kg</strong></div>
+         <div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`
+      : item.holes !== undefined
+        ? `<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div>
+           <div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div>
+           ${Number(item.hsKg)>0?`<div class="metric"><span>BKM HS Sperrmörtel</span><strong>${num(item.hsKg)} kg</strong></div>`:""}
+           ${item.smallJobIntegrated?`<div class="metric"><span>Kleinmengenaufschlag integriert</span><strong>${eur(item.smallJobSurchargePerUnit)} je ${esc(item.unitName)}</strong></div>`:""}
+           <div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`
+        : "";
+    return `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${technicalDetails}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`;
+  }).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
   renderOfferPositionReview(result);
   const archiveStatus = $("offerArchiveStatus")?.value || currentRecord?.status || "draft";
   const accepted = ["accepted","completed"].includes(archiveStatus);
@@ -2961,9 +3084,15 @@ function buildQuotationPayload() {
         ? (article?.unitName || item.unitName || "pauschal")
         : (article?.unitName || item.unitName || "Stück");
 
-      const adjustedUnitGross = Number(Number(item.unitGross).toFixed(2));
+      // Lexoffice accepts unit prices with up to four decimal places. Keeping
+      // that precision prevents cent differences between a calculated line
+      // total and quantity × unit price (for example 5 × 265.514 €).
+      const adjustedUnitGross = offerUnitPrice(item.unitGross);
       const name = String(article?.title || item.name || `Position ${index + 1}`).trim().slice(0, 255);
-      const description = String(article?.description || item.description || "").slice(0, 2000);
+      const description = String(article?.description || item.description || "");
+      if (description.length > 2000) {
+        throw new Error(`Die Beschreibung der Position „${name}“ ist mit ${description.length} Zeichen zu lang. Erlaubt sind höchstens 2.000 Zeichen.`);
+      }
       const taxRate = Number(article?.price?.taxRate ?? 19);
 
       return {
@@ -2991,12 +3120,61 @@ function buildQuotationPayload() {
   if (!lineItems.length) {
     throw new Error("Es gibt keine gültige Angebotsposition mit Menge und Preis.");
   }
+  const customer = state.visit.customer || {};
+  const customerName = [customer.firstName, customer.lastName].filter(Boolean).join(" ").trim();
+  const salutationValue = String(customer.salutation || "").toLocaleLowerCase("de-DE");
+  const salutation = salutationValue.includes("frau")
+    ? `Sehr geehrte Frau ${customer.lastName || customerName}`.trim()
+    : salutationValue.includes("herr")
+      ? `Sehr geehrter Herr ${customer.lastName || customerName}`.trim()
+      : customer.company
+        ? "Sehr geehrte Damen und Herren"
+        : customerName
+          ? `Guten Tag ${customerName}`
+          : "Sehr geehrte Damen und Herren";
+  const objectAddress = customer.objectAddress
+    || [customer.street, customer.zip, customer.city].filter(Boolean).join(", ")
+    || "der angegebenen Objektanschrift";
+  const includesHz250 = lineItems.some(item =>
+    `${item.name} ${item.description}`.toLocaleLowerCase("de-DE")
+      .includes("hz 250")
+    || `${item.name} ${item.description}`.toLocaleLowerCase("de-DE")
+      .includes("hz-250")
+  );
+  const standardIntroduction = DEFAULTS.settings.offerTexts?.introduction || "";
+  const introductionTemplate = state.settings.offerTexts?.introduction || standardIntroduction;
+  const introduction = introductionTemplate
+    .replaceAll("{{ANREDE}}", salutation)
+    .replaceAll("{{OBJEKTANSCHRIFT}}", objectAddress)
+    .replaceAll(
+      "{{HZ_VOC_VORTEIL}}",
+      includesHz250 ? "– BKM HZ 250 PRO enthält 0 % flüchtige organische Verbindungen (VOC)" : ""
+    )
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const executionNotices = buildExecutionNotices(
+    state.settings,
+    state.visit
+  );
+  const remark = executionNotices
+    .map(notice => {
+      if (executionNotices.length === 1) return notice.text;
+      return `${notice.title}\n${notice.text}`;
+    })
+    .join("\n\n")
+    .trim();
+  if (introduction.length > 2000) {
+    throw new Error(`Die Angebotseinleitung ist mit ${introduction.length} Zeichen zu lang. Erlaubt sind höchstens 2.000 Zeichen. Bitte unter Einstellungen kürzen.`);
+  }
+  if (remark.length > 2000) {
+    throw new Error(`Die Nachbemerkung ist mit ${remark.length} Zeichen zu lang. Erlaubt sind höchstens 2.000 Zeichen. Bitte die Hinweistexte unter Einstellungen kürzen.`);
+  }
   return {
-    customer: state.visit.customer,
+    customer,
     quotation: {
       lineItems,
-      introduction: `Gerne bieten wir Ihnen die nachfolgend beschriebenen Abdichtungsmaßnahmen an.\n\nObjektanschrift: ${state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ")}`,
-      remark: "Wir arbeiten ausschließlich mit Systemprodukten der BKM.MANNESMANN AG.",
+      introduction,
+      remark,
       title: "Angebot",
       paymentDiscount: result.skontoPct > 0 ? { discountPercentage:result.skontoPct, discountRange:3 } : null
     }
@@ -3064,7 +3242,7 @@ function buildReport() {
 $("reportPdf").onclick = async () => {
   try {
     collectVisit(); updateGeneratedRecommendation(); saveState();
-    const pdf=await createVisitPdf(state.visit,state.settings);
+    const pdf=await createVisitPdf(state.visit, state.settings);
     downloadBlob(pdf.blob,pdf.filename);
     if (state.visit.customer.pipedriveDealId) {
       await syncVisitDeal("onsiteAppointment", {note:"Besichtigungs- und Messprotokoll erstellt."});
@@ -3340,35 +3518,42 @@ async function loadPipedriveSchema() {
   } catch(error) { addSyncLog("Schema",false,error.message); renderPipedriveSyncSettings(); showStatus("pipedriveSchemaStatus",error.message,false); }
 }
 
+const DOCUMENT_PROFILE_FIELDS = {
+  docBusinessName: "businessName",
+  docOwnerName: "ownerName",
+  docStreet: "street",
+  docZip: "zip",
+  docCity: "city",
+  docRegionalOfficeLabel: "regionalOfficeLabel",
+  docRegionalOfficeStreet: "regionalOfficeStreet",
+  docRegionalOfficeZip: "regionalOfficeZip",
+  docRegionalOfficeCity: "regionalOfficeCity",
+  docPhone: "phone",
+  docEmail: "email",
+  docWebsite: "website",
+  docBankName: "bankName",
+  docIban: "iban",
+  docBic: "bic",
+  docVatId: "vatId",
+  docTaxNumber: "taxNumber",
+  docTradeLine: "tradeLine",
+  docServiceLine: "serviceLine",
+  docTagline: "tagline",
+  docDocumentSubtitle: "documentSubtitle"
+};
+
 function renderSettings() {
   migrateWorkerUrl();
   const s = state.settings;
-  const identity = getDocumentIdentity(s);
-  const identityFields = {
-    documentCompanyName: "companyName",
-    documentOwnerName: "ownerName",
-    documentSubtitle: "documentSubtitle",
-    documentHeadquartersStreet: "headquartersStreet",
-    documentHeadquartersZip: "headquartersZip",
-    documentHeadquartersCity: "headquartersCity",
-    documentRegionalOfficeName: "regionalOfficeName",
-    documentRegionalOfficeStreet: "regionalOfficeStreet",
-    documentRegionalOfficeZip: "regionalOfficeZip",
-    documentRegionalOfficeCity: "regionalOfficeCity",
-    documentPhone: "phone",
-    documentEmail: "email",
-    documentWebsite: "website",
-    documentBankName: "bankName",
-    documentIban: "iban",
-    documentBic: "bic",
-    documentSpecialistLabel: "specialistLabel",
-    documentVatId: "vatId",
-    documentTaxNumber: "taxNumber"
-  };
-  Object.entries(identityFields).forEach(([id, key]) => {
-    if ($(id)) $(id).value = identity[key] || "";
+  const documentProfile = getDocumentProfile(s);
+  s.documentProfile = { ...documentProfile };
+  Object.entries(DOCUMENT_PROFILE_FIELDS).forEach(([id, key]) => {
+    if ($(id)) $(id).value = documentProfile[key] || "";
   });
-  ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
+  if ($("documentLogoPreview")) {
+    $("documentLogoPreview").src = documentProfile.logoDataUrl || "assets/mainabdichter-header-logo.png";
+  }
+  ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleHoursPerMeter","resinHoursPerMeter","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
   $("minimumPricePercent").value = Number(s.priceStrategy?.minimumFactor || .9) * 100;
   $("standardPricePercent").value = Number(s.priceStrategy?.standardFactor || 1) * 100;
   $("premiumPricePercent").value = Number(s.priceStrategy?.premiumFactor || 1.15) * 100;
@@ -3382,9 +3567,12 @@ function renderSettings() {
   $("mapHarzverpressung").innerHTML = articleOptions(s.articleMappings.Harzverpressung);
   $("mapWandSohle").innerHTML = articleOptions(s.articleMappings["Wand-Sohlen-Anschluss"]);
   const noticeTexts = s.noticeTexts || {};
+  const offerTexts = s.offerTexts || DEFAULTS.settings.offerTexts || {};
+  if ($("offerIntroductionText")) $("offerIntroductionText").value = offerTexts.introduction || "";
   $("noticeStandard").value = noticeTexts.standard || "";
   $("noticeWallSole").value = noticeTexts.wallSole || "";
   $("noticeResin").value = noticeTexts.resin || "";
+  updateLexofficeTextCounts();
   const requirementBox = $("visitRequirementSettings");
   if (requirementBox) {
     let currentGroup="";
@@ -3406,6 +3594,43 @@ function renderSettings() {
   renderPipedriveSyncSettings();
   applyInputModes();
 }
+
+function updateLexofficeTextCounts() {
+  const fields = [
+    ["offerIntroductionText", "offerIntroductionCount", "Einleitung"],
+    ["noticeStandard", "noticeStandardCount", "Allgemeiner Hinweis"],
+    ["noticeWallSole", "noticeWallSoleCount", "Zusatz Wand-Sohlen-Anschluss"],
+    ["noticeResin", "noticeResinCount", "Zusatz Harzverpressung"]
+  ];
+  fields.forEach(([inputId, countId, label]) => {
+    const input = $(inputId);
+    const output = $(countId);
+    if (!input || !output) return;
+    const length = input.value.length;
+    output.textContent = `${label}: ${length} von maximal 2.000 Zeichen`;
+    output.classList.toggle("text-limit-exceeded", length > 2000);
+  });
+  const standard = $("noticeStandard")?.value.trim() || "";
+  const wallSole = $("noticeWallSole")?.value.trim() || "";
+  const resin = $("noticeResin")?.value.trim() || "";
+  const longestRemark = [
+    standard,
+    `Allgemeine Hinweise\n${standard}\n\nWand-Sohlen-Anschluss\n${wallSole}`,
+    `Allgemeine Hinweise\n${standard}\n\nHarzverpressung\n${resin}`,
+    `Allgemeine Hinweise\n${standard}\n\nWand-Sohlen-Anschluss\n${wallSole}\n\nHarzverpressung\n${resin}`
+  ].reduce((longest, value) => value.length > longest.length ? value : longest, "");
+  const status = $("lexofficeTextLimitStatus");
+  if (status) {
+    status.textContent = longestRemark.length <= 2000
+      ? `Auch mit allen Zusatzhinweisen sicher: ${longestRemark.length} von 2.000 Zeichen.`
+      : `Achtung: Mit allen Zusatzhinweisen ${longestRemark.length} von 2.000 Zeichen. Das betreffende Angebot kann erst nach dem Kürzen übertragen werden.`;
+    status.className = `status ${longestRemark.length <= 2000 ? "success" : "error"}`;
+  }
+}
+
+["offerIntroductionText", "noticeStandard", "noticeWallSole", "noticeResin"].forEach(id => {
+  if ($(id)) $(id).addEventListener("input", updateLexofficeTextCounts);
+});
 
 let activeWorksiteId = null;
 const WORKSITE_SECTION_ORDER = [
@@ -4462,11 +4687,11 @@ if ($("endWorkday")) $("endWorkday").onclick = () => {
   setWorkdayStatus(ws);
 };
 $("printWorksite").onclick = async () => {
-  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws,state.settings); downloadBlob(pdf.blob,pdf.filename); showStatus("worksiteStatus","Arbeitsnachweis wurde als PDF erstellt.",true); }
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws, state.settings); downloadBlob(pdf.blob,pdf.filename); showStatus("worksiteStatus","Arbeitsnachweis wurde als PDF erstellt.",true); }
   catch(error){ showStatus("worksiteStatus",error.message,false); }
 };
 $("syncWorksitePipedrive").onclick = async () => {
-  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws,state.settings); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws, state.settings); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
   catch(error){ addSyncLog("Arbeitsnachweis",false,error.message); showStatus("worksiteStatus",error.message,false); }
 };
 
@@ -4522,7 +4747,7 @@ $("completeWorksite").onclick = async () => {
     const oldStatus=ws.status;
     ws.status="completed";
     ws.reportLockedAt = new Date().toISOString();
-    const pdf=await createWorksitePdf(ws,state.settings);
+    const pdf=await createWorksitePdf(ws, state.settings);
     try {
       showStatus("worksiteStatus", "PDF und Baustellenfotos werden in Google Drive gespeichert …", true);
       await uploadWorksitePdfToDrive(ws, pdf);
@@ -4587,31 +4812,11 @@ $("loadArticles").onclick = async () => {
 };
 function collectSettings() {
   const s = state.settings;
-  const identityFields = {
-    documentCompanyName: "companyName",
-    documentOwnerName: "ownerName",
-    documentSubtitle: "documentSubtitle",
-    documentHeadquartersStreet: "headquartersStreet",
-    documentHeadquartersZip: "headquartersZip",
-    documentHeadquartersCity: "headquartersCity",
-    documentRegionalOfficeName: "regionalOfficeName",
-    documentRegionalOfficeStreet: "regionalOfficeStreet",
-    documentRegionalOfficeZip: "regionalOfficeZip",
-    documentRegionalOfficeCity: "regionalOfficeCity",
-    documentPhone: "phone",
-    documentEmail: "email",
-    documentWebsite: "website",
-    documentBankName: "bankName",
-    documentIban: "iban",
-    documentBic: "bic",
-    documentSpecialistLabel: "specialistLabel",
-    documentVatId: "vatId",
-    documentTaxNumber: "taxNumber"
-  };
-  s.documentIdentity = getDocumentIdentity(s);
-  Object.entries(identityFields).forEach(([id, key]) => {
-    if ($(id)) s.documentIdentity[key] = $(id).value.trim();
+  const documentProfile = getDocumentProfile(s);
+  Object.entries(DOCUMENT_PROFILE_FIELDS).forEach(([id, key]) => {
+    documentProfile[key] = $(id)?.value.trim() || "";
   });
+  s.documentProfile = documentProfile;
   ["priceListName","priceListDate","appSecret"].forEach(key => s[key] = $(key).value.trim());
   s.workerUrl = normalizeWorkerUrl($("workerUrl").value);
   if (
@@ -4622,7 +4827,7 @@ function collectSettings() {
     s.workerUrl = MAINABDICHTER_WORKER_URL;
   }
   $("workerUrl").value = s.workerUrl;
-  ["hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter"].forEach(key => s[key] = parseDecimal($(key).value));
+  ["hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleHoursPerMeter","resinHoursPerMeter","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter"].forEach(key => s[key] = parseDecimal($(key).value));
   s.priceStrategy = {
     minimumFactor: (parseDecimal($("minimumPricePercent").value) || 90) / 100,
     standardFactor: (parseDecimal($("standardPricePercent").value) || 100) / 100,
@@ -4641,6 +4846,11 @@ function collectSettings() {
     wallSole: $("noticeWallSole").value.trim(),
     resin: $("noticeResin").value.trim()
   };
+  s.offerTexts = {
+    introduction: $("offerIntroductionText")?.value.trim()
+      || DEFAULTS.settings.offerTexts?.introduction
+      || ""
+  };
   s.visitRequirements = {};
   document.querySelectorAll("[data-visit-requirement]").forEach(input => {
     s.visitRequirements[input.dataset.visitRequirement] = input.checked;
@@ -4651,6 +4861,37 @@ function collectSettings() {
 $("saveConnection").onclick = () => { collectSettings(); saveState(); showStatus("connectionStatus","Zugangsdaten gespeichert.",true); };
 $("saveSettings").onclick = () => { collectSettings(); saveState(); showStatus("settingsStatus","Einstellungen gespeichert.",true); renderExtras(); renderOffer(); renderPipedriveSyncSettings(); updateVisitGuide(); };
 $("resetSettings").onclick = () => { if(confirm("Standardwerte laden?")){ resetSettings(); renderSettings(); } };
+if ($("documentLogoFile")) $("documentLogoFile").onchange = async event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const logoDataUrl = await compressImage(file, 1000);
+    state.settings.documentProfile = getDocumentProfile(state.settings);
+    state.settings.documentProfile.logoDataUrl = logoDataUrl;
+    $("documentLogoPreview").src = logoDataUrl;
+    showStatus("documentDesignStatus","Logo übernommen. Zum dauerhaften Speichern unten auf „Einstellungen speichern“ tippen.",true);
+  } catch (error) {
+    showStatus("documentDesignStatus",error.message,false);
+  }
+};
+if ($("resetDocumentLogo")) $("resetDocumentLogo").onclick = () => {
+  state.settings.documentProfile = getDocumentProfile(state.settings);
+  state.settings.documentProfile.logoDataUrl = "";
+  $("documentLogoPreview").src = "assets/mainabdichter-header-logo.png";
+  $("documentLogoFile").value = "";
+  showStatus("documentDesignStatus","Standardlogo ausgewählt. Zum dauerhaften Speichern unten auf „Einstellungen speichern“ tippen.",true);
+};
+if ($("downloadLexofficeLetterhead")) $("downloadLexofficeLetterhead").onclick = async () => {
+  try {
+    collectSettings();
+    saveState();
+    const pdf = await createLexofficeLetterheadPdf(state.settings);
+    downloadBlob(pdf.blob,pdf.filename);
+    showStatus("documentDesignStatus","Lexoffice-Briefpapier wurde als PDF erstellt.",true);
+  } catch (error) {
+    showStatus("documentDesignStatus",error.message,false);
+  }
+};
 $("testConnection").onclick = async () => {
   collectSettings(); saveState();
   const setState = (id,label,ok,error) => { const el=$(id); el.className=`connection-state ${ok?"ok":"err"}`; el.textContent=`${label}: ${ok?"verbunden":error||"Fehler"}`; };

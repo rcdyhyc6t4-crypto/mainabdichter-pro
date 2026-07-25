@@ -1,0 +1,21 @@
+mainabdichter PRO V32.7.8 - Prüfbericht
+
+Bestanden:
+- JavaScript-Syntax der App, PDF-Erzeugung und Kundenansicht
+- einheitliche fünfspaltige Footer-Struktur
+- Regionalbüro Friedrichsdorf in einer eigenen Footer-Spalte
+- Straße und Ort beider Standorte jeweils in getrennten Zeilen
+- keine Überschrift „Firmensitz“ im Footer
+- keine Leistungs- oder Slogan-Zeile im Footer
+- USt-IdNr. und Steuernummer in getrennten Zeilen
+- Footer-Unterkante mit etwa 6 mm sicherem Abstand zum DIN-A4-Rand
+- Angebotsansicht verwendet das zentrale Dokumentprofil
+- Besichtigungsprotokoll verwendet das zentrale Dokumentprofil
+- Arbeitsnachweis verwendet das zentrale Dokumentprofil
+- Lexoffice-Briefpapier verwendet denselben Kopf und Footer
+- zentrale Admin-Felder und gespeicherte Firmendaten bleiben erhalten
+- Versions- und Cachewechsel auf V32.7.8
+
+Die gezielten Struktur-, Daten-, Syntax-, PDF- und Paketprüfungen waren
+erfolgreich. Eine vorhandene Playwright-Gesamttestsuite benötigt zusätzlich
+eine installierte Browserdatei.

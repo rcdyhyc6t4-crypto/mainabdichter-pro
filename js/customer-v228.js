@@ -2,8 +2,8 @@ import { state } from "./storage-v227.js";
 import { calculateOffer } from "./calculator-v227.js";
 import { $, eur, num, esc } from "./utils-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
-import { localPhotoUrl } from "./drive-photos.js?v=32.7.6";
-import { documentFooterColumns, getDocumentIdentity } from "./document-identity.js";
+import { localPhotoUrl } from "./drive-photos.js?v=32.7.8";
+import { getDocumentProfile, documentSenderLine } from "./document-profile.js?v=32.7.8";
 
 function offerItemKey(item, index) {
   return [item.kind || "item", item.areaName || "", item.name || "", item.linkedToMeasure || "", index].join("|");
@@ -30,7 +30,6 @@ function customerItems(result) {
 }
 
 function buildCustomerData() {
-  const identity = getDocumentIdentity(state.settings);
   const result = calculateOffer(state.settings, state.visit, state.discount);
   const items = customerItems(result);
   const articleFor = item => state.settings.lexwareArticles.find(candidate => candidate.id === item.articleId);
@@ -49,11 +48,14 @@ function buildCustomerData() {
   const extras = items.filter(item => item.kind !== "measure").map(normalize);
   const offerGross = items.reduce((sum, item) => sum + item.totalGross, 0);
   const photos = (state.visit.areas || []).flatMap(area =>
-    (area.photos || []).filter(photo => photo.show !== false).map(photo => ({
-      areaName: area.name,
-      src: localPhotoUrl(photo),
-      caption: photo.caption
-    }))
+    (area.photos || [])
+      .filter(photo => photo.show !== false)
+      .map(photo => ({
+        areaName: area.name,
+        src: localPhotoUrl(photo),
+        caption: photo.caption
+      }))
+      .filter(photo => typeof photo.src === "string" && photo.src.trim())
   );
   const customer = state.visit.customer || {};
   return {
@@ -71,9 +73,7 @@ function buildCustomerData() {
     offerGross,
     skontoPct: result.skontoPct,
     skontoGross: offerGross * (1 - Number(result.skontoPct || 0) / 100),
-    notices: buildExecutionNotices(state.settings, state.visit),
-    footerColumns: documentFooterColumns(state.settings),
-    identity
+    notices: buildExecutionNotices(state.settings, state.visit)
   };
 }
 
@@ -91,9 +91,31 @@ function itemHtml(item) {
 
 try {
   const data = buildCustomerData();
+  const profile = getDocumentProfile(state.settings);
+  $("cDocumentLogo").src = profile.logoDataUrl || "assets/mainabdichter-header-logo.png";
+  $("cDocumentSubtitle").textContent = profile.documentSubtitle;
+  $("cSenderLine").textContent = documentSenderLine(profile);
+  $("cFooterBusiness").textContent = [profile.businessName, profile.ownerName].filter(Boolean).join(" · ");
+  $("cFooterStreet").textContent = profile.street;
+  $("cFooterCity").textContent = [profile.zip, profile.city].filter(Boolean).join(" ");
+  $("cFooterRegionalOfficeLabel").textContent = profile.regionalOfficeLabel || "Regionalbüro";
+  $("cFooterRegionalOfficeStreet").textContent = profile.regionalOfficeStreet;
+  $("cFooterRegionalOfficeCity").textContent = [
+    profile.regionalOfficeZip,
+    profile.regionalOfficeCity
+  ].filter(Boolean).join(" ");
+  $("cFooterPhone").textContent = profile.phone ? `Tel. ${profile.phone}` : "";
+  $("cFooterEmail").textContent = profile.email;
+  $("cFooterWebsite").textContent = profile.website;
+  $("cFooterBank").textContent = ["Bankverbindung", profile.bankName].filter(Boolean).join(" · ");
+  $("cFooterIban").textContent = profile.iban ? `IBAN ${profile.iban}` : "";
+  $("cFooterBic").textContent = profile.bic ? `BIC ${profile.bic}` : "";
+  $("cFooterTrade").textContent = profile.tradeLine;
+  $("cFooterVat").textContent = profile.vatId ? `USt-IdNr. ${profile.vatId}` : "";
+  $("cFooterTaxNumber").textContent = profile.taxNumber
+    ? `Steuernummer ${profile.taxNumber}`
+    : "";
   $("cName").textContent = [data.customerName, data.company].filter(Boolean).join(" – ") || "–";
-  $("cDocumentSubtitle").textContent = data.identity.documentSubtitle;
-  $("cDocumentSender").textContent = [data.identity.companyName, data.identity.specialistLabel].filter(Boolean).join(" · ");
   $("cPostalAddress").textContent = data.postalAddress || "–";
   $("cAddress").textContent = data.address || "–";
   $("cDate").textContent = data.date.split("-").reverse().join(".");
@@ -127,15 +149,19 @@ try {
   }
 
   $("cPhotos").innerHTML = data.photos.map(photo => `
-    <div class="photo-card">
-      <img src="${esc(photo.src)}" alt="">
+    <div class="photo-card" hidden>
+      <img src="${esc(photo.src)}" alt="" loading="lazy">
       <strong>${esc(photo.areaName)}</strong>
       ${photo.caption ? `<p>${esc(photo.caption)}</p>` : ""}
     </div>`).join("");
-  $("customerDocumentFooter").innerHTML = data.footerColumns.map(column => `
-    <div>${column.map((line, index) => index === 0
-      ? `<strong>${esc(line)}</strong>`
-      : `<span>${esc(line)}</span>`).join("")}</div>`).join("");
+  $("cPhotos").querySelectorAll(".photo-card img").forEach(image => {
+    image.addEventListener("load", () => {
+      image.closest(".photo-card").hidden = false;
+    }, { once: true });
+    image.addEventListener("error", () => {
+      image.closest(".photo-card").remove();
+    }, { once: true });
+  });
 } catch (error) {
   $("document").innerHTML = `<h1>Kundenansicht konnte nicht geladen werden</h1><p>${esc(error.message)}</p>`;
 }

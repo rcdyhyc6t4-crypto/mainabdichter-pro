@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>mainabdichter – Angebotsübersicht</title>
   <link rel="stylesheet" href="css/app-v227.css">
-  <link rel="stylesheet" href="css/customer-v228.css?v=32.7.6">
+  <link rel="stylesheet" href="css/customer-v228.css?v=32.7.8">
 </head>
 <body class="customer-page">
   <main class="customer-main">
     <section id="document" class="customer-document">
       <header class="customer-document-header">
-        <img src="assets/mainabdichter-header-logo.png" alt="mainabdichter">
+        <img id="cDocumentLogo" src="assets/mainabdichter-header-logo.png" alt="mainabdichter">
         <div class="document-heading">
           <strong>Angebotsübersicht</strong>
           <small id="cDocumentSubtitle">Bauwerksabdichtung im Bestand</small>
@@ -24,7 +24,7 @@
       </div>
 
       <section class="recipient-block">
-        <small id="cDocumentSender">mainabdichter · BKM.MANNESMANN Fachbetrieb</small>
+        <small id="cSenderLine">mainabdichter · BKM.MANNESMANN Fachbetrieb</small>
         <strong id="cName">–</strong>
         <span id="cPostalAddress">–</span>
       </section>
@@ -65,7 +65,13 @@
 
       <div id="cPhotos" class="photo-grid"></div>
 
-      <footer id="customerDocumentFooter" class="customer-document-footer"></footer>
+      <footer class="customer-document-footer">
+        <div><strong id="cFooterBusiness">mainabdichter · Mike Sprager</strong><span id="cFooterStreet">Zum Tannengarten 10</span><span id="cFooterCity">35794 Mengerskirchen</span></div>
+        <div><strong id="cFooterRegionalOfficeLabel">Regionalbüro Friedrichsdorf</strong><span id="cFooterRegionalOfficeStreet">Bahnstraße 34</span><span id="cFooterRegionalOfficeCity">61381 Friedrichsdorf</span></div>
+        <div><span id="cFooterPhone">Tel. +49 (0) 6476 736 939-0</span><span id="cFooterEmail">info@mainabdichter.de</span><span id="cFooterWebsite">www.mainabdichter.de</span></div>
+        <div><strong id="cFooterBank">Bankverbindung · N26</strong><span id="cFooterIban">IBAN DE19 1001 1001 2620 0531 83</span><span id="cFooterBic">BIC NTSBDEB1XXX</span></div>
+        <div><strong id="cFooterTrade">BKM.MANNESMANN Fachbetrieb</strong><span id="cFooterVat">USt-IdNr. DE228953591</span><span id="cFooterTaxNumber">Steuernummer 03887060428</span></div>
+      </footer>
     </section>
 
     <div class="customer-actions no-print">
@@ -73,6 +79,6 @@
       <button id="close" class="secondary">Zurück zur App</button>
     </div>
   </main>
-  <script type="module" src="js/customer-v228.js?v=32.7.6"></script>
+  <script type="module" src="js/customer-v228.js?v=32.7.8"></script>
 </body>
 </html>

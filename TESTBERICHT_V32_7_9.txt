@@ -1,0 +1,15 @@
+mainabdichter PRO V32.7.9 - Prüfbericht
+
+Ergebnis: bestanden
+
+Geprüft:
+- JavaScript-Syntax und Projekt-Build
+- 5 lfm Harzverpressung
+- 15 Bohrlöcher je lfm = 75 Bohrlöcher
+- 4 kg enthalten je lfm = 20 kg im Grundpreis
+- 23 kg tatsächlicher Verbrauch = 3 kg Mehrverbrauch
+- Mehrverbrauchspreis wird nur für 3 kg berechnet
+- Arbeitszeit Harz: 0,6 Std./lfm = 3,0 Stunden
+- Arbeitszeit Wand-Sohle: 0,4 Std./lfm bei 6 lfm = 2,4 Stunden
+- Harzwerte werden vollständig an die interne Angebotsposition übergeben
+- Fallback für ältere Maßnahmen: 4 kg und 15 Bohrlöcher je lfm

@@ -141,7 +141,9 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         targetLitersPerHole: targetPerHole(result),
         actualLitersPerHole: Math.ceil(targetPerHole(result) * 100) / 100,
         injectionType: taskUsesHz({ type: measure.type }) ? "Niederdruckverfahren" : "",
-        resinKg: measure.type === "Harzverpressung" ? Number(measure.extraResinKg || 0) : 0,
+        resinKg: measure.type === "Harzverpressung"
+          ? Number(measure.resinTotalKg || 0)
+          : 0,
         resinApplied: measure.type === "Harzverpressung"
       }));
     }

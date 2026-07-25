@@ -63,6 +63,9 @@ export function calculateMeasure(settings, measure) {
   let quantity = 0;
   let unitName = "lfm";
   let scope = "";
+  let resinIncludedKg = 0;
+  let resinTotalKg = 0;
+  let resinExtraKg = 0;
 
   if (type === "Horizontalsperre") {
     quantity = num(measure.length);
@@ -113,12 +116,27 @@ export function calculateMeasure(settings, measure) {
 
   if (type === "Harzverpressung") {
     quantity = num(measure.length);
-    const extraKg = num(measure.extraResinKg);
+    const configuredHolesPerMeter = num(measure.resinHolesPerMeter) || 15;
+    const configuredIncludedKgPerMeter =
+      num(measure.resinIncludedKgPerMeter) || 4;
+    const holesPerMeter = Math.min(
+      20,
+      Math.max(10, configuredHolesPerMeter)
+    );
+    const includedKgPerMeter = Math.min(
+      5,
+      Math.max(3, configuredIncludedKgPerMeter)
+    );
+    resinIncludedKg = quantity * includedKgPerMeter;
+    resinTotalKg = Math.max(0, num(measure.resinTotalKg));
+    resinExtraKg = Math.max(0, resinTotalKg - resinIncludedKg);
+    holes = ceil(quantity * holesPerMeter);
     gross = resinBasePrice(settings, quantity)
-      + extraKg * num(settings.extraResinKgNet) * 1.19;
+      + resinExtraKg * num(settings.extraResinKgNet) * 1.19;
     grossUnit = quantity > 0 ? gross / quantity : gross;
-    scope = `${oneDecimal(quantity)} lfm${extraKg > 0
-      ? ` + ${extraKg.toLocaleString("de-DE")} kg Mehraufwand`
+    materialCostNet = resinTotalKg * num(settings.resinPurchaseNet);
+    scope = `${oneDecimal(quantity)} lfm, ${holesPerMeter} Bohrlöcher/lfm, ${includedKgPerMeter.toLocaleString("de-DE")} kg Harz/lfm enthalten${resinExtraKg > 0
+      ? ` + ${resinExtraKg.toLocaleString("de-DE")} kg Mehrverbrauch`
       : ""}`;
   }
 
@@ -158,7 +176,14 @@ export function calculateMeasure(settings, measure) {
     saleLiters,
     hsKg,
     materialCostNet,
-    hours: workHours(settings, holes),
+    hours: type === "Harzverpressung"
+      ? quantity * num(settings.resinHoursPerMeter)
+      : type === "Wand-Sohlen-Anschluss"
+        ? quantity * num(settings.wallSoleHoursPerMeter)
+        : workHours(settings, holes),
+    resinIncludedKg,
+    resinTotalKg,
+    resinExtraKg,
     gross,
     grossUnit,
     pricingMode: quantity > 0 ? "unit" : "flat"
@@ -293,6 +318,9 @@ export function calculateOffer(settings, visit, discount) {
       saleLiters: result.saleLiters,
       hsKg: result.hsKg,
       hours: result.hours,
+      resinIncludedKg: result.resinIncludedKg,
+      resinTotalKg: result.resinTotalKg,
+      resinExtraKg: result.resinExtraKg,
       smallJobIntegrated: num(result.smallJobSurcharge) > 0,
       smallJobSurchargePerUnit: num(result.smallJobSurchargePerUnit)
     });

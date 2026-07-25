@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.7.6</title>
-<link rel="stylesheet" href="css/app.css?v=32.7.6">
-<link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-6">
+<title>mainabdichter PRO V32.7.9</title>
+<link rel="stylesheet" href="css/app.css?v=32.7.9">
+<link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
 <style id="v28-critical-layout">
@@ -440,10 +440,10 @@ main{width:100%;max-width:100%}
     <p class="hint">Dieser letzte Schritt wird erst freigegeben, wenn das Besichtigungsprotokoll vollständig ist.</p>
     <label>Interne Hinweise für das Angebot</label>
     <textarea id="offerBasisNote" placeholder="z. B. besondere Ausführung, Zugänglichkeit oder noch zu klärende Punkte"></textarea>
-    <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox"> Ich habe das vollständige Besichtigungsprotokoll geprüft. Die Angaben dürfen als Angebotsgrundlage verwendet werden.</label>
+    <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox" disabled> Ich habe das vollständige Besichtigungsprotokoll geprüft. Die Angaben dürfen als Angebotsgrundlage verwendet werden.</label>
     <div id="offerBasisStatus" class="status"></div>
   </details>
-  <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Protokoll prüfen</button><button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button></div>
+  <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Protokoll prüfen</button><button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button><div id="finishVisitReason" class="finish-visit-reason"></div></div>
 </section>
 
 <section id="customerAdvice" class="page customer-advice-page">
@@ -939,29 +939,53 @@ main{width:100%;max-width:100%}
 <section id="settings" class="page">
   <div class="card"><h1>Einstellungen</h1><p class="hint">Diese Werte gelten dauerhaft für alle Kunden.</p></div>
   <details class="card" open>
-    <summary>Dokumente und Firmendaten</summary>
-    <p class="hint">Diese Angaben erscheinen einheitlich in Angeboten, Arbeitsnachweisen und weiteren PDF-Dokumenten.</p>
-    <div class="grid">
-      <div><label>Firmenname</label><input id="documentCompanyName"></div>
-      <div><label>Inhaber</label><input id="documentOwnerName"></div>
-      <div><label>Dokument-Untertitel</label><input id="documentSubtitle"></div>
-      <div><label>Hauptsitz – Straße</label><input id="documentHeadquartersStreet"></div>
-      <div><label>Hauptsitz – PLZ</label><input id="documentHeadquartersZip" inputmode="numeric"></div>
-      <div><label>Hauptsitz – Ort</label><input id="documentHeadquartersCity"></div>
-      <div><label>Regionalbüro – Bezeichnung</label><input id="documentRegionalOfficeName"></div>
-      <div><label>Regionalbüro – Straße</label><input id="documentRegionalOfficeStreet"></div>
-      <div><label>Regionalbüro – PLZ</label><input id="documentRegionalOfficeZip" inputmode="numeric"></div>
-      <div><label>Regionalbüro – Ort</label><input id="documentRegionalOfficeCity"></div>
-      <div><label>Telefon</label><input id="documentPhone" inputmode="tel"></div>
-      <div><label>E-Mail</label><input id="documentEmail" inputmode="email"></div>
-      <div><label>Website</label><input id="documentWebsite"></div>
-      <div><label>Bank</label><input id="documentBankName"></div>
-      <div><label>IBAN</label><input id="documentIban"></div>
-      <div><label>BIC</label><input id="documentBic"></div>
-      <div><label>Fachbetriebs-Bezeichnung</label><input id="documentSpecialistLabel"></div>
-      <div><label>USt-IdNr.</label><input id="documentVatId"></div>
-      <div><label>Steuernummer</label><input id="documentTaxNumber"></div>
+    <summary>Dokumentdesign &amp; Firmendaten</summary>
+    <p class="hint">Diese Angaben bilden den gemeinsamen Briefkopf und Footer für Angebote, Besichtigungsprotokolle, Arbeitsnachweise und das Lexoffice-Briefpapier.</p>
+    <div class="document-logo-setting">
+      <img id="documentLogoPreview" src="assets/mainabdichter-header-logo.png" alt="Aktuelles Dokumentlogo">
+      <div>
+        <label for="documentLogoFile">Eigenes Logo auswählen</label>
+        <input id="documentLogoFile" type="file" accept="image/png,image/jpeg,image/webp">
+        <button type="button" id="resetDocumentLogo" class="secondary">Standardlogo verwenden</button>
+      </div>
     </div>
+    <div class="grid">
+      <div><label>Firmenname</label><input id="docBusinessName"></div>
+      <div><label>Inhaber / Ansprechpartner</label><input id="docOwnerName"></div>
+      <div class="full"><h3>Firmensitz</h3></div>
+      <div><label>Straße und Hausnummer</label><input id="docStreet"></div>
+      <div><label>PLZ</label><input id="docZip" inputmode="numeric"></div>
+      <div><label>Ort</label><input id="docCity"></div>
+      <div class="full"><h3>Regionalbüro</h3></div>
+      <div><label>Bezeichnung</label><input id="docRegionalOfficeLabel"></div>
+      <div><label>Straße und Hausnummer</label><input id="docRegionalOfficeStreet"></div>
+      <div><label>PLZ</label><input id="docRegionalOfficeZip" inputmode="numeric"></div>
+      <div><label>Ort</label><input id="docRegionalOfficeCity"></div>
+      <div><label>Telefon</label><input id="docPhone" inputmode="tel"></div>
+      <div><label>E-Mail</label><input id="docEmail" inputmode="email"></div>
+      <div><label>Website</label><input id="docWebsite"></div>
+      <div><label>Bank</label><input id="docBankName"></div>
+      <div><label>IBAN</label><input id="docIban"></div>
+      <div><label>BIC</label><input id="docBic"></div>
+      <div><label>USt-IdNr.</label><input id="docVatId"></div>
+      <div><label>Steuernummer</label><input id="docTaxNumber"></div>
+      <div><label>Fachbetriebszeile</label><input id="docTradeLine"></div>
+      <div><label>Leistungszeile</label><input id="docServiceLine"></div>
+      <div><label>Slogan</label><input id="docTagline"></div>
+      <div class="full"><label>Unterzeile im Briefkopf</label><input id="docDocumentSubtitle"></div>
+    </div>
+    <div class="connection-actions">
+      <button type="button" id="downloadLexofficeLetterhead" class="secondary">Lexoffice-Briefpapier als PDF erstellen</button>
+    </div>
+    <div id="documentDesignStatus" class="status"></div>
+  </details>
+  <details class="card" open>
+    <summary>Angebotstext für Lexoffice</summary>
+    <p class="hint">Dieser Text wird automatisch in jedes aus mainabdichter PRO an Lexoffice übertragene Angebot eingesetzt. Die Platzhalter für Anrede und Objektanschrift werden aus den Kundendaten gefüllt. Der VOC-Vorteil erscheint nur, wenn BKM HZ 250 PRO angeboten wird.</p>
+    <label for="offerIntroductionText">Einleitung und Vorteile</label>
+    <textarea id="offerIntroductionText" rows="22"></textarea>
+    <p id="offerIntroductionCount" class="hint"></p>
+    <p class="hint">Verfügbare Platzhalter: {{ANREDE}}, {{OBJEKTANSCHRIFT}}, {{HZ_VOC_VORTEIL}}</p>
   </details>
   <details class="card" open>
     <summary>Pflichtfelder der Besichtigung</summary>
@@ -979,6 +1003,8 @@ main{width:100%;max-width:100%}
       <div><label>Injektionsleistung Löcher/Stunde</label><input id="fillRate" type="number" inputmode="decimal"></div>
       <div><label>Verschlussleistung Löcher/Stunde</label><input id="closeRate" type="number" inputmode="decimal"></div>
       <div><label>Rüstzeit Stunden</label><input id="setupHours" type="number" inputmode="decimal" step=".25"></div>
+      <div><label>Arbeitszeit Wand-Sohlen-Anschluss Std./lfm</label><input id="wallSoleHoursPerMeter" type="number" inputmode="decimal" step=".05"></div>
+      <div><label>Arbeitszeit Harzverpressung Std./lfm</label><input id="resinHoursPerMeter" type="number" inputmode="decimal" step=".05"></div>
       <div><label>Wand-Sohlen-Anschluss brutto/lfm</label><input id="wallSoleGrossPerMeter" type="number" inputmode="decimal" step=".01"></div>
       <div><label>Zusätzliches Harz netto/kg</label><input id="extraResinKgNet" type="number" inputmode="decimal" step=".01"></div>
       <div><label>BKM HS Sperrmörtel je lfm Wand-Sohle</label><input id="hsKgPerWallSoleMeter" type="number" inputmode="decimal" step=".1"></div>
@@ -1024,10 +1050,14 @@ main{width:100%;max-width:100%}
     <p class="hint">Die App fügt diese Texte automatisch passend zu den ausgewählten Maßnahmen ein. Änderungen gelten dauerhaft und werden mit der Komplettsicherung übertragen.</p>
     <label>Allgemeiner Hinweis bei Horizontal-, Flächensperre und Wand-Sohlen-Anschluss</label>
     <textarea id="noticeStandard" class="large-setting-text"></textarea>
+    <p id="noticeStandardCount" class="hint"></p>
     <label>Zusatzhinweis Wand-Sohlen-Anschluss</label>
     <textarea id="noticeWallSole" class="large-setting-text"></textarea>
+    <p id="noticeWallSoleCount" class="hint"></p>
     <label>Zusatzhinweis Harzverpressung</label>
     <textarea id="noticeResin" class="large-setting-text"></textarea>
+    <p id="noticeResinCount" class="hint"></p>
+    <div id="lexofficeTextLimitStatus" class="status"></div>
   </details>
 
   <details class="card" open><summary>Pipedrive-Synchronisation</summary>
@@ -1081,7 +1111,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.7.6"></script>
+<script type="module" src="js/app.js?v=32.7.9"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>
