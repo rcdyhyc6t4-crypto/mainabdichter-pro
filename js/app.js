@@ -5,16 +5,16 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.4";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.5";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.4";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.5";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
-import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.4";
+import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.5";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
-import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.4";
+import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.5";
 
 
-const MAINABDICHTER_APP_VERSION = "32.7.4";
+const MAINABDICHTER_APP_VERSION = "32.7.5";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1558,23 +1558,39 @@ $("resetVisit").onclick = () => { if (confirm("Aktuelle Besichtigung löschen?")
 $("saveVisit").onclick = () => { collectVisit(); saveState(); alert("Besichtigung gespeichert."); };
 $("toOffer").onclick = () => { collectVisit(); saveState(); openGuideStep(7); };
 
+const VISIT_TOOLBAR_TARGETS = {
+  1: "visitStep1",
+  2: "visitStep2",
+  3: "visitStep3",
+  4: "visitStep4",
+  5: "visitStep5"
+};
+
+function openVisitSection(target, smooth = true) {
+  if (!target) return;
+  document.querySelectorAll("#visit details.compact-step").forEach(detail => {
+    detail.open = detail === target;
+  });
+  target.open = true;
+  requestAnimationFrame(() => {
+    const top = target.getBoundingClientRect().top + window.scrollY - 12;
+    window.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
+  });
+}
+
 document.querySelectorAll("[data-open-step]").forEach(button => {
-  button.onclick = () => {
-    const step = Number(button.dataset.openStep);
-    const details = [...document.querySelectorAll("#visit details.compact-step")];
-    details.forEach((detail, index) => {
-      detail.open = index + 1 === step;
-    });
-    details[step - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  button.onclick = () => openVisitSection($(VISIT_TOOLBAR_TARGETS[Number(button.dataset.openStep)]));
 });
 
-document.querySelectorAll("#visit details.compact-step").forEach(detail => {
-  detail.addEventListener("toggle", () => {
-    if (!detail.open) return;
-    document.querySelectorAll("#visit details.compact-step").forEach(other => {
-      if (other !== detail) other.open = false;
-    });
+document.querySelectorAll("#visit details.compact-step > summary").forEach(summary => {
+  summary.addEventListener("click", event => {
+    event.preventDefault();
+    const detail = summary.parentElement;
+    if (detail.open) {
+      detail.open = false;
+      return;
+    }
+    openVisitSection(detail);
   });
 });
 
@@ -1708,7 +1724,7 @@ function moisturePatternLabel(value){
 }
 function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7||index===8)return checks.every(x=>x.ok);if(index===9)return checks.every(x=>x.ok)&&offerBasisApproved();return checks.every(x=>x.ok)&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
-function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
+function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
 function jumpToVisitCheck(check){
   openGuideStep(check.step);
@@ -2088,6 +2104,17 @@ function renderVisit() {
   restoreVisitScroll(scrollY);
 }
 
+buildingFields.forEach(key => {
+  const field = $(key);
+  if (!field || key === "dewPoint") return;
+  const updateBuildingField = () => {
+    state.visit.building[key] = field.value;
+    saveState();
+    updateVisitGuide();
+  };
+  field.addEventListener(field.tagName === "SELECT" ? "change" : "input", updateBuildingField);
+});
+
 function documentSize(bytes) {
   if (!Number(bytes)) return "";
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
@@ -2358,7 +2385,10 @@ function renderAreas() {
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
-    area.measurements.push({ id: crypto.randomUUID(), device:"",value:"",unit:"Digits",height:"",location:"" });
+    const previousDevice = area.measurements.at(-1)?.device
+      || state.visit.areas.flatMap(item => item.measurements || []).find(item => item.device)?.device
+      || "";
+    area.measurements.push({ id: crypto.randomUUID(), device:previousDevice,value:"",unit:"Digits",height:"",location:"" });
     saveState(); renderAreas();
   });
 
@@ -2424,7 +2454,6 @@ function renderMeasures(area) {
       <div class="wide"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
       <div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>
       ${m.type==="Flächensperre" ? `<div><label>Breite m</label><input data-measure="${m.id}" data-mfield="width" value="${m.width}"></div><div><label>Höhe m</label><input data-measure="${m.id}" data-mfield="height" value="${m.height}"></div>` : `<div><label>Länge lfm</label><input data-measure="${m.id}" data-mfield="length" value="${m.length}"></div>`}
-      ${["","Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type) ? `<div><label>horizontaler Abstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">– bitte auswählen –</option><option value=".125" ${Number(m.spacing)===.125?"selected":""}>12,5 cm</option><option value=".25" ${Number(m.spacing)===.25?"selected":""}>25 cm</option></select></div>` : ""}
       ${m.type==="Harzverpressung" ? `<div><label>zusätzliches Harz kg</label><input data-measure="${m.id}" data-mfield="extraResinKg" value="${m.extraResinKg}"></div>` : ""}
       ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>

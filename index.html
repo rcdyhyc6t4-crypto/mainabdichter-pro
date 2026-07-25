@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.7.4</title>
-<link rel="stylesheet" href="css/app.css?v=32.7.4">
-<link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-4">
+<title>mainabdichter PRO V32.7.5</title>
+<link rel="stylesheet" href="css/app.css?v=32.7.5">
+<link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-5">
 <link rel="manifest" href="manifest.json">
 
 <style id="v28-critical-layout">
@@ -391,11 +391,6 @@ main{width:100%;max-width:100%}
     </div>
     <label>Zusätzliche Beschreibung – nur falls nötig</label>
     <div class="speech-row"><textarea id="damageDescription" placeholder="Besonderheiten ergänzen …"></textarea><button class="speech" data-speech-target="damageDescription">🎤</button></div>
-    <div class="assessment-suggestion">
-      <button type="button" id="checkMeasureSuggestion" class="secondary">Passende Maßnahme prüfen</button>
-      <div id="measureSuggestion" class="generated-text">Nach Erfassung eines Schadensbereichs kann die App einen fachlichen Vorschlag anzeigen.</div>
-      <button type="button" id="acceptMeasureSuggestion" class="primary hidden">Vorschlag als Maßnahme übernehmen</button>
-    </div>
     <label>Automatisch erzeugte Empfehlung</label><div id="generatedRecommendation" class="generated-text">Die Empfehlung wird aus den ausgewählten Maßnahmen erstellt.</div>
   </details>
 
@@ -403,6 +398,11 @@ main{width:100%;max-width:100%}
     <summary>4. Schadensbereiche und Maßnahmen <span class="step-state"></span></summary>
     <div id="areas"></div>
     <button id="addArea" class="primary">+ Schadensbereich</button>
+    <div class="assessment-suggestion">
+      <button type="button" id="checkMeasureSuggestion" class="secondary">Passende Maßnahme prüfen</button>
+      <div id="measureSuggestion" class="generated-text">Nach Erfassung des Schadensbereichs kann die App einen fachlichen Vorschlag anzeigen.</div>
+      <button type="button" id="acceptMeasureSuggestion" class="primary hidden">Vorschlag als Maßnahme übernehmen</button>
+    </div>
   </details>
 
   <details id="visitStep5" class="card compact-step guided-step">
@@ -646,7 +646,7 @@ main{width:100%;max-width:100%}
     <div class="legal-discount-row"><div class="legal-new-price"><span>Preis nach gewählter Option</span><strong id="legalDiscountedGross">–</strong></div></div>
     <div id="legalPriceWarning" class="status"></div>
   </details>
-  <div class="card material-requirement-card">
+  <div class="card material-requirement-card hidden" aria-hidden="true">
     <div class="card-title-row"><h2>Materialbedarf und Lager</h2><button id="deductInventory" class="secondary">Material abbuchen</button></div>
     <div id="materialRequirement"></div>
     <div id="inventoryDeductStatus" class="status"></div>
@@ -1047,7 +1047,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.7.4"></script>
+<script type="module" src="js/app.js?v=32.7.5"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

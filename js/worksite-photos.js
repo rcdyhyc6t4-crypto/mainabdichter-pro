@@ -1,5 +1,5 @@
 import { uploadDriveVisitPhoto, loadDrivePhoto } from "./api-v227.js";
-import { loadWorksites, saveWorksites } from "./construction.js?v=32.7.4";
+import { loadWorksites, saveWorksites } from "./construction.js?v=32.7.5";
 
 const DB_NAME = "mainabdichter-worksite-photos";
 const STORE = "photos";
