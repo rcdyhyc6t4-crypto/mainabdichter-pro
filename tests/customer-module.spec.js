@@ -164,6 +164,44 @@ test("Fehlende Information springt direkt ins Feld und Angebotsgrundlage bleibt 
   await expect(page.locator("#visitOfferBasis")).toHaveClass(/is-locked/);
 });
 
+test("Als optional gekennzeichnete Felder bleiben leer ohne Fehlermeldung", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+
+  const optionalIds = [
+    "visitEndTime",
+    "floorCover",
+    "damageDescription",
+    "visitDocumentNote",
+    "offerBasisNote"
+  ];
+
+  for (const id of optionalIds) {
+    const field = page.locator(`#${id}`);
+    await expect(field).toHaveValue("");
+    const label = field.locator("xpath=preceding::label[1]");
+    await expect(label).toContainText("optional");
+  }
+
+  const missingLabels = await page.locator("[data-missing-check] span").allTextContents();
+  for (const optionalLabel of ["Ende", "Bodenbelag", "Zusätzliche Beschreibung", "Bemerkung", "Interne Hinweise"]) {
+    expect(missingLabels.some(label => label.includes(optionalLabel))).toBe(false);
+  }
+});
+
+test("Pflichtangaben können in den Einstellungen optional gesetzt werden", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator('[data-bottom-page="more"]').click();
+  await page.locator('[data-more-page="settings"]').click();
+  await page.getByText("Pflichtfelder der Besichtigung", { exact: true }).click();
+  await page.locator('[data-visit-requirement="building"]').uncheck();
+  await page.locator("#saveSettings").click();
+  await page.locator('[data-bottom-page="dashboard"]').click();
+  await page.locator("#v28FloatingAdd").click();
+  await page.locator("#newInquiryManual").click();
+  await page.locator("#toOffer").click();
+  await expect(page.locator("#visitChecklist")).not.toContainText("Gebäude und Raum");
+});
+
 test("Grundriss wird dem Kunden zugeordnet und zu Google Drive hochgeladen", async ({ page }) => {
   await page.addInitScript(() => {
     const settings = JSON.parse(localStorage.getItem("mainabdichter_v10_settings") || "{}");

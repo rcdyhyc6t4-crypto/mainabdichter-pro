@@ -102,7 +102,15 @@ function updateRequiredUi(){
   if($('visitMissingFields'))$('visitMissingFields').innerHTML=s.missing.length?`Noch Pflicht: ${s.missing.map(esc).join(', ')}`:'Alle grundlegenden Pflichtfelder sind vollständig.';
 }
 function markRequiredFields(){
-  const required=['firstName','lastName','street','zip','city'];
+  // Diese Felder werden auch von der Abschlussprüfung zwingend verlangt.
+  // Alle übrigen Felder dürfen leer bleiben, wenn sie als optional angezeigt
+  // werden. Felder mit Alternativen (z. B. Vorname/Nachname/Firma oder
+  // Telefon/E-Mail) bleiben einzeln optional und werden nur als Gruppe geprüft.
+  const required=[
+    'street','zip','city',
+    'buildingType','floor','roomUse',
+    'moisturePattern'
+  ];
   required.forEach(id=>{const el=$(id); if(!el)return; const label=el.closest('div')?.querySelector('label')||el.previousElementSibling; if(label&&!label.querySelector('.v26-required')) label.insertAdjacentHTML('beforeend',' <span class="v26-required">Pflicht</span>');});
   qa('#visit label,#offer label').forEach(label=>{if(!label.querySelector('.v26-required')&&!label.querySelector('.v26-optional')) label.insertAdjacentHTML('beforeend',' <span class="v26-optional">optional</span>');});
 }

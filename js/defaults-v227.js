@@ -24,6 +24,16 @@ export const DEFAULTS = {
       type: "amount",
       value: 250
     },
+    visitRequirements: {
+      customer: true,
+      address: true,
+      building: true,
+      damage: true,
+      area: true,
+      wall: true,
+      measurement: true,
+      measure: true
+    },
     inventory: {
       products: [
         {
