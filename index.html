@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.7.5</title>
-<link rel="stylesheet" href="css/app.css?v=32.7.5">
-<link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-5">
+<title>mainabdichter PRO V32.7.6</title>
+<link rel="stylesheet" href="css/app.css?v=32.7.6">
+<link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-6">
 <link rel="manifest" href="manifest.json">
 
 <style id="v28-critical-layout">
@@ -217,7 +217,7 @@ main{width:100%;max-width:100%}
     </div>
     <div id="customerSourceActions" class="customer-source-actions">
       <button id="customerPipedrive" class="primary">Pipedrive</button>
-      <button id="customerLexware" class="secondary">Lexware</button>
+      <button id="customerLexware" class="secondary">Lexoffice</button>
       <button id="resetVisit" class="secondary">Neu</button>
     </div>
     <button id="openCustomerAdvice" class="customer-advice-launch">▶ Maßnahme dem Kunden zeigen</button>
@@ -239,7 +239,7 @@ main{width:100%;max-width:100%}
           <option>Google</option>
           <option>Empfehlung</option>
           <option>Pipedrive</option>
-          <option>Lexware</option>
+          <option>Lexoffice</option>
           <option>Sonstiges</option>
         </select>
       </div>
@@ -349,7 +349,7 @@ main{width:100%;max-width:100%}
   </details>
 
 
-  <details id="recordContextCard" class="card compact-step hidden" open><summary>Vorgeschichte und digitale Bauakte</summary><div id="recordContextStatus" class="status"></div><div id="recordContextSummary"></div><div class="context-grid"><details class="sub-card" open><summary>Pipedrive-Deal</summary><div id="contextDeal"></div></details><details class="sub-card"><summary>Notizen und Kommunikation</summary><div id="contextNotes"></div></details><details class="sub-card"><summary>Aktivitäten und Termine</summary><div id="contextActivities"></div></details><details class="sub-card"><summary>Dokumente und Dateien</summary><div id="contextFiles"></div></details><details class="sub-card"><summary>Weitere Deals / Reklamationen</summary><div id="contextRelatedDeals"></div></details><details class="sub-card"><summary>Lexware-Angebote, Aufträge und Rechnungen</summary><div id="contextLexware"></div></details><details class="sub-card"><summary>Vorhandene App-Daten</summary><div id="contextLocal"></div></details></div><div class="context-actions"><button id="contextTypeComplaint" class="secondary">Als Reklamation kennzeichnen</button><button id="contextTypeFollowup" class="secondary">Als Nachkontrolle kennzeichnen</button><button id="contextTypeFollowOn" class="secondary">Als Folgeauftrag kennzeichnen</button></div></details>
+  <details id="recordContextCard" class="card compact-step hidden" open><summary>Vorgeschichte und digitale Bauakte</summary><div id="recordContextStatus" class="status"></div><div id="recordContextSummary"></div><div class="context-grid"><details class="sub-card" open><summary>Pipedrive-Deal</summary><div id="contextDeal"></div><div id="contextDealFields"></div></details><details class="sub-card"><summary>Weitere Pipedrive-Felder</summary><div id="contextPersonFields"></div></details><details class="sub-card"><summary>Notizen und Kommunikation</summary><div id="contextNotes"></div></details><details class="sub-card"><summary>Aktivitäten und Termine</summary><div id="contextActivities"></div></details><details class="sub-card"><summary>Dokumente und Dateien</summary><div id="contextFiles"></div></details><details class="sub-card"><summary>Weitere Deals / Reklamationen</summary><div id="contextRelatedDeals"></div></details><details class="sub-card"><summary>Lexoffice-Angebote, Aufträge und Rechnungen</summary><div id="contextLexware"></div></details><details class="sub-card"><summary>Vorhandene App-Daten</summary><div id="contextLocal"></div></details></div><div class="context-actions"><button id="contextTypeComplaint" class="secondary">Als Reklamation kennzeichnen</button><button id="contextTypeFollowup" class="secondary">Als Nachkontrolle kennzeichnen</button><button id="contextTypeFollowOn" class="secondary">Als Folgeauftrag kennzeichnen</button></div></details>
   <details id="visitStep2" class="card compact-step guided-step">
     <summary>2. Gebäude und Raum <span class="step-state"></span></summary>
     <div class="grid">
@@ -605,7 +605,7 @@ main{width:100%;max-width:100%}
       <div id="customerRecordPipedriveHistory" class="customer-record-list"></div>
     </section>
     <section class="customer-record-section">
-      <header><div><span>KAUFMÄNNISCH</span><h3>Lexware-Angebote und Rechnungen</h3></div><b id="customerRecordLexwareCount">0</b></header>
+      <header><div><span>KAUFMÄNNISCH</span><h3>Lexoffice-Angebote und Rechnungen</h3></div><b id="customerRecordLexwareCount">0</b></header>
       <div id="customerRecordLexware" class="customer-record-list"></div>
     </section>
   </section>
@@ -622,7 +622,7 @@ main{width:100%;max-width:100%}
     </div>
   </div>
   <div class="card price-strategy-card">
-    <div class="card-title-row"><div><h2>Preisstrategie</h2><p class="hint">Nur der ausgewählte Wert wird in Kundenansicht und Lexware verwendet.</p></div></div>
+    <div class="card-title-row"><div><h2>Preisstrategie</h2><p class="hint">Nur der ausgewählte Wert wird in Kundenansicht und Lexoffice verwendet.</p></div></div>
     <div class="price-tier-grid">
       <button type="button" class="price-tier" data-pricing-tier="minimum">
         <span>Mindestwert</span><strong id="priceMinimum">–</strong><small>interne Untergrenze</small>
@@ -653,10 +653,8 @@ main{width:100%;max-width:100%}
   </div>
   <div class="card"><div class="card-title-row"><h2>Interne Kalkulation</h2><button id="toggleInternal" class="secondary">ein-/ausblenden</button></div><div id="internalCalc" class="hidden"></div></div>
   <div class="card offer-review-card">
-    <div class="card-title-row"><div><h2>Angebotspositionen prüfen</h2><p class="hint">Nur aktivierte Positionen werden an Lexware übergeben. Preise können vor der Freigabe angepasst werden.</p></div><button id="resetOfferPositions" class="secondary">Berechnung wiederherstellen</button></div>
+    <div class="card-title-row"><div><h2>Angebotspositionen prüfen</h2><p class="hint">Nur aktivierte Positionen werden an Lexoffice übergeben. Preise können vor der Freigabe angepasst werden.</p></div><button id="resetOfferPositions" class="secondary">Berechnung wiederherstellen</button></div>
     <div id="offerPositionReview"></div>
-    <label class="offer-basis-confirm"><input id="offerPositionsApproved" type="checkbox"> Ich habe Positionen, Mengen und Preise geprüft. Das Angebot darf an Lexware übergeben werden.</label>
-    <div id="offerReviewStatus" class="status"></div>
   </div>
   <div class="card">
     <div class="metric"><span>Kunde</span><strong id="offerCustomer">–</strong></div>
@@ -669,13 +667,19 @@ main{width:100%;max-width:100%}
     <button id="saveToArchive" class="primary">Im Archiv speichern</button>
     <button id="openCustomerView" class="secondary">Kundenansicht öffnen</button>
     <button id="reportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
-    <button id="sendLexware" class="secondary">Geprüften Entwurf an Lexware übergeben</button>
-    <button id="createWorksite" class="primary">Baustelle aus Angebot anlegen</button>
+  </div>
+  <div class="card offer-approval-card">
+    <h2>Freigabe für Lexoffice</h2>
+    <label class="offer-basis-confirm"><input id="offerPositionsApproved" type="checkbox"> Ich habe Positionen, Mengen und Preise geprüft.</label>
+    <div id="offerReviewStatus" class="status">Bitte zuerst die Angebotspositionen prüfen und bestätigen.</div>
+    <button id="sendLexware" class="primary offer-primary-action">Geprüften Entwurf an Lexoffice übertragen</button>
+    <p id="lexofficeRequirementHint" class="hint">Die Übertragung wird aktiv, sobald die Prüfung bestätigt wurde.</p>
   </div>
   <div class="card compact-status-card">
     <div class="grid">
       <div><label>Status</label><select id="offerArchiveStatus">
         <option value="draft">Entwurf</option>
+        <option value="lexoffice-draft">Entwurf an Lexoffice übertragen</option>
         <option value="open">Offen</option>
         <option value="accepted">Angenommen</option>
         <option value="completed">Abgeschlossen</option>
@@ -683,6 +687,11 @@ main{width:100%;max-width:100%}
       </select></div>
       <div><label>Nachkontrolle am</label><input id="followupDate" type="date"></div>
     </div>
+  </div>
+  <div class="card worksite-create-card">
+    <h2>Auftrag zur Baustelle machen</h2>
+    <p id="worksiteCreateHint" class="hint">Die Baustelle kann erst angelegt werden, wenn das Angebot angenommen wurde.</p>
+    <button id="createWorksite" class="primary offer-primary-action">Baustelle aus angenommenem Angebot anlegen</button>
   </div>
   <div id="offerStatus" class="status"></div>
 </section>
@@ -974,8 +983,8 @@ main{width:100%;max-width:100%}
     <div id="inventoryHistory" class="compact-list"></div>
   </details>
 
-  <details class="card"><summary>Lexware-Artikel</summary>
-    <button id="loadArticles" class="secondary">Lexware-Artikel laden</button>
+  <details class="card"><summary>Lexoffice-Artikel</summary>
+    <button id="loadArticles" class="secondary">Lexoffice-Artikel laden</button>
     <div id="articleStatus" class="status"></div>
     <div class="grid">
       <div><label>Horizontalsperre</label><select id="mapHorizontalsperre"></select></div>
@@ -1015,7 +1024,7 @@ main{width:100%;max-width:100%}
     <label>Worker-URL</label><input id="workerUrl">
     <label>APP_SECRET</label><input id="appSecret" type="password">
     <div class="connection-actions"><button id="saveConnection" class="primary">Zugangsdaten speichern</button><button id="testConnection" class="secondary">Verbindungen testen</button></div>
-    <div class="connection-grid"><div id="stateCloudflare" class="connection-state">Cloudflare: nicht geprüft</div><div id="stateLexware" class="connection-state">Lexware: nicht geprüft</div><div id="statePipedrive" class="connection-state">Pipedrive: nicht geprüft</div><div id="stateDrive" class="connection-state">Google Drive: nicht geprüft</div></div>
+    <div class="connection-grid"><div id="stateCloudflare" class="connection-state">Cloudflare: nicht geprüft</div><div id="stateLexware" class="connection-state">Lexoffice: nicht geprüft</div><div id="statePipedrive" class="connection-state">Pipedrive: nicht geprüft</div><div id="stateDrive" class="connection-state">Google Drive: nicht geprüft</div></div>
     <div id="connectionStatus" class="status"></div>
   </details>
 
@@ -1047,7 +1056,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.7.5"></script>
+<script type="module" src="js/app.js?v=32.7.6"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

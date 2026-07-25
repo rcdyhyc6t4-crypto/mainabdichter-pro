@@ -2,6 +2,9 @@ import { state, saveState } from "./storage-v227.js";
 import { parseDecimal } from "./utils-v227.js";
 
 export const FIELD_DEFINITIONS = [
+  ["inquirySource", "Quelle der Anfrage"],
+  ["ownerStatus", "Eigentümer / Mieter"],
+  ["appointment", "Terminangaben"],
   ["objectAddress", "Objektanschrift"],
   ["visitNumber", "Besichtigungsnummer"],
   ["visitDate", "Erstbesuch / Besichtigungsdatum"],
@@ -50,6 +53,9 @@ function normalize(value) {
 }
 
 const FIELD_HINTS = {
+  inquirySource:["quelle","anfragequelle","lead quelle","source"],
+  ownerStatus:["eigentumer mieter","eigentümer mieter","eigentuemerstatus","owner tenant"],
+  appointment:["termin","besichtigungstermin","appointment"],
   objectAddress:["objektanschrift","objekt adresse","adresse objekt"],
   visitNumber:["besichtigungsnummer","besichtigung nr"],
   visitDate:["erstbesuch","besichtigungsdatum"],
@@ -153,6 +159,9 @@ export function visitSyncValues(visit, offer={}) {
   const firstMeasurement=areas.flatMap(a=>a.measurements||[])[0] || {};
   const measureNames=[...new Set(areas.flatMap(a=>(a.measures||[]).map(m=>m.type)))].join(", ");
   return mappedCustomFields({
+    inquirySource:visit.inquiry?.source,
+    ownerStatus:visit.inquiry?.ownerStatus,
+    appointment:visit.inquiry?.appointment || [visit.inquiry?.appointmentDate,visit.inquiry?.appointmentTime].filter(Boolean).join(" "),
     objectAddress:visit.customer?.objectAddress || [visit.customer?.street,[visit.customer?.zip,visit.customer?.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
     visitNumber:visit.visitNumber,
     visitDate:visit.visitDate,

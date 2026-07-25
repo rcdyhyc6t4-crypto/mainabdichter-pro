@@ -5,16 +5,16 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.5";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.6";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.5";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.6";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
-import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.5";
+import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.6";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
-import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.5";
+import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.6";
 
 
-const MAINABDICHTER_APP_VERSION = "32.7.5";
+const MAINABDICHTER_APP_VERSION = "32.7.6";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -232,7 +232,7 @@ async function ensurePipedrivePerson(customer) {
     postalAddress,
     objectAddress: customer?.objectAddress || postalAddress,
     personFieldMappings: state.settings.pipedriveSync?.personFieldMappings || {},
-    source: customer?.lexwareContactId ? "Lexware-Import" : "mainabdichter-App"
+    source: customer?.lexwareContactId ? "Lexoffice-Import" : "mainabdichter-App"
   });
   customer.pipedriveId = String(response.person?.id || "");
   customer.lastPipedriveSync = {
@@ -502,7 +502,7 @@ async function syncAcceptedQuotationDashboard() {
           value:Number(data.quotation.totalGrossAmount || data.quotation.totalAmount || 0),
           currency:data.quotation.currency || "EUR",
           customFields:visitSyncValues({customer:ws.customer,visitNumber:ws.visitNumber,visitDate:ws.date,building:{},areas:[],damageDescription:""},{offerNumber:ws.lexwareVoucherNumber,offerDate:data.quotation.voucherDate,offerValue:Number(data.quotation.totalGrossAmount || data.quotation.totalAmount || 0)}),
-          note:`Angenommenes Lexware-Angebot ${esc(ws.lexwareVoucherNumber || "")} wurde als Baustelle übernommen.`
+          note:`Angenommenes Lexoffice-Angebot ${esc(ws.lexwareVoucherNumber || "")} wurde als Baustelle übernommen.`
         });
         ws.pipedriveDealId=String(deal.deal?.id || "");
         ws.customer.pipedriveDealId=ws.pipedriveDealId;
@@ -518,7 +518,7 @@ async function syncAcceptedQuotationDashboard() {
           ? ` Hinweise: ${ws.syncStatus.warnings.join(" ")}`
           : "";
         addSyncLog(
-          "Lexware → Baustelle",
+          "Lexoffice → Baustelle",
           true,
           `${ws.lexwareVoucherNumber || "Angebot"} übernommen.${warningText}`,
           {dealId:ws.pipedriveDealId}
@@ -526,14 +526,14 @@ async function syncAcceptedQuotationDashboard() {
         activeWorksiteId=ws.id;renderWorksites();show('worksites');
         showStatus(
           "worksiteStatus",
-          `Baustelle erstellt. Lexware ✓ Pipedrive-Kunde ✓ Pipedrive-Deal ✓${warningText}`,
+          `Baustelle erstellt. Lexoffice ✓ Pipedrive-Kunde ✓ Pipedrive-Deal ✓${warningText}`,
           true
         );
-      } catch(error){addSyncLog("Lexware → Baustelle",false,error.message);alert(error.message);} finally{button.disabled=false;}
+      } catch(error){addSyncLog("Lexoffice → Baustelle",false,error.message);alert(error.message);} finally{button.disabled=false;}
     });
   } catch(error) {
     if ($("v284AcceptedOfferCount")) $("v284AcceptedOfferCount").textContent = "!";
-    if ($("v284AcceptedOfferHint")) $("v284AcceptedOfferHint").textContent = "Lexware-Angebote konnten nicht geladen werden";
+    if ($("v284AcceptedOfferHint")) $("v284AcceptedOfferHint").textContent = "Lexoffice-Angebote konnten nicht geladen werden";
     box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`;
   }
 }
@@ -1034,6 +1034,7 @@ function loadArchiveRecord(id, asCopy = false) {
 function statusLabel(status) {
   return ({
     draft: "Entwurf",
+    "lexoffice-draft": "Entwurf an Lexoffice übertragen",
     open: "Offen",
     accepted: "Angenommen",
     completed: "Abgeschlossen",
@@ -1316,6 +1317,17 @@ function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_l
 if ($("archiveSearch")) $("archiveSearch").oninput = renderArchive;
 if ($("archiveFilter")) $("archiveFilter").onchange = renderArchive;
 $("saveToArchive").onclick = () => saveCurrentToArchive(true);
+if ($("offerArchiveStatus")) $("offerArchiveStatus").onchange = () => {
+  saveCurrentToArchive(false);
+  renderOffer();
+  showStatus(
+    "offerStatus",
+    $("offerArchiveStatus").value === "accepted"
+      ? "Auftrag angenommen – die Baustelle kann jetzt angelegt werden."
+      : "Angebotsstatus wurde gespeichert.",
+    true
+  );
+};
 $("exportArchive").onclick = exportArchiveData;
 $("importArchive").onchange = event => {
   const file = event.target.files?.[0];
@@ -1725,7 +1737,7 @@ function moisturePatternLabel(value){
 function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7||index===8)return checks.every(x=>x.ok);if(index===9)return checks.every(x=>x.ok)&&offerBasisApproved();return checks.every(x=>x.ok)&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
 function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}renderVisitChecklist();}
-function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
+function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexoffice übernommen':'Manuell erfasst';}}
 function jumpToVisitCheck(check){
   openGuideStep(check.step);
   window.setTimeout(()=>{
@@ -2060,8 +2072,115 @@ function renderMeasureSuggestion() {
   }
 }
 
+function pipedriveValueText(value) {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map(pipedriveValueText).filter(Boolean).join(", ");
+  if (typeof value === "object") {
+    return String(value.label || value.value || value.name || value.address || "");
+  }
+  return String(value);
+}
+
+function applyPipedrivePerson(person = {}) {
+  const customer = state.visit.customer;
+  const mapped = state.settings.pipedriveSync?.personFieldMappings || {};
+  const custom = person.customFields || {};
+  const mappedPostal = pipedriveValueText(custom[mapped.postalAddress]);
+  const mappedObject = pipedriveValueText(custom[mapped.objectAddress]);
+  const source = {
+    ...person,
+    ...(mappedPostal ? (() => {
+      const parts = mappedPostal.match(/^(.*?)(?:,\s*|\s+)(\d{5})\s+(.+)$/);
+      return parts ? { street:parts[1], zip:parts[2], city:parts[3], postalAddress:mappedPostal } : {};
+    })() : {}),
+    ...(mappedObject ? { objectAddress:mappedObject } : {})
+  };
+  ["salutation","firstName","lastName","company","phone","mobile","email","street","zip","city"].forEach(key => {
+    if (source[key] !== undefined && source[key] !== "") customer[key] = source[key];
+  });
+  const postal = [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  customer.objectAddress = source.objectAddress || customer.objectAddress || postal;
+  customer.objectAddressDifferent = Boolean(customer.objectAddress && postal && customer.objectAddress !== postal);
+  customer.pipedriveId = String(source.id || customer.pipedriveId || "");
+  customer.pipedriveData = {
+    emails: source.emails || [],
+    phones: source.phones || [],
+    customFields: source.customFields || {},
+    customFieldsByName: source.customFieldsByName || {},
+    raw: source.pipedriveRaw || {}
+  };
+  state.visit.inquiry ||= {};
+  if (!state.visit.inquiry.source && source.inquirySource) state.visit.inquiry.source = source.inquirySource;
+  if (!state.visit.inquiry.ownerStatus && source.ownerStatus) state.visit.inquiry.ownerStatus = source.ownerStatus;
+  if (!state.visit.inquiry.appointment && source.appointment) state.visit.inquiry.appointment = source.appointment;
+}
+
+function applyPipedriveContextToVisit() {
+  const context = state.visit.recordContext;
+  if (!context?.loaded || context.contextAppliedAt === context.loadedAt) return;
+  if (context.person) applyPipedrivePerson(context.person);
+  const deal = context.deal || {};
+  const custom = deal.customFields || {};
+  const mappings = state.settings.pipedriveSync?.fieldMappings || {};
+  const valueFor = key => pipedriveValueText(custom[mappings[key]]);
+  const setIfEmpty = (object, key, value) => {
+    if ((object[key] === "" || object[key] === undefined || object[key] === null) && value !== "") object[key] = value;
+  };
+  setIfEmpty(state.visit.customer, "objectAddress", valueFor("objectAddress"));
+  setIfEmpty(state.visit.inquiry, "source", valueFor("inquirySource"));
+  setIfEmpty(state.visit.inquiry, "ownerStatus", valueFor("ownerStatus"));
+  setIfEmpty(state.visit.inquiry, "appointment", valueFor("appointment"));
+  setIfEmpty(state.visit, "visitNumber", valueFor("visitNumber"));
+  setIfEmpty(state.visit, "visitDate", valueFor("visitDate"));
+  setIfEmpty(state.visit, "damageDescription", valueFor("damageDescription"));
+  setIfEmpty(state.visit.building, "roomTemp", valueFor("roomTemp"));
+  setIfEmpty(state.visit.building, "humidity", valueFor("humidity"));
+  state.visit.pipedriveDealFields = {
+    customFields: custom,
+    customFieldsByName: deal.customFieldsByName || {},
+    source: deal.origin || deal.channel || "",
+    owner: deal.owner_name || deal.user_id?.name || "",
+    stage: deal.stage_name || deal.stage?.name || "",
+    status: deal.status || "",
+    value: deal.value || ""
+  };
+  context.contextAppliedAt = context.loadedAt;
+  saveState();
+}
+
+function pipedriveFieldList(fields, emptyText) {
+  const entries = Object.entries(fields || {}).filter(([, value]) => pipedriveValueText(value));
+  if (!entries.length) return contextEmpty(emptyText);
+  return `<div class="pipedrive-field-list">${entries.map(([label, value]) =>
+    `<div><span>${esc(label)}</span><strong>${esc(pipedriveValueText(value))}</strong></div>`
+  ).join("")}</div>`;
+}
+
+function renderPipedriveFieldDetails() {
+  const context = state.visit.recordContext || {};
+  if ($("contextPersonFields")) {
+    $("contextPersonFields").innerHTML = pipedriveFieldList(
+      context.person?.customFieldsByName || state.visit.customer?.pipedriveData?.customFieldsByName,
+      "Keine weiteren ausgefüllten Personenfelder vorhanden."
+    );
+  }
+  if ($("contextDealFields")) {
+    $("contextDealFields").innerHTML = pipedriveFieldList(
+      context.deal?.customFieldsByName || state.visit.pipedriveDealFields?.customFieldsByName,
+      "Keine weiteren ausgefüllten Deal-Felder vorhanden."
+    );
+  }
+  if ($("contextLexware")) {
+    $("contextLexware").innerHTML = $("contextLexware").innerHTML.replaceAll("Lexware", "Lexoffice");
+  }
+  if ($("recordContextStatus")) {
+    $("recordContextStatus").textContent = $("recordContextStatus").textContent.replaceAll("Lexware", "Lexoffice");
+  }
+}
+
 function renderVisit() {
   const scrollY = captureVisitScroll();
+  applyPipedriveContextToVisit();
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
   if (!state.visit.visitNumber) state.visit.visitNumber = createVisitNumber();
 
@@ -2095,6 +2214,7 @@ function renderVisit() {
   updateGeneratedRecommendation();
   renderExtras();
   renderInspectionSummary();
+  renderPipedriveFieldDetails();
   bindSpeechButtons();
   applyInputModes();
   updateDewPoint();
@@ -2564,13 +2684,13 @@ async function choosePipedrive() {
     const selected = result.people[index];
     if (!selected) return;
     const detail = await loadPipedrivePerson(selected.id);
-    Object.assign(state.visit.customer, detail.person, { pipedriveId: detail.person.id || "" });
+    applyPipedrivePerson(detail.person);
     saveState(); renderVisit();
   } catch (error) { alert(error.message); }
 }
 async function chooseLexware() {
   if (!hasConnectionConfig()) return show("settings");
-  const term = prompt("Lexware-Kunde suchen: Name, E-Mail oder Kundennummer");
+  const term = prompt("Lexoffice-Kunde suchen: Name, E-Mail oder Kundennummer");
   if (!term) return;
   try {
     const result = await searchLexwareCustomers(term);
@@ -2642,6 +2762,13 @@ function renderOfferPositionReview(result) {
   });
   if ($("offerPositionsApproved")) $("offerPositionsApproved").checked=Boolean(state.visit.offerDraft.approved);
   if ($("sendLexware")) $("sendLexware").disabled=!state.visit.offerDraft.approved || !review.items.some(item=>item.included);
+  if ($("lexofficeRequirementHint")) {
+    $("lexofficeRequirementHint").textContent = state.visit.lexwareQuotationId
+      ? "Der Entwurf wurde bereits an Lexoffice übertragen."
+      : state.visit.offerDraft.approved
+        ? "Freigabe vollständig – der Entwurf kann jetzt übertragen werden."
+        : "Die Übertragung wird aktiv, sobald die Prüfung bestätigt wurde.";
+  }
 }
 
 function renderOffer() {
@@ -2685,6 +2812,14 @@ function renderOffer() {
   }
   $("internalCalc").innerHTML = result.lineItems.map(item => `<div class="result"><strong>${esc(item.areaName?`${item.areaName} – `:"")}${esc(item.name)}</strong><div class="metric"><span>Umfang</span><strong>${esc(item.scope || `${num(item.quantity)} ${item.unitName}`)}</strong></div>${item.holes!==undefined?`<div class="metric"><span>Bohrlöcher</span><strong>${item.holes}</strong></div><div class="metric"><span>HZ inkl. Reserve</span><strong>${item.saleLiters} l</strong></div>${Number(item.hsKg)>0?`<div class="metric"><span>BKM HS Sperrmörtel</span><strong>${num(item.hsKg)} kg</strong></div>`:""}${item.smallJobIntegrated?`<div class="metric"><span>Kleinmengenaufschlag integriert</span><strong>${eur(item.smallJobSurchargePerUnit)} je ${esc(item.unitName)}</strong></div>`:""}<div class="metric"><span>Arbeitszeit</span><strong>${num(item.hours)} Std.</strong></div>`:""}<div class="metric"><span>Preis je ${esc(item.unitName)}</span><strong>${eur(item.grossUnit)}</strong></div><div class="metric"><span>Gesamt brutto</span><strong>${eur(item.totalGross)}</strong></div></div>`).join("") + `<div class="metric"><span>Materialkosten netto</span><strong>${eur(result.materialCostNet)}</strong></div><div class="metric"><span>Deckungsbeitrag vor sonstigen Betriebskosten</span><strong>${eur(result.contributionBeforeOtherCosts)}</strong></div>`;
   renderOfferPositionReview(result);
+  const archiveStatus = $("offerArchiveStatus")?.value || currentRecord?.status || "draft";
+  const accepted = ["accepted","completed"].includes(archiveStatus);
+  if ($("createWorksite")) $("createWorksite").disabled = !accepted;
+  if ($("worksiteCreateHint")) {
+    $("worksiteCreateHint").textContent = accepted
+      ? "Das Angebot ist angenommen. Die Baustelle kann jetzt angelegt werden."
+      : "Die Baustelle kann erst angelegt werden, wenn das Angebot den Status „Angenommen“ hat.";
+  }
   return result;
 }
 
@@ -2874,25 +3009,25 @@ $("sendLexware").onclick = async () => {
       `${index + 1}. ${item.name}: ${item.quantity} ${item.unitName} × ${eur(item.unitPrice.grossAmount)}`
     ).join("\n");
 
-    console.info("Lexware Angebotspositionen\n" + preview);
+    console.info("Lexoffice Angebotspositionen\n" + preview);
 
     const response = await createLexwareQuotation(payload);
     if (response.contactId) state.visit.customer.lexwareContactId = response.contactId;
     if (response.quotationId) state.visit.lexwareQuotationId = response.quotationId;
     saveState();
-    if ($("offerArchiveStatus")) $("offerArchiveStatus").value = "open";
+    if ($("offerArchiveStatus")) $("offerArchiveStatus").value = "lexoffice-draft";
     saveCurrentToArchive(false);
     try {
       await syncVisitDeal("offerSent", {
         offerNumber: response.voucherNumber || response.quotationNumber || "",
         offerDate: todayLocal(),
         offerValue: reviewedOffer(renderOffer()).totalGross,
-        note: `Lexware-Angebot ${esc(response.voucherNumber || response.quotationId || "")} wurde erstellt und versendet.`
+        note: `Lexoffice-Angebot ${esc(response.voucherNumber || response.quotationId || "")} wurde als Entwurf erstellt.`
       });
-      showStatus("offerStatus","Lexware-Angebot wurde erstellt, archiviert und mit Pipedrive synchronisiert.",true);
+      showStatus("offerStatus","Entwurf wurde an Lexoffice übertragen, archiviert und mit Pipedrive synchronisiert.",true);
     } catch(syncError) {
       addSyncLog("Angebot",false,syncError.message);
-      showStatus("offerStatus",`Lexware-Angebot wurde erstellt. Pipedrive-Synchronisation fehlgeschlagen: ${syncError.message}`,false);
+      showStatus("offerStatus",`Lexoffice-Entwurf wurde erstellt. Pipedrive-Synchronisation fehlgeschlagen: ${syncError.message}`,false);
     }
   } catch (error) {
     showStatus("offerStatus",error.message,false);
@@ -4153,6 +4288,12 @@ $("backToVisitInput").onclick = () => {
 
 $("createWorksite").onclick = async () => {
   const button = $("createWorksite");
+  const status = $("offerArchiveStatus")?.value || "draft";
+  if (!["accepted","completed"].includes(status)) {
+    showStatus("offerStatus", "Die Baustelle kann erst nach Annahme des Angebots angelegt werden.", false);
+    renderOffer();
+    return;
+  }
   button.disabled = true;
   collectVisit();
   showStatus("offerStatus", "Kunde und Baustelle werden mit Pipedrive synchronisiert …", true);
@@ -4166,7 +4307,7 @@ $("createWorksite").onclick = async () => {
       return;
     }
 
-    // Auch Lexware-Kunden, die noch nicht in Pipedrive vorhanden sind,
+    // Auch Lexoffice-Kunden, die noch nicht in Pipedrive vorhanden sind,
     // werden vor dem Anlegen der Baustelle automatisch erstellt.
     const personId = await ensurePipedrivePerson(ws.customer);
     if (!personId) throw new Error("Der Kunde konnte in Pipedrive nicht angelegt werden.");
@@ -4377,7 +4518,7 @@ $("completeWorksite").onclick = async () => {
 function renderSettingsExtras() {
   $("settingsExtras").innerHTML = state.settings.extras.map(extra => {
     const article = state.settings.lexwareArticles.find(a=>a.id===extra.lexwareArticleId);
-    return `<div class="catalog-row"><div class="grid"><div class="full"><label>Lexware-Artikel</label><select data-extra-article="${extra.id}">${articleOptions(extra.lexwareArticleId)}</select></div>${article?`<div class="full"><strong>${esc(article.title)}</strong><div class="article-description">${esc(article.description||"")}</div></div><div><label>Einheit aus Lexware</label><input value="${esc(article.unitName||extra.unit)}" readonly></div>`:`<div><label>Bezeichnung</label><input data-extra="${extra.id}" data-extra-field="name" value="${esc(extra.name)}"></div><div><label>Einheit</label><input data-extra="${extra.id}" data-extra-field="unit" value="${esc(extra.unit)}"></div>`}<div><label>Preis brutto aus App</label><input data-extra="${extra.id}" data-extra-field="grossPrice" value="${extra.grossPrice}"></div><label><input type="checkbox" data-extra-active="${extra.id}" ${extra.active?"checked":""}> aktiv</label><button class="danger" data-extra-delete="${extra.id}">Löschen</button></div></div>`;
+    return `<div class="catalog-row"><div class="grid"><div class="full"><label>Lexoffice-Artikel</label><select data-extra-article="${extra.id}">${articleOptions(extra.lexwareArticleId)}</select></div>${article?`<div class="full"><strong>${esc(article.title)}</strong><div class="article-description">${esc(article.description||"")}</div></div><div><label>Einheit aus Lexoffice</label><input value="${esc(article.unitName||extra.unit)}" readonly></div>`:`<div><label>Bezeichnung</label><input data-extra="${extra.id}" data-extra-field="name" value="${esc(extra.name)}"></div><div><label>Einheit</label><input data-extra="${extra.id}" data-extra-field="unit" value="${esc(extra.unit)}"></div>`}<div><label>Preis brutto aus App</label><input data-extra="${extra.id}" data-extra-field="grossPrice" value="${extra.grossPrice}"></div><label><input type="checkbox" data-extra-active="${extra.id}" ${extra.active?"checked":""}> aktiv</label><button class="danger" data-extra-delete="${extra.id}">Löschen</button></div></div>`;
   }).join("");
   document.querySelectorAll("[data-extra-field]").forEach(input => input.oninput = () => {
     const extra = state.settings.extras.find(e=>e.id===input.dataset.extra);
@@ -4470,12 +4611,12 @@ $("testConnection").onclick = async () => {
       result.cloudflare,
       result.errors.cloudflare
     );
-    setState("stateLexware","Lexware",result.lexware,result.errors.lexware);
+    setState("stateLexware","Lexoffice",result.lexware,result.errors.lexware);
     setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
     setState("stateDrive","Google Drive",result.drive,result.errors.drive);
   } catch (error) {
     setState("stateCloudflare","Cloudflare",false,error.message);
-    setState("stateLexware","Lexware",false,"Worker-Verbindung fehlt");
+    setState("stateLexware","Lexoffice",false,"Worker-Verbindung fehlt");
     setState("statePipedrive","Pipedrive",false,"Worker-Verbindung fehlt");
     setState("stateDrive","Google Drive",false,"Worker-Verbindung fehlt");
   }

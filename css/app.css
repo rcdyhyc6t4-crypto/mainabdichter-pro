@@ -1068,6 +1068,24 @@ body>.app-header,body>.menu-backdrop,body>.app-menu{display:none!important}
  .v28-overview-card{min-width:0!important}
 }
 
+/* V32.7.6 – klare Angebotsfreigabe */
+.offer-approval-card,.worksite-create-card{border-left:5px solid #49a936}
+.offer-approval-card h2,.worksite-create-card h2{margin-top:0}
+.offer-basis-confirm{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid #dce5dc;border-radius:12px;background:#f7faf6;font-weight:750}
+.offer-basis-confirm input{width:24px;height:24px;flex:0 0 auto;margin:0}
+.offer-primary-action{width:100%;min-height:56px;margin-top:10px}
+.offer-primary-action:disabled{background:#d8ddd8!important;color:#6e756f!important;cursor:not-allowed;box-shadow:none!important}
+#lexofficeRequirementHint,#worksiteCreateHint{margin:9px 0 0}
+#contextPersonFields,#contextDealFields{margin-top:8px}
+.pipedrive-field-list{display:grid;gap:5px}
+.pipedrive-field-list>div{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(0,1.2fr);gap:10px;padding:7px 0;border-bottom:1px solid #edf0ed}
+.pipedrive-field-list span{color:#6b746e;font-size:12px}
+.pipedrive-field-list strong{font-size:13px;overflow-wrap:anywhere}
+@media(max-width:650px){
+ .offer-basis-confirm{font-size:14px}
+ .pipedrive-field-list>div{grid-template-columns:1fr;gap:2px}
+}
+
 /* V28.2 definitive mobile/cache fix */
 .v28-app-header{overflow:hidden!important}
 .v28-wordmark{display:grid;gap:2px;line-height:1;max-width:210px;min-width:0;overflow:hidden}

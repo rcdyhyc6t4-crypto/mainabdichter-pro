@@ -101,6 +101,7 @@ function money(value) {
 function recordStatus(value) {
   return ({
     draft: "Entwurf",
+    "lexoffice-draft": "Entwurf an Lexoffice übertragen",
     open: "Offen",
     accepted: "Angenommen",
     completed: "Abgeschlossen",
@@ -695,10 +696,18 @@ async function refreshFromPipedrive() {
       id: current.id,
       pipedriveId,
       objectAddressDifferent: preserveObjectAddress,
-      objectStreet: preserveObjectAddress ? current.objectStreet : remote.street,
-      objectZip: preserveObjectAddress ? current.objectZip : remote.zip,
-      objectCity: preserveObjectAddress ? current.objectCity : remote.city,
-      objectAddress: preserveObjectAddress ? current.objectAddress : remote.postalAddress,
+      objectStreet: preserveObjectAddress ? current.objectStreet : (remote.objectStreet || remote.street),
+      objectZip: preserveObjectAddress ? current.objectZip : (remote.objectZip || remote.zip),
+      objectCity: preserveObjectAddress ? current.objectCity : (remote.objectCity || remote.city),
+      objectAddress: preserveObjectAddress ? current.objectAddress : (remote.objectAddress || remote.postalAddress),
+      objectAddressDifferent: preserveObjectAddress || remote.objectAddressDifferent,
+      pipedriveData: {
+        emails: result.person.emails || [],
+        phones: result.person.phones || [],
+        customFields: result.person.customFields || {},
+        customFieldsByName: result.person.customFieldsByName || {},
+        raw: result.person.pipedriveRaw || {}
+      },
       source: "pipedrive",
       lastPipedriveSync: { ok: true, at: new Date().toISOString() }
     }));

@@ -1,0 +1,79 @@
+:root{--ci-green:#5fa53b;--ci-green-dark:#3f7927;--ci-dark:#2b3033;--ci-muted:#687077;--ci-line:#d9ded9;--ci-soft:#f4f7f2}
+*{box-sizing:border-box}
+body.customer-page{margin:0;background:#eef1ee;color:var(--ci-dark);font-family:Arial,Helvetica,sans-serif}
+.customer-main{width:min(100%,210mm);margin:0 auto;padding:12px}
+.customer-document{position:relative;min-height:297mm;padding:12mm 13mm 22mm;background:#fff;box-shadow:0 5px 24px rgba(25,40,30,.12)}
+.customer-document-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:0 0 6mm;border-bottom:1.2px solid var(--ci-green)}
+.customer-document-header img{width:58mm;height:18mm;object-fit:contain;object-position:left top}
+.document-heading{text-align:right}
+.document-heading strong,.document-heading small{display:block}
+.document-heading strong{font-size:15pt;line-height:1.15;color:var(--ci-dark)}
+.document-heading small{margin-top:2mm;font-size:8pt;color:var(--ci-green-dark)}
+.document-meta{display:flex;justify-content:flex-end;gap:10mm;margin-top:3mm;font-size:7.5pt}
+.document-meta span{display:flex;gap:2mm}.document-meta b{font-weight:400;color:var(--ci-muted)}
+.recipient-block{width:88mm;min-height:32mm;margin-top:8mm;padding:0 2mm;font-size:9.5pt;line-height:1.45}
+.recipient-block small,.recipient-block strong,.recipient-block span{display:block}
+.recipient-block small{padding-bottom:2mm;border-bottom:.2mm solid var(--ci-line);font-size:6.5pt;color:var(--ci-muted)}
+.recipient-block strong{margin-top:3mm}
+.offer-intro{margin:7mm 0 6mm}
+.offer-intro h1{margin:0 0 3mm;font-size:17pt;color:var(--ci-dark)}
+.offer-intro p{margin:0;font-size:9.5pt;line-height:1.5}
+.object-line{display:grid;grid-template-columns:31mm 1fr;gap:4mm;margin-top:4mm;padding:3mm 4mm;background:var(--ci-soft);border-left:1.2mm solid var(--ci-green);font-size:9pt}
+.object-line span{color:var(--ci-muted)}
+.customer-section{margin:6mm 0;break-inside:auto}
+.customer-section>h2{margin:0 0 3mm;padding:0 0 2mm;border-bottom:.6mm solid var(--ci-green);background:none;color:var(--ci-dark);font-size:12pt}
+.customer-recommendation-block{padding:0}
+#cRecommendation{margin:0;white-space:pre-line;font-size:9.2pt;line-height:1.52;color:var(--ci-dark)}
+.offer-table{border-top:.3mm solid var(--ci-line);border-bottom:.3mm solid var(--ci-line)}
+.offer-table-head,.offer-row{display:grid;grid-template-columns:minmax(0,1fr) 28mm 31mm;gap:3mm}
+.offer-table-head{padding:2.2mm 3mm;background:var(--ci-dark);color:#fff;font-size:7.5pt;font-weight:700}
+.offer-table-head span:nth-child(n+2),.offer-row>.offer-cell:nth-child(n+2){text-align:right}
+.offer-row{padding:3mm;border-top:.2mm solid var(--ci-line);font-size:8.5pt;break-inside:avoid}
+.offer-row:first-child{border-top:0}
+.offer-title{display:block;margin-bottom:1mm;font-size:9pt}
+.offer-area,.offer-description{display:block;color:var(--ci-muted);font-size:7.5pt;line-height:1.4;white-space:pre-line}
+.offer-cell.amount{font-weight:700}
+.totals{width:82mm;margin:5mm 0 0 auto}
+.total-row,.skonto-row,.grand-total{display:grid;grid-template-columns:1fr auto;gap:4mm;padding:2mm 3mm}
+.total-row{border-bottom:.2mm solid var(--ci-line);font-size:8.5pt}
+.grand-total{align-items:center;border-top:.8mm solid var(--ci-green);background:var(--ci-soft)}
+.grand-total span{font-size:9pt;font-weight:700}
+.grand-total strong{font-size:13pt;color:var(--ci-dark)}
+.grand-total small{grid-column:1/-1;text-align:right;font-size:6.5pt;color:var(--ci-muted)}
+.skonto-row{margin-top:2mm;border:1px solid var(--ci-green);font-size:8pt}
+.customer-notices{break-before:auto}
+.customer-notice-card{margin:0 0 3mm;padding:3mm 4mm;border-left:.8mm solid var(--ci-green);background:#fafbf9;break-inside:avoid}
+.customer-notice-card h3{margin:0 0 1.5mm;font-size:9pt;color:var(--ci-dark)}
+.notice-flowtext{white-space:pre-line;font-size:7.7pt;line-height:1.4;color:#3b4144}
+.photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm;margin-top:5mm}
+.photo-card{break-inside:avoid}.photo-card img{display:block;width:100%;max-height:62mm;object-fit:cover;border-radius:1mm}
+.photo-card strong,.photo-card p{display:block;margin:1mm 0;font-size:7.5pt}
+.customer-document-footer{position:absolute;left:13mm;right:13mm;bottom:7mm;display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;padding-top:2mm;border-top:.5mm solid var(--ci-green);font-size:6.5pt;line-height:1.35;color:#50575a}
+.customer-document-footer div{display:flex;flex-direction:column}
+.customer-document-footer div:nth-child(2){text-align:center}
+.customer-document-footer div:nth-child(3){text-align:right}
+.customer-actions{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;background:rgba(238,241,238,.96)}
+.customer-actions button{min-height:52px;border:0;border-radius:8px;font-size:16px;font-weight:700}
+#print{background:var(--ci-green);color:#fff}#close{background:#dde2dd;color:var(--ci-dark)}
+.hidden{display:none!important}
+@media(max-width:650px){
+  .customer-main{padding:0}.customer-document{min-height:100vh;padding:18px 16px 92px;box-shadow:none}
+  .customer-document-header img{width:150px;height:auto}.document-heading strong{font-size:17px}.document-heading small{font-size:10px}
+  .document-meta{font-size:11px}.recipient-block{width:100%;font-size:14px}
+  .offer-intro h1{font-size:23px}.offer-intro p,#cRecommendation{font-size:14px}
+  .object-line{grid-template-columns:1fr;gap:5px;font-size:13px}
+  .customer-section>h2{font-size:18px}
+  .offer-table-head,.offer-row{grid-template-columns:minmax(0,1fr) 68px 82px;gap:7px}
+  .offer-table-head{font-size:11px}.offer-row{font-size:12px}.offer-title{font-size:13px}.offer-area,.offer-description{font-size:11px}
+  .totals{width:100%}.customer-document-footer{left:16px;right:16px;bottom:20px;font-size:8px}
+  .customer-actions{grid-template-columns:1fr;padding:10px 12px}
+}
+@media print{
+  @page{size:A4;margin:12mm 13mm 18mm}
+  body.customer-page{background:#fff}
+  .customer-main{width:auto;margin:0;padding:0}
+  .customer-document{width:auto;min-height:auto;padding:0 0 6mm;box-shadow:none}
+  .customer-actions{display:none!important}
+  .customer-document-footer{position:fixed;left:0;right:0;bottom:-12mm}
+  .customer-notice-card{background:#fff}
+}

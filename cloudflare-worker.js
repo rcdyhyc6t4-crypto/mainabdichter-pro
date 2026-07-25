@@ -8,6 +8,7 @@ const GOOGLE_DRIVE_API = "https://www.googleapis.com/drive/v3";
 // Cache pro Worker-Instanz für das konfigurierte Pipedrive-Adressfeld.
 let pipedrivePersonAddressFieldCache = null;
 let pipedriveDealFieldSchemaCache = null;
+let pipedrivePersonFieldSchemaCache = null;
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "*";
@@ -227,18 +228,18 @@ async function lexwareRequest(env, path, options = {}) {
   }
 
   if (!response.ok) {
-    let message = "Lexware API Fehler";
+    let message = "Lexoffice API Fehler";
 
     if (response.status === 401) {
-      message = "Lexware API-Key ungültig oder abgelaufen";
+      message = "Lexoffice API-Key ungültig oder abgelaufen";
     } else if (response.status === 403) {
-      message = "Lexware API-Key hat keine Berechtigung für Angebote";
+      message = "Lexoffice API-Key hat keine Berechtigung für Angebote";
     } else if (response.status === 404) {
-      message = "Lexware-Ressource nicht gefunden";
+      message = "Lexoffice-Ressource nicht gefunden";
     } else if (response.status === 406) {
-      message = "Lexware hat die Angebotsdaten abgelehnt";
+      message = "Lexoffice hat die Angebotsdaten abgelehnt";
     } else if (response.status === 429) {
-      message = "Lexware-Anfragelimit erreicht";
+      message = "Lexoffice-Anfragelimit erreicht";
     }
 
     const error = new Error(message);
@@ -349,6 +350,49 @@ function normalizePipedrivePerson(person) {
       ? person.custom_fields
       : {};
 
+  const fieldSchema = Array.isArray(person._mainabdichter_field_schema)
+    ? person._mainabdichter_field_schema
+    : [];
+  const allCustomFields = { ...customFields };
+  fieldSchema.forEach(field => {
+    if (allCustomFields[field.key] === undefined && person[field.key] !== undefined) {
+      allCustomFields[field.key] = person[field.key];
+    }
+  });
+
+  const fieldValue = field => {
+    const raw = allCustomFields[field.key] ?? person[field.key];
+    if (raw === null || raw === undefined || raw === "") return "";
+    if (Array.isArray(raw)) {
+      return raw.map(value => {
+        const option = (field.options || []).find(item => String(item.id) === String(value?.id ?? value));
+        return cleanText(option?.label || value?.label || value?.value || value);
+      }).filter(Boolean).join(", ");
+    }
+    if (typeof raw === "object") return cleanText(raw.label || raw.value || raw.name || raw.address || raw.formatted_address);
+    const option = (field.options || []).find(item => String(item.id) === String(raw));
+    return cleanText(option?.label || raw);
+  };
+
+  const normalizedName = value => cleanText(value).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+
+  const findFieldValue = names => {
+    const wanted = names.map(normalizedName);
+    const field = fieldSchema.find(item => {
+      const name = normalizedName(item.name);
+      return wanted.some(value => name === value || name.includes(value));
+    });
+    return field ? fieldValue(field) : "";
+  };
+
+  const customFieldsByName = {};
+  fieldSchema.forEach(field => {
+    const value = fieldValue(field);
+    if (value) customFieldsByName[field.name || field.key] = value;
+  });
+
   const configuredAddressValue =
     person._mainabdichter_address_value ||
     person.mainabdichter_address ||
@@ -376,6 +420,21 @@ function normalizePipedrivePerson(person) {
   const landlineEntry = phoneEntries.find(entry =>
     entry !== mobileEntry && phoneValue(entry)
   );
+  const explicitObjectAddress = findFieldValue([
+    "objektanschrift", "objektadresse", "object address", "baustellenadresse"
+  ]) || cleanText(person.object_address || person.objectAddress);
+  const salutationValue = findFieldValue([
+    "anrede", "salutation", "geschlecht"
+  ]);
+  const salutation = /^frau\b/i.test(salutationValue)
+    ? "Frau"
+    : /^herr\b/i.test(salutationValue)
+      ? "Herr"
+      : /^firma\b/i.test(salutationValue)
+        ? "Firma"
+        : /^(frau|herr)\b/i.test(cleanText(person.name))
+          ? cleanText(person.name).match(/^(frau|herr)\b/i)[1].replace(/^./, char => char.toUpperCase())
+          : "";
 
   return {
     id: person.id,
@@ -383,21 +442,64 @@ function normalizePipedrivePerson(person) {
     company: cleanText(person.org_name || person.organization?.name || person.org_id?.name),
     firstName: person.first_name || split.firstName,
     lastName: person.last_name || split.lastName,
+    salutation,
     email: firstValue(person.emails || person.email),
+    emails: (Array.isArray(person.emails) ? person.emails : Array.isArray(person.email) ? person.email : [person.email])
+      .filter(Boolean).map(entry => typeof entry === "object" ? entry : { value: entry }),
     phone: phoneValue(landlineEntry || mobileEntry) || firstValue(person.phones || person.phone),
     mobile: phoneValue(mobileEntry),
+    phones: phoneEntries,
     street: address.street || "",
     zip: address.zip || "",
     city: address.city || "",
     postalAddress: postal,
-    objectAddress:
-      cleanText(person.object_address || person.objectAddress) || postal,
+    objectAddress: explicitObjectAddress || postal,
     objectAddressDifferent: Boolean(
-      cleanText(person.object_address || person.objectAddress) &&
-      cleanText(person.object_address || person.objectAddress) !== postal
+      explicitObjectAddress &&
+      explicitObjectAddress !== postal
     ),
-    customFields
+    inquirySource: findFieldValue(["quelle", "lead quelle", "anfragequelle", "source"]),
+    ownerStatus: findFieldValue(["eigentuemer mieter", "eigentumer mieter", "eigentuemerstatus", "owner tenant"]),
+    appointment: findFieldValue(["termin", "besichtigungstermin", "appointment"]),
+    customFields: allCustomFields,
+    customFieldsByName,
+    pipedriveRaw: {
+      label: person.label || "",
+      ownerName: cleanText(person.owner_name || person.owner_id?.name),
+      visibleTo: person.visible_to || "",
+      marketingStatus: person.marketing_status || "",
+      addTime: person.add_time || "",
+      updateTime: person.update_time || ""
+    }
   };
+}
+
+async function loadPipedrivePersonFieldSchema(env, force = false) {
+  if (!force && pipedrivePersonFieldSchemaCache) return pipedrivePersonFieldSchemaCache;
+  const result = await pipedriveRequest(env, "/api/v2/personFields?limit=500");
+  pipedrivePersonFieldSchemaCache = (Array.isArray(result.data) ? result.data : []).map(field => ({
+    id: field.id,
+    key: cleanText(field.field_code || field.key),
+    name: cleanText(field.field_name || field.name),
+    type: cleanText(field.field_type || field.field_type_name || field.type).toLowerCase(),
+    options: field.options || []
+  })).filter(field => field.key);
+  return pipedrivePersonFieldSchemaCache;
+}
+
+async function loadPipedrivePersonWithAllFields(env, id) {
+  const schema = await loadPipedrivePersonFieldSchema(env);
+  // Der v1-Detailabruf liefert sämtliche Standard- und benutzerdefinierten
+  // Personenfelder in einer Antwort. Die Feldschemata sorgen anschließend
+  // für verständliche Namen und Optionswerte.
+  const result = await pipedriveRequest(env, `/api/v1/persons/${encodeURIComponent(id)}`);
+  const raw = result.data || result;
+  raw._mainabdichter_field_schema = schema;
+  const addressField = await resolvePipedrivePersonAddressField(env);
+  if (addressField && (raw.custom_fields?.[addressField] ?? raw[addressField]) !== undefined) {
+    raw._mainabdichter_address_value = raw.custom_fields?.[addressField] ?? raw[addressField];
+  }
+  return normalizePipedrivePerson(raw);
 }
 
 async function resolvePipedrivePersonAddressField(env) {
@@ -590,7 +692,8 @@ async function loadPipedriveDealFieldSchema(env, force = false) {
       name: cleanText(field.field_name || field.name),
       type: cleanText(
         field.field_type || field.field_type_name || field.type
-      ).toLowerCase()
+      ).toLowerCase(),
+      options: field.options || []
     };
   }
 
@@ -941,14 +1044,7 @@ export default {
 
 
       if (url.pathname === "/pipedrive/person-fields" && request.method === "GET") {
-        const result = await pipedriveRequest(env, "/api/v2/personFields?limit=500");
-        const fields = (result.data || []).map(field => ({
-          id: field.id,
-          key: field.field_code || field.key,
-          name: field.field_name || field.name,
-          type: field.field_type || field.field_type_name || field.type,
-          options: field.options || []
-        }));
+        const fields = await loadPipedrivePersonFieldSchema(env, true);
         return jsonResponse(request, { ok: true, fields });
       }
 
@@ -1313,30 +1409,7 @@ export default {
       ) {
         const id = url.pathname.split("/").pop();
 
-        // Bewusst ohne include_fields oder custom_fields:
-        // Der Standard-Detailabruf ist stabil und verhindert,
-        // dass Systemfelder fälschlich als Custom Fields gesendet werden.
-        const addressField = await resolvePipedrivePersonAddressField(env);
-        const customFieldQuery = addressField
-          ? `?custom_fields=${encodeURIComponent(addressField)}`
-          : "";
-
-        const personData = await pipedriveRequest(
-          env,
-          `/api/v2/persons/${encodeURIComponent(id)}${customFieldQuery}`
-        );
-
-        const rawPerson = personData.data || personData;
-        if (
-          addressField &&
-          rawPerson.custom_fields &&
-          rawPerson.custom_fields[addressField] !== undefined
-        ) {
-          rawPerson._mainabdichter_address_value =
-            rawPerson.custom_fields[addressField];
-        }
-
-        const person = normalizePipedrivePerson(rawPerson);
+        const person = await loadPipedrivePersonWithAllFields(env, id);
 
         return jsonResponse(request, {
           ok: true,
@@ -1435,25 +1508,29 @@ export default {
         let person = null;
         if (personId) {
           try {
-            const addressField = await resolvePipedrivePersonAddressField(env);
-            const customFieldQuery = addressField
-              ? `?custom_fields=${encodeURIComponent(addressField)}`
-              : "";
-            const personResult = await pipedriveRequest(
-              env,
-              `/api/v2/persons/${personId}${customFieldQuery}`
-            );
-            const rawPerson = personResult.data || personResult;
-            if (
-              addressField &&
-              rawPerson.custom_fields &&
-              rawPerson.custom_fields[addressField] !== undefined
-            ) {
-              rawPerson._mainabdichter_address_value =
-                rawPerson.custom_fields[addressField];
-            }
-            person = normalizePipedrivePerson(rawPerson);
+            person = await loadPipedrivePersonWithAllFields(env, personId);
           } catch {}
+        }
+
+        const dealSchema = await loadPipedriveDealFieldSchema(env);
+        const dealCustomFields = {};
+        const dealCustomFieldsByName = {};
+        for (const field of Object.values(dealSchema)) {
+          const rawValue = deal.custom_fields?.[field.key] ?? deal[field.key];
+          if (rawValue === null || rawValue === undefined || rawValue === "") continue;
+          const optionLabel = value => {
+            const option = (field.options || []).find(item =>
+              String(item.id) === String(value?.id ?? value)
+            );
+            return option?.label || value?.label || value?.value || value?.name || value?.address || value;
+          };
+          const value = Array.isArray(rawValue)
+            ? rawValue.map(optionLabel).filter(Boolean).join(", ")
+            : typeof rawValue === "object"
+              ? optionLabel(rawValue)
+              : optionLabel(rawValue);
+          dealCustomFields[field.key] = value;
+          dealCustomFieldsByName[field.name || field.key] = value;
         }
 
         return jsonResponse(request, {
@@ -1461,7 +1538,11 @@ export default {
           context: {
             loaded: true,
             loadedAt: new Date().toISOString(),
-            deal,
+            deal: {
+              ...deal,
+              customFields: dealCustomFields,
+              customFieldsByName: dealCustomFieldsByName
+            },
             person,
             notes,
             activities,
@@ -1531,7 +1612,7 @@ export default {
             ok: true,
             contact: null,
             documents: [],
-            warning: "Kein eindeutig passender Lexware-Kontakt gefunden."
+            warning: "Kein eindeutig passender Lexoffice-Kontakt gefunden."
           });
         }
 
@@ -1608,7 +1689,7 @@ export default {
       if (url.pathname.startsWith("/lexware/accepted-quotations/") && request.method === "GET") {
         const id=url.pathname.split("/").pop();
         const quotation=await lexwareRequest(env,`/quotations/${encodeURIComponent(id)}`);
-        if (quotation.voucherStatus !== "accepted") return jsonResponse(request,{ok:false,error:"Das Angebot ist in Lexware nicht als angenommen markiert."},409);
+        if (quotation.voucherStatus !== "accepted") return jsonResponse(request,{ok:false,error:"Das Angebot ist in Lexoffice nicht als angenommen markiert."},409);
         let contact = null;
         if (quotation.contactId) {
           try {
