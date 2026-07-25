@@ -48,10 +48,9 @@ body.customer-page{margin:0;background:#eef1ee;color:var(--ci-dark);font-family:
 .photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm;margin-top:5mm}
 .photo-card{break-inside:avoid}.photo-card img{display:block;width:100%;max-height:62mm;object-fit:cover;border-radius:1mm}
 .photo-card strong,.photo-card p{display:block;margin:1mm 0;font-size:7.5pt}
-.customer-document-footer{position:absolute;left:13mm;right:13mm;bottom:7mm;display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;padding-top:2mm;border-top:.5mm solid var(--ci-green);font-size:6.5pt;line-height:1.35;color:#50575a}
+.customer-document-footer{position:absolute;left:13mm;right:13mm;bottom:6mm;display:grid;grid-template-columns:1fr 1fr 1.05fr 1.2fr 1.05fr;gap:2.5mm;padding-top:2mm;border-top:.5mm solid var(--ci-green);font-size:5.25pt;line-height:1.32;color:#50575a}
 .customer-document-footer div{display:flex;flex-direction:column}
-.customer-document-footer div:nth-child(2){text-align:center}
-.customer-document-footer div:nth-child(3){text-align:right}
+.customer-document-footer strong{color:#343a3c}
 .customer-actions{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;background:rgba(238,241,238,.96)}
 .customer-actions button{min-height:52px;border:0;border-radius:8px;font-size:16px;font-weight:700}
 #print{background:var(--ci-green);color:#fff}#close{background:#dde2dd;color:var(--ci-dark)}
@@ -65,7 +64,7 @@ body.customer-page{margin:0;background:#eef1ee;color:var(--ci-dark);font-family:
   .customer-section>h2{font-size:18px}
   .offer-table-head,.offer-row{grid-template-columns:minmax(0,1fr) 68px 82px;gap:7px}
   .offer-table-head{font-size:11px}.offer-row{font-size:12px}.offer-title{font-size:13px}.offer-area,.offer-description{font-size:11px}
-  .totals{width:100%}.customer-document-footer{left:16px;right:16px;bottom:20px;font-size:8px}
+  .totals{width:100%}.customer-document-footer{position:static;grid-template-columns:repeat(2,1fr);margin-top:28px;font-size:8px}
   .customer-actions{grid-template-columns:1fr;padding:10px 12px}
 }
 @media print{

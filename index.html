@@ -939,6 +939,31 @@ main{width:100%;max-width:100%}
 <section id="settings" class="page">
   <div class="card"><h1>Einstellungen</h1><p class="hint">Diese Werte gelten dauerhaft für alle Kunden.</p></div>
   <details class="card" open>
+    <summary>Dokumente und Firmendaten</summary>
+    <p class="hint">Diese Angaben erscheinen einheitlich in Angeboten, Arbeitsnachweisen und weiteren PDF-Dokumenten.</p>
+    <div class="grid">
+      <div><label>Firmenname</label><input id="documentCompanyName"></div>
+      <div><label>Inhaber</label><input id="documentOwnerName"></div>
+      <div><label>Dokument-Untertitel</label><input id="documentSubtitle"></div>
+      <div><label>Hauptsitz – Straße</label><input id="documentHeadquartersStreet"></div>
+      <div><label>Hauptsitz – PLZ</label><input id="documentHeadquartersZip" inputmode="numeric"></div>
+      <div><label>Hauptsitz – Ort</label><input id="documentHeadquartersCity"></div>
+      <div><label>Regionalbüro – Bezeichnung</label><input id="documentRegionalOfficeName"></div>
+      <div><label>Regionalbüro – Straße</label><input id="documentRegionalOfficeStreet"></div>
+      <div><label>Regionalbüro – PLZ</label><input id="documentRegionalOfficeZip" inputmode="numeric"></div>
+      <div><label>Regionalbüro – Ort</label><input id="documentRegionalOfficeCity"></div>
+      <div><label>Telefon</label><input id="documentPhone" inputmode="tel"></div>
+      <div><label>E-Mail</label><input id="documentEmail" inputmode="email"></div>
+      <div><label>Website</label><input id="documentWebsite"></div>
+      <div><label>Bank</label><input id="documentBankName"></div>
+      <div><label>IBAN</label><input id="documentIban"></div>
+      <div><label>BIC</label><input id="documentBic"></div>
+      <div><label>Fachbetriebs-Bezeichnung</label><input id="documentSpecialistLabel"></div>
+      <div><label>USt-IdNr.</label><input id="documentVatId"></div>
+      <div><label>Steuernummer</label><input id="documentTaxNumber"></div>
+    </div>
+  </details>
+  <details class="card" open>
     <summary>Pflichtfelder der Besichtigung</summary>
     <p class="hint">Lege für jedes Haupt- und Unterfeld selbst fest, ob es vor dem Abschluss ausgefüllt sein muss. Ausgeschaltete Angaben sind optional und erzeugen keine Fehlermeldung.</p>
     <div id="visitRequirementSettings" class="mapping-grid"></div>

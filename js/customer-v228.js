@@ -3,6 +3,7 @@ import { calculateOffer } from "./calculator-v227.js";
 import { $, eur, num, esc } from "./utils-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { localPhotoUrl } from "./drive-photos.js?v=32.7.6";
+import { documentFooterColumns, getDocumentIdentity } from "./document-identity.js";
 
 function offerItemKey(item, index) {
   return [item.kind || "item", item.areaName || "", item.name || "", item.linkedToMeasure || "", index].join("|");
@@ -29,6 +30,7 @@ function customerItems(result) {
 }
 
 function buildCustomerData() {
+  const identity = getDocumentIdentity(state.settings);
   const result = calculateOffer(state.settings, state.visit, state.discount);
   const items = customerItems(result);
   const articleFor = item => state.settings.lexwareArticles.find(candidate => candidate.id === item.articleId);
@@ -69,7 +71,9 @@ function buildCustomerData() {
     offerGross,
     skontoPct: result.skontoPct,
     skontoGross: offerGross * (1 - Number(result.skontoPct || 0) / 100),
-    notices: buildExecutionNotices(state.settings, state.visit)
+    notices: buildExecutionNotices(state.settings, state.visit),
+    footerColumns: documentFooterColumns(state.settings),
+    identity
   };
 }
 
@@ -88,6 +92,8 @@ function itemHtml(item) {
 try {
   const data = buildCustomerData();
   $("cName").textContent = [data.customerName, data.company].filter(Boolean).join(" – ") || "–";
+  $("cDocumentSubtitle").textContent = data.identity.documentSubtitle;
+  $("cDocumentSender").textContent = [data.identity.companyName, data.identity.specialistLabel].filter(Boolean).join(" · ");
   $("cPostalAddress").textContent = data.postalAddress || "–";
   $("cAddress").textContent = data.address || "–";
   $("cDate").textContent = data.date.split("-").reverse().join(".");
@@ -126,6 +132,10 @@ try {
       <strong>${esc(photo.areaName)}</strong>
       ${photo.caption ? `<p>${esc(photo.caption)}</p>` : ""}
     </div>`).join("");
+  $("customerDocumentFooter").innerHTML = data.footerColumns.map(column => `
+    <div>${column.map((line, index) => index === 0
+      ? `<strong>${esc(line)}</strong>`
+      : `<span>${esc(line)}</span>`).join("")}</div>`).join("");
 } catch (error) {
   $("document").innerHTML = `<h1>Kundenansicht konnte nicht geladen werden</h1><p>${esc(error.message)}</p>`;
 }

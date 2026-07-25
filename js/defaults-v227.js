@@ -1,5 +1,8 @@
+import { DEFAULT_DOCUMENT_IDENTITY } from "./document-identity.js";
+
 export const DEFAULTS = {
   settings: {
+    documentIdentity: { ...DEFAULT_DOCUMENT_IDENTITY },
     priceListName: "mainabdichter Kalkulationsbasis",
     priceListDate: "2026-07-01",
     hzPurchaseNet: 30,

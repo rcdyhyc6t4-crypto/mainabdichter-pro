@@ -8,6 +8,7 @@ import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.6";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.6";
+import { getDocumentIdentity } from "./document-identity.js";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.6";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
@@ -3063,7 +3064,7 @@ function buildReport() {
 $("reportPdf").onclick = async () => {
   try {
     collectVisit(); updateGeneratedRecommendation(); saveState();
-    const pdf=await createVisitPdf(state.visit);
+    const pdf=await createVisitPdf(state.visit,state.settings);
     downloadBlob(pdf.blob,pdf.filename);
     if (state.visit.customer.pipedriveDealId) {
       await syncVisitDeal("onsiteAppointment", {note:"Besichtigungs- und Messprotokoll erstellt."});
@@ -3342,6 +3343,31 @@ async function loadPipedriveSchema() {
 function renderSettings() {
   migrateWorkerUrl();
   const s = state.settings;
+  const identity = getDocumentIdentity(s);
+  const identityFields = {
+    documentCompanyName: "companyName",
+    documentOwnerName: "ownerName",
+    documentSubtitle: "documentSubtitle",
+    documentHeadquartersStreet: "headquartersStreet",
+    documentHeadquartersZip: "headquartersZip",
+    documentHeadquartersCity: "headquartersCity",
+    documentRegionalOfficeName: "regionalOfficeName",
+    documentRegionalOfficeStreet: "regionalOfficeStreet",
+    documentRegionalOfficeZip: "regionalOfficeZip",
+    documentRegionalOfficeCity: "regionalOfficeCity",
+    documentPhone: "phone",
+    documentEmail: "email",
+    documentWebsite: "website",
+    documentBankName: "bankName",
+    documentIban: "iban",
+    documentBic: "bic",
+    documentSpecialistLabel: "specialistLabel",
+    documentVatId: "vatId",
+    documentTaxNumber: "taxNumber"
+  };
+  Object.entries(identityFields).forEach(([id, key]) => {
+    if ($(id)) $(id).value = identity[key] || "";
+  });
   ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
   $("minimumPricePercent").value = Number(s.priceStrategy?.minimumFactor || .9) * 100;
   $("standardPricePercent").value = Number(s.priceStrategy?.standardFactor || 1) * 100;
@@ -4436,11 +4462,11 @@ if ($("endWorkday")) $("endWorkday").onclick = () => {
   setWorkdayStatus(ws);
 };
 $("printWorksite").onclick = async () => {
-  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws); downloadBlob(pdf.blob,pdf.filename); showStatus("worksiteStatus","Arbeitsnachweis wurde als PDF erstellt.",true); }
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws,state.settings); downloadBlob(pdf.blob,pdf.filename); showStatus("worksiteStatus","Arbeitsnachweis wurde als PDF erstellt.",true); }
   catch(error){ showStatus("worksiteStatus",error.message,false); }
 };
 $("syncWorksitePipedrive").onclick = async () => {
-  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws,state.settings); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
   catch(error){ addSyncLog("Arbeitsnachweis",false,error.message); showStatus("worksiteStatus",error.message,false); }
 };
 
@@ -4496,7 +4522,7 @@ $("completeWorksite").onclick = async () => {
     const oldStatus=ws.status;
     ws.status="completed";
     ws.reportLockedAt = new Date().toISOString();
-    const pdf=await createWorksitePdf(ws);
+    const pdf=await createWorksitePdf(ws,state.settings);
     try {
       showStatus("worksiteStatus", "PDF und Baustellenfotos werden in Google Drive gespeichert …", true);
       await uploadWorksitePdfToDrive(ws, pdf);
@@ -4561,6 +4587,31 @@ $("loadArticles").onclick = async () => {
 };
 function collectSettings() {
   const s = state.settings;
+  const identityFields = {
+    documentCompanyName: "companyName",
+    documentOwnerName: "ownerName",
+    documentSubtitle: "documentSubtitle",
+    documentHeadquartersStreet: "headquartersStreet",
+    documentHeadquartersZip: "headquartersZip",
+    documentHeadquartersCity: "headquartersCity",
+    documentRegionalOfficeName: "regionalOfficeName",
+    documentRegionalOfficeStreet: "regionalOfficeStreet",
+    documentRegionalOfficeZip: "regionalOfficeZip",
+    documentRegionalOfficeCity: "regionalOfficeCity",
+    documentPhone: "phone",
+    documentEmail: "email",
+    documentWebsite: "website",
+    documentBankName: "bankName",
+    documentIban: "iban",
+    documentBic: "bic",
+    documentSpecialistLabel: "specialistLabel",
+    documentVatId: "vatId",
+    documentTaxNumber: "taxNumber"
+  };
+  s.documentIdentity = getDocumentIdentity(s);
+  Object.entries(identityFields).forEach(([id, key]) => {
+    if ($(id)) s.documentIdentity[key] = $(id).value.trim();
+  });
   ["priceListName","priceListDate","appSecret"].forEach(key => s[key] = $(key).value.trim());
   s.workerUrl = normalizeWorkerUrl($("workerUrl").value);
   if (

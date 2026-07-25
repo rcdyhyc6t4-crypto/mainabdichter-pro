@@ -1,3 +1,5 @@
+import { documentFooterColumns, getDocumentIdentity } from "./document-identity.js";
+
 const JSPDF_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 let loader=null;
 function loadScript(url){return new Promise((resolve,reject)=>{if(window.jspdf){resolve();return;}const old=document.querySelector(`script[src="${url}"]`);if(old){old.addEventListener("load",resolve,{once:true});return;}const s=document.createElement("script");s.src=url;s.async=true;s.onload=resolve;s.onerror=()=>reject(new Error("PDF-Modul konnte nicht geladen werden."));document.head.appendChild(s);});}
@@ -119,6 +121,33 @@ function drawText(doc, text, x, y, options = {}) {
   }
 }
 
+function drawDocumentFooter(doc, settings, green = [95, 165, 59]) {
+  const footerY = 282;
+  const starts = [13, 49, 84, 122, 163];
+  const widths = [33, 32, 35, 38, 34];
+  const columns = documentFooterColumns(settings);
+  doc.setDrawColor(...green);
+  doc.setLineWidth(0.55);
+  doc.line(13, footerY - 4, 197, footerY - 4);
+  columns.forEach((column, columnIndex) => {
+    column.forEach((line, lineIndex) => {
+      const bold = lineIndex === 0;
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      let size = 4.65;
+      doc.setFontSize(size);
+      while (size > 3.6 && doc.getTextWidth(line) > widths[columnIndex]) {
+        size -= 0.15;
+        doc.setFontSize(size);
+      }
+      drawText(doc, line, starts[columnIndex], footerY + lineIndex * 3.4, {
+        size,
+        bold,
+        color: [70, 76, 78]
+      });
+    });
+  });
+}
+
 function labelValue(doc, x, y, w, label, value) {
   drawText(doc, label, x + 1.5, y + 3.8, { size: 6.2, bold: true });
   drawText(doc, value || "", x + w * 0.42, y + 3.8, { size: 6.6, maxWidth: w * 0.55 - 2 });
@@ -144,7 +173,7 @@ function fitLines(doc, text, width, maxLines) {
   return clipped;
 }
 
-export async function createWorksitePdf(worksite) {
+export async function createWorksitePdf(worksite, settings = {}) {
   worksite = {
     ...worksite,
     tasks: (worksite.tasks || []).filter(task => {
@@ -183,18 +212,18 @@ export async function createWorksitePdf(worksite) {
   const dark = [45, 45, 45];
   const lightGray = [242, 242, 242];
 
+  const identity = getDocumentIdentity(settings);
   const logo = await imageToDataUrl("./assets/mainabdichter-header-logo.png");
   if (logo) {
     try {
       doc.addImage(logo, "PNG", 13, 8, 58, 17, undefined, "FAST");
     } catch {}
   } else {
-    drawText(doc, "mainabdichter", 14, 18, { size: 18, bold: true, color: green });
-    drawText(doc, "Nachhaltig. Sicher. Trocken.", 14, 23, { size: 6.5, color: dark });
+    drawText(doc, identity.companyName, 14, 18, { size: 18, bold: true, color: green });
   }
 
   drawText(doc, "Arbeitsnachweis", 196, 12, { size: 13, bold: true, align: "right", color: dark });
-  drawText(doc, "Bauwerksabdichtung im Bestand", 196, 17, { size: 6.5, align: "right", color: green });
+  drawText(doc, identity.documentSubtitle, 196, 17, { size: 6.5, align: "right", color: green });
 
   // Customer / object address
   drawBox(doc, 13, 29, 88, 24);
@@ -393,13 +422,7 @@ export async function createWorksitePdf(worksite) {
   }
 
   // Footer
-  const footerY = 278;
-  doc.setDrawColor(...green);
-  doc.setLineWidth(0.6);
-  doc.line(13, footerY - 3, 197, footerY - 3);
-  drawText(doc, "mainabdichter - Mike Sprager | Zum Tannengarten 10 | 35794 Mengerskirchen | Tel.: +49 (0) 6476 736 939-0", 13, footerY, { size: 5.4, bold: true });
-  drawText(doc, "info@mainabdichter.de | www.mainabdichter.de | USt-IdNr.: DE228953591 | Steuernummer: 03887060428", 13, footerY + 3.5, { size: 5.2 });
-  drawText(doc, "Die Notwendigkeit einer Harzverpressung wird nach einer angemessenen Standzeit geprüft.", 13, footerY + 7, { size: 5.2, color: green, bold: true });
+  drawDocumentFooter(doc, settings, green);
 
   const name = safeName(
     [customer.firstName, customer.lastName].filter(Boolean).join("_") ||
@@ -409,7 +432,7 @@ export async function createWorksitePdf(worksite) {
   return { blob: doc.output("blob"), filename };
 }
 
-export async function createVisitPdf(visit) {
+export async function createVisitPdf(visit, settings = {}) {
   const C = await jsPDF();
   const doc = new C({ unit: "mm", format: "a4", orientation: "portrait" });
   const green = [95, 165, 59];
@@ -421,15 +444,11 @@ export async function createVisitPdf(visit) {
   const postalAddress = [customer.street, [customer.zip, customer.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const objectAddress = customer.objectAddress || postalAddress;
   const logo = await imageToDataUrl("./assets/mainabdichter-header-logo.png");
+  const identity = getDocumentIdentity(settings);
   let y = 0;
 
   const footer = () => {
-    const fy = 280;
-    doc.setDrawColor(...green);
-    doc.setLineWidth(0.55);
-    doc.line(13, fy - 4, 197, fy - 4);
-    drawText(doc, "mainabdichter - Mike Sprager | Zum Tannengarten 10 | 35794 Mengerskirchen | Tel.: +49 (0) 6476 736 939-0", 13, fy, { size: 5.4, bold: true });
-    drawText(doc, "info@mainabdichter.de | www.mainabdichter.de | USt-IdNr.: DE228953591 | Steuernummer: 03887060428", 13, fy + 3.5, { size: 5.2 });
+    drawDocumentFooter(doc, settings, green);
   };
   const header = () => {
     if (logo) {
@@ -438,7 +457,7 @@ export async function createVisitPdf(visit) {
       drawText(doc, "mainabdichter", 14, 18, { size: 18, bold: true, color: green });
     }
     drawText(doc, "Besichtigungsprotokoll", 196, 12, { size: 13, bold: true, align: "right" });
-    drawText(doc, "Bauwerksabdichtung im Bestand", 196, 17, { size: 6.5, align: "right", color: green });
+    drawText(doc, identity.documentSubtitle, 196, 17, { size: 6.5, align: "right", color: green });
     y = 29;
   };
   const newPage = () => {
