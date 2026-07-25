@@ -302,10 +302,19 @@ function inferMeasureType(name, description = "") {
   return "Sonstige Leistung";
 }
 
+function isWorksiteSetupItem(item = {}) {
+  const text = `${item.name || ""} ${item.description || ""}`.toLowerCase();
+  return text.includes("baustelleneinrichtung") ||
+    text.includes("baustellen-einrichtung") ||
+    text.includes("einrichten der baustelle");
+}
+
 export function createWorksiteFromLexwareQuotation(settings, quotation) {
   const customerName = quotation.address?.name || quotation.contactName || "Lexware-Kunde";
   const nameParts = String(customerName).trim().split(/\s+/);
-  const tasks = (quotation.lineItems || []).filter(item => Number(item.quantity) > 0).map((item, index) => {
+  const tasks = (quotation.lineItems || [])
+    .filter(item => Number(item.quantity) > 0 && !isWorksiteSetupItem(item))
+    .map((item, index) => {
     const type = inferMeasureType(item.name, item.description);
     const quantity = Number(item.quantity || 0);
     const unitName = item.unitName || "Stück";
@@ -320,6 +329,10 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
       plannedHoles=result.holes; plannedLiters=result.saleLiters; targetLitersPerHole=targetPerHole(result);
     }
     return baseTask({
+      sourceLineItemId: item.id || "",
+      sourceArticleId: item.articleId || "",
+      sourceArticleNumber: item.articleNumber || "",
+      sourceUnitPrice: Number(item.unitPrice?.netAmount || item.unitPrice || 0),
       areaName: item.name || `Position ${index + 1}`,
       workArea: "",
       wallMaterial: "",

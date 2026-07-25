@@ -145,6 +145,15 @@ function fitLines(doc, text, width, maxLines) {
 }
 
 export async function createWorksitePdf(worksite) {
+  worksite = {
+    ...worksite,
+    tasks: (worksite.tasks || []).filter(task => {
+      const text = `${task.areaName || ""} ${task.type || ""} ${task.offerDescription || ""} ${task.note || ""}`.toLowerCase();
+      return !text.includes("baustelleneinrichtung") &&
+        !text.includes("baustellen-einrichtung") &&
+        !text.includes("einrichten der baustelle");
+    })
+  };
   const C = await jsPDF();
   const doc = new C({ unit: "mm", format: "a4", orientation: "portrait" });
   const s = worksiteSummary(worksite);
@@ -321,7 +330,14 @@ export async function createWorksitePdf(worksite) {
     : "";
   const executedMeasures = [...new Set((worksite.tasks || []).filter(task => task.completed).map(task => task.type).filter(Boolean))];
   const workLine = executedMeasures.length ? `Ausgeführte Arbeiten: ${executedMeasures.join(", ")}` : "";
-  const notes = [workLine, worksite.generalNotes, bottleNotice].filter(Boolean).join("\n");
+  const additionalWorkLines = (worksite.tasks || [])
+    .filter(task => task.additionalWork)
+    .map(task => {
+      const amount = Number(task.actualQuantity || 0) > 0 ? `${deNumber(task.actualQuantity)} ${task.unitName || ""}`.trim() : "";
+      const approval = task.customerApproved ? "vom Kunden vor Ort beauftragt" : "Kundenfreigabe nicht bestätigt";
+      return `Auf Kundenwunsch wurden folgende zusätzliche Arbeiten ausgeführt – ${task.areaName || "Bereich"}: ${task.actualNote || task.scope || task.type}${amount ? ` (${amount})` : ""}; ${approval}.`;
+    });
+  const notes = [workLine, ...additionalWorkLines, worksite.generalNotes, bottleNotice].filter(Boolean).join("\n");
   drawBox(doc, 13, y, 184, 26);
   drawText(doc, "Absprachen bzw. Besonderheiten bei Arbeitsausführung:", 15, y + 4.5, { size: 6.4, bold: true });
   const noteLines = fitLines(doc, notes || "", 178, 4);

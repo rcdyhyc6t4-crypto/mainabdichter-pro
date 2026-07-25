@@ -5,15 +5,15 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=30.0.0";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.6.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.1.0";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.6.0";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 
 
-const MAINABDICHTER_APP_VERSION = "32.2.0";
+const MAINABDICHTER_APP_VERSION = "32.6.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1273,7 +1273,7 @@ if ($("objectAddress")) $("objectAddress").addEventListener("input", () => {
 });
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
 
-$('guidedNext').onclick=()=>{const i=currentGuideStep();const last=GUIDE_STEPS.length-1;if(i<last&&!stepComplete(i)){openGuideStep(firstMissingGuideStep());return;}if(i===last){renderInspectionSummary();$("visitCompletion")?.scrollIntoView({behavior:"smooth",block:"start"});if(guideChecks().every(x=>x.ok))$("visitOfferBasis").open=true;return;}openGuideStep(i+1);};
+$('guidedNext').onclick=()=>{const i=currentGuideStep();const last=GUIDE_STEPS.length-1;if(i<last&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===last){if(stepComplete(last)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
 $('goToMissingStep').onclick=()=>{const missing=guideChecks().find(x=>!x.ok);if(missing)jumpToVisitCheck(missing);else openGuideStep(9);};
 $('finishVisitGuide').onclick=()=>{const last=GUIDE_STEPS.length-1;if(!stepComplete(last))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
 $("visitOfferBasis")?.querySelector("summary")?.addEventListener("click",event=>{
@@ -1565,10 +1565,16 @@ function updateMetaBar() {
 
 
 const GUIDE_STEPS = [
-  {id:"visitStep1", label:"Kunde", instruction:"Kunde kurz prüfen"},
-  {id:"visitStep3", label:"Schaden", instruction:"Schadensbild antippen"},
-  {id:"visitStep4", label:"Messen", instruction:"Messwert und Maßnahme erfassen"},
-  {id:"visitSummary", label:"Fertig", instruction:"Protokoll prüfen und abschließen"}
+  {id:"visitStep1", label:"Kunde und Termin", instruction:"Kundendaten prüfen und bestätigen"},
+  {id:"recordContextCard", label:"Vorgeschichte", instruction:"Vorhandene Vorgänge kurz prüfen", optional:true},
+  {id:"visitStep2", label:"Gebäude", instruction:"Gebäude und Raum erfassen"},
+  {id:"visitStep3", label:"Schadensbild", instruction:"Schaden verständlich beschreiben"},
+  {id:"visitStep4", label:"Messungen und Maßnahmen", instruction:"Schadensbereiche, Messungen und Maßnahmen erfassen"},
+  {id:"visitStep5", label:"Dokumente", instruction:"Fotos, Pläne und Dokumente prüfen", optional:true},
+  {id:"visitStep6", label:"Zusatzleistungen", instruction:"Zusatzleistungen prüfen", optional:true},
+  {id:"visitSummary", label:"Besichtigungsprotokoll", instruction:"Das vollständige Protokoll prüfen"},
+  {id:"visitCompletion", label:"Vollständigkeit", instruction:"Fehlende Informationen direkt ergänzen"},
+  {id:"visitOfferBasis", label:"Angebotsgrundlage", instruction:"Ganz zum Schluss die Angebotsgrundlage freigeben"}
 ];
 const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Kunde und Termin",key:"customerName",label:"Kundenname oder Firma",legacy:"customer"},
@@ -1654,17 +1660,12 @@ function moisturePatternLabel(value){
     unclear:"Noch nicht eindeutig"
   }[value]||value||"–";
 }
-function stepComplete(index){const checks=guideChecks();if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===1)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===4||x.step===2).every(x=>x.ok);return checks.every(x=>x.ok);}
+function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7||index===8)return checks.every(x=>x.ok);if(index===9)return checks.every(x=>x.ok)&&offerBasisApproved();return checks.every(x=>x.ok)&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
-function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von 4`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=4;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===3?'Protokoll prüfen':'Weiter';if(index===3)renderInspectionSummary();const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
+function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index||step.id==='recordContextCard'&&state.visit.recordContext?.loaded;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0)target.scrollIntoView({behavior:'smooth',block:'start'});renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexware übernommen':'Manuell erfasst';}}
 function jumpToVisitCheck(check){
-  const guideIndex=check.step===0?0:check.step===3?1:check.step===4?2:2;
-  openGuideStep(guideIndex);
-  if(check.step===2){
-    $("visitOptionalDetails").open=true;
-    $("visitStep2").open=true;
-  }
+  openGuideStep(check.step);
   window.setTimeout(()=>{
     const field=document.querySelector(check.selector);
     if(!field)return;
@@ -1684,7 +1685,7 @@ function updateVisitGuide(){
   });
   renderVisitChecklist();
 }
-function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(!missing)return 3;if(missing.step===0)return 0;if(missing.step===3)return 1;return 2;}
+function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;return 9;}
 
 function renderInspectionSummary(){
   const box=$("inspectionSummary");if(!box)return;
@@ -1715,13 +1716,6 @@ function renderInspectionSummary(){
   if($("offerBasisNote"))$("offerBasisNote").value=basis.note||"";
   if($("offerBasisApproved"))$("offerBasisApproved").checked=Boolean(basis.approved);
 }
-$("visitSummary")?.addEventListener("toggle", () => {
-  if ($("visitSummary").open) {
-    collectVisit();
-    renderInspectionSummary();
-    updateVisitGuide();
-  }
-});
 function adviceMeasure(){
   const measures=(state.visit.areas||[]).flatMap(a=>(a.measures||[]).map(m=>({...m,areaName:a.name,areaWall:a.wallThickness})));
   return measures.find(m=>m.type===adviceState.type)||measures.find(m=>['Horizontalsperre','Flächensperre','Wand-Sohlen-Anschluss'].includes(m.type))||{};
@@ -1925,7 +1919,6 @@ function renderDamageTags() {
   box.innerHTML = DAMAGE_TAGS.map(tag => `
     <label class="damage-tag ${state.visit.damageTags.includes(tag) ? "selected" : ""}">
       <input type="checkbox" data-damage-tag="${esc(tag)}" ${state.visit.damageTags.includes(tag) ? "checked" : ""}>
-      <span class="damage-tag-check" aria-hidden="true">✓</span>
       <span>${esc(tag)}</span>
     </label>`).join("");
   box.querySelectorAll("[data-damage-tag]").forEach(input => input.onchange = () => {
@@ -1937,43 +1930,6 @@ function renderDamageTags() {
     renderDamageTags();
     updateVisitGuide();
   });
-}
-
-function renderMoisturePatternChoices() {
-  const box = $("moisturePatternChoices");
-  if (!box) return;
-  box.querySelectorAll("[data-moisture-pattern]").forEach(button => {
-    button.classList.toggle("selected", button.dataset.moisturePattern === (state.visit.moisturePattern || ""));
-    button.onclick = () => {
-      const value = button.dataset.moisturePattern;
-      state.visit.moisturePattern = state.visit.moisturePattern === value ? "" : value;
-      $("moisturePattern").value = state.visit.moisturePattern;
-      saveState();
-      renderMoisturePatternChoices();
-      renderMeasureSuggestion();
-      updateVisitGuide();
-    };
-  });
-}
-
-function applySimpleVisitLayout() {
-  const target = $("visitOptionalDetailsContent");
-  if (!target) return;
-  ["recordContextCard","visitStep2","visitStep5","visitStep6"].forEach(id => {
-    const element = $(id);
-    if (element && element.parentElement !== target) target.appendChild(element);
-  });
-}
-
-function applyMinimalVisitRequirements() {
-  state.settings.visitRequirements ||= {};
-  if (state.settings.simpleVisitRequirementsV323) return;
-  const essential = new Set(["customerName","address","area","wallMaterial","wallThickness","measurementValue","measure"]);
-  VISIT_REQUIREMENT_DEFINITIONS.forEach(item => {
-    state.settings.visitRequirements[item.key] = essential.has(item.key);
-  });
-  state.settings.simpleVisitRequirementsV323 = true;
-  saveState();
 }
 
 function measureSuggestion() {
@@ -2050,15 +2006,9 @@ function renderVisit() {
   buildingFields.forEach(key => $(key).value = state.visit.building[key] || "");
   $("damageDescription").value = state.visit.damageDescription || "";
   $("moisturePattern").value = state.visit.moisturePattern || "";
-  if (!(state.visit.areas || []).length) {
-    const firstArea = createArea("Schadensbereich 1");
-    firstArea.measurements.push({ id:crypto.randomUUID(), device:state.visit.measurementDevice || "Gann Hydromette Compact B", value:"", unit:"Digits", height:"", location:"" });
-    state.visit.areas = [firstArea];
-  }
   $("activeWaterIngress").checked = Boolean(state.visit.activeWaterIngress);
   renderInquiryPlanning();
   renderDamageTags();
-  renderMoisturePatternChoices();
   $("climateMeasured").checked = Boolean(state.visit.building.climateMeasured);
   toggleClimateFields();
   renderAreas();
@@ -2290,32 +2240,28 @@ $("humidity").oninput = updateDewPoint;
 
 function renderAreas() {
   const box = $("areas");
-  state.visit.measurementDevice ||= "Gann Hydromette Compact B";
-  if ($("defaultMeasurementDevice")) $("defaultMeasurementDevice").value = state.visit.measurementDevice;
   box.innerHTML = "";
   state.visit.areas.forEach((area, ai) => {
     const card = document.createElement("div");
     card.className = "area-card";
     card.innerHTML = `
-      <div class="area-head"><h3>${esc(area.name || `Schadensbereich ${ai + 1}`)}</h3>${state.visit.areas.length>1?`<button class="danger" data-delete-area="${area.id}">Löschen</button>`:""}</div>
-      <div class="grid area-essential-fields">
-        <div><label>Bereich</label><input data-area="${area.id}" data-field="name" value="${esc(area.name)}" placeholder="z. B. Keller Außenwand"></div>
+      <div class="area-head"><h3>${ai + 1}. ${esc(area.name)}</h3><button class="danger" data-delete-area="${area.id}">Löschen</button></div>
+      <div class="grid">
+        <div><label>Bezeichnung</label><input data-area="${area.id}" data-field="name" value="${esc(area.name)}"></div>
         <div><label>Wandmaterial</label><select data-area="${area.id}" data-field="wallMaterial">${["","HBL / Hohlblockstein","Ziegel","Kalksandstein","Beton","Naturstein","Mischmauerwerk","Sonstiges","Unbekannt"].map(v => `<option ${area.wallMaterial===v?"selected":""}>${v}</option>`).join("")}</select></div>
+        <div><label>Abweichendes Material</label><input data-area="${area.id}" data-field="wallMaterialOther" value="${esc(area.wallMaterialOther)}"></div>
         <div><label>Wandstärke</label><select data-area="${area.id}" data-field="wallThickness">${["",24,30,36,42,48,60].map(v => `<option value="${v}" ${Number(area.wallThickness)===v?"selected":""}>${v} cm</option>`).join("")}</select></div>
+        <div><label>Wandart</label><select data-area="${area.id}" data-field="wallType"><option value="">– bitte auswählen –</option><option ${area.wallType==="Außenwand"?"selected":""}>Außenwand</option><option ${area.wallType==="Innenwand"?"selected":""}>Innenwand</option></select></div>
+        <div><label>Erdkontakt</label><select data-area="${area.id}" data-field="earthContact"><option value="">– bitte auswählen –</option><option ${area.earthContact==="erdberührt"?"selected":""}>erdberührt</option><option ${area.earthContact==="nicht erdberührt"?"selected":""}>nicht erdberührt</option></select></div>
+        <div><label>Wandbelag</label><select data-area="${area.id}" data-field="wallCover">${["","Putz","Farbe","Tapete","Fliesen","Unbekannt","Sonstiges"].map(v => `<option ${area.wallCover===v?"selected":""}>${v}</option>`).join("")}</select></div>
+        <div><label>Zugänglichkeit</label><select data-area="${area.id}" data-field="access"><option value="">– bitte auswählen –</option><option ${area.access==="normal"?"selected":""}>normal</option><option ${area.access==="eingeschränkt"?"selected":""}>eingeschränkt</option><option ${area.access==="schwierig"?"selected":""}>schwierig</option></select></div>
       </div>
-      <details class="area-advanced mini-details">
-        <summary>Weitere Wandangaben – nur bei Bedarf</summary>
-        <div class="grid">
-          <div><label>Abweichendes Material</label><input data-area="${area.id}" data-field="wallMaterialOther" value="${esc(area.wallMaterialOther)}"></div>
-          <div><label>Wandart</label><select data-area="${area.id}" data-field="wallType"><option value="">– keine Angabe –</option><option ${area.wallType==="Außenwand"?"selected":""}>Außenwand</option><option ${area.wallType==="Innenwand"?"selected":""}>Innenwand</option></select></div>
-          <div><label>Erdkontakt</label><select data-area="${area.id}" data-field="earthContact"><option value="">– keine Angabe –</option><option ${area.earthContact==="erdberührt"?"selected":""}>erdberührt</option><option ${area.earthContact==="nicht erdberührt"?"selected":""}>nicht erdberührt</option></select></div>
-          <div><label>Wandbelag</label><select data-area="${area.id}" data-field="wallCover">${["","Putz","Farbe","Tapete","Fliesen","Unbekannt","Sonstiges"].map(v => `<option ${area.wallCover===v?"selected":""}>${v}</option>`).join("")}</select></div>
-          <div><label>Zugänglichkeit</label><select data-area="${area.id}" data-field="access"><option value="">– keine Angabe –</option><option ${area.access==="normal"?"selected":""}>normal</option><option ${area.access==="eingeschränkt"?"selected":""}>eingeschränkt</option><option ${area.access==="schwierig"?"selected":""}>schwierig</option></select></div>
-          <div><label>Referenzwert trocken</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
-          <div class="full"><label>Notiz</label><div class="speech-row"><textarea id="area-note-${area.id}" data-area="${area.id}" data-field="notes">${esc(area.notes)}</textarea><button class="speech" data-speech-target="area-note-${area.id}">🎤</button></div></div>
-        </div>
-      </details>
-      <h3>Messwerte</h3><div id="measurements-${area.id}"></div><button class="secondary compact-add" data-add-measurement="${area.id}">+ Weiterer Messwert</button>
+      <label>Notizen</label><div class="speech-row"><textarea id="area-note-${area.id}" data-area="${area.id}" data-field="notes">${esc(area.notes)}</textarea><button class="speech" data-speech-target="area-note-${area.id}">🎤</button></div>
+      <h3>Feuchtemessung</h3>
+      <div class="grid">
+        <div><label>Referenzwert „trocken“</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
+      </div>
+      <h3>Messpunkte</h3><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Messpunkt</button>
       <h3>Maßnahmen</h3><div id="measures-${area.id}"></div><button class="secondary" data-add-measure="${area.id}">+ Maßnahme</button>
       <h3>Fotos</h3><input type="file" accept="image/*" capture="environment" multiple data-photo-area="${area.id}"><div id="photos-${area.id}" class="photo-grid"></div>`;
     box.appendChild(card);
@@ -2338,12 +2284,7 @@ function renderAreas() {
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
-    if (area.measurements.length === 1 && !String(area.measurements[0].value || "").trim()) {
-      area.measurements[0].device ||= state.visit.measurementDevice || "Gann Hydromette Compact B";
-      renderAreas();
-      return;
-    }
-    area.measurements.push({ id: crypto.randomUUID(), device:state.visit.measurementDevice || "Gann Hydromette Compact B",value:"",unit:"Digits",height:"",location:"" });
+    area.measurements.push({ id: crypto.randomUUID(), device:"",value:"",unit:"Digits",height:"",location:"" });
     saveState(); renderAreas();
   });
 
@@ -2369,24 +2310,17 @@ function renderMeasurements(area) {
   const box = $(`measurements-${area.id}`);
   area.measurements.forEach(measurement => measurement.unit = "Digits");
   box.innerHTML = area.measurements.map(m => `
-    <div class="sub-card quick-measurement">
-      <div class="wide measurement-device-row">
-        <span class="measurement-device-current">Messgerät: <strong>${esc(m.device || state.visit.measurementDevice || "Gann Hydromette Compact B")}</strong></span>
-        <button type="button" class="text-button" data-change-device="${m.id}">Anderes Gerät verwenden</button>
-        <select class="hidden" data-mid="${m.id}" data-mf="device">
-          <option value="Gann Hydromette Compact B" ${(m.device || state.visit.measurementDevice) === "Gann Hydromette Compact B" ? "selected" : ""}>Gann Hydromette Compact B</option>
-          <option value="Trotec Mikrowellenmessgerät" ${(m.device || state.visit.measurementDevice) === "Trotec Mikrowellenmessgerät" ? "selected" : ""}>Trotec Mikrowellenmessgerät</option>
-        </select>
-      </div>
-      <div class="measurement-value"><label>Messwert</label><div class="input-with-unit"><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="value" value="${esc(m.value)}" autofocus><span>Digits</span></div></div>
-      <details class="mini-details measurement-more">
-        <summary>Höhe und Position optional</summary>
-        <div class="grid">
-          <div><label>Messhöhe cm</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
-          <div><label>Messstelle / Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}" placeholder="z. B. Nordwand unten"></div>
-        </div>
-      </details>
-      ${area.measurements.length>1?`<button class="danger measurement-delete" data-delete-measurement="${m.id}">Messwert löschen</button>`:""}
+    <div class="sub-card item-grid">
+      <div class="wide"><label>Messgerät</label><select data-mid="${m.id}" data-mf="device">
+        <option value="">– bitte auswählen –</option>
+        <option value="Gann Hydromette Compact B" ${m.device === "Gann Hydromette Compact B" ? "selected" : ""}>Gann Hydromette Compact B</option>
+        <option value="Trotec Mikrowellenmessgerät" ${m.device === "Trotec Mikrowellenmessgerät" ? "selected" : ""}>Trotec Mikrowellenmessgerät</option>
+      </select></div>
+      <div><label>Messwert</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="value" value="${esc(m.value)}"></div>
+      <div><label>Einheit</label><input value="Digits" readonly aria-label="Einheit Digits"></div>
+      <div><label>Messhöhe cm</label><input type="number" inputmode="decimal" step="1" data-mid="${m.id}" data-mf="height" value="${esc(m.height)}"></div>
+      <div><label>Messstelle / Position</label><input data-mid="${m.id}" data-mf="location" value="${esc(m.location)}" placeholder="z. B. Nordwand unten"></div>
+      <button class="danger" data-delete-measurement="${m.id}">Löschen</button>
     </div>`).join("");
 
   box.querySelectorAll("[data-mf]").forEach(input => {
@@ -2398,12 +2332,6 @@ function renderMeasurements(area) {
       saveState();
       updateVisitGuide();
     };
-  });
-  box.querySelectorAll("[data-change-device]").forEach(button => button.onclick = () => {
-    const select = box.querySelector(`[data-mid="${button.dataset.changeDevice}"][data-mf="device"]`);
-    select.classList.remove("hidden");
-    button.classList.add("hidden");
-    select.focus();
   });
 
   box.querySelectorAll("[data-delete-measurement]").forEach(button => button.onclick = () => {
@@ -2475,25 +2403,7 @@ window.addEventListener("drive-photo-updated", () => {
   });
 });
 
-$("addArea").onclick = () => {
-  if (state.visit.areas.length === 1 && !state.visit.areas[0].wallMaterial && !state.visit.areas[0].wallThickness) {
-    renderAreas();
-    return;
-  }
-  state.visit.areas.push(createArea(`Schadensbereich ${state.visit.areas.length + 1}`));
-  saveState();
-  renderAreas();
-};
-$("defaultMeasurementDevice").onchange = () => {
-  const previous = state.visit.measurementDevice || "Gann Hydromette Compact B";
-  state.visit.measurementDevice = $("defaultMeasurementDevice").value;
-  (state.visit.areas || []).forEach(area => (area.measurements || []).forEach(measurement => {
-    if (!measurement.device || measurement.device === previous) measurement.device = state.visit.measurementDevice;
-  }));
-  saveState();
-  renderAreas();
-  updateVisitGuide();
-};
+$("addArea").onclick = () => { state.visit.areas.push(createArea("")); saveState(); renderAreas(); };
 $("moisturePattern").onchange = () => {
   state.visit.moisturePattern = $("moisturePattern").value;
   saveState();
@@ -2656,6 +2566,7 @@ function renderOffer() {
   $("offerAddress").textContent = state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", ") || "–";
   const review = reviewedOffer(result);
   $("offerGross").textContent = eur(review.totalGross);
+  renderLegalPriceOptions(result.baseGross, strategies.minimum.baseGross);
   if ($("dashPriceList")) {
     $("dashPriceList").textContent = state.settings.priceListName;
   }
@@ -2672,6 +2583,59 @@ function renderOffer() {
   renderOfferPositionReview(result);
   return result;
 }
+
+function legalPricePreview(regularGross, discountPercent) {
+  const gross = Math.max(0, Number(regularGross) || 0);
+  const percent = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+  const discountedGross = gross * (1 - percent / 100);
+  return {
+    gross,
+    net: gross / 1.19,
+    vat: gross - gross / 1.19,
+    percent,
+    discountedGross
+  };
+}
+
+function renderLegalPriceOptions(regularGross, minimumGross) {
+  if (!$("legalRegularGross")) return;
+  const preview = legalPricePreview(regularGross, parseDecimal($("legalDiscountPercent")?.value || 0));
+  $("legalRegularGross").textContent = eur(preview.gross);
+  $("legalVatAmount").textContent = eur(preview.vat);
+  $("legalNetAmount").textContent = eur(preview.net);
+  $("legalDiscountedGross").textContent = eur(preview.discountedGross);
+  const warning = $("legalPriceWarning");
+  if (!warning) return;
+  const belowMinimum = preview.percent > 0 && preview.discountedGross < Number(minimumGross || 0);
+  warning.className = `status ${belowMinimum ? "err" : preview.percent > 0 ? "ok" : ""}`;
+  warning.textContent = belowMinimum
+    ? `Achtung: Der neue Preis liegt ${eur(Number(minimumGross || 0) - preview.discountedGross)} unter deiner internen Preisuntergrenze von ${eur(minimumGross)}.`
+    : preview.percent > 0
+      ? `Offizieller Rabatt: ${num(preview.percent)} %. Der neue Preis wird ordnungsgemäß brutto und mit Rechnung angeboten.`
+      : "Rabatt eingeben, um eine offizielle Preisalternative zu prüfen.";
+}
+
+if ($("legalDiscountPercent")) $("legalDiscountPercent").oninput = () => {
+  const result = calculateOffer(state.settings, state.visit, state.discount);
+  const strategies = calculatePriceStrategies(state.settings, state.visit, state.discount);
+  renderLegalPriceOptions(result.baseGross, strategies.minimum.baseGross);
+};
+
+if ($("applyLegalDiscount")) $("applyLegalDiscount").onclick = () => {
+  const percent = Math.max(0, Math.min(100, parseDecimal($("legalDiscountPercent").value)));
+  state.discount.specialType = percent > 0 ? "percent" : "none";
+  state.discount.specialValue = percent;
+  state.discount.specialLabel = percent > 0 ? "Individueller Rabatt" : "";
+  state.visit.offerDraft = {items:{},approved:false,approvedAt:""};
+  $("specialType").value = state.discount.specialType;
+  $("specialValue").value = percent || "";
+  $("specialLabel").value = state.discount.specialLabel;
+  saveState();
+  renderOffer();
+  showStatus("offerReviewStatus", percent > 0
+    ? "Der offizielle Rabatt wurde übernommen. Bitte Positionen und Preis erneut freigeben."
+    : "Der Rabatt wurde entfernt. Bitte das Angebot erneut freigeben.", true);
+};
 
 ["skontoType","skontoCustom","specialType","specialValue","specialLabel"].forEach(id => {
   $(id).oninput = () => {
@@ -3200,6 +3164,21 @@ function renderSettings() {
 }
 
 let activeWorksiteId = null;
+const WORKSITE_SECTION_ORDER = [
+  "wsSectionOverview", "wsSectionExecution", "wsSectionPhotos", "wsSectionDocuments",
+  "wsSectionMaterial", "wsSectionTime", "wsSectionNotes", "wsSectionReport"
+];
+
+function isWorksiteSetupTask(task = {}) {
+  const text = `${task.areaName || ""} ${task.type || ""} ${task.offerDescription || ""} ${task.note || ""}`.toLowerCase();
+  return text.includes("baustelleneinrichtung") ||
+    text.includes("baustellen-einrichtung") ||
+    text.includes("einrichten der baustelle");
+}
+
+function reportableWorksiteTasks(worksite) {
+  return (worksite?.tasks || []).filter(task => !isWorksiteSetupTask(task));
+}
 
 function worksiteCustomerName(worksite) {
   return [worksite.customer?.salutation, worksite.customer?.firstName, worksite.customer?.lastName].filter(Boolean).join(" ") || worksite.customer?.company || "Unbenannter Kunde";
@@ -3211,6 +3190,7 @@ function renderWorksites() {
   if (!box) return;
   $("worksiteEditor").classList.toggle("hidden", !activeWorksiteId);
   $("closeWorksite").classList.toggle("hidden", !activeWorksiteId);
+  $("worksites").classList.toggle("worksite-detail-open", Boolean(activeWorksiteId));
   box.classList.toggle("hidden", Boolean(activeWorksiteId));
   if (activeWorksiteId) {
     renderWorksiteEditor();
@@ -3258,6 +3238,7 @@ function saveActiveWorksite(message=true) {
   const worksite = collectWorksite();
   if (!worksite) return null;
   if (worksite.status === "planned" && worksite.startTime) worksite.status = "active";
+  renderWorksiteInvoiceReview(worksite);
   persistWorksite(worksite);
   if(message) showStatus("worksiteStatus","Arbeitsnachweis gespeichert.",true);
   return worksite;
@@ -3357,6 +3338,7 @@ function plannedScopeHtml(task) {
 
 
 function activateWorksiteSection(sectionId) {
+  if (!WORKSITE_SECTION_ORDER.includes(sectionId)) sectionId = WORKSITE_SECTION_ORDER[0];
   document.querySelectorAll(".worksite-section").forEach(section => {
     section.classList.toggle("active", section.id === sectionId);
   });
@@ -3364,6 +3346,13 @@ function activateWorksiteSection(sectionId) {
     button.classList.toggle("active", button.dataset.worksiteSection === sectionId);
   });
   sessionStorage.setItem("mainabdichter_active_worksite_section", sectionId);
+  const index = WORKSITE_SECTION_ORDER.indexOf(sectionId);
+  if ($("worksiteStepBack")) $("worksiteStepBack").disabled = index <= 0;
+  if ($("worksiteStepNext")) {
+    $("worksiteStepNext").disabled = index >= WORKSITE_SECTION_ORDER.length - 1;
+    $("worksiteStepNext").textContent = index >= WORKSITE_SECTION_ORDER.length - 1 ? "Fertig" : "Weiter →";
+  }
+  if ($("worksiteStepStatus")) $("worksiteStepStatus").textContent = `Schritt ${index + 1} von ${WORKSITE_SECTION_ORDER.length}`;
   document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -3374,28 +3363,42 @@ function bindWorksiteSectionNavigation() {
       activateWorksiteSection(button.dataset.worksiteSection);
     };
   });
+  const move = direction => {
+    const current = sessionStorage.getItem("mainabdichter_active_worksite_section") || WORKSITE_SECTION_ORDER[0];
+    const currentIndex = Math.max(0, WORKSITE_SECTION_ORDER.indexOf(current));
+    const targetIndex = Math.max(0, Math.min(WORKSITE_SECTION_ORDER.length - 1, currentIndex + direction));
+    if (targetIndex === currentIndex) return;
+    if (activeWorksiteId) saveActiveWorksite(false);
+    activateWorksiteSection(WORKSITE_SECTION_ORDER[targetIndex]);
+  };
+  if ($("worksiteStepBack")) $("worksiteStepBack").onclick = () => move(-1);
+  if ($("worksiteStepNext")) $("worksiteStepNext").onclick = () => move(1);
 }
 
 function renderWorksiteOverview(ws) {
   const summary = $("wsOverviewSummary");
   if (summary) {
-    const completed = (ws.tasks || []).filter(task => task.completed).length;
-    const openBottles = (ws.tasks || []).reduce(
+    const tasks = reportableWorksiteTasks(ws);
+    const completed = tasks.filter(task => task.completed).length;
+    const openBottles = tasks.reduce(
       (sum, task) => sum + Math.max(0, Number(task.bottlesHanging || 0) - Number(task.bottlesRetrieved || 0)),
       0
     );
     summary.innerHTML = `
       <div><span>Status</span><strong>${esc(ws.status === "completed" ? "Abgeschlossen" : ws.status === "active" ? "In Ausführung" : "Geplant")}</strong></div>
-      <div><span>Maßnahmen</span><strong>${completed} von ${(ws.tasks || []).length} erledigt</strong></div>
+      <div><span>Maßnahmen</span><strong>${completed} von ${tasks.length} erledigt</strong></div>
       <div><span>Arbeitsdatum</span><strong>${esc(ws.date || "noch offen")}</strong></div>
       <div><span>Flaschen unterwegs</span><strong>${openBottles} Stück</strong></div>`;
   }
   const next = $("wsOverviewNextStep");
   if (next) {
-    const firstOpen = (ws.tasks || []).find(task => !task.completed);
-    next.innerHTML = firstOpen
-      ? `<button type="button" class="primary" data-jump-worksite="wsSectionExecution">Nächster Schritt: ${esc(firstOpen.areaName)} – ${esc(firstOpen.type)}</button>`
-      : `<button type="button" class="primary" data-jump-worksite="wsSectionReport">Arbeitsnachweis abschließen</button>`;
+    const firstOpen = reportableWorksiteTasks(ws).find(task => !task.completed);
+    next.innerHTML = `<div class="worksite-overview-actions">
+      <button type="button" class="secondary" data-jump-worksite="wsSectionDocuments">Aufmaß und Pläne öffnen</button>
+      ${firstOpen
+        ? `<button type="button" class="primary" data-jump-worksite="wsSectionExecution">Nächster Schritt: ${esc(firstOpen.areaName)} – ${esc(firstOpen.type)}</button>`
+        : `<button type="button" class="primary" data-jump-worksite="wsSectionReport">Arbeitsnachweis abschließen</button>`}
+    </div>`;
     next.querySelectorAll("[data-jump-worksite]").forEach(button => {
       button.onclick = () => activateWorksiteSection(button.dataset.jumpWorksite);
     });
@@ -3405,7 +3408,7 @@ function renderWorksiteOverview(ws) {
 function renderWorksitePhotoPage(ws) {
   const box = $("wsPhotoPage");
   if (!box) return;
-  box.innerHTML = (ws.tasks || []).map(task => `
+  box.innerHTML = reportableWorksiteTasks(ws).map(task => `
     <article class="worksite-photo-section">
       <div class="worksite-photo-section-head">
         <div><strong>${esc(task.areaName)}</strong><small>${esc(task.type)}</small></div>
@@ -3415,7 +3418,8 @@ function renderWorksitePhotoPage(ws) {
             <option>Während</option>
             <option>Nachher</option>
           </select>
-          <label class="secondary photo-upload-button">Foto hinzufügen<input class="hidden" type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></label>
+          <label class="secondary photo-upload-button">Foto aufnehmen<input class="hidden" type="file" accept="image/*" capture="environment" data-ws-photo-task="${task.id}" multiple></label>
+          <label class="secondary photo-upload-button">Bild auswählen<input class="hidden" type="file" accept="image/*" data-ws-photo-task="${task.id}" multiple></label>
         </div>
       </div>
       <div class="worksite-photo-grid">${taskPhotoHtml(task) || '<p class="hint">Noch keine Fotos hinterlegt.</p>'}</div>
@@ -3426,7 +3430,7 @@ function renderWorksiteReportChecklist(ws) {
   const box = $("wsReportChecklist");
   if (!box) return;
   const checks = [
-    ["Alle Maßnahmen geprüft", (ws.tasks || []).every(task => task.completed)],
+    ["Alle Maßnahmen geprüft", reportableWorksiteTasks(ws).every(task => task.completed)],
     ["Arbeitszeit erfasst", Boolean(ws.startTime && ws.endTime)],
     ["Mitarbeiter erfasst", Boolean(String(ws.employees || "").trim())],
     ["Bemerkungen geprüft", true],
@@ -3434,6 +3438,60 @@ function renderWorksiteReportChecklist(ws) {
   ];
   box.innerHTML = checks.map(([label, ok]) => `
     <div class="${ok ? "ok" : "missing"}"><span>${ok ? "✓" : "!"}</span><strong>${esc(label)}</strong></div>`).join("");
+}
+
+function invoiceReviewRows(ws) {
+  const originalTasks = reportableWorksiteTasks(ws).filter(task => !task.additionalWork);
+  return reportableWorksiteTasks(ws).filter(task => task.additionalWork).map(task => {
+    const linked = originalTasks.find(item => item.id === task.linkedTaskId);
+    const additionalQuantity = Number(task.actualQuantity || 0);
+    const approved = Boolean(task.customerApproved);
+    if (linked) {
+      const originalQuantity = Number(linked.plannedQuantity || 0);
+      return {
+        task, linked, approved,
+        title: linked.areaName || linked.type || "Auftragsleistung",
+        detail: approved
+          ? `${num(originalQuantity)} ${linked.unitName || task.unitName || ""} beauftragt + ${num(additionalQuantity)} ${task.unitName || linked.unitName || ""} zusätzlich = ${num(originalQuantity + additionalQuantity)} ${linked.unitName || task.unitName || ""} abzurechnen`
+          : `${num(additionalQuantity)} ${task.unitName || linked.unitName || ""} zusätzlich erfasst – wird ohne Kundenbestätigung nicht berechnet`
+      };
+    }
+    return {
+      task, linked: null, approved,
+      title: task.actualNote || task.scope || "Neue Zusatzleistung",
+      detail: approved
+        ? `${num(additionalQuantity)} ${task.unitName || ""} als neue Rechnungsposition`
+        : `${num(additionalQuantity)} ${task.unitName || ""} erfasst – wird ohne Kundenbestätigung nicht berechnet`
+    };
+  });
+}
+
+function renderWorksiteInvoiceReview(ws) {
+  const box = $("wsInvoiceReview");
+  if (!box) return;
+  const rows = invoiceReviewRows(ws);
+  box.innerHTML = rows.length ? rows.map(row => `
+    <article class="invoice-review-row ${row.approved ? "approved" : "pending"}">
+      <div>
+        <strong>${esc(row.title)}</strong>
+        <small>${esc(row.detail)}</small>
+      </div>
+      <span>${row.approved ? "✓ Für Rechnung vorgemerkt" : "Nicht berechnen"}</span>
+    </article>`).join("") : `<p class="hint">Keine Zusatzarbeiten erfasst. Die Rechnung bleibt wie beauftragt.</p>`;
+  ws.invoiceAdjustments = rows.filter(row => row.approved).map(row => ({
+    additionalTaskId: row.task.id,
+    linkedTaskId: row.linked?.id || "",
+    sourceLineItemId: row.linked?.sourceLineItemId || "",
+    sourceArticleId: row.linked?.sourceArticleId || "",
+    mode: row.linked ? "increase-existing" : "new-line-item",
+    originalQuantity: Number(row.linked?.plannedQuantity || 0),
+    additionalQuantity: Number(row.task.actualQuantity || 0),
+    invoiceQuantity: row.linked
+      ? Number(row.linked.plannedQuantity || 0) + Number(row.task.actualQuantity || 0)
+      : Number(row.task.actualQuantity || 0),
+    unitName: row.linked?.unitName || row.task.unitName || "",
+    description: row.task.actualNote || row.task.scope || ""
+  }));
 }
 
 
@@ -3585,6 +3643,7 @@ function renderWorksiteEditor() {
   renderWorksiteOverview(ws);
   renderWorksitePhotoPage(ws);
   renderWorksiteReportChecklist(ws);
+  renderWorksiteInvoiceReview(ws);
   bindWorksiteSectionNavigation();
   const storedSection = sessionStorage.getItem("mainabdichter_active_worksite_section") || "wsSectionOverview";
   activateWorksiteSection(document.getElementById(storedSection) ? storedSection : "wsSectionOverview");
@@ -3599,7 +3658,7 @@ function renderWorksiteEditor() {
     if (task.injectionPressureless === undefined) task.injectionPressureless = /drucklos/i.test(task.injectionType || "");
     if (task.injectionLowPressure === undefined) task.injectionLowPressure = /niederdruck/i.test(task.injectionType || "");
   });
-  $("worksiteTasks").innerHTML = ws.tasks.map(task => {
+  $("worksiteTasks").innerHTML = reportableWorksiteTasks(ws).map(task => {
     const technical = taskIsTechnical(task);
     const usesHz = taskUsesHz(task);
     const usesHs = taskUsesHs(task);
@@ -3641,6 +3700,15 @@ function renderWorksiteEditor() {
         <div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div>
         <div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>
         ${chargeFieldHtml(task, "bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K")}` : "";
+    const linkableTasks = reportableWorksiteTasks(ws).filter(item => !item.additionalWork);
+    const additionalFields = task.additionalWork ? `
+        <div><label>Tatsächliche Menge</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>
+        <div><label>Einheit</label><select data-ws-task="${task.id}" data-ws-field="unitName">${["lfm","m²","Stück","Stunden","Pauschal"].map(value=>`<option ${task.unitName===value?"selected":""}>${value}</option>`).join("")}</select></div>
+        <div class="full"><label>Zur Rechnung zuordnen</label><select data-ws-task="${task.id}" data-ws-field="linkedTaskId">
+          <option value="">Neue Leistungsart – neue Rechnungsposition</option>
+          ${linkableTasks.map(item => `<option value="${item.id}" ${task.linkedTaskId===item.id?"selected":""}>Mehrmenge zu: ${esc(item.areaName || item.type)} (${num(item.plannedQuantity)} ${esc(item.unitName || "")})</option>`).join("")}
+        </select></div>
+        <div class="full switch-row"><label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="customerApproved" ${task.customerApproved?"checked":""}> Vom Kunden vor Ort beauftragt</label></div>` : "";
     return `
     <div class="card worksite-task-card">
       <div class="worksite-task-title"><div><h2>${esc(task.areaName)} – ${esc(task.type)}</h2><small>${esc(task.scope)}</small></div><label class="worksite-check"><input type="checkbox" data-ws-task="${task.id}" data-ws-field="completed" ${task.completed?"checked":""}> vollständig ausgeführt</label></div>
@@ -3651,6 +3719,7 @@ function renderWorksiteEditor() {
         ${hzFields}
         ${hsFields}
         ${resinFields}
+        ${additionalFields}
         <div class="full"><label>Was wurde tatsächlich gemacht / Besonderheiten</label><textarea data-ws-task="${task.id}" data-ws-field="actualNote">${esc(task.actualNote || "")}</textarea></div>
       </div>
     </div>`;
@@ -3712,6 +3781,41 @@ function renderWorksiteEditor() {
   });
   applyInputModes($("worksiteEditor"));
   renderWorksiteAttachments(ws);
+}
+
+function addAdditionalWorkToActiveWorksite() {
+  const ws = saveActiveWorksite(false) || getWorksite(activeWorksiteId);
+  if (!ws) return;
+  const area = prompt("In welchem Bereich soll zusätzlich gearbeitet werden?", "");
+  if (area === null) return;
+  const description = prompt("Welche zusätzliche Arbeit wünscht der Kunde?", "");
+  if (description === null || !description.trim()) return;
+  const originalTasks = reportableWorksiteTasks(ws).filter(task => !task.additionalWork);
+  let linkedTaskId = "";
+  if (originalTasks.length === 1) {
+    linkedTaskId = confirm(`Gehört die Zusatzarbeit zur vorhandenen Leistung „${originalTasks[0].areaName || originalTasks[0].type}“?`) ? originalTasks[0].id : "";
+  }
+  ws.tasks.push({
+    id: crypto.randomUUID(),
+    areaId: "",
+    areaName: area.trim() || "Zusätzlicher Bereich",
+    workArea: area.trim(),
+    type: "Zusatzarbeit",
+    scope: description.trim(),
+    offerDescription: "",
+    actualNote: description.trim(),
+    plannedQuantity: 0,
+    actualQuantity: 1,
+    unitName: "Pauschal",
+    completed: false,
+    additionalWork: true,
+    linkedTaskId,
+    customerApproved: false,
+    photos: []
+  });
+  persistWorksite(ws);
+  sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionExecution");
+  renderWorksiteEditor();
 }
 
 function deductWorksiteInventory(ws) {
@@ -3809,8 +3913,10 @@ if ($("closeWorksiteDetail")) $("closeWorksiteDetail").onclick = () => {
   activeWorksiteId = null;
   renderWorksites();
 };
+if ($("wsAddExtraWork")) $("wsAddExtraWork").onclick = addAdditionalWorkToActiveWorksite;
 $("wsAddAttachments").onclick = () => $("wsAttachmentInput").click();
-$("wsAttachmentInput").onchange = async event => {
+if ($("wsTakeAttachmentPhoto")) $("wsTakeAttachmentPhoto").onclick = () => $("wsAttachmentCamera").click();
+const addWorksiteAttachmentFiles = async event => {
   const ws = saveActiveWorksite(false) || getWorksite(activeWorksiteId);
   if (!ws) return;
   const category = $("wsAttachmentCategory").value;
@@ -3822,12 +3928,28 @@ $("wsAttachmentInput").onchange = async event => {
     for (const file of files) await addWorksiteAttachment(ws.id, file, { category, note });
     event.target.value = "";
     $("wsAttachmentNote").value = "";
+    let syncWarning = "";
+    if (ws.pipedriveDealId) {
+      try {
+        await syncWorksiteDeal(ws, ws.status === "completed" ? "executionCompleted" : "executionPlanned", null);
+      } catch (syncError) {
+        syncWarning = syncError.message;
+      }
+    }
     await renderWorksiteAttachments(ws);
-    showStatus("worksiteStatus", `${files.length} Datei(en) wurden der Bauakte hinzugefügt.`, true);
+    showStatus(
+      "worksiteStatus",
+      syncWarning
+        ? `Datei gespeichert. Pipedrive-Upload noch offen: ${syncWarning}`
+        : `${files.length} Datei(en) wurden gespeichert und stehen in der Bauakte bereit.`,
+      !syncWarning
+    );
   } catch (error) {
     showStatus("worksiteStatus", error.message, false);
   }
 };
+$("wsAttachmentInput").onchange = addWorksiteAttachmentFiles;
+if ($("wsAttachmentCamera")) $("wsAttachmentCamera").onchange = addWorksiteAttachmentFiles;
 $("wsUploadAttachments").onclick = async () => {
   try {
     const ws = saveActiveWorksite(false);
@@ -3855,7 +3977,7 @@ $("completeWorksite").onclick = async () => {
   try {
     const ws=saveActiveWorksite(false);
     if (ws.materialBooked || ws.status === "completed") throw new Error("Diese Baustelle wurde bereits abgeschlossen und das Material bereits abgebucht.");
-    if(!ws.tasks.every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return;
+    if(!reportableWorksiteTasks(ws).every(task=>task.completed) && !confirm("Nicht alle Maßnahmen sind als vollständig ausgeführt markiert. Trotzdem abschließen?")) return;
     if (!String(ws.customerSignature || "").trim() || !ws.customerSignatureData) {
       sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionReport");
       renderWorksiteEditor();
@@ -3991,8 +4113,6 @@ $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
 migrateWorkerUrl();
-applySimpleVisitLayout();
-applyMinimalVisitRequirements();
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });

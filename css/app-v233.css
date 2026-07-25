@@ -1056,3 +1056,15 @@ html,body{max-width:100%;overflow-x:hidden}
   .v287-row-actions{display:grid;grid-template-columns:1fr 1fr}
   .v287-row-actions .primary{grid-column:1/-1}
 }
+.legal-price-options summary{font-weight:800;cursor:pointer}
+.legal-price-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.legal-price-grid>div,.legal-new-price{display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:12px;background:#f3f7f4;border:1px solid #d9e5dc}
+.legal-price-grid span,.legal-new-price span{font-size:.78rem;color:#607066}
+.legal-price-grid strong,.legal-new-price strong{font-size:1.15rem}
+.legal-discount-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) auto;gap:10px;align-items:end}
+.legal-discount-row label{margin:0}
+@media(max-width:700px){
+  .legal-price-grid{grid-template-columns:1fr}
+  .legal-discount-row{grid-template-columns:1fr}
+  .legal-discount-row button{width:100%}
+}

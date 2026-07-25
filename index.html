@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.3</title>
-<link rel="stylesheet" href="css/app.css?v=32.3.0">
+<title>mainabdichter PRO V32.6</title>
+<link rel="stylesheet" href="css/app.css?v=32.6.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
@@ -199,8 +199,12 @@ main{width:100%;max-width:100%}
     <div class="record-meta-grid"><div><span>Besichtigungs-Nr.</span><strong id="metaVisitNumber">–</strong></div><div><span>Datum</span><strong id="metaVisitDate">–</strong></div><div><span>Beginn</span><strong id="metaVisitTime">–</strong></div><div><span>Standort</span><strong id="metaVisitLocation">–</strong></div><div><span>Wetter</span><strong id="metaVisitWeather">–</strong></div></div>
   </section>
   <div class="card visit-toolbar"><div class="visit-toolbar-title"><span>BESICHTIGUNG</span><h2>Schritt für Schritt erfassen</h2></div>
-    <div class="simple-visit-progress" aria-label="Ablauf der Besichtigung">
-      <span>1 Kunde</span><span>2 Schaden</span><span>3 Messen</span><span>4 Fertig</span>
+    <div class="visit-progress">
+      <button type="button" data-open-step="1">Kunde</button>
+      <button type="button" data-open-step="2">Gebäude</button>
+      <button type="button" data-open-step="3">Beschreibung</button>
+      <button type="button" data-open-step="4">Maßnahmen</button>
+      <button type="button" data-open-step="5">Extras</button>
     </div>
     <div id="guidedAssistant" class="guided-assistant">
       <div><span id="guidedStepLabel">Schritt 1 von 7</span><strong id="guidedInstruction">Kunde und Termin prüfen</strong></div>
@@ -289,12 +293,6 @@ main{width:100%;max-width:100%}
     <div id="inquiryPlanningStatus" class="status"></div>
   </details>
 
-  <details id="visitOptionalDetails" class="card optional-data-hub">
-    <summary>Weitere Angaben – nur bei Bedarf <span class="optional-badge">optional</span></summary>
-    <p class="hint">Gebäudedaten, Wetter, Vorgeschichte, Dokumente und Zusatzleistungen. Öffne diesen Bereich nur, wenn du etwas davon wirklich brauchst.</p>
-    <div id="visitOptionalDetailsContent"></div>
-  </details>
-
   <details id="visitStep1" class="card compact-step guided-step" open>
     <summary>1. Kunde und Termin <span class="step-state"></span></summary>
     <div class="grid">
@@ -370,15 +368,8 @@ main{width:100%;max-width:100%}
     <div id="damageTagOptions" class="damage-tag-grid"></div>
     <div class="grid onsite-assessment-grid">
       <div class="full">
-        <label>Wo zeigt sich die Feuchtigkeit?</label>
-        <div id="moisturePatternChoices" class="quick-choice-grid">
-          <button type="button" data-moisture-pattern="rising">⬆ Von unten</button>
-          <button type="button" data-moisture-pattern="lateral">▦ Seitlich / flächig</button>
-          <button type="button" data-moisture-pattern="wallSole">⌞ Wand–Boden</button>
-          <button type="button" data-moisture-pattern="localWater">● Einzelne nasse Stelle</button>
-          <button type="button" data-moisture-pattern="unclear">? Noch unklar</button>
-        </div>
-        <select id="moisturePattern" class="hidden" aria-label="Feuchteverlauf">
+        <label>Feuchteverlauf / auffälliger Bereich</label>
+        <select id="moisturePattern">
           <option value="">– bitte auswählen –</option>
           <option value="rising">Von unten aufsteigend</option>
           <option value="lateral">Seitlich oder flächig in der Wand</option>
@@ -403,14 +394,6 @@ main{width:100%;max-width:100%}
 
   <details id="visitStep4" class="card compact-step guided-step">
     <summary>4. Schadensbereiche und Maßnahmen <span class="step-state"></span></summary>
-    <div class="measurement-device-default">
-      <label for="defaultMeasurementDevice">Messgerät für diese Besichtigung</label>
-      <select id="defaultMeasurementDevice">
-        <option value="Gann Hydromette Compact B">Gann Hydromette Compact B</option>
-        <option value="Trotec Mikrowellenmessgerät">Trotec Mikrowellenmessgerät</option>
-      </select>
-      <small>Einmal auswählen – gilt automatisch für alle Messpunkte. Nur bei einer abweichenden Messung musst du das Gerät ändern.</small>
-    </div>
     <div id="areas"></div>
     <button id="addArea" class="primary">+ Schadensbereich</button>
   </details>
@@ -643,6 +626,21 @@ main{width:100%;max-width:100%}
       </button>
     </div>
   </div>
+  <details class="card legal-price-options">
+    <summary>Preisoptionen</summary>
+    <p class="hint">Interne, rechtssichere Kalkulationshilfe. Der Kunde erhält immer eine ordnungsgemäße Rechnung.</p>
+    <div class="legal-price-grid">
+      <div><span>Regulärer Bruttopreis</span><strong id="legalRegularGross">–</strong></div>
+      <div><span>Enthaltene Umsatzsteuer</span><strong id="legalVatAmount">–</strong></div>
+      <div><span>Nettopreis</span><strong id="legalNetAmount">–</strong></div>
+    </div>
+    <div class="legal-discount-row">
+      <label>Offizieller Rabatt %<input id="legalDiscountPercent" type="number" inputmode="decimal" min="0" max="100" step=".1" placeholder="0"></label>
+      <div class="legal-new-price"><span>Neuer Bruttopreis</span><strong id="legalDiscountedGross">–</strong></div>
+      <button type="button" id="applyLegalDiscount" class="primary">Rabatt übernehmen</button>
+    </div>
+    <div id="legalPriceWarning" class="status"></div>
+  </details>
   <div class="card material-requirement-card">
     <div class="card-title-row"><h2>Materialbedarf und Lager</h2><button id="deductInventory" class="secondary">Material abbuchen</button></div>
     <div id="materialRequirement"></div>
@@ -713,7 +711,7 @@ main{width:100%;max-width:100%}
 
 
 <section id="worksites" class="page">
-  <div class="card">
+  <div class="card worksite-page-intro">
     <div class="card-title-row"><div><h1>Baustellen und Arbeitsnachweise</h1><p class="hint">Angebot übernehmen, Ist-Werte dokumentieren, PDF erstellen und Material abbuchen.</p></div><button id="closeWorksite" class="secondary hidden">Zur Übersicht</button></div>
   </div>
   <div id="worksiteList" class="card"></div>
@@ -752,6 +750,14 @@ main{width:100%;max-width:100%}
         <h2>Was muss ausgeführt werden?</h2>
         <p>Hier stehen nur die für die Ausführung notwendigen Werte.</p>
       </div>
+      <div class="card additional-work-entry">
+        <div>
+          <span class="dashboard-eyebrow">KUNDENWUNSCH VOR ORT</span>
+          <h2>Weitere Arbeit gewünscht?</h2>
+          <p class="hint">Nur verwenden, wenn während der Ausführung etwas zum Auftrag hinzukommt.</p>
+        </div>
+        <button id="wsAddExtraWork" type="button" class="secondary">＋ Zusätzliche Arbeit erfassen</button>
+      </div>
       <div id="worksiteTasks"></div>
     </section>
 
@@ -770,12 +776,14 @@ main{width:100%;max-width:100%}
           <div><span class="dashboard-eyebrow">BAUAKTE</span><h2>Dokumente und Pläne</h2><p class="hint">Angebot, Aufmaß, Grundrisse, PDFs, Gutachten und Skizzen.</p></div>
         </div>
         <div class="grid">
-          <div><label>Kategorie</label><select id="wsAttachmentCategory"><option>Grundriss</option><option>Gebäudequerschnitt</option><option>Schadensbild</option><option>Messstelle</option><option>Vorher</option><option>Während</option><option>Nachher</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
+          <div><label>Kategorie</label><select id="wsAttachmentCategory"><option>Aufmaß</option><option>Grundriss</option><option>Gebäudequerschnitt</option><option>Schadensbild</option><option>Messstelle</option><option>Vorher</option><option>Während</option><option>Nachher</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
           <div class="full"><label>Bemerkung zur Datei</label><input id="wsAttachmentNote" placeholder="z. B. Kellergrundriss mit markierter Nordwand"></div>
         </div>
         <input id="wsAttachmentInput" class="hidden" type="file" accept="image/*,.pdf,application/pdf" multiple>
+        <input id="wsAttachmentCamera" class="hidden" type="file" accept="image/*" capture="environment" multiple>
         <div class="offer-actions">
-          <button id="wsAddAttachments" class="secondary">Bilder oder PDFs hinzufügen</button>
+          <button id="wsTakeAttachmentPhoto" class="secondary">Foto aufnehmen</button>
+          <button id="wsAddAttachments" class="secondary">Bild oder PDF auswählen</button>
           <button id="wsUploadAttachments" class="secondary">Offene Dateien zu Pipedrive hochladen</button>
         </div>
         <div id="wsAttachmentList" class="worksite-attachment-list"></div>
@@ -823,6 +831,12 @@ main{width:100%;max-width:100%}
         <h2>Arbeitsnachweis</h2>
         <p class="hint">Alle Angaben aus den vorherigen Bereichen werden automatisch zusammengeführt.</p>
         <div id="wsReportChecklist" class="worksite-report-checklist"></div>
+        <div class="invoice-review-card">
+          <span class="dashboard-eyebrow">RECHNUNGSPRÜFUNG</span>
+          <h2>Zusatzarbeiten richtig zuordnen</h2>
+          <p class="hint">Bestätigte Mehrmengen werden zur vorhandenen Rechnungsposition addiert. Nur neue Leistungsarten erscheinen als neue Position.</p>
+          <div id="wsInvoiceReview"></div>
+        </div>
         <div class="grid signature-meta-grid">
           <div><label>Ort</label><input id="wsSignaturePlace" placeholder="Ort der Ausführung"></div>
           <div><label>Datum</label><input id="wsSignatureDate" type="date"></div>
@@ -861,6 +875,11 @@ main{width:100%;max-width:100%}
         <div id="worksiteStatus" class="status"></div>
       </div>
     </section>
+    <nav class="worksite-step-actions" aria-label="Schrittweise Navigation">
+      <button id="worksiteStepBack" type="button" class="secondary">← Zurück</button>
+      <span id="worksiteStepStatus">Schritt 1 von 8</span>
+      <button id="worksiteStepNext" type="button" class="primary">Weiter →</button>
+    </nav>
   </div>
   </div>
 </section>
@@ -1006,8 +1025,8 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=32.3.0"></script>
-<script type="module" src="js/phase1-v26.js?build=20260725-v32-2"></script>
+<script type="module" src="js/app.js?v=32.6.0"></script>
+<script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>
 </html>
