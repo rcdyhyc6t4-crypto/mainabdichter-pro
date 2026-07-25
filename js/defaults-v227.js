@@ -137,7 +137,8 @@ export const DEFAULTS = {
       roomTemp: "", humidity: "", surfaceTemp: "", dewPoint: ""
     },
     visitDate: new Date().toISOString().slice(0, 10),
-    visitStartTime: new Date().toTimeString().slice(0, 5),
+    visitEmployee: "",
+    visitStartTime: "",
     visitEndTime: "",
     visitNumber: "",
     visitLatitude: "",

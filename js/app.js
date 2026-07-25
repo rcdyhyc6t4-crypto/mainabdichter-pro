@@ -5,15 +5,15 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.6.0";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.2";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.6.0";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.2";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 
 
-const MAINABDICHTER_APP_VERSION = "32.6.0";
+const MAINABDICHTER_APP_VERSION = "32.7.2";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -953,7 +953,8 @@ function startNewVisit() {
   activeArchiveId = null;
   resetVisit();
   state.visit.visitDate = todayLocal();
-  state.visit.visitStartTime = timeLocal();
+  state.visit.visitStartTime = "";
+  state.visit.visitEndTime = "";
   state.visit.visitNumber = createVisitNumber();
   saveState();
   renderVisit();
@@ -1011,7 +1012,8 @@ function loadArchiveRecord(id, asCopy = false) {
 
   if (asCopy) {
     state.visit.visitDate = todayLocal();
-    state.visit.visitStartTime = timeLocal();
+    state.visit.visitEmployee = "";
+    state.visit.visitStartTime = "";
     state.visit.visitEndTime = "";
     state.visit.visitNumber = createVisitNumber();
     state.visit.inventoryDeducted = false;
@@ -1430,29 +1432,68 @@ if ($("bottomFollowup")) {
     });
   };
 }
-$("setVisitNow").onclick = () => {
+$("startVisitWork").onclick = () => {
+  const employee = $("visitEmployee").value.trim();
+  if (!employee) {
+    showStatus("visitStartStatus", "Bitte zuerst den Mitarbeiter eintragen.", false);
+    $("visitEmployee").focus();
+    return;
+  }
+  state.visit.visitEmployee = employee;
   state.visit.visitDate = todayLocal();
   state.visit.visitStartTime = timeLocal();
+  state.visit.visitEndTime = "";
   if (!state.visit.visitNumber) state.visit.visitNumber = createVisitNumber();
-
   $("visitDate").value = state.visit.visitDate;
   $("visitStartTime").value = state.visit.visitStartTime;
+  $("visitEndTime").value = "";
   $("visitNumber").value = state.visit.visitNumber;
   updateVisitDuration();
   saveState();
+  renderVisitTimeStatus();
+  renderVisitChecklist();
 };
 
-$("setVisitEndNow").onclick = () => {
+$("endVisitWork").onclick = () => {
+  if (!state.visit.visitStartTime) {
+    showStatus("visitEndStatus", "Die Besichtigung wurde noch nicht begonnen.", false);
+    $("visitStep1").open = true;
+    $("visitStep1").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
   state.visit.visitEndTime = timeLocal();
   $("visitEndTime").value = state.visit.visitEndTime;
   updateVisitDuration();
   saveState();
+  renderVisitTimeStatus();
+  renderVisitChecklist();
 };
+
+function renderVisitTimeStatus() {
+  if ($("visitStartStatus")) {
+    $("visitStartStatus").textContent = state.visit.visitStartTime
+      ? `Begonnen: ${state.visit.visitDate || todayLocal()} um ${state.visit.visitStartTime} Uhr`
+      : "";
+  }
+  if ($("visitEndStatus")) {
+    $("visitEndStatus").textContent = state.visit.visitEndTime
+      ? `Beendet um ${state.visit.visitEndTime} Uhr · Dauer: ${$("visitDuration")?.value || "wird berechnet"}`
+      : "";
+  }
+  if ($("startVisitWork")) $("startVisitWork").textContent = state.visit.visitStartTime ? "Beginn erfasst" : "Besichtigung beginnen";
+  if ($("endVisitWork")) $("endVisitWork").textContent = state.visit.visitEndTime ? "Besichtigung beendet" : "Besichtigung beenden";
+}
 
 $("visitStartTime").oninput = () => {
   state.visit.visitStartTime = $("visitStartTime").value;
   updateVisitDuration();
   saveState();
+};
+
+$("visitEmployee").oninput = () => {
+  state.visit.visitEmployee = $("visitEmployee").value.trim();
+  saveState();
+  renderVisitChecklist();
 };
 
 $("visitEndTime").oninput = () => {
@@ -1577,6 +1618,9 @@ const GUIDE_STEPS = [
   {id:"visitOfferBasis", label:"Angebotsgrundlage", instruction:"Ganz zum Schluss die Angebotsgrundlage freigeben"}
 ];
 const VISIT_REQUIREMENT_DEFINITIONS = [
+  {group:"Kunde und Termin",key:"visitEmployee",label:"Mitarbeiter"},
+  {group:"Kunde und Termin",key:"visitStartTime",label:"Besichtigung begonnen"},
+  {group:"Abschluss",key:"visitEndTime",label:"Besichtigung beendet"},
   {group:"Kunde und Termin",key:"customerName",label:"Kundenname oder Firma",legacy:"customer"},
   {group:"Kunde und Termin",key:"customerContact",label:"Telefonnummer oder E-Mail",legacy:"customer"},
   {group:"Kunde und Termin",key:"address",label:"Objektanschrift"},
@@ -1600,7 +1644,6 @@ const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Schadensbereiche",key:"wallType",label:"Wandart",defaultRequired:false},
   {group:"Schadensbereiche",key:"earthContact",label:"Erdkontakt",defaultRequired:false},
   {group:"Schadensbereiche",key:"wallCover",label:"Wandbelag",defaultRequired:false},
-  {group:"Schadensbereiche",key:"access",label:"Zugänglichkeit",defaultRequired:false},
   {group:"Feuchtemessung",key:"dryReference",label:"Referenzwert trocken",defaultRequired:false},
   {group:"Feuchtemessung",key:"measurement",label:"Mindestens ein Messpunkt",legacy:"measurement"},
   {group:"Feuchtemessung",key:"measurementDevice",label:"Messgerät je Messpunkt",legacy:"measurement"},
@@ -1618,6 +1661,9 @@ function visitRequirementEnabled(key){
 }
 function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
 function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]);return[
+ {key:"visitEmployee",label:"Mitarbeiter auswählen",valid:Boolean(String(state.visit.visitEmployee||"").trim()),step:0,selector:"#visitEmployee"},
+ {key:"visitStartTime",label:"Besichtigung beginnen",valid:Boolean(state.visit.visitStartTime),step:0,selector:"#startVisitWork"},
+ {key:"visitEndTime",label:"Besichtigung beenden",valid:Boolean(state.visit.visitEndTime),step:6,selector:"#endVisitWork"},
  {key:"customerName",label:"Kundenname oder Firma",valid:Boolean(c.firstName||c.lastName||c.company),step:0,selector:"#firstName, #lastName, #company"},
  {key:"customerContact",label:"Telefonnummer oder E-Mail",valid:Boolean(c.phone||c.email),step:0,selector:"#phone, #email"},
  {key:"address",label:"Objektanschrift",valid:Boolean(c.objectAddress||(c.street&&c.zip&&c.city)),step:0,selector:"#objectAddress"},
@@ -1641,7 +1687,6 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"wallType",label:"Wandart",valid:areas.length>0&&areas.every(x=>x.wallType),step:4,selector:'[data-field="wallType"]'},
  {key:"earthContact",label:"Erdkontakt",valid:areas.length>0&&areas.every(x=>x.earthContact),step:4,selector:'[data-field="earthContact"]'},
  {key:"wallCover",label:"Wandbelag",valid:areas.length>0&&areas.every(x=>x.wallCover),step:4,selector:'[data-field="wallCover"]'},
- {key:"access",label:"Zugänglichkeit",valid:areas.length>0&&areas.every(x=>x.access),step:4,selector:'[data-field="access"]'},
  {key:"dryReference",label:"Referenzwert trocken",valid:areas.length>0&&areas.every(x=>String(x.dryReference||"").trim()),step:4,selector:'[data-field="dryReference"]'},
  {key:"measurement",label:"Mindestens ein Messpunkt",valid:areas.length>0&&areas.every(x=>(x.measurements||[]).length>0),step:4,selector:'[data-add-measurement]'},
  {key:"measurementDevice",label:"Messgerät je Messpunkt",valid:measurements.length>0&&measurements.every(m=>m.device),step:4,selector:'[data-mf="device"]'},
@@ -1849,7 +1894,20 @@ function formatInquiryDate(value) {
   return year && month && day ? `${day}.${month}.${year}` : value;
 }
 
+function captureVisitScroll() {
+  return $("visit")?.classList.contains("active") ? window.scrollY : null;
+}
+
+function restoreVisitScroll(scrollY) {
+  if (scrollY === null) return;
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: scrollY, behavior: "auto" });
+    requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "auto" }));
+  });
+}
+
 function renderInquiryPlanning() {
+  const scrollY = captureVisitScroll();
   const inquiry = ensureInquiry();
   $("inquirySource").value = inquiry.source || "";
   $("inquiryConcern").value = inquiry.concern || "";
@@ -1888,6 +1946,7 @@ function renderInquiryPlanning() {
     : inquiry.appointmentStatus === "callback"
       ? "<strong>Nächster Schritt: Kunden zurückrufen</strong><span>Danach Terminstatus auf „Termin vereinbart“ setzen.</span>"
       : "<strong>Nächster Schritt: Besichtigungstermin vereinbaren</strong><span>Quelle, Anliegen und gemeldete Symptome bleiben bereits gespeichert.</span>";
+  restoreVisitScroll(scrollY);
 }
 
 function collectInquiryPlanning() {
@@ -1985,11 +2044,12 @@ function renderMeasureSuggestion() {
 }
 
 function renderVisit() {
+  const scrollY = captureVisitScroll();
   if (!state.visit.visitDate) state.visit.visitDate = todayLocal();
-  if (!state.visit.visitStartTime) state.visit.visitStartTime = timeLocal();
   if (!state.visit.visitNumber) state.visit.visitNumber = createVisitNumber();
 
   $("visitNumber").value = state.visit.visitNumber;
+  $("visitEmployee").value = state.visit.visitEmployee || "";
   $("visitDate").value = state.visit.visitDate;
   $("visitStartTime").value = state.visit.visitStartTime || "";
   $("visitEndTime").value = state.visit.visitEndTime || "";
@@ -2000,6 +2060,7 @@ function renderVisit() {
   $("visitOutdoorTemp").value = state.visit.visitOutdoorTemp || "";
   $("visitPrecipitation").value = state.visit.visitPrecipitation || "";
   updateVisitDuration();
+  renderVisitTimeStatus();
   customerFields.forEach(key => $(key).value = state.visit.customer[key] || "");
   if ($("objectAddressDifferent")) $("objectAddressDifferent").checked = Boolean(state.visit.customer.objectAddressDifferent);
   syncObjectAddressFromPostal();
@@ -2022,6 +2083,8 @@ function renderVisit() {
   updateDewPoint();
   updateMetaBar();
   updateRecordHeader();
+  if ($("inquiryPlanningCard")) $("inquiryPlanningCard").open = false;
+  restoreVisitScroll(scrollY);
 }
 
 function documentSize(bytes) {
@@ -2071,7 +2134,8 @@ window.addEventListener("drive-document-updated", renderVisitDocuments);
 
 function collectVisit() {
   state.visit.visitDate = $("visitDate").value || todayLocal();
-  state.visit.visitStartTime = $("visitStartTime").value || timeLocal();
+  state.visit.visitEmployee = $("visitEmployee").value.trim();
+  state.visit.visitStartTime = $("visitStartTime").value || "";
   state.visit.visitEndTime = $("visitEndTime").value || "";
   state.visit.visitNumber = $("visitNumber").value || createVisitNumber();
   state.visit.visitLatitude = $("visitLatitude").value || "";
@@ -2149,11 +2213,11 @@ $("startOnsiteVisit").onclick = () => {
   }
   if (inquiry.appointmentStatus === "scheduled" && inquiry.appointmentDate) {
     state.visit.visitDate = inquiry.appointmentDate;
-    state.visit.visitStartTime = inquiry.appointmentTime || timeLocal();
   } else {
     state.visit.visitDate = todayLocal();
-    state.visit.visitStartTime = timeLocal();
   }
+  state.visit.visitStartTime = "";
+  state.visit.visitEndTime = "";
   state.visit.guideStep = 0;
   saveState();
   renderVisit();
@@ -2239,6 +2303,7 @@ $("roomTemp").oninput = updateDewPoint;
 $("humidity").oninput = updateDewPoint;
 
 function renderAreas() {
+  const scrollY = captureVisitScroll();
   const box = $("areas");
   box.innerHTML = "";
   state.visit.areas.forEach((area, ai) => {
@@ -2254,7 +2319,6 @@ function renderAreas() {
         <div><label>Wandart</label><select data-area="${area.id}" data-field="wallType"><option value="">– bitte auswählen –</option><option ${area.wallType==="Außenwand"?"selected":""}>Außenwand</option><option ${area.wallType==="Innenwand"?"selected":""}>Innenwand</option></select></div>
         <div><label>Erdkontakt</label><select data-area="${area.id}" data-field="earthContact"><option value="">– bitte auswählen –</option><option ${area.earthContact==="erdberührt"?"selected":""}>erdberührt</option><option ${area.earthContact==="nicht erdberührt"?"selected":""}>nicht erdberührt</option></select></div>
         <div><label>Wandbelag</label><select data-area="${area.id}" data-field="wallCover">${["","Putz","Farbe","Tapete","Fliesen","Unbekannt","Sonstiges"].map(v => `<option ${area.wallCover===v?"selected":""}>${v}</option>`).join("")}</select></div>
-        <div><label>Zugänglichkeit</label><select data-area="${area.id}" data-field="access"><option value="">– bitte auswählen –</option><option ${area.access==="normal"?"selected":""}>normal</option><option ${area.access==="eingeschränkt"?"selected":""}>eingeschränkt</option><option ${area.access==="schwierig"?"selected":""}>schwierig</option></select></div>
       </div>
       <label>Notizen</label><div class="speech-row"><textarea id="area-note-${area.id}" data-area="${area.id}" data-field="notes">${esc(area.notes)}</textarea><button class="speech" data-speech-target="area-note-${area.id}">🎤</button></div>
       <h3>Feuchtemessung</h3>
@@ -2263,7 +2327,16 @@ function renderAreas() {
       </div>
       <h3>Messpunkte</h3><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Messpunkt</button>
       <h3>Maßnahmen</h3><div id="measures-${area.id}"></div><button class="secondary" data-add-measure="${area.id}">+ Maßnahme</button>
-      <h3>Fotos</h3><input type="file" accept="image/*" capture="environment" multiple data-photo-area="${area.id}"><div id="photos-${area.id}" class="photo-grid"></div>`;
+      <h3>Fotos</h3>
+      <div class="visit-photo-actions">
+        <label class="secondary photo-upload-button">Foto aufnehmen
+          <input class="hidden" type="file" accept="image/*" capture="environment" data-photo-area="${area.id}">
+        </label>
+        <label class="secondary photo-upload-button">Bilder auswählen
+          <input class="hidden" type="file" accept="image/*" multiple data-photo-area="${area.id}">
+        </label>
+      </div>
+      <div id="photos-${area.id}" class="photo-grid"></div>`;
     box.appendChild(card);
     renderMeasurements(area);
     renderMeasures(area);
@@ -2304,6 +2377,7 @@ function renderAreas() {
 
   bindSpeechButtons();
   applyInputModes(box);
+  restoreVisitScroll(scrollY);
 }
 
 function renderMeasurements(area) {
@@ -3145,7 +3219,7 @@ function renderSettings() {
 let activeWorksiteId = null;
 const WORKSITE_SECTION_ORDER = [
   "wsSectionOverview", "wsSectionExecution", "wsSectionPhotos", "wsSectionDocuments",
-  "wsSectionMaterial", "wsSectionTime", "wsSectionNotes", "wsSectionReport"
+  "wsSectionMaterial", "wsSectionNotes", "wsSectionReport"
 ];
 
 function isWorksiteSetupTask(task = {}) {
@@ -3333,6 +3407,60 @@ function activateWorksiteSection(sectionId) {
   }
   if ($("worksiteStepStatus")) $("worksiteStepStatus").textContent = `Schritt ${index + 1} von ${WORKSITE_SECTION_ORDER.length}`;
   document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function localTimeValue(date = new Date()) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function setWorkdayStatus(ws) {
+  const start = $("workdayStartStatus");
+  const end = $("workdayEndStatus");
+  if (start) start.textContent = ws.startTime
+    ? `Beginn gespeichert: ${ws.date || todayLocal()} · ${ws.startTime} Uhr`
+    : "Noch nicht gestartet";
+  if (end) end.textContent = ws.endTime
+    ? `Arbeitsende gespeichert: ${ws.endTime} Uhr · Netto ${num(workDurationMinutes(ws) / 60)} Std.`
+    : "Arbeitsende noch offen";
+  if ($("startWorkday")) $("startWorkday").textContent = ws.startTime ? "Arbeitsbeginn neu setzen" : "Arbeitsbeginn";
+  if ($("endWorkday")) $("endWorkday").textContent = ws.endTime ? "Arbeitsende neu setzen" : "Arbeit beenden";
+}
+
+function captureWorksiteView(input) {
+  return {
+    scrollY: window.scrollY,
+    taskId: input?.dataset?.wsTask || "",
+    field: input?.dataset?.wsField || ""
+  };
+}
+
+function restoreWorksiteView(view) {
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: view.scrollY, behavior: "auto" });
+    requestAnimationFrame(() => window.scrollTo({ top: view.scrollY, behavior: "auto" }));
+  });
+}
+
+async function compressedPhotoData(file) {
+  const source = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Das Foto konnte nicht gelesen werden."));
+    reader.readAsDataURL(file);
+  });
+  const image = await new Promise((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("Das Foto konnte nicht verarbeitet werden."));
+    element.src = source;
+  });
+  const maxEdge = 1600;
+  const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", .72);
 }
 
 function bindWorksiteSectionNavigation() {
@@ -3614,6 +3742,8 @@ function renderWorksiteEditor() {
   if ($("wsSignaturePlace")) $("wsSignaturePlace").value = ws.signaturePlace || ws.customer?.city || "";
   if ($("wsSignatureDate")) $("wsSignatureDate").value = ws.signatureDate || ws.date || todayLocal();
   if ($("wsSiteClean")) $("wsSiteClean").checked = Boolean(ws.siteClean);
+  if (/^Importiert aus Lexware/i.test(ws.generalNotes || "")) ws.generalNotes = "";
+  setWorkdayStatus(ws);
   initializeWorksiteSignatures(ws);
   ["wsCustomerSignature","wsWorkerSignature","wsSignaturePlace","wsSignatureDate","wsSiteClean"].forEach(id => {
     const element = $(id);
@@ -3714,10 +3844,24 @@ function renderWorksiteEditor() {
   $("wsMaterialSummary").innerHTML = materialRows.length
     ? materialRows.join("") + (ws.materialBooked ? `<p class="booked-badge">Material bereits abgebucht</p>` : "")
     : `<p class="hint">Noch kein tatsächlich verwendetes Material eingetragen.</p>`;
-  document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = event => {
+  document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = async event => {
     const task = ws.tasks.find(item => item.id === input.dataset.wsPhotoTask);
     const category = $(`photo-category-${task.id}`).value;
-    [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
+    try {
+      for (const file of [...event.target.files]) {
+        const src = await compressedPhotoData(file);
+        task.photos.push({id:crypto.randomUUID(), category, src});
+      }
+      persistWorksite(ws);
+      event.target.value = "";
+      sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos");
+      renderWorksiteEditor();
+    } catch (error) {
+      event.target.value = "";
+      showStatus("worksiteStatus", error?.name === "QuotaExceededError"
+        ? "Der Gerätespeicher ist voll. Bitte ältere Baustellenfotos sichern oder löschen."
+        : `Foto konnte nicht gespeichert werden: ${error.message}`, false);
+    }
   });
   document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); });
   document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"], [data-ws-field="actualMlPerHole"]').forEach(input => {
@@ -3739,7 +3883,9 @@ function renderWorksiteEditor() {
 
       recalculateWorksiteTask(state.settings, task, field);
       persistWorksite(ws);
+      const view = captureWorksiteView(input);
       renderWorksiteEditor();
+      restoreWorksiteView(view);
     };
     input.onchange = recalculate;
     if (["actualHoles","actualQuantity"].includes(input.dataset.wsField)) input.onblur = recalculate;
@@ -3757,7 +3903,9 @@ function renderWorksiteEditor() {
         task.injectionPressureless ? "drucklose Injektion" : ""
       ].filter(Boolean).join(" und ");
       persistWorksite(ws);
+      const view = captureWorksiteView(input);
       renderWorksiteEditor();
+      restoreWorksiteView(view);
     };
   });
   document.querySelectorAll("[data-confirm-bottle-pickup]").forEach(button => button.onclick = () => {
@@ -3842,8 +3990,14 @@ function openAdditionalWorkPicker(ws) {
       plannedQuantity:0, actualQuantity:quantity, unitName:item.unit,
       sourceArticleId:item.articleId || "", sourceUnitPrice:Number(item.grossPrice || 0),
       completed:false, additionalWork:true, linkedTaskId:linked?.id || "",
-      customerApproved:overlay.querySelector("#extraApproved").checked, photos:[]
+      customerApproved:overlay.querySelector("#extraApproved").checked, photos:[],
+      wall:30, originalWall:30, spacing:.25, actualHoles:0, plannedHoles:0,
+      targetLitersPerHole:0, actualLitersPerHole:0, actualLiters:0,
+      injectionLowPressure:false, injectionPressureless:false, holeRecords:[]
     });
+    const added = ws.tasks.at(-1);
+    recalculateWorksiteTask(state.settings, added, "actualQuantity");
+    if (taskUsesHz(added)) added.actualHoles = added.plannedHoles;
     persistWorksite(ws);
     overlay.remove();
     sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionExecution");
@@ -3855,27 +4009,46 @@ function openInjectionAssistant(ws, taskId) {
   const task = ws.tasks.find(item => item.id === taskId);
   if (!task || !task.injectionLowPressure) return;
   if (!Array.isArray(task.holeRecords)) task.holeRecords = [];
-  let current = Math.min(task.holeRecords.length + 1, Math.max(1, Number(task.actualHoles || 1)));
+  const derivedHoles = task.type === "Horizontalsperre"
+    ? Math.ceil(Number(task.actualQuantity || 0) / Number(task.spacing || .25))
+    : Math.ceil(Number(task.actualQuantity || 0) / (Number(task.spacing || .25) * .25));
+  const totalHoles = Math.max(1, Number(task.actualHoles || 0), Number(task.plannedHoles || 0), derivedHoles);
+  task.actualHoles = totalHoles;
+  let current = Math.min(task.holeRecords.length + 1, totalHoles);
   const overlay = document.createElement("div");
   overlay.className = "adhs-modal-overlay";
   const render = () => {
-    const total = task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0);
+    const completedTotal = task.holeRecords
+      .filter(row => row.hole < current)
+      .reduce((sum,row) => sum + Number(row.actualLiters || 0), 0);
     const record = task.holeRecords.find(row => row.hole === current);
     const defaultMl = Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000);
+    const currentMl = Math.round(Number(record?.actualLiters ?? defaultMl / 1000) * 1000);
+    const stopAt = completedTotal + currentMl / 1000;
+    const finished = current >= totalHoles &&
+      task.holeRecords.filter(row => row.hole <= totalHoles).length >= totalHoles;
     overlay.innerHTML = `<section class="adhs-modal injection-assistant">
       <span class="dashboard-eyebrow">NIEDERDRUCKINJEKTION</span>
-      <h2>Bohrloch ${current} von ${Number(task.actualHoles || 0)}</h2>
-      <div class="injection-total"><span>Verbrauch bis hier</span><strong>${num(total)} Liter</strong></div>
+      <h2>${finished ? "Injektion vollständig erfasst" : `Bohrloch ${current} von ${totalHoles}`}</h2>
+      ${finished ? `<div class="injection-stop-target"><span>Gesamtmenge</span><strong>${num(task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0))} l</strong></div>`
+      : `<div class="injection-stop-target"><span>Durchlaufzähler stoppen bei</span><strong id="counterStopValue">${num(stopAt)} l</strong></div>
+      <div class="injection-total"><span>Stand vor diesem Bohrloch</span><strong>${num(completedTotal)} Liter</strong></div>
       <label>Istmenge dieses Bohrlochs (ml)</label>
-      <input id="holeMl" type="number" inputmode="numeric" step="10" min="0" value="${Math.round(Number(record?.actualLiters ?? defaultMl / 1000) * 1000)}">
+      <input id="holeMl" type="number" inputmode="numeric" step="10" min="0" value="${currentMl}">`}
       <div class="hole-status-grid">
-        <button type="button" data-hole-status="completed" class="primary">Fertig + nächstes</button>
-        <button type="button" data-hole-status="not-absorbing" class="secondary">Nicht aufnahmefähig</button>
-        <button type="button" data-hole-status="skipped" class="secondary">Übersprungen</button>
-        <button type="button" data-hole-status="pressureless" class="secondary">Dieses Loch drucklos</button>
+        ${finished ? "" : `<button type="button" data-hole-status="completed" class="primary">Fertig + nächstes</button>
+          <button type="button" data-hole-status="not-absorbing" class="secondary">Nicht aufnahmefähig</button>
+          <button type="button" data-hole-status="skipped" class="secondary">Übersprungen</button>
+          <button type="button" data-hole-status="pressureless" class="secondary">Dieses Loch drucklos</button>`}
       </div>
       <div class="modal-actions"><button type="button" id="holeBack" class="secondary">← Zurück</button><button type="button" data-close-modal class="secondary">Schließen</button></div>
     </section>`;
+    const mlInput = overlay.querySelector("#holeMl");
+    if (mlInput) mlInput.oninput = () => {
+      const value = completedTotal + parseDecimal(mlInput.value) / 1000;
+      const target = overlay.querySelector("#counterStopValue");
+      if (target) target.textContent = `${num(value)} l`;
+    };
     overlay.querySelector("[data-close-modal]").onclick = () => { persistWorksite(ws); overlay.remove(); renderWorksiteEditor(); };
     overlay.querySelector("#holeBack").onclick = () => { current = Math.max(1,current - 1); render(); };
     overlay.querySelectorAll("[data-hole-status]").forEach(button => button.onclick = () => {
@@ -3893,8 +4066,8 @@ function openInjectionAssistant(ws, taskId) {
       });
       if (exceptions.length) task.note = `Bohrlochdokumentation: ${exceptions.join("; ")}.`;
       persistWorksite(ws);
-      if (current < Number(task.actualHoles || 0)) { current++; render(); }
-      else { overlay.querySelector("h2").textContent = "Injektion vollständig erfasst"; }
+      if (current < totalHoles) { current++; render(); }
+      else { render(); }
     });
   };
   document.body.appendChild(overlay);
@@ -3932,7 +4105,7 @@ function injectionExceptionsHtml(task) {
 
 function buildWorksitePrint(ws) {
   const totals=worksiteMaterialTotals(ws);
-  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${injectionExceptionsHtml(task)}${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
 $("backToVisitInput").onclick = () => {
@@ -4058,6 +4231,34 @@ $("wsUploadAttachments").onclick = async () => {
 };
 $("saveWorksite").onclick = () => { saveActiveWorksite(true); renderWorksiteEditor(); };
 ["wsStart","wsEnd","wsPause"].forEach(id => $(id).onchange = () => { const ws=collectWorksite(); if(ws) $("wsDuration").value=`${num(workDurationMinutes(ws)/60)} Std.`; });
+if ($("startWorkday")) $("startWorkday").onclick = () => {
+  const ws = collectWorksite();
+  if (!ws) return;
+  if (!String(ws.employees || "").trim()) {
+    showStatus("worksiteStatus", "Bitte zuerst den Mitarbeiter auswählen.", false);
+    $("wsEmployees")?.focus();
+    return;
+  }
+  const now = new Date();
+  ws.date = todayLocal();
+  ws.startTime = localTimeValue(now);
+  ws.status = "active";
+  persistWorksite(ws);
+  renderWorksiteEditor();
+};
+if ($("endWorkday")) $("endWorkday").onclick = () => {
+  const ws = collectWorksite();
+  if (!ws) return;
+  if (!ws.startTime) {
+    showStatus("worksiteStatus", "Bitte zuerst in Schritt 1 den Arbeitsbeginn speichern.", false);
+    return;
+  }
+  ws.endTime = localTimeValue(new Date());
+  persistWorksite(ws);
+  sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionReport");
+  renderWorksiteEditor();
+  setWorkdayStatus(ws);
+};
 $("printWorksite").onclick = async () => {
   try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws); downloadBlob(pdf.blob,pdf.filename); showStatus("worksiteStatus","Arbeitsnachweis wurde als PDF erstellt.",true); }
   catch(error){ showStatus("worksiteStatus",error.message,false); }

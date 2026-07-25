@@ -1,0 +1,9 @@
+TESTBERICHT mainabdichter PRO V32.7.2
+
+- JavaScript-Syntaxprüfung bestanden
+- Mitarbeiterfeld für die Besichtigung geprüft
+- Starttaste speichert Datum und Uhrzeit automatisch
+- Endtaste speichert Uhrzeit und berechnet die Dauer
+- Manuelle Zeitkorrektur bleibt eingeklappt
+- Mitarbeiter und Zeitangaben werden im Besichtigungs-PDF ausgegeben
+- Alle Korrekturen aus V32.7.1 bleiben enthalten

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
 <title>mainabdichter PRO V32.7</title>
-<link rel="stylesheet" href="css/app.css?v=32.7.0">
+<link rel="stylesheet" href="css/app.css?v=32.7.2">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
@@ -223,7 +223,7 @@ main{width:100%;max-width:100%}
     <button id="openCustomerAdvice" class="customer-advice-launch">▶ Maßnahme dem Kunden zeigen</button>
   </div>
 
-  <details id="inquiryPlanningCard" class="card compact-step inquiry-planning-card" open>
+  <details id="inquiryPlanningCard" class="card compact-step inquiry-planning-card">
     <summary>0. Anfrage und Termin <span id="inquiryPlanningState" class="step-state"></span></summary>
     <p class="hint">Hier wird festgehalten, was der Kunde gemeldet hat. Die fachliche Feststellung erfolgt später bei der Besichtigung.</p>
     <div class="grid inquiry-planning-grid">
@@ -295,16 +295,23 @@ main{width:100%;max-width:100%}
 
   <details id="visitStep1" class="card compact-step guided-step" open>
     <summary>1. Kunde und Termin <span class="step-state"></span></summary>
+    <section class="visit-time-card">
+      <label for="visitEmployee">Mitarbeiter auswählen</label>
+      <input id="visitEmployee" placeholder="Name des Mitarbeiters" autocomplete="name">
+      <button id="startVisitWork" type="button" class="primary workday-main-button">Besichtigung beginnen</button>
+      <div id="visitStartStatus" class="workday-status"></div>
+    </section>
     <div class="grid">
       <div><label>Besichtigungsnummer</label><input id="visitNumber" readonly></div>
-      <div><label>Besichtigungsdatum</label><input id="visitDate" type="date"></div>
-      <div><label>Beginn</label><input id="visitStartTime" type="time"></div>
-      <div><label>Ende optional</label><input id="visitEndTime" type="time"></div>
-      <div><label>Dauer</label><input id="visitDuration" readonly></div>
-      <div class="full metadata-actions">
-        <button id="setVisitNow" class="secondary">Datum und Beginn jetzt übernehmen</button>
-        <button id="setVisitEndNow" class="secondary">Ende jetzt übernehmen</button>
-      </div>
+      <details class="full mini-details">
+        <summary>Zeit korrigieren</summary>
+        <div class="grid">
+          <div><label>Besichtigungsdatum</label><input id="visitDate" type="date"></div>
+          <div><label>Beginn</label><input id="visitStartTime" type="time"></div>
+          <div><label>Ende</label><input id="visitEndTime" type="time"></div>
+          <div><label>Dauer</label><input id="visitDuration" readonly></div>
+        </div>
+      </details>
       <details class="full mini-details">
         <summary>Standort und Wetter optional</summary>
         <div class="location-weather-panel">
@@ -422,6 +429,8 @@ main{width:100%;max-width:100%}
   <section id="visitCompletion" class="card visit-completion">
     <span class="dashboard-eyebrow">ABSCHLUSSPRÜFUNG</span>
     <h2>Besichtigung vollständig?</h2>
+    <button id="endVisitWork" type="button" class="primary workday-main-button">Besichtigung beenden</button>
+    <div id="visitEndStatus" class="workday-status"></div>
     <p class="hint">Fehlende Informationen antippen, um direkt zum richtigen Eingabefeld zu springen.</p>
     <div id="visitChecklist" class="visit-checklist"></div>
     <div class="offer-actions"><button id="goToMissingStep" class="secondary">Erste fehlende Information öffnen</button></div>
@@ -727,7 +736,6 @@ main{width:100%;max-width:100%}
       <button type="button" data-worksite-section="wsSectionPhotos">Fotos</button>
       <button type="button" data-worksite-section="wsSectionDocuments">Dokumente</button>
       <button type="button" data-worksite-section="wsSectionMaterial">Material</button>
-      <button type="button" data-worksite-section="wsSectionTime">Arbeitszeit</button>
       <button type="button" data-worksite-section="wsSectionNotes">Bemerkungen</button>
       <button type="button" data-worksite-section="wsSectionReport">Arbeitsnachweis</button>
     </nav>
@@ -736,6 +744,20 @@ main{width:100%;max-width:100%}
       <div class="card">
         <h2>Baustelle im Überblick</h2>
         <div id="wsOverviewSummary" class="worksite-overview-grid"></div>
+        <div class="workday-start-card">
+          <span class="dashboard-eyebrow">ARBEITSBEGINN</span>
+          <label for="wsEmployees">Mitarbeiter auswählen</label>
+          <input id="wsEmployees" placeholder="Name des Mitarbeiters">
+          <button id="startWorkday" type="button" class="primary workday-main-button">Arbeitsbeginn</button>
+          <div id="workdayStartStatus" class="workday-time-status"></div>
+          <details class="time-correction">
+            <summary>Zeit korrigieren</summary>
+            <div class="grid">
+              <div><label>Ausführungsdatum</label><input id="wsDate" type="date"></div>
+              <div><label>Arbeitsbeginn</label><input id="wsStart" type="time"></div>
+            </div>
+          </details>
+        </div>
         <div id="wsOverviewNextStep" class="worksite-next-step"></div>
       </div>
     </section>
@@ -795,21 +817,8 @@ main{width:100%;max-width:100%}
       </div>
     </section>
 
-    <section id="wsSectionTime" class="worksite-section">
-      <div class="card">
-        <span class="dashboard-eyebrow">ARBEITSZEIT</span>
-        <h2>Mitarbeiter und Zeiten</h2>
-        <div class="grid">
-          <div><label>Ausführungsdatum</label><input id="wsDate" type="date"></div>
-          <div><label>Mitarbeiter</label><input id="wsEmployees"></div>
-          <div><label>Arbeitsbeginn</label><input id="wsStart" type="time"></div>
-          <div><label>Arbeitsende</label><input id="wsEnd" type="time"></div>
-          <div><label>Pause Minuten</label><input id="wsPause" inputmode="decimal"></div>
-          <div><label>Netto-Arbeitszeit</label><input id="wsDuration" readonly></div>
-          <div><label>Wetter</label><input id="wsWeather"></div>
-          <div><label>Außentemperatur °C</label><input id="wsOutdoorTemp" inputmode="decimal"></div>
-        </div>
-      </div>
+    <section id="wsSectionTime" class="worksite-section hidden" aria-hidden="true">
+      <div class="card"><p>Die Arbeitszeit wird in Schritt 1 gestartet und beim Abschluss beendet.</p></div>
     </section>
 
     <section id="wsSectionNotes" class="worksite-section">
@@ -826,6 +835,20 @@ main{width:100%;max-width:100%}
         <span class="dashboard-eyebrow">ABSCHLUSS</span>
         <h2>Arbeitsnachweis</h2>
         <p class="hint">Alle Angaben aus den vorherigen Bereichen werden automatisch zusammengeführt.</p>
+        <div class="workday-end-card">
+          <button id="endWorkday" type="button" class="primary workday-main-button">Arbeit beenden</button>
+          <div id="workdayEndStatus" class="workday-time-status"></div>
+          <details class="time-correction">
+            <summary>Zeit oder Pause korrigieren</summary>
+            <div class="grid">
+              <div><label>Arbeitsende</label><input id="wsEnd" type="time"></div>
+              <div><label>Pause Minuten</label><input id="wsPause" inputmode="decimal"></div>
+              <div><label>Netto-Arbeitszeit</label><input id="wsDuration" readonly></div>
+              <div><label>Wetter</label><input id="wsWeather"></div>
+              <div><label>Außentemperatur °C</label><input id="wsOutdoorTemp" inputmode="decimal"></div>
+            </div>
+          </details>
+        </div>
         <div id="wsReportChecklist" class="worksite-report-checklist"></div>
         <div class="invoice-review-card">
           <span class="dashboard-eyebrow">RECHNUNGSPRÜFUNG</span>
@@ -1019,9 +1042,12 @@ window.addEventListener("error", function(event) {
     document.body.appendChild(box);
   }
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
+  box.title = "Antippen zum Schließen";
+  box.style.cursor = "pointer";
+  box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.7.0"></script>
+<script type="module" src="js/app.js?v=32.7.2"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

@@ -1,0 +1,21 @@
+TESTBERICHT mainabdichter PRO V32.7.1
+
+Bestanden:
+- JavaScript-Syntaxprüfung aller produktiven Module und des Cloudflare Workers
+- HTML-Strukturprüfung: eindeutige Arbeitszeit-Feld-IDs
+- 7-Schritt-Baustellenablauf ohne separaten Zeit-Schritt
+- Start- und Ende-Tasten vorhanden
+- Anfrage-/Terminkarte standardmäßig eingeklappt
+- Fotoaufnahme und Mehrfachauswahl aus Mediathek vorhanden
+- Feld „Zugänglichkeit“ nicht mehr im Besichtigungsformular vorhanden
+- Fotokomprimierung und verständliche Speicherfehlermeldung vorhanden
+- Horizontalsperre: 2,00 m / 25 cm = 8 Bohrlöcher
+- Wandstärke 34 cm = Praxisvorschlag 480 ml je Bohrloch
+- Durchlaufzähler-Stoppanzeige und Bohrloch-Ausnahmen vorhanden
+- Versions- und Cache-Kennzeichnung auf V32.7.1 aktualisiert
+- ZIP-Inhalt und Archivintegrität geprüft
+
+Hinweis:
+Die mitgelieferte Playwright-Abhängigkeit ließ sich in der abgeschotteten
+Erstellungsumgebung nicht erneut herunterladen. Deshalb wurden Syntax,
+Berechnungslogik, DOM-Struktur und Paketintegrität direkt geprüft.

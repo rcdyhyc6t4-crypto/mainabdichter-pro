@@ -204,7 +204,7 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   if (task.type === "Flächensperre") {
     measure = {
       type: task.type,
-      width: Number(task.plannedQuantity || task.actualQuantity || 0),
+      width: Number(task.actualQuantity || task.plannedQuantity || 0),
       height: 1,
       wall,
       spacing,
@@ -213,7 +213,7 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   } else {
     measure = {
       type: task.type,
-      length: Number(task.plannedQuantity || task.actualQuantity || 0),
+      length: Number(task.actualQuantity || task.plannedQuantity || 0),
       wall,
       spacing,
       extraResinKg: 0
@@ -228,7 +228,7 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
     task.plannedLiters = Number(result.rawLiters || 0);
     task.targetLitersPerHole = rawPerHole;
 
-    if (!Number.isFinite(Number(task.actualHoles)) || Number(task.actualHoles) < 0) {
+    if (!Number.isFinite(Number(task.actualHoles)) || Number(task.actualHoles) <= 0) {
       task.actualHoles = result.holes;
     }
 
@@ -374,5 +374,5 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
     address.street || contact.street || "",
     [address.zip || contact.zip || "", address.city || contact.city || ""].filter(Boolean).join(" ")
   ].filter(Boolean).join(", ");
-  return {id:crypto.randomUUID(),offerRecordId:"",pipedrivePersonId:"",pipedriveDealId:"",lexwareQuotationId:quotation.id||"",lexwareVoucherNumber:quotation.voucherNumber||"",status:"planned",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),customer:{salutation:contact.salutation||"",firstName:contact.firstName||(nameParts.length>1?nameParts.slice(0,-1).join(" "):""),lastName:contact.lastName||(nameParts.at(-1)||customerName),company:contact.company||"",phone:contact.phone||"",email:contact.email||"",street:address.street||contact.street||"",zip:address.zip||contact.zip||"",city:address.city||contact.city||"",objectAddress,lexwareContactId:contact.id||quotation.contactId||""},building:{},visitNumber:quotation.voucherNumber||"",objectAddress,date:new Date().toISOString().slice(0,10),startTime:"",endTime:"",pauseMinutes:0,employees:"Mike Sprager",weather:"",outdoorTemp:"",latitude:"",longitude:"",generalNotes:`Importiert aus Lexware-Angebot ${quotation.voucherNumber||""}`,customerSignature:"",workerSignature:"",materialBooked:false,materialBookedAt:"",tasks};
+  return {id:crypto.randomUUID(),offerRecordId:"",pipedrivePersonId:"",pipedriveDealId:"",lexwareQuotationId:quotation.id||"",lexwareVoucherNumber:quotation.voucherNumber||"",status:"planned",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),customer:{salutation:contact.salutation||"",firstName:contact.firstName||(nameParts.length>1?nameParts.slice(0,-1).join(" "):""),lastName:contact.lastName||(nameParts.at(-1)||customerName),company:contact.company||"",phone:contact.phone||"",email:contact.email||"",street:address.street||contact.street||"",zip:address.zip||contact.zip||"",city:address.city||contact.city||"",objectAddress,lexwareContactId:contact.id||quotation.contactId||""},building:{},visitNumber:quotation.voucherNumber||"",objectAddress,date:new Date().toISOString().slice(0,10),startTime:"",endTime:"",pauseMinutes:0,employees:"Mike Sprager",weather:"",outdoorTemp:"",latitude:"",longitude:"",generalNotes:"",customerSignature:"",workerSignature:"",materialBooked:false,materialBookedAt:"",tasks};
 }

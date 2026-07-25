@@ -337,7 +337,17 @@ export async function createWorksitePdf(worksite) {
       const approval = task.customerApproved ? "vom Kunden vor Ort beauftragt" : "Kundenfreigabe nicht bestätigt";
       return `Auf Kundenwunsch wurden folgende zusätzliche Arbeiten ausgeführt – ${task.areaName || "Bereich"}: ${task.actualNote || task.scope || task.type}${amount ? ` (${amount})` : ""}; ${approval}.`;
     });
-  const notes = [workLine, ...additionalWorkLines, worksite.generalNotes, bottleNotice].filter(Boolean).join("\n");
+  const injectionExceptionLines = (worksite.tasks || []).flatMap(task =>
+    (task.holeRecords || [])
+      .filter(row => row.status !== "completed")
+      .map(row => {
+        const status = row.status === "not-absorbing" ? "nicht aufnahmefähig"
+          : row.status === "skipped" ? "übersprungen"
+          : "drucklos injiziert";
+        return `${task.areaName || task.type}: Bohrloch ${row.hole} ${status}, Istmenge ${Math.round(Number(row.actualLiters || 0) * 1000)} ml.`;
+      })
+  );
+  const notes = [workLine, ...additionalWorkLines, ...injectionExceptionLines, worksite.generalNotes, bottleNotice].filter(Boolean).join("\n");
   drawBox(doc, 13, y, 184, 26);
   drawText(doc, "Absprachen bzw. Besonderheiten bei Arbeitsausführung:", 15, y + 4.5, { size: 6.4, bold: true });
   const noteLines = fitLines(doc, notes || "", 178, 4);
@@ -478,6 +488,7 @@ export async function createVisitPdf(visit) {
   sectionTitle("Besichtigungsangaben");
   [
     ["Besichtigungsnummer:", visit.visitNumber || ""],
+    ["Mitarbeiter:", visit.visitEmployee || ""],
     ["Datum / Uhrzeit:", `${visit.visitDate || ""} · ${visit.visitStartTime || ""}${visit.visitEndTime ? ` bis ${visit.visitEndTime}` : ""}`],
     ["Gebäude / Bereich:", [building.buildingType, building.floor, building.roomUse].filter(Boolean).join(" · ")],
     ["Baujahr / Fundament:", [building.yearBuilt, building.foundationType].filter(Boolean).join(" · ")],
