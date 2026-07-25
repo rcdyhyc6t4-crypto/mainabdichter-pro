@@ -1826,3 +1826,32 @@ html, body {
 .injection-total strong{font-size:1.5rem;color:#176b3a}.hole-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
 .hole-status-grid button{min-height:58px}.hole-status-grid .primary{grid-column:1/-1;font-size:1.05rem}
 @media(max-width:600px){.adhs-modal{padding:18px}.hole-status-grid{grid-template-columns:1fr}.hole-status-grid .primary{grid-column:auto}.adhs-modal .modal-actions{flex-direction:column-reverse}}
+
+/* V32.7.3 – ruhige, einheitliche Textfarben ohne blaue Schrift */
+.page label,
+.page summary,
+.page input,
+.page select,
+.page textarea,
+.page option{
+  color:#202622;
+  -webkit-text-fill-color:#202622;
+}
+.page a,
+.page .link-button,
+.page .text-button,
+.page .v28-text-link{
+  color:#2f7d32;
+  -webkit-text-fill-color:#2f7d32;
+}
+.quick-action.blue{
+  background:#eef3ed;
+  color:#202622;
+}
+.v28-blue-icon{
+  background:#eaf5e8;
+  color:#319a31;
+}
+.legend-blue{
+  background:#66706b;
+}
