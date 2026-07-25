@@ -162,9 +162,15 @@ test("Angebotspositionen müssen vor Lexware einzeln geprüft werden", async ({ 
   await page.locator("[data-offer-price]").fill("250");
   await page.locator("[data-offer-price]").blur();
   await expect(page.locator(".offer-review-total")).toContainText("3.000,00");
-  await page.locator("#offerPositionsApproved").click({force:true});
+  await page.locator("#offerPositionsApproved").evaluate(input => {
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles:true }));
+  });
   await expect(page.locator("#sendLexware")).toBeEnabled();
-  await page.locator("[data-offer-include]").click({force:true});
+  await page.locator("[data-offer-include]").evaluate(input => {
+    input.checked = false;
+    input.dispatchEvent(new Event("change", { bubbles:true }));
+  });
   await expect(page.locator("#sendLexware")).toBeDisabled();
   await expect(page.locator("#offerPositionsApproved")).not.toBeChecked();
 });
@@ -219,13 +225,29 @@ test("Pflichtangaben können in den Einstellungen optional gesetzt werden", asyn
   await page.locator('[data-bottom-page="more"]').click();
   await page.locator('[data-more-page="settings"]').click();
   await page.getByText("Pflichtfelder der Besichtigung", { exact: true }).click();
-  await page.locator('[data-visit-requirement="building"]').uncheck();
+  await page.locator('[data-visit-requirement="buildingType"]').uncheck();
+  await page.locator('[data-visit-requirement="floor"]').uncheck();
+  await page.locator('[data-visit-requirement="roomUse"]').uncheck();
   await page.locator("#saveSettings").click();
   await page.locator('[data-bottom-page="dashboard"]').click();
   await page.locator("#v28FloatingAdd").click();
   await page.locator("#newInquiryManual").click();
   await page.locator("#toOffer").click();
-  await expect(page.locator("#visitChecklist")).not.toContainText("Gebäude und Raum");
+  await expect(page.locator("#visitChecklist")).not.toContainText("Bauart");
+  await expect(page.locator("#visitChecklist")).not.toContainText("Geschoss");
+  await expect(page.locator("#visitChecklist")).not.toContainText("Raumnutzung");
+});
+
+test("Unterfelder der Schadensbegutachtung sind einzeln als Pflicht oder optional wählbar", async ({ page }) => {
+  await page.goto("http://127.0.0.1:4173/index.html");
+  await page.locator('[data-bottom-page="more"]').click();
+  await page.locator('[data-more-page="settings"]').click();
+  await expect(page.locator('[data-visit-requirement="wallMaterial"]')).toBeAttached();
+  await expect(page.locator('[data-visit-requirement="wallThickness"]')).toBeAttached();
+  await expect(page.locator('[data-visit-requirement="earthContact"]')).toBeAttached();
+  await expect(page.locator('[data-visit-requirement="measurementDevice"]')).toBeAttached();
+  await expect(page.locator('[data-visit-requirement="measurementValue"]')).toBeAttached();
+  await expect(page.locator('[data-visit-requirement="measurementLocation"]')).toBeAttached();
 });
 
 test("Grundriss wird dem Kunden zugeordnet und zu Google Drive hochgeladen", async ({ page }) => {

@@ -470,7 +470,14 @@ export async function createVisitPdf(visit) {
 
   sectionTitle("Festgestelltes Schadensbild");
   flowBox("Schadenbeschreibung:", [(visit.damageTags || []).join(", "), visit.damageDescription].filter(Boolean).join(". "));
-  row("Feuchteverlauf:", visit.moisturePattern || "");
+  const moisturePatternLabels = {
+    rising: "Von unten aufsteigend",
+    lateral: "Seitlich oder flächig in der Wand",
+    wallSole: "Am Wand-Sohlen-Anschluss",
+    localWater: "Örtlich begrenzt / aktiver Wassereintritt",
+    unclear: "Noch nicht eindeutig"
+  };
+  row("Feuchteverlauf:", moisturePatternLabels[visit.moisturePattern] || visit.moisturePattern || "");
   row("Aktiver Wassereintritt:", visit.activeWaterIngress ? "Ja" : "Nein");
   if (building.climateMeasured) {
     row("Raumklima:", [
