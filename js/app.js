@@ -2,18 +2,19 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.2";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.4";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.2";
+import { createWorksitePdf, createVisitPdf, downloadBlob } from "./pdf.js?v=32.7.4";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
-import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages } from "./drive-photos.js";
+import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.4";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
+import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.4";
 
 
-const MAINABDICHTER_APP_VERSION = "32.7.2";
+const MAINABDICHTER_APP_VERSION = "32.7.4";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -3298,7 +3299,7 @@ function saveActiveWorksite(message=true) {
 }
 
 function taskPhotoHtml(task) {
-  return (task.photos || []).map(photo => `<div class="worksite-photo"><img src="${photo.src}" alt=""><small>${esc(photo.category)}</small><button class="danger" data-delete-ws-photo="${photo.id}" data-task-id="${task.id}">×</button></div>`).join("");
+  return (task.photos || []).map(photo => `<div class="worksite-photo"><img data-worksite-photo="${photo.id}" ${photo.driveFileId ? `data-drive-file="${esc(photo.driveFileId)}"` : ""} alt="${esc(photo.category || "Baustellenfoto")}"><small>${esc(photo.category)}</small><button class="danger" data-delete-ws-photo="${photo.id}" data-task-id="${task.id}">×</button></div>`).join("");
 }
 
 let currentWorksiteAttachments = [];
@@ -3844,14 +3845,12 @@ function renderWorksiteEditor() {
   $("wsMaterialSummary").innerHTML = materialRows.length
     ? materialRows.join("") + (ws.materialBooked ? `<p class="booked-badge">Material bereits abgebucht</p>` : "")
     : `<p class="hint">Noch kein tatsächlich verwendetes Material eingetragen.</p>`;
+  hydrateWorksitePhotoImages($("worksiteEditor"));
   document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = async event => {
     const task = ws.tasks.find(item => item.id === input.dataset.wsPhotoTask);
     const category = $(`photo-category-${task.id}`).value;
     try {
-      for (const file of [...event.target.files]) {
-        const src = await compressedPhotoData(file);
-        task.photos.push({id:crypto.randomUUID(), category, src});
-      }
+      for (const file of [...event.target.files]) task.photos.push(await stageWorksitePhoto(file, ws, task, category));
       persistWorksite(ws);
       event.target.value = "";
       sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos");
@@ -3863,7 +3862,14 @@ function renderWorksiteEditor() {
         : `Foto konnte nicht gespeichert werden: ${error.message}`, false);
     }
   });
-  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); });
+  document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = async () => {
+    const task=ws.tasks.find(item=>item.id===button.dataset.taskId);
+    task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto);
+    await deleteWorksitePhoto(button.dataset.deleteWsPhoto);
+    persistWorksite(ws);
+    sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos");
+    renderWorksiteEditor();
+  });
   document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"], [data-ws-field="actualMlPerHole"]').forEach(input => {
     const recalculate = () => {
       const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
@@ -4267,6 +4273,41 @@ $("syncWorksitePipedrive").onclick = async () => {
   try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
   catch(error){ addSyncLog("Arbeitsnachweis",false,error.message); showStatus("worksiteStatus",error.message,false); }
 };
+
+function safeDrivePart(value, fallback) {
+  return String(value || fallback).trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").slice(0, 100);
+}
+
+async function uploadWorksitePdfToDrive(worksite, pdf) {
+  if (worksite.driveReportFileId) return {
+    file: { id: worksite.driveReportFileId, webViewLink: worksite.driveReportUrl || "" }
+  };
+  const customer = worksite.customer || {};
+  const customerFolder = safeDrivePart(
+    [customer.lastName, customer.firstName].filter(Boolean).join(", ") || customer.company,
+    "Unbekannter Kunde"
+  );
+  const file = new File([pdf.blob], pdf.filename, { type: "application/pdf" });
+  const result = await uploadDriveVisitDocument(file, {
+    documentId: `arbeitsnachweis-${worksite.id}`,
+    customerFolder,
+    visitFolder: safeDrivePart(
+      `Baustelle ${worksite.date || ""} ${worksite.visitNumber || ""}`,
+      `Baustelle-${worksite.date || "ohne Datum"}`
+    ),
+    category: "Arbeitsnachweis",
+    categoryFolder: "Arbeitsnachweise",
+    filename: pdf.filename,
+    mimeType: "application/pdf",
+    note: `Arbeitsnachweis ${worksiteCustomerName(worksite)} – ${worksite.objectAddress || ""}`
+  });
+  worksite.driveReportFileId = result.file.id;
+  worksite.driveReportUrl = result.file.webViewLink || "";
+  worksite.driveReportUploadedAt = new Date().toISOString();
+  persistWorksite(worksite);
+  return result;
+}
+
 $("completeWorksite").onclick = async () => {
   try {
     const ws=saveActiveWorksite(false);
@@ -4286,11 +4327,21 @@ $("completeWorksite").onclick = async () => {
     ws.status="completed";
     ws.reportLockedAt = new Date().toISOString();
     const pdf=await createWorksitePdf(ws);
-    try { await syncWorksiteDeal(ws,"executionCompleted",pdf); }
+    try {
+      showStatus("worksiteStatus", "PDF und Baustellenfotos werden in Google Drive gespeichert …", true);
+      await uploadWorksitePdfToDrive(ws, pdf);
+      const photoUpload = await syncWorksitePhotos(ws);
+      if (photoUpload.errors.length) {
+        throw new Error(`Google-Drive-Fotoupload fehlgeschlagen: ${photoUpload.errors[0]}`);
+      }
+      persistWorksite(ws);
+      showStatus("worksiteStatus", "Google Drive ✓ – Pipedrive wird aktualisiert …", true);
+      await syncWorksiteDeal(ws,"executionCompleted",pdf);
+    }
     catch(error) { ws.status=oldStatus; persistWorksite(ws); throw error; }
     deductWorksiteInventory(ws);
     persistWorksite(ws); saveState(); renderInventorySettings(); renderWorksiteEditor();
-    showStatus("worksiteStatus","Arbeitsnachweis hochgeladen, Pipedrive aktualisiert und Ist-Material abgebucht.",true);
+    showStatus("worksiteStatus","Google Drive ✓ Pipedrive ✓ Material abgebucht ✓",true);
   } catch(error){ addSyncLog("Baustellenabschluss",false,error.message); showStatus("worksiteStatus",`Abschluss abgebrochen: ${error.message}`,false); }
 };
 
@@ -4392,10 +4443,12 @@ $("testConnection").onclick = async () => {
     );
     setState("stateLexware","Lexware",result.lexware,result.errors.lexware);
     setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
+    setState("stateDrive","Google Drive",result.drive,result.errors.drive);
   } catch (error) {
     setState("stateCloudflare","Cloudflare",false,error.message);
     setState("stateLexware","Lexware",false,"Worker-Verbindung fehlt");
     setState("statePipedrive","Pipedrive",false,"Worker-Verbindung fehlt");
+    setState("stateDrive","Google Drive",false,"Worker-Verbindung fehlt");
   }
 };
 
@@ -4406,6 +4459,12 @@ $("specialType").value = state.discount.specialType;
 $("specialValue").value = state.discount.specialValue;
 $("specialLabel").value = state.discount.specialLabel;
 
+try {
+  await migrateEmbeddedVisitPhotos();
+  await migrateEmbeddedWorksitePhotos();
+} catch (error) {
+  console.warn("Alte Fotos konnten nicht vollständig migriert werden:", error);
+}
 migrateWorkerUrl();
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 

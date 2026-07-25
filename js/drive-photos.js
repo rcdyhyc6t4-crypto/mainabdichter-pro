@@ -41,6 +41,15 @@ function findPhoto(photoId) {
   }
 }
 
+function dataUrlToBlob(dataUrl) {
+  const [header, encoded] = String(dataUrl || "").split(",");
+  const mimeType = header?.match(/data:([^;]+)/)?.[1] || "image/jpeg";
+  const bytes = atob(encoded || "");
+  const array = new Uint8Array(bytes.length);
+  for (let index = 0; index < bytes.length; index += 1) array[index] = bytes.charCodeAt(index);
+  return new Blob([array], { type: mimeType });
+}
+
 export async function stageVisitPhoto(file, area) {
   const id = crypto.randomUUID();
   const extension = (file.name?.split(".").pop() || "jpg").toLowerCase();
@@ -97,6 +106,36 @@ export async function syncPendingVisitPhotos() {
     saveState();
     window.dispatchEvent(new CustomEvent("drive-photo-updated"));
   }
+}
+
+export async function migrateEmbeddedVisitPhotos() {
+  let changed = false;
+  for (const area of state.visit.areas || []) {
+    for (const photo of area.photos || []) {
+      if (!photo.src?.startsWith("data:")) continue;
+      const blob = dataUrlToBlob(photo.src);
+      const filename = photo.filename || `${safePart(area.name, "Bereich")}-${Date.now()}.jpg`;
+      await transact("readwrite", store => store.put({
+        id: photo.id,
+        blob,
+        metadata: {
+          photoId: photo.id,
+          customerFolder: customerFolder(),
+          visitFolder: safePart(state.visit.visitNumber, `Besichtigung-${state.visit.visitDate || "ohne Datum"}`),
+          areaFolder: safePart(area.name, "Allgemein"),
+          filename,
+          mimeType: blob.type || "image/jpeg"
+        }
+      }));
+      delete photo.src;
+      photo.filename = filename;
+      photo.mimeType = blob.type || "image/jpeg";
+      photo.uploadStatus ||= "pending";
+      changed = true;
+    }
+  }
+  if (changed) saveState();
+  return changed;
 }
 
 export async function hydrateDrivePhotoImages(root = document) {

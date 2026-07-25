@@ -1827,7 +1827,7 @@ html, body {
 .hole-status-grid button{min-height:58px}.hole-status-grid .primary{grid-column:1/-1;font-size:1.05rem}
 @media(max-width:600px){.adhs-modal{padding:18px}.hole-status-grid{grid-template-columns:1fr}.hole-status-grid .primary{grid-column:auto}.adhs-modal .modal-actions{flex-direction:column-reverse}}
 
-/* V32.7.3 – ruhige, einheitliche Textfarben ohne blaue Schrift */
+/* V32.7.4 – ruhige, einheitliche Textfarben ohne blaue Schrift */
 .page label,
 .page summary,
 .page input,
@@ -1854,4 +1854,33 @@ html, body {
 }
 .legend-blue{
   background:#66706b;
+}
+
+/* V32.7.4 – iOS darf Schaltflächen nicht mehr als blaue Links einfärben */
+.page button,
+.bottom-nav button,
+.v28-modal button,
+button.secondary,
+button.danger{
+  color:#202622;
+  -webkit-text-fill-color:#202622;
+}
+.page button.primary,
+.page .primary.button-link,
+.v28-modal button.primary{
+  color:#fff;
+  -webkit-text-fill-color:#fff;
+}
+.page button:disabled,
+.bottom-nav button:disabled{
+  color:#5f6963;
+  -webkit-text-fill-color:#5f6963;
+}
+.bottom-nav button.active{
+  color:#2f982f;
+  -webkit-text-fill-color:#2f982f;
+}
+.page button.danger{
+  color:#8d1b1b;
+  -webkit-text-fill-color:#8d1b1b;
 }

@@ -125,7 +125,7 @@ export async function loadLexwareArticles() {
 }
 
 export async function testConnections() {
-  const result = { cloudflare: false, lexware: false, pipedrive: false, errors: {} };
+  const result = { cloudflare: false, lexware: false, pipedrive: false, drive: false, errors: {} };
   const { url } = config();
 
   try {
@@ -146,6 +146,13 @@ export async function testConnections() {
     result.lexware = true;
   } catch (error) {
     result.errors.lexware = error.message;
+  }
+
+  try {
+    await api("/drive/test");
+    result.drive = true;
+  } catch (error) {
+    result.errors.drive = error.message;
   }
 
   try {
