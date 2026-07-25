@@ -79,7 +79,7 @@ test("Vor-Ort-Besichtigung schlägt eine Maßnahme vor und verlangt Messwerte", 
   await page.locator("#addArea").click();
   await page.locator('[data-field="name"]').fill("Keller Außenwand");
   await page.locator('[data-field="wallMaterial"]').selectOption({ label: "HBL / Hohlblockstein" });
-  await page.locator('[data-field="wallThickness"]').selectOption("30");
+  await page.locator('[data-field="wallThickness"]').fill("30");
   await page.locator('[data-field="earthContact"]').selectOption({ label: "erdberührt" });
   await page.locator("[data-add-measurement]").click();
   await page.locator('[data-mf="device"]').selectOption("Gann Hydromette Compact B");

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.6</title>
-<link rel="stylesheet" href="css/app.css?v=32.6.0">
+<title>mainabdichter PRO V32.7</title>
+<link rel="stylesheet" href="css/app.css?v=32.7.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260724-v30-8">
 <link rel="manifest" href="manifest.json">
 
@@ -627,18 +627,14 @@ main{width:100%;max-width:100%}
     </div>
   </div>
   <details class="card legal-price-options">
-    <summary>Preisoptionen</summary>
-    <p class="hint">Interne, rechtssichere Kalkulationshilfe. Der Kunde erhält immer eine ordnungsgemäße Rechnung.</p>
+    <summary>Preisübersicht</summary>
+    <p class="hint">Hier wird nur die Auswirkung der oben einmalig gewählten Preisoption angezeigt.</p>
     <div class="legal-price-grid">
       <div><span>Regulärer Bruttopreis</span><strong id="legalRegularGross">–</strong></div>
       <div><span>Enthaltene Umsatzsteuer</span><strong id="legalVatAmount">–</strong></div>
       <div><span>Nettopreis</span><strong id="legalNetAmount">–</strong></div>
     </div>
-    <div class="legal-discount-row">
-      <label>Offizieller Rabatt %<input id="legalDiscountPercent" type="number" inputmode="decimal" min="0" max="100" step=".1" placeholder="0"></label>
-      <div class="legal-new-price"><span>Neuer Bruttopreis</span><strong id="legalDiscountedGross">–</strong></div>
-      <button type="button" id="applyLegalDiscount" class="primary">Rabatt übernehmen</button>
-    </div>
+    <div class="legal-discount-row"><div class="legal-new-price"><span>Preis nach gewählter Option</span><strong id="legalDiscountedGross">–</strong></div></div>
     <div id="legalPriceWarning" class="status"></div>
   </details>
   <div class="card material-requirement-card">
@@ -1025,7 +1021,7 @@ window.addEventListener("error", function(event) {
   box.textContent = "Die App konnte nicht vollständig geladen werden: " + (event.message || "Unbekannter Fehler") + (event.filename ? "\nDatei: " + event.filename : "") + (event.lineno ? "\nZeile: " + event.lineno + ":" + event.colno : "");
 });
 </script>
-<script type="module" src="js/app.js?v=32.6.0"></script>
+<script type="module" src="js/app.js?v=32.7.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

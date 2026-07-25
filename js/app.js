@@ -2250,7 +2250,7 @@ function renderAreas() {
         <div><label>Bezeichnung</label><input data-area="${area.id}" data-field="name" value="${esc(area.name)}"></div>
         <div><label>Wandmaterial</label><select data-area="${area.id}" data-field="wallMaterial">${["","HBL / Hohlblockstein","Ziegel","Kalksandstein","Beton","Naturstein","Mischmauerwerk","Sonstiges","Unbekannt"].map(v => `<option ${area.wallMaterial===v?"selected":""}>${v}</option>`).join("")}</select></div>
         <div><label>Abweichendes Material</label><input data-area="${area.id}" data-field="wallMaterialOther" value="${esc(area.wallMaterialOther)}"></div>
-        <div><label>Wandstärke</label><select data-area="${area.id}" data-field="wallThickness">${["",24,30,36,42,48,60].map(v => `<option value="${v}" ${Number(area.wallThickness)===v?"selected":""}>${v} cm</option>`).join("")}</select></div>
+        <div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-area="${area.id}" data-field="wallThickness" value="${esc(area.wallThickness || "")}"></div>
         <div><label>Wandart</label><select data-area="${area.id}" data-field="wallType"><option value="">– bitte auswählen –</option><option ${area.wallType==="Außenwand"?"selected":""}>Außenwand</option><option ${area.wallType==="Innenwand"?"selected":""}>Innenwand</option></select></div>
         <div><label>Erdkontakt</label><select data-area="${area.id}" data-field="earthContact"><option value="">– bitte auswählen –</option><option ${area.earthContact==="erdberührt"?"selected":""}>erdberührt</option><option ${area.earthContact==="nicht erdberührt"?"selected":""}>nicht erdberührt</option></select></div>
         <div><label>Wandbelag</label><select data-area="${area.id}" data-field="wallCover">${["","Putz","Farbe","Tapete","Fliesen","Unbekannt","Sonstiges"].map(v => `<option ${area.wallCover===v?"selected":""}>${v}</option>`).join("")}</select></div>
@@ -2347,7 +2347,7 @@ function renderMeasures(area) {
   box.innerHTML = area.measures.map(m => `
     <div class="sub-card item-grid">
       <div class="wide"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
-      <div><label>Wandstärke</label><select data-measure="${m.id}" data-mfield="wall">${["",24,30,36,42,48,60].map(v=>`<option value="${v}" ${Number(m.wall)===v?"selected":""}>${v} cm</option>`).join("")}</select></div>
+      <div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>
       ${m.type==="Flächensperre" ? `<div><label>Breite m</label><input data-measure="${m.id}" data-mfield="width" value="${m.width}"></div><div><label>Höhe m</label><input data-measure="${m.id}" data-mfield="height" value="${m.height}"></div>` : `<div><label>Länge lfm</label><input data-measure="${m.id}" data-mfield="length" value="${m.length}"></div>`}
       ${["","Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type) ? `<div><label>horizontaler Abstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">– bitte auswählen –</option><option value=".125" ${Number(m.spacing)===.125?"selected":""}>12,5 cm</option><option value=".25" ${Number(m.spacing)===.25?"selected":""}>25 cm</option></select></div>` : ""}
       ${m.type==="Harzverpressung" ? `<div><label>zusätzliches Harz kg</label><input data-measure="${m.id}" data-mfield="extraResinKg" value="${m.extraResinKg}"></div>` : ""}
@@ -2599,7 +2599,8 @@ function legalPricePreview(regularGross, discountPercent) {
 
 function renderLegalPriceOptions(regularGross, minimumGross) {
   if (!$("legalRegularGross")) return;
-  const preview = legalPricePreview(regularGross, parseDecimal($("legalDiscountPercent")?.value || 0));
+  const selectedPercent = state.discount.specialType === "percent" ? Number(state.discount.specialValue || 0) : 0;
+  const preview = legalPricePreview(regularGross, selectedPercent);
   $("legalRegularGross").textContent = eur(preview.gross);
   $("legalVatAmount").textContent = eur(preview.vat);
   $("legalNetAmount").textContent = eur(preview.net);
@@ -2612,30 +2613,8 @@ function renderLegalPriceOptions(regularGross, minimumGross) {
     ? `Achtung: Der neue Preis liegt ${eur(Number(minimumGross || 0) - preview.discountedGross)} unter deiner internen Preisuntergrenze von ${eur(minimumGross)}.`
     : preview.percent > 0
       ? `Offizieller Rabatt: ${num(preview.percent)} %. Der neue Preis wird ordnungsgemäß brutto und mit Rechnung angeboten.`
-      : "Rabatt eingeben, um eine offizielle Preisalternative zu prüfen.";
+      : "Keine Preisreduzierung ausgewählt.";
 }
-
-if ($("legalDiscountPercent")) $("legalDiscountPercent").oninput = () => {
-  const result = calculateOffer(state.settings, state.visit, state.discount);
-  const strategies = calculatePriceStrategies(state.settings, state.visit, state.discount);
-  renderLegalPriceOptions(result.baseGross, strategies.minimum.baseGross);
-};
-
-if ($("applyLegalDiscount")) $("applyLegalDiscount").onclick = () => {
-  const percent = Math.max(0, Math.min(100, parseDecimal($("legalDiscountPercent").value)));
-  state.discount.specialType = percent > 0 ? "percent" : "none";
-  state.discount.specialValue = percent;
-  state.discount.specialLabel = percent > 0 ? "Individueller Rabatt" : "";
-  state.visit.offerDraft = {items:{},approved:false,approvedAt:""};
-  $("specialType").value = state.discount.specialType;
-  $("specialValue").value = percent || "";
-  $("specialLabel").value = state.discount.specialLabel;
-  saveState();
-  renderOffer();
-  showStatus("offerReviewStatus", percent > 0
-    ? "Der offizielle Rabatt wurde übernommen. Bitte Positionen und Preis erneut freigeben."
-    : "Der Rabatt wurde entfernt. Bitte das Angebot erneut freigeben.", true);
-};
 
 ["skontoType","skontoCustom","specialType","specialValue","specialLabel"].forEach(id => {
   $(id).oninput = () => {
@@ -3664,7 +3643,7 @@ function renderWorksiteEditor() {
     const usesHs = taskUsesHs(task);
     const usesResin = taskUsesResin(task);
     const wallField = technical && task.type !== "Harzverpressung"
-      ? `<div><label>Tatsächliche Wandstärke</label><select data-ws-task="${task.id}" data-ws-field="wall">${[24,30,36,36.5,42,48,60].map(value => `<option value="${value}" ${Number(task.wall)===value?"selected":""}>${String(value).replace(".",",")} cm</option>`).join("")}</select></div>`
+      ? `<div><label>Tatsächliche Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-ws-task="${task.id}" data-ws-field="wall" value="${formatDecimalInput(task.wall)}"></div>`
       : "";
     const wallMaterialOptions = ["", "Beton", "Ziegelmauerwerk", "HBL", "Kalksandstein", "Naturstein", "Bruchstein", "Mischmauerwerk", "Porenbeton", "Sonstiges"];
     const locationFields = technical ? `
@@ -3680,13 +3659,15 @@ function renderWorksiteEditor() {
         <div><label>Bohrlochabstand</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>12,5 cm</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>25 cm</option></select></div>
         <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
         <div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>
-        <div><label>Sollmenge je Bohrloch</label><input value="${num(task.targetLitersPerHole)} l" readonly></div>
+        <div><label>Sollmenge je Bohrloch</label><input value="${Math.round(Number(task.targetLitersPerHole || 0) * 1000)} ml" readonly></div>
+        <div><label>Istmenge je Bohrloch</label><input type="number" inputmode="numeric" min="0" step="10" data-ws-task="${task.id}" data-ws-field="actualMlPerHole" value="${Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)}"></div>
         <div><label>Sollverbrauch ohne Reserve</label><input value="${num(task.plannedLiters)} l" readonly></div>
         <div><label>Istverbrauch HZ 250 PRO</label><input value="${num(task.actualLiters)} l" readonly></div>
         <div class="full injection-choice"><label>Injektionsart</label>
           <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="injectionPressureless" ${task.injectionPressureless?"checked":""}> Drucklos</label>
           <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="injectionLowPressure" ${task.injectionLowPressure?"checked":""}> Niederdruck</label>
         </div>
+        ${task.injectionLowPressure ? `<div class="full"><button type="button" class="primary" data-start-injection="${task.id}">Injektion starten / fortsetzen</button><p class="hint">Nur bei Niederdruck: Die Gesamtmenge wird automatisch mitgeführt.</p></div>` : ""}
         ${chargeFieldHtml(task, "bkm-hz-250-pro", "chargeHz", "Charge BKM HZ 250 PRO")}
         <div><label>Noch hängende Injektionsflaschen</label><input inputmode="numeric" data-ws-task="${task.id}" data-ws-field="bottlesHanging" value="${formatDecimalInput(task.bottlesHanging)}"></div>
         <div><label>Bereich / Wand der Flaschen</label><input data-ws-task="${task.id}" data-ws-field="bottlesArea" value="${esc(task.bottlesArea || "")}"></div>
@@ -3739,12 +3720,13 @@ function renderWorksiteEditor() {
     [...event.target.files].forEach(file => { const reader=new FileReader(); reader.onload=result=>{ task.photos.push({id:crypto.randomUUID(),category,src:result.target.result}); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); }; reader.readAsDataURL(file); });
   });
   document.querySelectorAll("[data-delete-ws-photo]").forEach(button => button.onclick = () => { const task=ws.tasks.find(item=>item.id===button.dataset.taskId); task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto); persistWorksite(ws); sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos"); renderWorksiteEditor(); });
-  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"]').forEach(input => {
+  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"], [data-ws-field="actualMlPerHole"]').forEach(input => {
     const recalculate = () => {
       const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
       if (!task) return;
       const field = input.dataset.wsField;
-      task[field] = parseDecimal(input.value);
+      if (field === "actualMlPerHole") task.actualLitersPerHole = parseDecimal(input.value) / 1000;
+      else task[field] = parseDecimal(input.value);
 
       // Quantity is the leading value when manually edited.
       if (field === "actualQuantity") {
@@ -3761,6 +3743,22 @@ function renderWorksiteEditor() {
     };
     input.onchange = recalculate;
     if (["actualHoles","actualQuantity"].includes(input.dataset.wsField)) input.onblur = recalculate;
+  });
+  document.querySelectorAll("[data-start-injection]").forEach(button => {
+    button.onclick = () => openInjectionAssistant(ws, button.dataset.startInjection);
+  });
+  document.querySelectorAll('[data-ws-field="injectionPressureless"], [data-ws-field="injectionLowPressure"]').forEach(input => {
+    input.onchange = () => {
+      const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
+      if (!task) return;
+      task[input.dataset.wsField] = input.checked;
+      task.injectionType = [
+        task.injectionLowPressure ? "Niederdruckverfahren" : "",
+        task.injectionPressureless ? "drucklose Injektion" : ""
+      ].filter(Boolean).join(" und ");
+      persistWorksite(ws);
+      renderWorksiteEditor();
+    };
   });
   document.querySelectorAll("[data-confirm-bottle-pickup]").forEach(button => button.onclick = () => {
     const task = ws.tasks.find(item => item.id === button.dataset.confirmBottlePickup);
@@ -3786,36 +3784,121 @@ function renderWorksiteEditor() {
 function addAdditionalWorkToActiveWorksite() {
   const ws = saveActiveWorksite(false) || getWorksite(activeWorksiteId);
   if (!ws) return;
-  const area = prompt("In welchem Bereich soll zusätzlich gearbeitet werden?", "");
-  if (area === null) return;
-  const description = prompt("Welche zusätzliche Arbeit wünscht der Kunde?", "");
-  if (description === null || !description.trim()) return;
-  const originalTasks = reportableWorksiteTasks(ws).filter(task => !task.additionalWork);
-  let linkedTaskId = "";
-  if (originalTasks.length === 1) {
-    linkedTaskId = confirm(`Gehört die Zusatzarbeit zur vorhandenen Leistung „${originalTasks[0].areaName || originalTasks[0].type}“?`) ? originalTasks[0].id : "";
-  }
-  ws.tasks.push({
-    id: crypto.randomUUID(),
-    areaId: "",
-    areaName: area.trim() || "Zusätzlicher Bereich",
-    workArea: area.trim(),
-    type: "Zusatzarbeit",
-    scope: description.trim(),
-    offerDescription: "",
-    actualNote: description.trim(),
-    plannedQuantity: 0,
-    actualQuantity: 1,
-    unitName: "Pauschal",
-    completed: false,
-    additionalWork: true,
-    linkedTaskId,
-    customerApproved: false,
-    photos: []
+  openAdditionalWorkPicker(ws);
+}
+
+function additionalWorkCatalog() {
+  const core = [
+    { name:"Horizontalsperre", type:"Horizontalsperre", unit:"lfm" },
+    { name:"Flächensperre", type:"Flächensperre", unit:"m²" },
+    { name:"Wand-Sohlen-Anschluss", type:"Wand-Sohlen-Anschluss", unit:"lfm" },
+    { name:"Harzverpressung", type:"Harzverpressung", unit:"lfm" }
+  ];
+  const articles = (state.settings.lexwareArticles || []).map(article => ({
+    articleId:article.id,
+    name:article.name || article.title || article.description || "Leistung",
+    type:article.measureType || article.name || "Sonstige Leistung",
+    unit:article.unitName || article.unit || "Stück",
+    grossPrice:Number(article.grossPrice || article.unitPrice || article.price || 0)
+  }));
+  const seen = new Set();
+  return [...core, ...articles].filter(item => {
+    const key = item.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
-  persistWorksite(ws);
-  sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionExecution");
-  renderWorksiteEditor();
+}
+
+function openAdditionalWorkPicker(ws) {
+  const catalog = additionalWorkCatalog();
+  const overlay = document.createElement("div");
+  overlay.className = "adhs-modal-overlay";
+  overlay.innerHTML = `<section class="adhs-modal">
+    <span class="dashboard-eyebrow">KUNDENWUNSCH</span>
+    <h2>Welche Arbeit kommt hinzu?</h2>
+    <label>Leistung aus dem Katalog</label>
+    <select id="extraCatalogItem">${catalog.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join("")}</select>
+    <div class="grid">
+      <div><label>Bereich / Wand</label><input id="extraArea" placeholder="z. B. Keller Außenwand"></div>
+      <div><label>Menge</label><input id="extraQuantity" type="number" inputmode="decimal" min="0" step=".1" value="1"></div>
+    </div>
+    <label>Besonderheit (optional)</label><input id="extraNote" placeholder="Nur wenn wirklich nötig">
+    <label class="switch-row"><input id="extraApproved" type="checkbox" checked> Vom Kunden vor Ort beauftragt</label>
+    <div class="modal-actions"><button type="button" class="secondary" data-close-modal>Abbrechen</button><button type="button" class="primary" id="addCatalogWork">Übernehmen</button></div>
+  </section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector("[data-close-modal]").onclick = () => overlay.remove();
+  overlay.querySelector("#addCatalogWork").onclick = () => {
+    const item = catalog[Number(overlay.querySelector("#extraCatalogItem").value)];
+    const area = overlay.querySelector("#extraArea").value.trim() || "Zusätzlicher Bereich";
+    const quantity = parseDecimal(overlay.querySelector("#extraQuantity").value);
+    if (!item || quantity <= 0) return;
+    const linked = reportableWorksiteTasks(ws).find(task => !task.additionalWork && task.type === item.type);
+    ws.tasks.push({
+      id:crypto.randomUUID(), areaId:"", areaName:area, workArea:area,
+      type:item.type, scope:`${num(quantity)} ${item.unit}`, offerDescription:"",
+      actualNote:overlay.querySelector("#extraNote").value.trim(),
+      plannedQuantity:0, actualQuantity:quantity, unitName:item.unit,
+      sourceArticleId:item.articleId || "", sourceUnitPrice:Number(item.grossPrice || 0),
+      completed:false, additionalWork:true, linkedTaskId:linked?.id || "",
+      customerApproved:overlay.querySelector("#extraApproved").checked, photos:[]
+    });
+    persistWorksite(ws);
+    overlay.remove();
+    sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionExecution");
+    renderWorksiteEditor();
+  };
+}
+
+function openInjectionAssistant(ws, taskId) {
+  const task = ws.tasks.find(item => item.id === taskId);
+  if (!task || !task.injectionLowPressure) return;
+  if (!Array.isArray(task.holeRecords)) task.holeRecords = [];
+  let current = Math.min(task.holeRecords.length + 1, Math.max(1, Number(task.actualHoles || 1)));
+  const overlay = document.createElement("div");
+  overlay.className = "adhs-modal-overlay";
+  const render = () => {
+    const total = task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0);
+    const record = task.holeRecords.find(row => row.hole === current);
+    const defaultMl = Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000);
+    overlay.innerHTML = `<section class="adhs-modal injection-assistant">
+      <span class="dashboard-eyebrow">NIEDERDRUCKINJEKTION</span>
+      <h2>Bohrloch ${current} von ${Number(task.actualHoles || 0)}</h2>
+      <div class="injection-total"><span>Verbrauch bis hier</span><strong>${num(total)} Liter</strong></div>
+      <label>Istmenge dieses Bohrlochs (ml)</label>
+      <input id="holeMl" type="number" inputmode="numeric" step="10" min="0" value="${Math.round(Number(record?.actualLiters ?? defaultMl / 1000) * 1000)}">
+      <div class="hole-status-grid">
+        <button type="button" data-hole-status="completed" class="primary">Fertig + nächstes</button>
+        <button type="button" data-hole-status="not-absorbing" class="secondary">Nicht aufnahmefähig</button>
+        <button type="button" data-hole-status="skipped" class="secondary">Übersprungen</button>
+        <button type="button" data-hole-status="pressureless" class="secondary">Dieses Loch drucklos</button>
+      </div>
+      <div class="modal-actions"><button type="button" id="holeBack" class="secondary">← Zurück</button><button type="button" data-close-modal class="secondary">Schließen</button></div>
+    </section>`;
+    overlay.querySelector("[data-close-modal]").onclick = () => { persistWorksite(ws); overlay.remove(); renderWorksiteEditor(); };
+    overlay.querySelector("#holeBack").onclick = () => { current = Math.max(1,current - 1); render(); };
+    overlay.querySelectorAll("[data-hole-status]").forEach(button => button.onclick = () => {
+      const status = button.dataset.holeStatus;
+      const ml = ["skipped","not-absorbing"].includes(status) ? 0 : parseDecimal(overlay.querySelector("#holeMl").value);
+      const next = {hole:current,status,method:status === "pressureless" ? "Drucklos" : "Niederdruck",actualLiters:ml / 1000};
+      const index = task.holeRecords.findIndex(row => row.hole === current);
+      if (index >= 0) task.holeRecords[index] = next; else task.holeRecords.push(next);
+      task.holeRecords.sort((a,b) => a.hole - b.hole);
+      task.actualLiters = task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0);
+      const exceptions = task.holeRecords.filter(row => row.status !== "completed").map(row => {
+        const label = row.status === "not-absorbing" ? "nicht aufnahmefähig"
+          : row.status === "skipped" ? "übersprungen" : "drucklos injiziert";
+        return `Bohrloch ${row.hole} ${label} (${Math.round(Number(row.actualLiters || 0) * 1000)} ml)`;
+      });
+      if (exceptions.length) task.note = `Bohrlochdokumentation: ${exceptions.join("; ")}.`;
+      persistWorksite(ws);
+      if (current < Number(task.actualHoles || 0)) { current++; render(); }
+      else { overlay.querySelector("h2").textContent = "Injektion vollständig erfasst"; }
+    });
+  };
+  document.body.appendChild(overlay);
+  render();
 }
 
 function deductWorksiteInventory(ws) {
@@ -3835,6 +3918,16 @@ function deductWorksiteInventory(ws) {
   }
   ws.materialBooked = true;
   ws.materialBookedAt = new Date().toISOString();
+}
+
+function injectionExceptionsHtml(task) {
+  const rows = (task.holeRecords || []).filter(row => row.status !== "completed");
+  if (!rows.length) return "";
+  return `<div class="worksite-print-note"><strong>Bohrlochdokumentation:</strong><br>${rows.map(row => {
+    const status = row.status === "not-absorbing" ? "nicht aufnahmefähig"
+      : row.status === "skipped" ? "übersprungen" : row.method;
+    return `Bohrloch ${row.hole}: ${status}, Istmenge ${Math.round(Number(row.actualLiters || 0) * 1000)} ml`;
+  }).join("<br>")}</div>`;
 }
 
 function buildWorksitePrint(ws) {

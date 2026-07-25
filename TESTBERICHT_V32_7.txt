@@ -1,0 +1,19 @@
+mainabdichter PRO V32.7 – Prüfbericht
+
+Bestanden:
+- JavaScript-Syntax aller produktiven Module
+- Cloudflare-Worker-Syntax
+- Versionsstand 32.7.0 in App, Paket und Cache-Buster
+- Zusatzarbeiten: Katalogauswahl statt Freitext-Pflicht
+- Frei editierbare Wandstärken mit Dezimalwerten
+- Soll- und Istmenge je Bohrloch getrennt
+- Aufrundung des Praxiswerts auf 10-ml-Schritte
+- Niederdruck-Assistent mit automatischer Fortschrittsspeicherung
+- Sonderstatus: nicht aufnahmefähig, übersprungen, drucklos
+- Keine Einzelbestätigung bei rein druckloser Flascheninjektion
+- Preisoptionen nur noch einmal bearbeitbar
+
+Hinweis:
+Die vorhandenen Playwright-Browsertests konnten in der Erstellungsumgebung
+nicht gestartet werden, weil das Playwright-Paket dort nicht installiert
+werden konnte. Die statische Build- und Syntaxprüfung ist vollständig bestanden.

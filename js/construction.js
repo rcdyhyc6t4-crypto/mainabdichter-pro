@@ -85,6 +85,8 @@ function baseTask(data = {}) {
     plannedHsKg: 0,
     actualHsKg: 0,
     targetLitersPerHole: 0,
+    actualLitersPerHole: 0,
+    holeRecords: [],
     injectionPressureless: false,
     injectionLowPressure: true,
     injectionType: "",
@@ -137,6 +139,7 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         plannedHsKg: result.hsKg || 0,
         actualHsKg: result.hsKg || 0,
         targetLitersPerHole: targetPerHole(result),
+        actualLitersPerHole: Math.ceil(targetPerHole(result) * 100) / 100,
         injectionType: taskUsesHz({ type: measure.type }) ? "Niederdruckverfahren" : "",
         resinKg: measure.type === "Harzverpressung" ? Number(measure.extraResinKg || 0) : 0,
         resinApplied: measure.type === "Harzverpressung"
@@ -240,7 +243,13 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       task.actualQuantity = Number(task.plannedQuantity || 0);
     }
 
-    task.actualLiters = Number(task.actualHoles || 0) * rawPerHole;
+    if (!Number(task.actualLitersPerHole) || changedField === "wall" || changedField === "spacing") {
+      task.actualLitersPerHole = Math.ceil(rawPerHole * 100) / 100;
+    }
+    const records = Array.isArray(task.holeRecords) ? task.holeRecords : [];
+    task.actualLiters = records.length
+      ? records.reduce((sum, record) => sum + Number(record.actualLiters || 0), 0)
+      : Number(task.actualHoles || 0) * Number(task.actualLitersPerHole || rawPerHole);
   } else {
     task.plannedHoles = 0;
     task.actualHoles = 0;
@@ -353,6 +362,7 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
       plannedHsKg: taskUsesHs({ type }) ? plannedHsKg : 0,
       actualHsKg: taskUsesHs({ type }) ? plannedHsKg : 0,
       targetLitersPerHole: taskUsesHz({ type }) ? targetLitersPerHole : 0,
+      actualLitersPerHole: taskUsesHz({ type }) ? Math.ceil(targetLitersPerHole * 100) / 100 : 0,
       injectionType: taskUsesHz({ type }) ? "Niederdruckverfahren" : "",
       resinApplied: type === "Harzverpressung",
       note: item.description || ""
