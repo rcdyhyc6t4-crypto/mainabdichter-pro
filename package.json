@@ -1,9 +1,10 @@
 {
   "name": "mainabdichter-pro",
-  "version": "32.13.8",
+  "version": "32.13.9",
   "private": true,
   "scripts": {
-    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js",
+    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js && node tests/timezone-worker.test.cjs",
+    "test:timezone": "node tests/timezone-worker.test.cjs",
     "test": "playwright test"
   },
   "devDependencies": {

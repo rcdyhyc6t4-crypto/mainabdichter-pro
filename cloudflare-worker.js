@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.13.8
+// mainabdichter PRO Cloudflare Worker V32.13.9
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -355,6 +355,84 @@ function splitName(fullName) {
 
 function cleanText(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+const BUSINESS_TIME_ZONE = "Europe/Berlin";
+
+function dateTimePartsInZone(date, timeZone = BUSINESS_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  return Object.fromEntries(
+    parts
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, part.value])
+  );
+}
+
+function utcActivityTimeToBerlin(dueDate, dueTime) {
+  const date = cleanText(dueDate);
+  const time = cleanText(dueTime).slice(0, 5);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+    return { dueDate: date, dueTime: time };
+  }
+  const instant = new Date(`${date}T${time}:00Z`);
+  if (Number.isNaN(instant.getTime())) return { dueDate: date, dueTime: time };
+  const parts = dateTimePartsInZone(instant);
+  return {
+    dueDate: `${parts.year}-${parts.month}-${parts.day}`,
+    dueTime: `${parts.hour}:${parts.minute}`
+  };
+}
+
+function timeZoneOffsetMs(instant, timeZone = BUSINESS_TIME_ZONE) {
+  const parts = dateTimePartsInZone(instant, timeZone);
+  const representedAsUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second)
+  );
+  return representedAsUtc - instant.getTime();
+}
+
+function berlinActivityTimeToUtc(dueDate, dueTime) {
+  const date = cleanText(dueDate);
+  const time = cleanText(dueTime).slice(0, 5);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+    const error = new Error("Datum oder Uhrzeit ist ungültig.");
+    error.status = 400;
+    throw error;
+  }
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
+  let instantMs = localAsUtc - timeZoneOffsetMs(new Date(localAsUtc));
+  instantMs = localAsUtc - timeZoneOffsetMs(new Date(instantMs));
+  const instant = new Date(instantMs);
+  const roundTrip = dateTimePartsInZone(instant);
+  const roundTripDate = `${roundTrip.year}-${roundTrip.month}-${roundTrip.day}`;
+  const roundTripTime = `${roundTrip.hour}:${roundTrip.minute}`;
+  if (roundTripDate !== date || roundTripTime !== time) {
+    const error = new Error(
+      "Diese Uhrzeit existiert wegen der Zeitumstellung in Europe/Berlin nicht."
+    );
+    error.status = 400;
+    throw error;
+  }
+  return {
+    dueDate: instant.toISOString().slice(0, 10),
+    dueTime: instant.toISOString().slice(11, 16)
+  };
 }
 
 function formatAddress({ street = "", zip = "", city = "" } = {}) {
@@ -1099,7 +1177,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.13.8",
+          workerVersion: "32.13.9",
           time: new Date().toISOString()
         });
       }
@@ -1345,7 +1423,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.13.8",
+          workerVersion: "32.13.9",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -1844,11 +1922,11 @@ export default {
           if(!page.length) moreV1=false;
         }
         const uniqueActivities=[...new Map(allActivities.map(item=>[String(item?.id||crypto.randomUUID()),item])).values()];
-        const activities=uniqueActivities.filter(item=>item&&item.due_date&&(upcoming?item.due_date>=date:item.due_date===date)).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const attendee=Array.isArray(item.attendees)?item.attendees.find(x=>x?.person_id)||item.attendees[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||attendee?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:item.due_date||"",dueTime:item.due_time||"",duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||attendee?.name||""};});
+        const normalizedActivities=uniqueActivities.filter(item=>item&&item.due_date).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const attendee=Array.isArray(item.attendees)?item.attendees.find(x=>x?.person_id)||item.attendees[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||attendee?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");const localTime=item.due_time?utcActivityTimeToBerlin(item.due_date,item.due_time):{dueDate:item.due_date||"",dueTime:""};return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:localTime.dueDate,dueTime:localTime.dueTime,duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||attendee?.name||""};});
+        const activities=normalizedActivities.filter(item=>upcoming?item.dueDate>=date:item.dueDate===date);
         activities.sort((a,b)=>`${a.dueDate} ${a.dueTime||"00:00"}`.localeCompare(`${b.dueDate} ${b.dueTime||"00:00"}`));
-        const datedActivities=uniqueActivities.filter(item=>item?.due_date);
-        const availableDates=datedActivities.map(item=>item.due_date).sort();
-        return jsonResponse(request,{ok:true,activities,diagnostics:{v2Pages:pageCount,v1Pages:v1PageCount,received:allActivities.length,unique:uniqueActivities.length,dated:datedActivities.length,matched:activities.length,fromDate:date,earliestDate:availableDates[0]||"",latestDate:availableDates.at(-1)||"",statusGroups:["open","done"],sources:["v2","v1"],paginationComplete:true}});
+        const availableDates=normalizedActivities.map(item=>item.dueDate).sort();
+        return jsonResponse(request,{ok:true,activities,diagnostics:{v2Pages:pageCount,v1Pages:v1PageCount,received:allActivities.length,unique:uniqueActivities.length,dated:normalizedActivities.length,matched:activities.length,fromDate:date,earliestDate:availableDates[0]||"",latestDate:availableDates.at(-1)||"",statusGroups:["open","done"],sources:["v2","v1"],paginationComplete:true,timeZone:BUSINESS_TIME_ZONE,apiTimeBasis:"UTC"}});
       }
 
       if (url.pathname === "/pipedrive/activities" && request.method === "POST") {
@@ -1861,11 +1939,15 @@ export default {
         const hours=String(Math.floor(minutes/60)).padStart(2,"0");
         const mins=String(minutes%60).padStart(2,"0");
         const activityLocation=cleanText(input.location);
+        const localDueTime=cleanText(input.dueTime);
+        const apiDue=localDueTime
+          ? berlinActivityTimeToUtc(dueDate,localDueTime)
+          : {dueDate,dueTime:""};
         const payload={
           subject,
           type:cleanText(input.type)||"meeting",
-          due_date:dueDate,
-          due_time:cleanText(input.dueTime)||undefined,
+          due_date:apiDue.dueDate,
+          due_time:apiDue.dueTime||undefined,
           duration:`${hours}:${mins}`,
           participants:[{person_id:personId,primary:true}],
           deal_id:Number(input.dealId||0)||undefined,
@@ -1877,7 +1959,7 @@ export default {
         };
         Object.keys(payload).forEach(key=>payload[key]===undefined&&delete payload[key]);
         const result=await pipedriveRequest(env,"/api/v2/activities",{method:"POST",body:JSON.stringify(payload)});
-        return jsonResponse(request,{ok:true,activity:result.data||result},201);
+        return jsonResponse(request,{ok:true,activity:result.data||result,localSchedule:{dueDate,dueTime:localDueTime,timeZone:BUSINESS_TIME_ZONE},apiSchedule:{dueDate:apiDue.dueDate,dueTime:apiDue.dueTime,timeZone:"UTC"}},201);
       }
 
       if (url.pathname === "/lexware/accepted-quotations" && request.method === "GET") {
