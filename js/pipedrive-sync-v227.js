@@ -40,6 +40,7 @@ export const STAGE_DEFINITIONS = [
   ["onsiteAppointment", "Termin vor Ort"],
   ["writeOffer", "Angebot schreiben"],
   ["offerSent", "Angebot versendet"],
+  ["executionPlanning", "Ausführung planen"],
   ["executionPlanned", "Ausführung geplant"],
   ["executionCompleted", "Ausführung abgeschlossen"],
   ["awaitingPayment", "Warten auf Zahlung"],
@@ -205,6 +206,11 @@ export function worksiteSyncValues(worksite) {
 }
 
 export function stageId(key) {
-  const value=state.settings.pipedriveSync?.stageMappings?.[key];
+  const sync=state.settings.pipedriveSync || {};
+  const configured=sync.stageMappings?.[key];
+  if (configured) return Number(configured);
+  const label=STAGE_DEFINITIONS.find(([stageKey]) => stageKey === key)?.[1] || "";
+  const match=(sync.stages || []).find(stage => normalize(stage.name) === normalize(label));
+  const value=match?.id;
   return value ? Number(value) : undefined;
 }

@@ -5,7 +5,7 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.8";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.9.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.8.1";
+const MAINABDICHTER_APP_VERSION = "32.9.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -281,6 +281,29 @@ function worksiteFilePrefix(worksite) {
   return `${worksite.date || new Date().toISOString().slice(0,10)}_${name}`;
 }
 
+function worksiteStatusLabel(status) {
+  return status === "completed" ? "abgeschlossen"
+    : status === "active" ? "in Ausführung"
+    : status === "planned" ? "Ausführung geplant"
+    : "Ausführung planen";
+}
+
+function worksitePipedriveStage(worksite) {
+  return worksite.status === "completed" ? "executionCompleted"
+    : worksite.status === "planning" || !worksite.status ? "executionPlanning"
+    : "executionPlanned";
+}
+
+function requiredPipedriveStageId(key) {
+  const value = stageId(key);
+  if (!value) {
+    const label = key === "executionPlanning" ? "Ausführung planen"
+      : key === "executionPlanned" ? "Ausführung geplant" : key;
+    throw new Error(`Die Pipedrive-Phase „${label}“ wurde noch nicht erkannt. Bitte im Admin-Menü einmal die Pipedrive-Felder und Phasen aktualisieren.`);
+  }
+  return value;
+}
+
 async function uploadWorksiteAttachments(worksite) {
   if (!worksite.pipedriveDealId) throw new Error("Für den Datei-Upload fehlt die Pipedrive-Deal-ID.");
   const errors = [];
@@ -333,14 +356,14 @@ async function uploadWorksiteAttachments(worksite) {
   return { uploadedCount, errors };
 }
 
-async function syncWorksiteDeal(worksite, stageKey = null, pdf = null) {
+async function syncWorksiteDeal(worksite, stageKey = null, pdf = null, uploadAttachments = true) {
   const personId = worksite.pipedrivePersonId || await ensurePipedrivePerson(worksite.customer);
   worksite.pipedrivePersonId = personId;
   const response = await syncPipedriveDeal({
     dealId: worksite.pipedriveDealId || worksite.customer?.pipedriveDealId || "",
     personId,
     title: `${worksiteCustomerName(worksite)} – ${worksite.objectAddress || "Baustelle"}`,
-    stageId: stageKey ? stageId(stageKey) : undefined,
+    stageId: stageKey ? requiredPipedriveStageId(stageKey) : undefined,
     customFields: worksiteSyncValues(worksite),
     note: `Baustellenstatus: ${worksite.status || "geplant"}<br>Arbeitsnachweis zuletzt synchronisiert: ${new Date().toLocaleString("de-DE")}`
   });
@@ -353,7 +376,9 @@ async function syncWorksiteDeal(worksite, stageKey = null, pdf = null) {
     worksite.pipedriveReportUploadedAt = new Date().toISOString();
   }
 
-  const attachmentResult = await uploadWorksiteAttachments(worksite);
+  const attachmentResult = uploadAttachments
+    ? await uploadWorksiteAttachments(worksite)
+    : { uploadedCount: 0, errors: [] };
   worksite.pipedriveSyncedAt = new Date().toISOString();
   worksite.lastAttachmentUpload = {
     uploadedCount: attachmentResult.uploadedCount,
@@ -506,7 +531,7 @@ async function syncAcceptedQuotationDashboard() {
         const deal=await syncPipedriveDeal({
           personId,
           title:`${worksiteCustomerName(ws)} – ${ws.objectAddress || ws.lexwareVoucherNumber}`,
-          stageId:stageId("executionPlanned"),
+          stageId:requiredPipedriveStageId("executionPlanning"),
           value:Number(data.quotation.totalGrossAmount || data.quotation.totalAmount || 0),
           currency:data.quotation.currency || "EUR",
           customFields:visitSyncValues({customer:ws.customer,visitNumber:ws.visitNumber,visitDate:ws.date,building:{},areas:[],damageDescription:""},{offerNumber:ws.lexwareVoucherNumber,offerDate:data.quotation.voucherDate,offerValue:Number(data.quotation.totalGrossAmount || data.quotation.totalAmount || 0)}),
@@ -628,6 +653,10 @@ function renderV28Dashboard() {
   if (!$("v28ActiveWorksiteCount")) return;
   const worksites = typeof loadWorksites === "function" ? loadWorksites() : [];
   const active = worksites.filter(worksite => worksite.status !== "completed");
+  const openExecutions = worksites.filter(worksite => !worksite.status || worksite.status === "planning");
+  const plannedExecutions = worksites.filter(worksite => worksite.status === "planned");
+  if ($("v28OpenExecutions")) $("v28OpenExecutions").textContent = openExecutions.length;
+  if ($("v28PlannedExecutions")) $("v28PlannedExecutions").textContent = plannedExecutions.length;
   $("v28ActiveWorksiteCount").textContent = active.length;
   $("v28ActiveWorksiteStatus").textContent = active.length ? "In Arbeit" : "Keine aktive Baustelle";
   const first = active[0];
@@ -844,6 +873,12 @@ function initializeV28Dashboard() {
   if ($("v28CreateOffer")) $("v28CreateOffer").onclick=()=>show("offer");
   if ($("v28OpenFullInventory")) $("v28OpenFullInventory").onclick=()=>show("settings");
   if ($("v28ActiveWorksite")) $("v28ActiveWorksite").onclick=()=>show("worksites");
+  if ($("v28OpenExecutionsCard")) $("v28OpenExecutionsCard").onclick=()=>{
+    worksiteViewFilter="planning"; show("worksites"); renderWorksites();
+  };
+  if ($("v28PlannedExecutionsCard")) $("v28PlannedExecutionsCard").onclick=()=>{
+    worksiteViewFilter="planned"; show("worksites"); renderWorksites();
+  };
   document.querySelectorAll("[data-v28-target]").forEach(button=>button.onclick=()=>show(button.dataset.v28Target));
   renderV28Dashboard();
 }
@@ -3639,6 +3674,7 @@ function updateLexofficeTextCounts() {
 });
 
 let activeWorksiteId = null;
+let worksiteViewFilter = "all";
 const WORKSITE_SECTION_ORDER = [
   "wsSectionOverview", "wsSectionExecution", "wsSectionPhotos", "wsSectionDocuments",
   "wsSectionMaterial", "wsSectionNotes", "wsSectionReport"
@@ -3660,7 +3696,12 @@ function worksiteCustomerName(worksite) {
 }
 
 function renderWorksites() {
-  const list = loadWorksites();
+  const allWorksites = loadWorksites();
+  const list = worksiteViewFilter === "planning"
+    ? allWorksites.filter(item => !item.status || item.status === "planning")
+    : worksiteViewFilter === "planned"
+      ? allWorksites.filter(item => item.status === "planned")
+      : allWorksites;
   const box = $("worksiteList");
   if (!box) return;
   $("worksiteEditor").classList.toggle("hidden", !activeWorksiteId);
@@ -3671,11 +3712,14 @@ function renderWorksites() {
     renderWorksiteEditor();
     return;
   }
-  box.innerHTML = `<h2>Baustellen</h2>` + (list.length ? list.map(item => `
+  const filterTitle = worksiteViewFilter === "planning" ? "Offene Ausführungen"
+    : worksiteViewFilter === "planned" ? "Ausführung geplant" : "Baustellen";
+  box.innerHTML = `<div class="card-title-row"><h2>${filterTitle}</h2>${worksiteViewFilter !== "all" ? '<button type="button" class="secondary" id="showAllWorksites">Alle Baustellen</button>' : ""}</div>` + (list.length ? list.map(item => `
     <div class="worksite-list-item">
-      <div><strong>${esc(worksiteCustomerName(item))}</strong><span>${esc(item.objectAddress || "–")}</span><small>${esc(item.date || "")} · ${esc(item.status === "completed" ? "abgeschlossen" : item.status === "active" ? "in Ausführung" : "geplant")}</small></div>
+      <div><strong>${esc(worksiteCustomerName(item))}</strong><span>${esc(item.objectAddress || "–")}</span><small>${esc(item.date || "Termin noch offen")} · ${esc(worksiteStatusLabel(item.status))}</small></div>
       <div class="worksite-list-actions"><button class="secondary" data-open-worksite="${item.id}">Öffnen</button><button class="danger" data-delete-worksite="${item.id}">Löschen</button></div>
-    </div>`).join("") : `<p class="hint">Noch keine Baustelle angelegt. Öffne ein angenommenes Angebot und tippe auf „Baustelle aus Angebot anlegen“.</p>`);
+    </div>`).join("") : `<p class="hint">In diesem Bereich gibt es aktuell keine Baustelle.</p>`);
+  if ($("showAllWorksites")) $("showAllWorksites").onclick = () => { worksiteViewFilter = "all"; renderWorksites(); };
   box.querySelectorAll("[data-open-worksite]").forEach(button => button.onclick = () => { activeWorksiteId = button.dataset.openWorksite; renderWorksites(); });
   box.querySelectorAll("[data-delete-worksite]").forEach(button => button.onclick = () => { if(confirm("Baustelle wirklich löschen?")){ deleteWorksite(button.dataset.deleteWorksite); renderWorksites(); } });
 }
@@ -3934,6 +3978,77 @@ function renderWorksiteOverview(ws) {
   }
 }
 
+function worksiteReservationRows(ws) {
+  const totals = worksiteMaterialTotals(ws);
+  return [
+    { id:"bkm-hz-250-pro", amount:totals.hzLiters },
+    { id:"bkm-hs-sperrmoertel", amount:totals.hsKg },
+    { id:"bkm-sef-2k-harz", amount:totals.resinKg }
+  ].filter(row => Number(row.amount) > 0);
+}
+
+function reservedByOtherWorksites(productId, worksiteId) {
+  return loadWorksites().reduce((sum, item) => {
+    if (item.id === worksiteId || !item.materialReserved || item.materialBooked) return sum;
+    const row = (item.materialReservation || []).find(entry => entry.productId === productId);
+    return sum + Number(row?.amount || 0);
+  }, 0);
+}
+
+function renderWorksitePlanning(ws) {
+  const card = $("wsPlanningCard");
+  if (!card) return;
+  const locked = ["active","completed"].includes(ws.status);
+  card.classList.toggle("hidden", locked);
+  if (locked) return;
+  const rows = worksiteReservationRows(ws);
+  if ($("wsPlanningTitle")) $("wsPlanningTitle").textContent =
+    ws.status === "planned" ? "Ausführung ist verbindlich geplant" : "Termin und Material festlegen";
+  if ($("wsPlanningHint")) $("wsPlanningHint").textContent =
+    ws.status === "planned"
+      ? "Du kannst das Datum oder die Materialreservierung bei Bedarf noch ändern und erneut bestätigen."
+      : "Wähle ein Ausführungsdatum und reserviere bei Bedarf das Material. Erst mit der Bestätigung wird die Ausführung verbindlich geplant.";
+  if ($("reserveWorksiteMaterial")) $("reserveWorksiteMaterial").textContent =
+    ws.materialReserved ? "Reservierung aktualisieren" : "Material reservieren";
+  if ($("confirmWorksitePlanning")) $("confirmWorksitePlanning").textContent =
+    ws.status === "planned" ? "Änderungen bestätigen" : "Ausführung verbindlich planen";
+  if ($("wsReservationSummary")) {
+    $("wsReservationSummary").innerHTML = rows.length ? rows.map(row => {
+      const product = state.settings.inventory?.products?.find(item => item.id === row.id);
+      const available = Number(product?.stock || 0) - reservedByOtherWorksites(row.id, ws.id);
+      const enough = available >= Number(row.amount);
+      return `<div class="reservation-row ${enough ? "reservation-ok" : "reservation-short"}">
+        <span>${esc(product?.name || row.id)}</span>
+        <strong>${num(row.amount)} ${esc(product?.unit || "")} · ${num(available)} verfügbar</strong>
+      </div>`;
+    }).join("") + (ws.materialReserved ? `<p class="booked-badge">Material ist für diese Baustelle reserviert.</p>` : "")
+      : `<p class="hint">Für diese Baustelle ist noch kein reservierbares Material berechnet.</p>`;
+  }
+}
+
+function reserveWorksiteMaterial(ws) {
+  const rows = worksiteReservationRows(ws);
+  if (!rows.length) throw new Error("Für diese Baustelle ist noch kein Materialbedarf vorhanden.");
+  const shortages = rows.map(row => {
+    const product = state.settings.inventory?.products?.find(item => item.id === row.id);
+    const available = Number(product?.stock || 0) - reservedByOtherWorksites(row.id, ws.id);
+    return { ...row, product, available };
+  }).filter(row => row.available < Number(row.amount));
+  if (shortages.length) {
+    const text = shortages.map(row => `${row.product?.name || row.id}: ${num(row.amount - row.available)} ${row.product?.unit || ""} fehlen`).join(", ");
+    if (!confirm(`Der frei verfügbare Bestand reicht noch nicht vollständig aus. ${text}. Trotzdem reservieren?`)) return false;
+  }
+  ws.materialReservation = rows.map(row => ({
+    productId: row.id,
+    amount: Number(row.amount),
+    reservedAt: new Date().toISOString()
+  }));
+  ws.materialReserved = true;
+  ws.materialReservedAt = new Date().toISOString();
+  persistWorksite(ws);
+  return true;
+}
+
 function renderWorksitePhotoPage(ws) {
   const box = $("wsPhotoPage");
   if (!box) return;
@@ -4151,6 +4266,7 @@ function renderWorksiteEditor() {
   $("wsCustomer").textContent = worksiteCustomerName(ws);
   $("wsAddress").textContent = ws.objectAddress || "–";
   $("wsDate").value = ws.date || "";
+  if ($("wsPlanningDate")) $("wsPlanningDate").value = ws.date || "";
   $("wsEmployees").value = ws.employees || "";
   $("wsStart").value = ws.startTime || "";
   $("wsEnd").value = ws.endTime || "";
@@ -4172,6 +4288,7 @@ function renderWorksiteEditor() {
     if (element) element.disabled = ws.status === "completed";
   });
   renderWorksiteOverview(ws);
+  renderWorksitePlanning(ws);
   renderWorksitePhotoPage(ws);
   renderWorksiteReportChecklist(ws);
   renderWorksiteInvoiceReview(ws);
@@ -4518,6 +4635,8 @@ function deductWorksiteInventory(ws) {
   }
   ws.materialBooked = true;
   ws.materialBookedAt = new Date().toISOString();
+  ws.materialReserved = false;
+  ws.materialReservation = [];
 }
 
 function injectionExceptionsHtml(task) {
@@ -4576,7 +4695,7 @@ $("createWorksite").onclick = async () => {
       dealId: ws.pipedriveDealId || ws.customer?.pipedriveDealId || "",
       personId,
       title: `${worksiteCustomerName(ws)} – ${ws.objectAddress || ws.visitNumber || "Baustelle"}`,
-      stageId: stageId("executionPlanned"),
+      stageId: requiredPipedriveStageId("executionPlanning"),
       value: Number(offer.offerGross || offer.gross || offer.total || 0),
       currency: "EUR",
       customFields: visitSyncValues(state.visit, {
@@ -4613,6 +4732,54 @@ if ($("closeWorksiteDetail")) $("closeWorksiteDetail").onclick = () => {
   renderWorksites();
 };
 if ($("wsAddExtraWork")) $("wsAddExtraWork").onclick = addAdditionalWorkToActiveWorksite;
+if ($("wsPlanningDate")) $("wsPlanningDate").onchange = () => {
+  const ws = getWorksite(activeWorksiteId);
+  if (!ws) return;
+  ws.date = $("wsPlanningDate").value;
+  if ($("wsDate")) $("wsDate").value = ws.date;
+  persistWorksite(ws);
+};
+if ($("reserveWorksiteMaterial")) $("reserveWorksiteMaterial").onclick = () => {
+  const ws = getWorksite(activeWorksiteId);
+  if (!ws) return;
+  try {
+    if (reserveWorksiteMaterial(ws)) {
+      renderWorksitePlanning(ws);
+      renderV28Dashboard();
+      showStatus("worksiteStatus", "Material wurde für diese Baustelle reserviert. Der Lagerbestand wurde noch nicht abgebucht.", true);
+    }
+  } catch (error) {
+    showStatus("worksiteStatus", error.message, false);
+  }
+};
+if ($("confirmWorksitePlanning")) $("confirmWorksitePlanning").onclick = async () => {
+  const ws = getWorksite(activeWorksiteId);
+  if (!ws) return;
+  const date = $("wsPlanningDate")?.value || "";
+  if (!date) {
+    showStatus("worksiteStatus", "Bitte zuerst ein Ausführungsdatum auswählen.", false);
+    return;
+  }
+  const button = $("confirmWorksitePlanning");
+  button.disabled = true;
+  try {
+    ws.date = date;
+    ws.status = "planned";
+    ws.planningConfirmedAt = new Date().toISOString();
+    persistWorksite(ws);
+    await syncWorksiteDeal(ws, "executionPlanned", null, false);
+    if ($("wsDate")) $("wsDate").value = date;
+    renderWorksitePlanning(ws);
+    renderV28Dashboard();
+    showStatus("worksiteStatus", "Ausführung wurde verbindlich geplant und in Pipedrive auf „Ausführung geplant“ verschoben.", true);
+  } catch (error) {
+    ws.status = "planning";
+    persistWorksite(ws);
+    showStatus("worksiteStatus", `Planung konnte nicht bestätigt werden: ${error.message}`, false);
+  } finally {
+    button.disabled = false;
+  }
+};
 $("wsAddAttachments").onclick = () => $("wsAttachmentInput").click();
 if ($("wsTakeAttachmentPhoto")) $("wsTakeAttachmentPhoto").onclick = () => $("wsAttachmentCamera").click();
 const addWorksiteAttachmentFiles = async event => {
@@ -4630,7 +4797,7 @@ const addWorksiteAttachmentFiles = async event => {
     let syncWarning = "";
     if (ws.pipedriveDealId) {
       try {
-        await syncWorksiteDeal(ws, ws.status === "completed" ? "executionCompleted" : "executionPlanned", null);
+        await syncWorksiteDeal(ws, worksitePipedriveStage(ws), null);
       } catch (syncError) {
         syncWarning = syncError.message;
       }
@@ -4654,7 +4821,7 @@ $("wsUploadAttachments").onclick = async () => {
     const ws = saveActiveWorksite(false);
     if (!ws) return;
     showStatus("worksiteStatus", "Unterlagen werden zu Pipedrive hochgeladen …", true);
-    await syncWorksiteDeal(ws, ws.status === "completed" ? "executionCompleted" : "executionPlanned", null);
+    await syncWorksiteDeal(ws, worksitePipedriveStage(ws), null);
     await renderWorksiteAttachments(ws);
     showStatus("worksiteStatus", "Alle noch offenen Unterlagen wurden zu Pipedrive hochgeladen.", true);
   } catch (error) {
@@ -4697,7 +4864,7 @@ $("printWorksite").onclick = async () => {
   catch(error){ showStatus("worksiteStatus",error.message,false); }
 };
 $("syncWorksitePipedrive").onclick = async () => {
-  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws, state.settings); await syncWorksiteDeal(ws,ws.status==="completed"?"executionCompleted":"executionPlanned",pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
+  try { const ws=saveActiveWorksite(false); const pdf=await createWorksitePdf(ws, state.settings); await syncWorksiteDeal(ws,worksitePipedriveStage(ws),pdf); renderWorksiteEditor(); showStatus("worksiteStatus","Arbeitsnachweis und Baustellendaten wurden zu Pipedrive übertragen.",true); }
   catch(error){ addSyncLog("Arbeitsnachweis",false,error.message); showStatus("worksiteStatus",error.message,false); }
 };
 
