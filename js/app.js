@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.13.1";
+const MAINABDICHTER_APP_VERSION = "32.13.2";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -818,6 +818,22 @@ function v28InventoryMovements() {
   if (!Array.isArray(state.settings.inventory.movements)) state.settings.inventory.movements = [];
   return state.settings.inventory.movements;
 }
+function reservedInventoryAmount(productId, excludedWorksiteId = "") {
+  return loadWorksites().reduce((sum, worksite) => {
+    if (
+      worksite.id === excludedWorksiteId ||
+      !worksite.materialReserved ||
+      worksite.materialBooked ||
+      worksite.status === "completed"
+    ) return sum;
+    const reservation = (worksite.materialReservation || [])
+      .find(entry => entry.productId === productId);
+    return sum + Math.max(0, Number(reservation?.amount || 0));
+  }, 0);
+}
+function availableInventoryStock(product) {
+  return Math.max(0, Number(product?.stock || 0) - reservedInventoryAmount(product?.id));
+}
 function v28OpenInventoryArticle(productId) {
   const product = v28InventoryProducts().find(item => item.id === productId);
   if (!product) return;
@@ -830,8 +846,12 @@ function v28OpenInventoryArticle(productId) {
   $("v28StockDate").value = todayLocal();
   $("v28ChargeField").hidden = !product.chargeTracking;
   document.querySelectorAll("[data-stock-action]").forEach(button => button.classList.toggle("active", button.dataset.stockAction === "increase"));
+  const reserved = reservedInventoryAmount(product.id);
+  const available = availableInventoryStock(product);
   $("v28InventoryArticleSummary").innerHTML = `
-    <div><span>Aktueller Bestand</span><strong>${num(product.stock || 0)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Verfügbarer Bestand</span><strong>${num(available)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Davon reserviert</span><strong>${num(reserved)} ${esc(product.unit || "")}</strong></div>
+    <div><span>Physischer Ist-Bestand</span><strong>${num(product.stock || 0)} ${esc(product.unit || "")}</strong></div>
     <div><span>Mindestbestand</span><strong>${num(product.minimumStock || 0)} ${esc(product.unit || "")}</strong></div>
     <div><span>Gebindegröße</span><strong>${num(product.packageSize || 0)} ${esc(product.unit || "")}</strong></div>`;
   v28RenderStockHistory(productId);
@@ -890,7 +910,8 @@ function renderV28Dashboard() {
   if ($("v28InventoryStrip")) {
     $("v28InventoryStrip").innerHTML = products.length
       ? products.map((product, index) => {
-          const stock = Number(product.stock || 0);
+          const stock = availableInventoryStock(product);
+          const reserved = reservedInventoryAmount(product.id);
           const minimum = Number(product.minimumStock || 0);
           const ratio = minimum > 0
             ? Math.min(100, Math.max(8, (stock / Math.max(minimum * 2, 1)) * 100))
@@ -905,7 +926,7 @@ function renderV28Dashboard() {
             <span class="v288-product-data">
               <small>${esc(product.name)}</small>
               <strong>${num(stock)} ${esc(product.unit || "")}</strong>
-              <em>${stock <= minimum ? "Nachbestellen" : (product.unit || "Verfügbar")}</em>
+              <em>${reserved > 0 ? `${num(reserved)} ${esc(product.unit || "")} reserviert` : (stock <= minimum ? "Nachbestellen" : "Verfügbar")}</em>
               <span class="v288-stock-bar"><b style="width:${ratio}%"></b></span>
             </span>
           </button>`;
@@ -1163,7 +1184,7 @@ function renderDashboardInventory() {
   }
 
   const lowProducts = products.filter(product =>
-    Number(product.stock || 0) <= Number(product.minimumStock || 0)
+    availableInventoryStock(product) <= Number(product.minimumStock || 0)
   );
   if ($("dashboardInventorySummary")) {
     $("dashboardInventorySummary").textContent = lowProducts.length
@@ -1172,7 +1193,8 @@ function renderDashboardInventory() {
   }
 
   list.innerHTML = products.map(product => {
-    const stock = Number(product.stock || 0);
+    const stock = availableInventoryStock(product);
+    const reserved = reservedInventoryAmount(product.id);
     const minimum = Number(product.minimumStock || 0);
     const low = stock <= minimum;
     const empty = stock <= 0;
@@ -1189,7 +1211,8 @@ function renderDashboardInventory() {
         <strong>${esc(product.name || "Material")}</strong>
         <span>${esc(statusText)}</span>
       </div>
-      <div class="dashboard-inventory-value">${esc(stockText)} <small>${esc(product.unit || "")}</small></div>
+      <div class="dashboard-inventory-value">${esc(stockText)} <small>${esc(product.unit || "")} verfügbar</small></div>
+      ${reserved > 0 ? `<div class="dashboard-inventory-minimum">${esc(num(reserved))} ${esc(product.unit || "")} reserviert</div>` : ""}
       <div class="dashboard-inventory-minimum">Mindestbestand: ${esc(minimumText)} ${esc(product.unit || "")}</div>
     </button>`;
   }).join("");
@@ -4235,11 +4258,7 @@ function worksiteReservationRows(ws) {
 }
 
 function reservedByOtherWorksites(productId, worksiteId) {
-  return loadWorksites().reduce((sum, item) => {
-    if (item.id === worksiteId || !item.materialReserved || item.materialBooked) return sum;
-    const row = (item.materialReservation || []).find(entry => entry.productId === productId);
-    return sum + Number(row?.amount || 0);
-  }, 0);
+  return reservedInventoryAmount(productId, worksiteId);
 }
 
 function renderWorksitePlanning(ws) {

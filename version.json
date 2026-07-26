@@ -1,6 +1,6 @@
 {
-  "version": "32.13.1",
-  "name": "mainabdichter PRO V32.13.1 Terminabruf-Hotfix",
+  "version": "32.13.2",
+  "name": "mainabdichter PRO V32.13.2 Termin- und Reservierungs-Hotfix",
   "build": "2026-07-26",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }
