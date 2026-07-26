@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V30.10
+// mainabdichter PRO Cloudflare Worker V32.8.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -718,6 +718,19 @@ function normalizeDealCustomFieldValue(field, rawValue) {
     return formatted ? { value: formatted } : undefined;
   }
 
+  if (type === "time") {
+    const candidate = typeof rawValue === "object" && rawValue !== null
+      ? rawValue.value
+      : rawValue;
+    const match = String(candidate || "").trim().match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return undefined;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const seconds = Number(match[3] || 0);
+    if (hours > 23 || minutes > 59 || seconds > 59) return undefined;
+    return { value: `${match[1]}:${match[2]}:${String(seconds).padStart(2, "0")}` };
+  }
+
   if (["double", "monetary", "numeric", "number"].includes(type)) {
     const value = Number(rawValue);
     return Number.isFinite(value) ? value : undefined;
@@ -944,13 +957,45 @@ async function uploadPipedriveFile(env, file, dealId) {
 
 async function findDealForPerson(env, personId, title) {
   if (!personId) return null;
-  const term = String(title || "Auftrag").trim().slice(0, 100) || "Auftrag";
   const result = await pipedriveRequest(
     env,
-    `/api/v2/deals/search?term=${encodeURIComponent(term)}&person_id=${encodeURIComponent(personId)}&status=open&limit=20`
+    `/api/v1/deals?person_id=${encodeURIComponent(personId)}&status=open&limit=500&sort=update_time DESC`
   );
-  const items = result?.data?.items || [];
-  return items.length ? (items[0].item || items[0]) : null;
+  const deals = (Array.isArray(result?.data) ? result.data : [])
+    .filter(item => Number(idFromValue(item?.person_id || item?.person)) === Number(personId));
+
+  if (!deals.length) return null;
+  if (deals.length === 1) return deals[0];
+
+  const normalizeTitle = value => cleanText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(baustelle|auftrag|angebot|anfrage)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const wanted = normalizeTitle(title);
+  const exact = deals.filter(deal => normalizeTitle(deal.title) === wanted);
+  if (exact.length === 1) return exact[0];
+
+  const wantedTokens = new Set(wanted.split(" ").filter(token => token.length >= 3));
+  const scored = deals.map(deal => {
+    const tokens = new Set(normalizeTitle(deal.title).split(" ").filter(token => token.length >= 3));
+    const score = [...wantedTokens].filter(token => tokens.has(token)).length;
+    return { deal, score };
+  }).sort((a, b) => b.score - a.score);
+
+  if (scored[0]?.score > 0 && scored[0].score > (scored[1]?.score || 0)) {
+    return scored[0].deal;
+  }
+
+  const error = new Error(
+    "Für diesen Pipedrive-Kunden wurden mehrere offene Deals gefunden. " +
+    "Die Baustelle wurde nicht synchronisiert, damit keine Dublette entsteht."
+  );
+  error.status = 409;
+  error.details = { personId, candidateDealIds: deals.map(deal => deal.id) };
+  throw error;
 }
 
 export default {
@@ -969,7 +1014,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "30.11",
+          workerVersion: "32.8.0",
           time: new Date().toISOString()
         });
       }
@@ -1683,6 +1728,56 @@ export default {
           ok: true,
           dateFrom,
           quotations
+        });
+      }
+
+      if (url.pathname === "/lexware/quotations" && request.method === "GET") {
+        const formatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Europe/Berlin",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        });
+        const todayBerlin = formatter.format(new Date());
+        const requestedFrom = url.searchParams.get("dateFrom");
+        const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(requestedFrom || "")
+          ? requestedFrom
+          : todayBerlin;
+
+        const loadStatus = async (voucherStatus) => {
+          const result = await lexwareRequest(
+            env,
+            `/voucherlist?voucherType=quotation&voucherStatus=${encodeURIComponent(voucherStatus)}&archived=false&updatedDateFrom=${encodeURIComponent(dateFrom)}&size=250&sort=updatedDate,DESC`
+          );
+          return (result.content || [])
+            .filter(item => {
+              const relevantDate = String(item.voucherDate || item.updatedDate || "").slice(0, 10);
+              return relevantDate >= dateFrom;
+            })
+            .map(item => ({
+              id: item.id,
+              voucherNumber: item.voucherNumber,
+              voucherDate: item.voucherDate,
+              updatedDate: item.updatedDate,
+              voucherStatus: item.voucherStatus || voucherStatus,
+              contactId: item.contactId,
+              contactName: item.contactName,
+              totalAmount: item.totalAmount,
+              currency: item.currency
+            }));
+        };
+
+        const [open, accepted] = await Promise.all([
+          loadStatus("open"),
+          loadStatus("accepted")
+        ]);
+
+        return jsonResponse(request, {
+          ok: true,
+          dateFrom,
+          open,
+          accepted,
+          quotations: [...open, ...accepted]
         });
       }
 

@@ -1,6 +1,6 @@
 {
-  "version": "32.7.9",
-  "name": "mainabdichter PRO V32.7.9 Harzverpressungslogik",
-  "build": "2026-07-25",
+  "version": "32.8.0",
+  "name": "mainabdichter PRO V32.8.0 Pipedrive-Korrekturstand",
+  "build": "2026-07-26",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

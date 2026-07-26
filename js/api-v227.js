@@ -194,6 +194,13 @@ export async function loadAcceptedLexwareQuotations(dateFrom) {
   return api(`/lexware/accepted-quotations${query}`);
 }
 
+export async function loadLexwareQuotations(dateFrom) {
+  const query = dateFrom
+    ? `?dateFrom=${encodeURIComponent(dateFrom)}`
+    : "";
+  return api(`/lexware/quotations${query}`);
+}
+
 export async function loadAcceptedLexwareQuotation(id) {
   return api(`/lexware/accepted-quotations/${encodeURIComponent(id)}`);
 }

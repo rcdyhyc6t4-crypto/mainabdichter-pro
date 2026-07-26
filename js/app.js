@@ -2,7 +2,7 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotations, loadAcceptedLexwareQuotation,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.7.8";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.7.9";
+const MAINABDICHTER_APP_VERSION = "32.8.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -443,16 +443,9 @@ async function acceptInquiryImport() {
 
 
 let cachedAcceptedQuotations = [];
+let cachedOpenLexofficeQuotations = [];
 
 function todayIso() { return new Date().toISOString().slice(0,10); }
-function localDateDaysAgo(days = 0) {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() - Number(days || 0));
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-}
-
 function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
 async function syncPipedriveDashboard() {
   const box=$("pipedriveTodayList");
@@ -470,27 +463,39 @@ async function syncAcceptedQuotationDashboard() {
   const box=$("acceptedQuotationList");
   box.innerHTML='<div class="empty-mini">Angebote werden geladen …</div>';
   try {
-    // Alle seit vorgestern angenommenen Angebote bleiben sichtbar,
-    // bis daraus lokal eine Baustelle erstellt wurde.
-    const dateFrom = localDateDaysAgo(2);
-    const data = await loadAcceptedLexwareQuotations(dateFrom);
-    cachedAcceptedQuotations = (data.quotations || []).filter(item => {
-      const updated = String(item.updatedDate || item.voucherDate || "").slice(0, 10);
-      return updated >= dateFrom;
-    });
+    // Der Zeitraum wird im Admin-Menü festgelegt. Angenommene Angebote
+    // bleiben sichtbar, bis daraus lokal eine Baustelle erstellt wurde.
+    const configuredDate = String(state.settings.lexofficeOfferImportFrom || "").trim();
+    const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(configuredDate)
+      ? configuredDate
+      : todayIso();
+    const data = await loadLexwareQuotations(dateFrom);
+    cachedOpenLexofficeQuotations = data.open || [];
+    cachedAcceptedQuotations = data.accepted || [];
+    if ($("lexofficeQuotationPeriodHint")) {
+      $("lexofficeQuotationPeriodHint").textContent =
+        `Offene und angenommene Angebote ab ${dateFrom.split("-").reverse().join(".")}.`;
+    }
+    if ($("openQuotationList")) {
+      $("openQuotationList").innerHTML = cachedOpenLexofficeQuotations.length
+        ? cachedOpenLexofficeQuotations.map(item => `<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><span class="status-badge">Offen</span></div>`).join("")
+        : `<div class="empty-mini">Keine offenen Angebote seit ${dateFrom.split("-").reverse().join(".")}.</div>`;
+    }
     const existingIds=new Set(loadWorksites().map(item=>item.lexwareQuotationId).filter(Boolean));
     const items=cachedAcceptedQuotations.filter(item=>!existingIds.has(item.id));
+    const localOpenOffers = (state.offers || []).filter(o=>!["accepted","completed","rejected"].includes(String(o.status||"").toLowerCase())).length;
+    if ($("v28OpenOffers")) $("v28OpenOffers").textContent = Math.max(localOpenOffers, cachedOpenLexofficeQuotations.length);
     if ($("v284AcceptedOfferCount")) $("v284AcceptedOfferCount").textContent = items.length;
     const notificationDot = $("v28Notifications")?.querySelector("i");
     if (notificationDot) notificationDot.hidden = items.length === 0;
     if ($("v284AcceptedOfferHint")) {
       $("v284AcceptedOfferHint").textContent = items.length
         ? `${items.length === 1 ? "Ein Auftrag wartet" : `${items.length} Aufträge warten`} auf Baustellenerstellung`
-        : "Keine neuen angenommenen Angebote";
+        : `Keine angenommenen Angebote seit ${dateFrom.split("-").reverse().join(".")}`;
     }
     const card = $("v284AcceptedOffersCard");
     if (card) card.classList.toggle("has-orders", items.length > 0);
-    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):`<div class="empty-mini">Keine seit ${dateFrom.split('-').reverse().join('.')} angenommenen, noch offenen Angebote.</div>`;
+    box.innerHTML=items.length?items.map(item=>`<div class="compact-row accepted-row"><span><strong>${esc(item.contactName||"Kunde")}</strong><small>${esc(item.voucherNumber||"")} · ${eur(item.totalAmount||0)}</small></span><button class="primary small-button" data-create-lexware-worksite="${item.id}">Baustelle erstellen</button></div>`).join(''):`<div class="empty-mini">Keine seit ${dateFrom.split('-').reverse().join('.')} angenommenen Angebote ohne Baustelle.</div>`;
     box.querySelectorAll('[data-create-lexware-worksite]').forEach(button=>button.onclick=async()=>{
       button.disabled=true;
       try {
@@ -3553,7 +3558,7 @@ function renderSettings() {
   if ($("documentLogoPreview")) {
     $("documentLogoPreview").src = documentProfile.logoDataUrl || "assets/mainabdichter-header-logo.png";
   }
-  ["priceListName","priceListDate","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleHoursPerMeter","resinHoursPerMeter","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
+  ["priceListName","priceListDate","lexofficeOfferImportFrom","hzPurchaseNet","hzSaleNet","reservePct","drillRate","fillRate","closeRate","setupHours","wallSoleHoursPerMeter","resinHoursPerMeter","wallSoleGrossPerMeter","extraResinKgNet","hsKgPerWallSoleMeter","workerUrl","appSecret"].forEach(key => $(key).value = s[key] ?? "");
   $("minimumPricePercent").value = Number(s.priceStrategy?.minimumFactor || .9) * 100;
   $("standardPricePercent").value = Number(s.priceStrategy?.standardFactor || 1) * 100;
   $("premiumPricePercent").value = Number(s.priceStrategy?.premiumFactor || 1.15) * 100;
@@ -4817,7 +4822,7 @@ function collectSettings() {
     documentProfile[key] = $(id)?.value.trim() || "";
   });
   s.documentProfile = documentProfile;
-  ["priceListName","priceListDate","appSecret"].forEach(key => s[key] = $(key).value.trim());
+  ["priceListName","priceListDate","lexofficeOfferImportFrom","appSecret"].forEach(key => s[key] = $(key).value.trim());
   s.workerUrl = normalizeWorkerUrl($("workerUrl").value);
   if (
     !s.workerUrl ||

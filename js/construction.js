@@ -158,8 +158,6 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
     customer: clone(visit.customer),
     pipedrivePersonId: visit.customer?.pipedriveId || "",
     pipedriveDealId: visit.customer?.pipedriveDealId || "",
-    pipedrivePersonId: visit.customer?.pipedriveId || "",
-    pipedriveDealId: visit.customer?.pipedriveDealId || "",
     building: clone(visit.building),
     visitNumber: visit.visitNumber || "",
     objectAddress: visit.customer.objectAddress || [

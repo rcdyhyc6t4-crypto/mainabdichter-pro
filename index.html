@@ -68,7 +68,7 @@ main{width:100%;max-width:100%}
         <span class="v284-accepted-content">
           <small>NEUE AUFTRÄGE</small>
           <strong><b id="v284AcceptedOfferCount">0</b> angenommene Angebote</strong>
-          <em id="v284AcceptedOfferHint">Seit vorgestern · noch keine Baustelle angelegt</em>
+          <em id="v284AcceptedOfferHint">Abrufzeitraum gemäß Admin-Einstellung</em>
         </span>
         <span class="v284-accepted-arrow">›</span>
       </button>
@@ -157,14 +157,19 @@ main{width:100%;max-width:100%}
       <header>
         <div>
           <small>LEXWARE</small>
-          <h2>Angenommene Angebote</h2>
-          <p>Seit vorgestern angenommen und noch nicht als Baustelle angelegt.</p>
+          <h2>Lexoffice-Angebote</h2>
+          <p id="lexofficeQuotationPeriodHint">Abrufzeitraum gemäß Admin-Einstellung.</p>
         </div>
         <button type="button" id="v284CloseAcceptedOffers">×</button>
       </header>
       <div class="v284-accepted-actions">
         <button type="button" id="syncAcceptedQuotations" class="secondary">Angebote aktualisieren</button>
       </div>
+      <h3>Offene Angebote</h3>
+      <div id="openQuotationList" class="v284-accepted-list">
+        <div class="empty-mini">Angebote werden geladen …</div>
+      </div>
+      <h3>Angenommen – Baustelle noch nicht angelegt</h3>
       <div id="acceptedQuotationList" class="v284-accepted-list">
         <div class="empty-mini">Angebote werden geladen …</div>
       </div>
@@ -988,6 +993,13 @@ main{width:100%;max-width:100%}
     <p class="hint">Verfügbare Platzhalter: {{ANREDE}}, {{OBJEKTANSCHRIFT}}, {{HZ_VOC_VORTEIL}}</p>
   </details>
   <details class="card" open>
+    <summary>Lexoffice-Angebote abrufen</summary>
+    <p class="hint">Ab diesem Angebotsdatum werden offene Angebote sowie angenommene Angebote ohne bereits angelegte Baustelle aus Lexoffice geladen.</p>
+    <div class="grid">
+      <div><label for="lexofficeOfferImportFrom">Angebote abrufen ab</label><input id="lexofficeOfferImportFrom" type="date"></div>
+    </div>
+  </details>
+  <details class="card" open>
     <summary>Pflichtfelder der Besichtigung</summary>
     <p class="hint">Lege für jedes Haupt- und Unterfeld selbst fest, ob es vor dem Abschluss ausgefüllt sein muss. Ausgeschaltete Angaben sind optional und erzeugen keine Fehlermeldung.</p>
     <div id="visitRequirementSettings" class="mapping-grid"></div>
@@ -1111,7 +1123,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.7.9"></script>
+<script type="module" src="js/app.js?v=32.8.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

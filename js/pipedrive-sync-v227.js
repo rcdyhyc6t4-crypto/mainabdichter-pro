@@ -145,8 +145,11 @@ function mappedCustomFields(values) {
       continue;
     }
     if (type === "time") {
-      const time=String(value);
-      custom[fieldKey]=/^\d{2}:\d{2}$/.test(time) ? `${time}:00` : time;
+      const time=String(value).trim();
+      const normalized=/^\d{2}:\d{2}$/.test(time) ? `${time}:00` : time;
+      if (/^\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+        custom[fieldKey]={value:normalized};
+      }
       continue;
     }
     custom[fieldKey]=value;
