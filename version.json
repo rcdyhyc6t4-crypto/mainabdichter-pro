@@ -1,6 +1,6 @@
 {
-  "version": "32.13.5",
-  "name": "mainabdichter PRO V32.13.5 Terminadresse und freie Terminwahl",
+  "version": "32.13.6",
+  "name": "mainabdichter PRO V32.13.6 Pipedrive-Teilnehmerkorrektur",
   "build": "2026-07-26",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }
