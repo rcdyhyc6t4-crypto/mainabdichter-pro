@@ -1,6 +1,6 @@
 {
-  "version": "32.13.0",
-  "name": "mainabdichter PRO V32.13.0 Geräte-Synchronisierung",
+  "version": "32.13.1",
+  "name": "mainabdichter PRO V32.13.1 Terminabruf-Hotfix",
   "build": "2026-07-26",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

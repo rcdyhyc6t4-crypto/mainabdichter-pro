@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.13.0
+// mainabdichter PRO Cloudflare Worker V32.13.1
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1099,7 +1099,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.13.0",
+          workerVersion: "32.13.1",
           time: new Date().toISOString()
         });
       }
@@ -1345,7 +1345,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.13.0",
+          workerVersion: "32.13.1",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -1800,16 +1800,23 @@ export default {
         const allActivities=[];
         let cursor="";
         let pageCount=0;
+        let reachedRequestedDate=false;
         do {
-          const params=new URLSearchParams({done:"false",sort_by:"due_date",sort_direction:"asc",limit:"100"});
+          // Kalender-synchronisierte Termine können trotz eines zukünftigen
+          // Datums einen abweichenden done-Status besitzen. Deshalb nicht auf
+          // done=false begrenzen, sondern ab dem neuesten Datum rückwärts laden.
+          const params=new URLSearchParams({sort_by:"due_date",sort_direction:"desc",limit:"500"});
           if(cursor) params.set("cursor",cursor);
           const result=await pipedriveRequest(env,`/api/v2/activities?${params.toString()}`);
-          allActivities.push(...(Array.isArray(result.data)?result.data:[]));
+          const page=Array.isArray(result.data)?result.data:[];
+          allActivities.push(...page);
+          reachedRequestedDate=page.some(item=>item?.due_date&&item.due_date<date);
           cursor=cleanText(result.additional_data?.next_cursor||result.additional_data?.pagination?.next_cursor||"");
           pageCount+=1;
-        } while(cursor&&pageCount<50);
+        } while(cursor&&!reachedRequestedDate&&pageCount<50);
         const activities=allActivities.filter(item=>item&&item.due_date&&(upcoming?item.due_date>=date:item.due_date===date)).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:item.due_date||"",dueTime:item.due_time||"",duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||""};});
-        return jsonResponse(request,{ok:true,activities});
+        activities.sort((a,b)=>`${a.dueDate} ${a.dueTime||"00:00"}`.localeCompare(`${b.dueDate} ${b.dueTime||"00:00"}`));
+        return jsonResponse(request,{ok:true,activities,diagnostics:{pages:pageCount,received:allActivities.length,fromDate:date}});
       }
 
       if (url.pathname === "/pipedrive/activities" && request.method === "POST") {
