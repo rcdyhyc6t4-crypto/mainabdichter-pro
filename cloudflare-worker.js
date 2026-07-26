@@ -925,6 +925,12 @@ function escapeHtml(value) {
   })[c]);
 }
 
+function idFromValue(value) {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "object") return Number(value.value || value.id || 0);
+  return Number(value || 0);
+}
+
 async function findExistingPipedrivePerson(env, email, phone) {
   const term = String(email || phone || "").trim();
   if (term.length < 2) return null;
