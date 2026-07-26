@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.8.0
+// mainabdichter PRO Cloudflare Worker V32.10.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -158,6 +158,57 @@ async function uploadDriveDocument(env, file, metadata) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error("Google-Drive-Dateiupload fehlgeschlagen.");
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
+}
+
+async function saveDriveBackup(env, payload) {
+  const parent = await ensureDriveFolder(env, "mainabdichter PRO");
+  const backups = await ensureDriveFolder(env, "Datensicherung", parent.id);
+  const q = [
+    "appProperties has { key='backupKey' and value='mainabdichter-pro-current' }",
+    `'${driveQueryText(backups.id)}' in parents`,
+    "trashed=false"
+  ].join(" and ");
+  const existing = await googleDriveRequest(
+    env,
+    `/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`
+  );
+  const fileId = existing.files?.[0]?.id || "";
+  const token = await googleAccessToken(env);
+  const boundary = `mainabdichter_backup_${crypto.randomUUID()}`;
+  const metadata = JSON.stringify({
+    name: "mainabdichter-PRO-aktuelle-Datensicherung.json",
+    ...(fileId ? {} : { parents: [backups.id] }),
+    appProperties: {
+      backupKey: "mainabdichter-pro-current",
+      source: "mainabdichter-pro"
+    }
+  });
+  const file = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
+    `--${boundary}\r\nContent-Type: application/json\r\n\r\n`,
+    file,
+    `\r\n--${boundary}--`
+  ]);
+  const endpoint = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=multipart&fields=id,name,modifiedTime,webViewLink`
+    : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime,webViewLink";
+  const response = await fetch(endpoint, {
+    method: fileId ? "PATCH" : "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`
+    },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("Automatische Google-Drive-Datensicherung fehlgeschlagen.");
     error.status = response.status;
     error.details = data;
     throw error;
@@ -1020,7 +1071,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.8.0",
+          workerVersion: "32.10.0",
           time: new Date().toISOString()
         });
       }
@@ -1041,6 +1092,19 @@ export default {
       if (url.pathname === "/drive/test" && request.method === "GET") {
         const profile = await googleDriveRequest(env, "/about?fields=user(displayName,emailAddress)");
         return jsonResponse(request, { ok: true, user: profile.user || null });
+      }
+
+      if (url.pathname === "/drive/backup" && request.method === "POST") {
+        const payload = await request.json().catch(() => null);
+        if (!payload || typeof payload !== "object") {
+          return jsonResponse(request, { ok: false, error: "Sicherungsdaten fehlen." }, 400);
+        }
+        const encodedSize = new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+        if (encodedSize > 25 * 1024 * 1024) {
+          return jsonResponse(request, { ok: false, error: "Die Datensicherung ist größer als 25 MB." }, 413);
+        }
+        const file = await saveDriveBackup(env, payload);
+        return jsonResponse(request, { ok: true, file });
       }
 
       if (url.pathname === "/drive/photos" && request.method === "POST") {
@@ -1243,7 +1307,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "30.4",
+          workerVersion: "32.10.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

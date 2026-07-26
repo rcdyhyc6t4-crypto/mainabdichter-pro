@@ -2,7 +2,7 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.9.0";
@@ -5102,6 +5102,58 @@ try {
 }
 migrateWorkerUrl();
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
+
+let automaticLocalSaveTimer = 0;
+let automaticDriveSaveTimer = 0;
+let automaticDriveSaving = false;
+let automaticDriveRetry = false;
+
+function collectVisibleAutomaticData() {
+  const activePage = document.querySelector(".page.active")?.id;
+  if (activePage === "visit") collectVisit();
+  if (activePage === "settings") collectSettings();
+  saveState();
+}
+
+async function runAutomaticDriveBackup() {
+  if (automaticDriveSaving || !hasConnectionConfig()) return;
+  automaticDriveSaving = true;
+  try {
+    collectVisibleAutomaticData();
+    await saveDriveBackup(createFullBackupPayload());
+    localStorage.setItem("mainabdichter_v14_last_backup", new Date().toISOString());
+    automaticDriveRetry = false;
+    updateBackupTime();
+  } catch (error) {
+    console.warn("Automatische Drive-Sicherung wird erneut versucht:", error);
+    if (!automaticDriveRetry) {
+      automaticDriveRetry = true;
+      automaticDriveSaveTimer = window.setTimeout(runAutomaticDriveBackup, 60000);
+    }
+  } finally {
+    automaticDriveSaving = false;
+  }
+}
+
+function scheduleAutomaticSave() {
+  window.clearTimeout(automaticLocalSaveTimer);
+  automaticLocalSaveTimer = window.setTimeout(() => {
+    collectVisibleAutomaticData();
+  }, 350);
+  window.clearTimeout(automaticDriveSaveTimer);
+  automaticDriveSaveTimer = window.setTimeout(runAutomaticDriveBackup, 4000);
+}
+
+document.addEventListener("input", scheduleAutomaticSave, true);
+document.addEventListener("change", scheduleAutomaticSave, true);
+document.addEventListener("click", event => {
+  if (event.target.closest("button")) scheduleAutomaticSave();
+}, true);
+window.addEventListener("pagehide", () => {
+  collectVisibleAutomaticData();
+  void runAutomaticDriveBackup();
+});
+window.setInterval(runAutomaticDriveBackup, 5 * 60 * 1000);
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
 

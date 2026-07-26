@@ -272,5 +272,13 @@ export async function testGoogleDrive() {
   return api("/drive/test");
 }
 
+export async function saveDriveBackup(payload) {
+  return api("/drive/backup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function loadPipedriveDealContext(dealId){return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/context`);}
 export async function loadLexwareCustomerHistory(params={}){const q=new URLSearchParams();if(params.contactId)q.set("contactId",params.contactId);if(params.email)q.set("email",params.email);if(params.name)q.set("name",params.name);return api(`/lexware/customer-history?${q.toString()}`);}

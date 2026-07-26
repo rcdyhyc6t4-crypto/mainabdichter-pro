@@ -1,6 +1,6 @@
 {
-  "version": "32.9.0",
-  "name": "mainabdichter PRO V32.9.0 Ausführungsplanung",
+  "version": "32.10.0",
+  "name": "mainabdichter PRO V32.10.0 Automatische Datensicherung",
   "build": "2026-07-26",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }
