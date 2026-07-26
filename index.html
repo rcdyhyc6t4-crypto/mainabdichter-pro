@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.10.0</title>
-<link rel="stylesheet" href="css/app.css?v=32.10.0">
+<title>mainabdichter PRO V32.11.1</title>
+<link rel="stylesheet" href="css/app.css?v=32.11.1">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -54,7 +54,7 @@ main{width:100%;max-width:100%}
 
     <section class="v28-section v287-today-section">
       <h2>HEUTE</h2>
-      <article id="v28NextAppointment" class="v28-today-card">
+      <article id="v28NextAppointment" class="v28-today-card" role="button" tabindex="0" aria-label="Kommende Termine öffnen">
         <div class="v28-time-column"><strong id="v28TodayTime">–</strong><span class="v28-location-icon">●</span></div>
         <div class="v28-today-main"><small id="v28TodayType">Nächster Termin</small><h3 id="v28TodayCustomer">Heute nichts geplant</h3><p id="v28TodayAddress">Keine weiteren Termine vorhanden.</p></div>
         <button type="button" id="v28Navigate" class="v28-navigation-button">➤ <span>Navigation starten</span></button>
@@ -141,6 +141,19 @@ main{width:100%;max-width:100%}
         <button type="button" id="v287CloseBottleModal">×</button>
       </header>
       <div id="v287BottleList" class="v287-resource-list"></div>
+    </div>
+  </section>
+
+  <section id="v287AppointmentsModal" class="v28-modal hidden" aria-hidden="true">
+    <div class="v28-modal-dialog v287-list-dialog">
+      <header>
+        <div><small>PIPEDRIVE</small><h2>Kommende Termine</h2><p>Alle offenen Pipedrive-Termine ab heute.</p></div>
+        <button type="button" id="v287CloseAppointments">×</button>
+      </header>
+      <div class="v284-accepted-actions">
+        <button type="button" id="v287RefreshAppointments" class="secondary">Termine aktualisieren</button>
+      </div>
+      <div id="v287AppointmentsList" class="v287-resource-list"></div>
     </div>
   </section>
 
@@ -1136,7 +1149,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.10.0"></script>
+<script type="module" src="js/app.js?v=32.11.1"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

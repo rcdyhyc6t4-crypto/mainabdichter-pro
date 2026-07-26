@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.9.0";
+const MAINABDICHTER_APP_VERSION = "32.11.1";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -469,6 +469,7 @@ async function acceptInquiryImport() {
 
 let cachedAcceptedQuotations = [];
 let cachedOpenLexofficeQuotations = [];
+let cachedUpcomingPipedriveActivities = [];
 
 function todayIso() { return new Date().toISOString().slice(0,10); }
 function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
@@ -476,12 +477,64 @@ async function syncPipedriveDashboard() {
   const box=$("pipedriveTodayList");
   box.innerHTML='<div class="empty-mini">Termine werden geladen …</div>';
   try {
-    const data=await loadPipedriveActivities(todayIso());
-    const items=data.activities||[];
-    if ($("dashboardAppointmentCount")) $("dashboardAppointmentCount").textContent = items.length;
-    box.innerHTML=items.length?items.map(item=>`<button class="compact-row activity-row" data-activity-person="${item.personId||""}" data-activity-deal="${item.dealId||""}"><span><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(item.type||"Termin")}</small></span><span><strong>${esc(item.subject||"Termin")}</strong><small>${esc(item.personName||item.location||"")}</small></span></button>`).join(''):'<div class="empty-mini">Heute sind keine offenen Pipedrive-Termine vorhanden.</div>';
-    box.querySelectorAll('[data-activity-person]').forEach(button=>button.onclick=async()=>{const personId=button.dataset.activityPerson||"",dealId=button.dataset.activityDeal||"";if(!personId&&!dealId)return;try{resetVisit();state.visit.visitDate=todayLocal();state.visit.visitStartTime=timeLocal();state.visit.visitNumber=createVisitNumber();if(personId){const d=await loadPipedrivePerson(personId);Object.assign(state.visit.customer,d.person);state.visit.customer.pipedriveId=String(personId);}state.visit.customer.pipedriveDealId=String(dealId);saveState();renderVisit();show('visit');showStatus("visitStatus","Kundendaten geladen. Vorgeschichte wird abgerufen …",true);await loadCompleteRecordContext(personId,dealId);renderVisit();showStatus("visitStatus","Termin und vollständige Bauakte wurden geladen.",true);}catch(error){alert(error.message);}});
+    const data=await loadPipedriveActivities(todayIso(), true);
+    cachedUpcomingPipedriveActivities=data.activities||[];
+    const todayItems=cachedUpcomingPipedriveActivities.filter(item=>item.dueDate===todayIso());
+    if ($("dashboardAppointmentCount")) $("dashboardAppointmentCount").textContent = todayItems.length;
+    box.innerHTML=todayItems.length?todayItems.map(item=>`<button class="compact-row activity-row" data-activity-id="${item.id||""}"><span><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(item.type||"Termin")}</small></span><span><strong>${esc(item.subject||"Termin")}</strong><small>${esc(item.personName||item.location||"")}</small></span></button>`).join(''):'<div class="empty-mini">Heute sind keine offenen Pipedrive-Termine vorhanden.</div>';
+    renderUpcomingAppointments();
   } catch(error) { if ($("dashboardAppointmentCount")) $("dashboardAppointmentCount").textContent = "!"; box.innerHTML=`<div class="empty-mini error-text">${esc(error.message)}</div>`; }
+}
+
+function formatPipedriveAppointmentDate(value) {
+  if (!value) return "Ohne Datum";
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"}).format(date);
+}
+
+async function openPipedriveAppointment(item) {
+  if (!item) return;
+  const personId=String(item.personId||""),dealId=String(item.dealId||"");
+  try {
+    resetVisit();
+    state.visit.visitDate=item.dueDate||todayLocal();
+    state.visit.visitStartTime=item.dueTime||"";
+    state.visit.visitNumber=createVisitNumber();
+    if(personId){const data=await loadPipedrivePerson(personId);Object.assign(state.visit.customer,data.person);state.visit.customer.pipedriveId=personId;}
+    state.visit.customer.pipedriveDealId=dealId;
+    state.visit.inquiry.appointment=[item.dueDate,item.dueTime].filter(Boolean).join(" ");
+    saveState();
+    v287SetModal("v287AppointmentsModal",false);
+    renderVisit();show("visit");
+    showStatus("visitStatus","Kundendaten geladen. Vorgeschichte wird abgerufen …",true);
+    await loadCompleteRecordContext(personId,dealId);
+    renderVisit();
+    showStatus("visitStatus","Termin und vollständige Bauakte wurden geladen.",true);
+  } catch(error) { alert(error.message); }
+}
+
+function renderUpcomingAppointments() {
+  const items=cachedUpcomingPipedriveActivities;
+  const next=items[0];
+  if ($("v28TodayTime")) $("v28TodayTime").textContent=next?.dueTime||"–";
+  if ($("v28TodayType")) $("v28TodayType").textContent=next ? (next.dueDate===todayIso()?"Nächster Termin heute":formatPipedriveAppointmentDate(next.dueDate)) : "Nächster Termin";
+  if ($("v28TodayCustomer")) $("v28TodayCustomer").textContent=next?.personName||next?.subject||"Keine Termine geplant";
+  if ($("v28TodayAddress")) $("v28TodayAddress").textContent=next?.location||next?.subject||"Keine kommenden Pipedrive-Termine vorhanden.";
+  if ($("v28MoreAppointments")) $("v28MoreAppointments").textContent=Math.max(0,items.length-1);
+  if ($("v28AppointmentHint")) $("v28AppointmentHint").textContent=items.length>1?`${items.length-1} weitere geplant`:"Keine weiteren Termine";
+  if ($("v28Navigate")) {
+    $("v28Navigate").disabled=!next?.location;
+    $("v28Navigate").onclick=event=>{event.stopPropagation();if(next?.location)window.open(`https://maps.apple.com/?daddr=${encodeURIComponent(next.location)}`,"_blank");};
+  }
+  const list=$("v287AppointmentsList");
+  if (!list) return;
+  list.innerHTML=items.length?items.map(item=>`<button type="button" class="v287-appointment-row" data-v287-appointment="${esc(String(item.id||""))}">
+    <span class="v287-appointment-date"><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(formatPipedriveAppointmentDate(item.dueDate))}</small></span>
+    <span><strong>${esc(item.personName||item.subject||"Termin")}</strong><small>${esc(item.subject||item.type||"Pipedrive-Termin")}${item.location?` · ${esc(item.location)}`:""}</small></span><em>›</em>
+  </button>`).join(""):'<div class="empty-mini">Keine kommenden offenen Pipedrive-Termine vorhanden.</div>';
+  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openPipedriveAppointment(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
+  const todayBox=$("pipedriveTodayList");
+  if (todayBox) todayBox.querySelectorAll("[data-activity-id]").forEach(button=>button.onclick=()=>openPipedriveAppointment(items.find(item=>String(item.id||"")===button.dataset.activityId)));
 }
 
 async function syncAcceptedQuotationDashboard() {
@@ -794,6 +847,14 @@ function v287RenderInventoryList() {
 }
 
 function initializeV28Dashboard() {
+  const openAppointments=()=>{renderUpcomingAppointments();v287SetModal("v287AppointmentsModal",true);};
+  if ($("v28NextAppointment")) {
+    $("v28NextAppointment").onclick=openAppointments;
+    $("v28NextAppointment").onkeydown=event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openAppointments();}};
+  }
+  if ($("v287CloseAppointments")) $("v287CloseAppointments").onclick=()=>v287SetModal("v287AppointmentsModal",false);
+  if ($("v287AppointmentsModal")) $("v287AppointmentsModal").onclick=event=>{if(event.target===$("v287AppointmentsModal"))v287SetModal("v287AppointmentsModal",false);};
+  if ($("v287RefreshAppointments")) $("v287RefreshAppointments").onclick=syncPipedriveDashboard;
   if ($("v28BottleCard")) $("v28BottleCard").onclick = () => {
     v287RenderBottleList();
     v287SetModal("v287BottleModal", true);

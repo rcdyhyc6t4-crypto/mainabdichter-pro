@@ -183,8 +183,10 @@ export async function createPipedrivePerson(payload) {
 }
 
 
-export async function loadPipedriveActivities(date) {
-  return api(`/pipedrive/activities?date=${encodeURIComponent(date)}`);
+export async function loadPipedriveActivities(dateFrom, upcoming = false) {
+  const params = new URLSearchParams({ date: dateFrom });
+  if (upcoming) params.set("upcoming", "true");
+  return api(`/pipedrive/activities?${params.toString()}`);
 }
 
 export async function loadAcceptedLexwareQuotations(dateFrom) {
