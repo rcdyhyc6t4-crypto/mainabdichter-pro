@@ -2,7 +2,7 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.9.0";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.12.0";
+const MAINABDICHTER_APP_VERSION = "32.13.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -633,7 +633,13 @@ async function confirmSmartAppointment(index) {
   }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
 }
 
-function todayIso() { return new Date().toISOString().slice(0,10); }
+function todayIso() {
+  const now=new Date();
+  const year=now.getFullYear();
+  const month=String(now.getMonth()+1).padStart(2,"0");
+  const day=String(now.getDate()).padStart(2,"0");
+  return `${year}-${month}-${day}`;
+}
 function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
 async function syncPipedriveDashboard() {
   const box=$("pipedriveTodayList");
@@ -1231,6 +1237,7 @@ function updateRecordHeader() {
 }
 
 async function syncDashboardSources() {
+  await synchronizeFromDrive();
   await Promise.allSettled([syncPipedriveDashboard(),syncAcceptedQuotationDashboard()]);
 }
 
@@ -5341,12 +5348,14 @@ try {
   console.warn("Alte Fotos konnten nicht vollständig migriert werden:", error);
 }
 migrateWorkerUrl();
-renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 
 let automaticLocalSaveTimer = 0;
 let automaticDriveSaveTimer = 0;
 let automaticDriveSaving = false;
 let automaticDriveRetry = false;
+let automaticDriveLoading = false;
+const DRIVE_SYNC_TIME_KEY = "mainabdichter_drive_sync_time";
+const LOCAL_CHANGE_TIME_KEY = "mainabdichter_local_change_time";
 
 function collectVisibleAutomaticData() {
   const activePage = document.querySelector(".page.active")?.id;
@@ -5359,9 +5368,17 @@ async function runAutomaticDriveBackup() {
   if (automaticDriveSaving || !hasConnectionConfig()) return;
   automaticDriveSaving = true;
   try {
+    await synchronizeFromDrive();
     collectVisibleAutomaticData();
-    await saveDriveBackup(createFullBackupPayload());
-    localStorage.setItem("mainabdichter_v14_last_backup", new Date().toISOString());
+    const payload = createFullBackupPayload();
+    payload.metadata ||= {};
+    payload.metadata.lastChangedAt =
+      localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || payload.exportedAt;
+    const saved = await saveDriveBackup(payload);
+    const synchronizedAt =
+      saved?.file?.modifiedTime || payload.exportedAt || new Date().toISOString();
+    localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+    localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
     automaticDriveRetry = false;
     updateBackupTime();
   } catch (error) {
@@ -5375,7 +5392,53 @@ async function runAutomaticDriveBackup() {
   }
 }
 
+function backupTimestamp(payload, file) {
+  const candidates = [
+    payload?.metadata?.lastChangedAt,
+    payload?.exportedAt,
+    file?.modifiedTime
+  ].map(value => Date.parse(value || "")).filter(Number.isFinite);
+  return candidates.length ? Math.max(...candidates) : 0;
+}
+
+async function synchronizeFromDrive({ force = false } = {}) {
+  if (automaticDriveLoading || !hasConnectionConfig()) return false;
+  automaticDriveLoading = true;
+  try {
+    const response = await loadDriveBackup();
+    if (!response?.exists || !response.backup) return false;
+    const remoteTime = backupTimestamp(response.backup, response.file);
+    const localChangeTime = Date.parse(
+      localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || ""
+    ) || 0;
+    const lastSyncTime = Date.parse(
+      localStorage.getItem(DRIVE_SYNC_TIME_KEY) || ""
+    ) || 0;
+    if (!force && remoteTime <= Math.max(localChangeTime, lastSyncTime)) {
+      return false;
+    }
+    restoreFullBackupPayload(response.backup);
+    const synchronizedAt = new Date(remoteTime || Date.now()).toISOString();
+    localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
+    localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+    renderVisit();
+    updateGeneratedRecommendation();
+    renderSettings();
+    renderOffer();
+    renderArchive();
+    updateDashboardOverview();
+    updateBackupTime();
+    return true;
+  } catch (error) {
+    console.warn("Drive-Synchronisierung konnte nicht geladen werden:", error);
+    return false;
+  } finally {
+    automaticDriveLoading = false;
+  }
+}
+
 function scheduleAutomaticSave() {
+  localStorage.setItem(LOCAL_CHANGE_TIME_KEY, new Date().toISOString());
   window.clearTimeout(automaticLocalSaveTimer);
   automaticLocalSaveTimer = window.setTimeout(() => {
     collectVisibleAutomaticData();
@@ -5393,8 +5456,15 @@ window.addEventListener("pagehide", () => {
   collectVisibleAutomaticData();
   void runAutomaticDriveBackup();
 });
+window.addEventListener("focus", () => void synchronizeFromDrive());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") void synchronizeFromDrive();
+});
 window.setInterval(runAutomaticDriveBackup, 5 * 60 * 1000);
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
+
+renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
+await synchronizeFromDrive();
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeV28Dashboard); else initializeV28Dashboard();

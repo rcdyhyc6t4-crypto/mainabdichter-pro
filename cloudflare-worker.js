@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.12.1
+// mainabdichter PRO Cloudflare Worker V32.13.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -214,6 +214,34 @@ async function saveDriveBackup(env, payload) {
     throw error;
   }
   return data;
+}
+
+async function loadDriveBackup(env) {
+  const parent = await ensureDriveFolder(env, "mainabdichter PRO");
+  const backups = await ensureDriveFolder(env, "Datensicherung", parent.id);
+  const q = [
+    "appProperties has { key='backupKey' and value='mainabdichter-pro-current' }",
+    `'${driveQueryText(backups.id)}' in parents`,
+    "trashed=false"
+  ].join(" and ");
+  const existing = await googleDriveRequest(
+    env,
+    `/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)&pageSize=1`
+  );
+  const file = existing.files?.[0];
+  if (!file?.id) return null;
+  const response = await googleDriveRequest(
+    env,
+    `/files/${encodeURIComponent(file.id)}?alt=media`,
+    { raw: true }
+  );
+  const payload = await response.json().catch(() => null);
+  if (!payload || typeof payload !== "object") {
+    const error = new Error("Die Google-Drive-Datensicherung ist ungültig.");
+    error.status = 500;
+    throw error;
+  }
+  return { payload, file };
 }
 
 function getPipedriveDomain(env) {
@@ -1071,7 +1099,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.12.1",
+          workerVersion: "32.13.0",
           time: new Date().toISOString()
         });
       }
@@ -1105,6 +1133,16 @@ export default {
         }
         const file = await saveDriveBackup(env, payload);
         return jsonResponse(request, { ok: true, file });
+      }
+
+      if (url.pathname === "/drive/backup" && request.method === "GET") {
+        const backup = await loadDriveBackup(env);
+        return jsonResponse(request, {
+          ok: true,
+          exists: Boolean(backup),
+          backup: backup?.payload || null,
+          file: backup?.file || null
+        });
       }
 
       if (url.pathname === "/drive/photos" && request.method === "POST") {
@@ -1307,7 +1345,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.12.1",
+          workerVersion: "32.13.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -1759,8 +1797,18 @@ export default {
       if (url.pathname === "/pipedrive/activities" && request.method === "GET") {
         const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
         const upcoming = url.searchParams.get("upcoming") === "true";
-        const result = await pipedriveRequest(env,"/api/v2/activities?done=false&sort_by=due_date&sort_direction=asc&limit=500");
-        const activities=(result.data||[]).filter(item=>item&&item.due_date&&(upcoming?item.due_date>=date:item.due_date===date)).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:item.due_date||"",dueTime:item.due_time||"",duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||""};});
+        const allActivities=[];
+        let cursor="";
+        let pageCount=0;
+        do {
+          const params=new URLSearchParams({done:"false",sort_by:"due_date",sort_direction:"asc",limit:"100"});
+          if(cursor) params.set("cursor",cursor);
+          const result=await pipedriveRequest(env,`/api/v2/activities?${params.toString()}`);
+          allActivities.push(...(Array.isArray(result.data)?result.data:[]));
+          cursor=cleanText(result.additional_data?.next_cursor||result.additional_data?.pagination?.next_cursor||"");
+          pageCount+=1;
+        } while(cursor&&pageCount<50);
+        const activities=allActivities.filter(item=>item&&item.due_date&&(upcoming?item.due_date>=date:item.due_date===date)).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:item.due_date||"",dueTime:item.due_time||"",duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||""};});
         return jsonResponse(request,{ok:true,activities});
       }
 
