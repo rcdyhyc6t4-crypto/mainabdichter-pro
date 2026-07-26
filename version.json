@@ -1,6 +1,6 @@
 {
-  "version": "32.11.1",
-  "name": "mainabdichter PRO V32.11.1 Aufgeräumtes Dashboard und kommende Pipedrive-Termine",
+  "version": "32.12.0",
+  "name": "mainabdichter PRO V32.12.0 Intelligente Terminplanung",
   "build": "2026-07-26",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

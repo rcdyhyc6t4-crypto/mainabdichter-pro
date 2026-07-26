@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.11.1</title>
-<link rel="stylesheet" href="css/app.css?v=32.11.1">
+<title>mainabdichter PRO V32.12.0</title>
+<link rel="stylesheet" href="css/app.css?v=32.12.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -60,6 +60,9 @@ main{width:100%;max-width:100%}
         <button type="button" id="v28Navigate" class="v28-navigation-button">➤ <span>Navigation starten</span></button>
         <b class="v28-card-chevron">›</b>
       </article>
+      <button type="button" id="v28SmartAppointment" class="smart-appointment-launch">
+        <span>✦</span><span><strong>Termin intelligent planen</strong><small>Kunde und Anliegen einfach sagen oder schreiben</small></span><em>›</em>
+      </button>
     </section>
 
     <section class="v28-section v284-accepted-section">
@@ -154,6 +157,23 @@ main{width:100%;max-width:100%}
         <button type="button" id="v287RefreshAppointments" class="secondary">Termine aktualisieren</button>
       </div>
       <div id="v287AppointmentsList" class="v287-resource-list"></div>
+    </div>
+  </section>
+
+  <section id="smartAppointmentModal" class="v28-modal hidden" aria-hidden="true">
+    <div class="v28-modal-dialog smart-appointment-dialog" role="dialog" aria-modal="true" aria-labelledby="smartAppointmentTitle">
+      <header>
+        <div><small>INTELLIGENTE TERMINPLANUNG</small><h2 id="smartAppointmentTitle">Was soll ich einplanen?</h2><p>Nenne nur Kunde, Anliegen und wenn nötig den gewünschten Zeitraum.</p></div>
+        <button type="button" id="closeSmartAppointment" aria-label="Schließen">×</button>
+      </header>
+      <label for="smartAppointmentText">Sprache oder Texteingabe</label>
+      <textarea id="smartAppointmentText" rows="4" placeholder="Zum Beispiel: Kunde Höffner hat eine Reklamation und möchte nächste Woche einen Termin."></textarea>
+      <div class="smart-appointment-actions">
+        <button type="button" class="speech-button" data-speech-target="smartAppointmentText">🎤 Sprechen</button>
+        <button type="button" id="analyzeSmartAppointment" class="primary">Vorschläge machen</button>
+      </div>
+      <div id="smartAppointmentStatus" class="status"></div>
+      <div id="smartAppointmentResults"></div>
     </div>
   </section>
 
@@ -1149,7 +1169,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.11.1"></script>
+<script type="module" src="js/app.js?v=32.12.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

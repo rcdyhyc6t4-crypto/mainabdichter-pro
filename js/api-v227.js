@@ -189,6 +189,14 @@ export async function loadPipedriveActivities(dateFrom, upcoming = false) {
   return api(`/pipedrive/activities?${params.toString()}`);
 }
 
+export async function createPipedriveActivity(payload) {
+  return api("/pipedrive/activities", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function loadAcceptedLexwareQuotations(dateFrom) {
   const query = dateFrom
     ? `?updatedDateFrom=${encodeURIComponent(dateFrom)}`

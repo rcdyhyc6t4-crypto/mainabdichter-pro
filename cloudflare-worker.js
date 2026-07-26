@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.11.1
+// mainabdichter PRO Cloudflare Worker V32.12.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1071,7 +1071,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.11.1",
+          workerVersion: "32.12.0",
           time: new Date().toISOString()
         });
       }
@@ -1307,7 +1307,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.11.1",
+          workerVersion: "32.12.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -1762,6 +1762,32 @@ export default {
         const result = await pipedriveRequest(env,"/api/v2/activities?done=false&sort_by=due_date&sort_direction=asc&limit=500");
         const activities=(result.data||[]).filter(item=>item&&item.due_date&&(upcoming?item.due_date>=date:item.due_date===date)).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:item.due_date||"",dueTime:item.due_time||"",duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||""};});
         return jsonResponse(request,{ok:true,activities});
+      }
+
+      if (url.pathname === "/pipedrive/activities" && request.method === "POST") {
+        const input=await request.json();
+        const subject=cleanText(input.subject);
+        const dueDate=cleanText(input.dueDate);
+        const personId=Number(input.personId||0)||null;
+        if(!subject||!dueDate||!personId) return jsonResponse(request,{ok:false,error:"Kunde, Betreff oder Datum fehlt."},400);
+        const minutes=Math.max(5,Number(input.duration||60));
+        const hours=String(Math.floor(minutes/60)).padStart(2,"0");
+        const mins=String(minutes%60).padStart(2,"0");
+        const payload={
+          subject,
+          type:cleanText(input.type)||"meeting",
+          due_date:dueDate,
+          due_time:cleanText(input.dueTime)||undefined,
+          duration:`${hours}:${mins}`,
+          person_id:personId,
+          deal_id:Number(input.dealId||0)||undefined,
+          location:cleanText(input.location)||undefined,
+          note:cleanText(input.note)||undefined,
+          done:false
+        };
+        Object.keys(payload).forEach(key=>payload[key]===undefined&&delete payload[key]);
+        const result=await pipedriveRequest(env,"/api/v2/activities",{method:"POST",body:JSON.stringify(payload)});
+        return jsonResponse(request,{ok:true,activity:result.data||result},201);
       }
 
       if (url.pathname === "/lexware/accepted-quotations" && request.method === "GET") {

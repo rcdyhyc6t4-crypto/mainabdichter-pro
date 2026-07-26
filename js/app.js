@@ -2,7 +2,7 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
 import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.9.0";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.11.1";
+const MAINABDICHTER_APP_VERSION = "32.12.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -470,6 +470,118 @@ async function acceptInquiryImport() {
 let cachedAcceptedQuotations = [];
 let cachedOpenLexofficeQuotations = [];
 let cachedUpcomingPipedriveActivities = [];
+let smartAppointmentDraft = null;
+
+function smartCaseType(text) {
+  const value=String(text||"").toLowerCase();
+  if(/reklamation|mangel|problem|wieder feucht/.test(value)) return {label:"Reklamation",duration:60,priority:3};
+  if(/nachkontrolle|kontrolle|überprüf/.test(value)) return {label:"Nachkontrolle",duration:45,priority:2};
+  if(/nachbesser|nacharbeit/.test(value)) return {label:"Nachbesserung",duration:90,priority:3};
+  if(/rückruf|anrufen|telefon/.test(value)) return {label:"Rückruf",duration:20,priority:2};
+  if(/abhol|flasche|material/.test(value)) return {label:"Abholung",duration:30,priority:1};
+  if(/ausführung|baustelle/.test(value)) return {label:"Ausführung",duration:480,priority:2};
+  return {label:"Besichtigung",duration:60,priority:1};
+}
+
+function smartDateStart(text) {
+  const now=new Date(),value=String(text||"").toLowerCase();
+  now.setHours(12,0,0,0);
+  if(/heute/.test(value)) return now;
+  if(/morgen/.test(value)){now.setDate(now.getDate()+1);return now;}
+  if(/nächste woche/.test(value)){
+    const day=now.getDay()||7;now.setDate(now.getDate()+(8-day));return now;
+  }
+  now.setDate(now.getDate()+1);return now;
+}
+
+function smartCity(person) {
+  return String(person?.city||person?.postalAddress||person?.address||"").trim();
+}
+
+function buildSmartSuggestions(text,person) {
+  const start=smartDateStart(text),kind=smartCaseType(text),suggestions=[];
+  const desiredCity=smartCity(person).toLowerCase();
+  for(let offset=0;offset<12&&suggestions.length<3;offset++){
+    const date=new Date(start);date.setDate(start.getDate()+offset);
+    if([0,6].includes(date.getDay())) continue;
+    const iso=date.toISOString().slice(0,10);
+    const dayItems=cachedUpcomingPipedriveActivities.filter(item=>item.dueDate===iso);
+    const busy=new Set(dayItems.map(item=>String(item.dueTime||"").slice(0,5)));
+    const nearby=desiredCity&&dayItems.some(item=>String(item.location||"").toLowerCase().includes(desiredCity));
+    const times=nearby?["09:30","10:30","14:00","15:00"]:["09:00","10:30","11:30"];
+    const time=times.find(candidate=>!busy.has(candidate));
+    if(!time) continue;
+    suggestions.push({
+      date:iso,time,duration:kind.duration,kind:kind.label,nearby,
+      reason:nearby
+        ? "An diesem Tag liegt bereits ein Termin in derselben Gegend."
+        : time<"12:00"
+          ? "Freier Vormittag – Besichtigungen werden bevorzugt vormittags eingeplant."
+          : "Freies Zeitfenster mit ausreichendem Puffer."
+    });
+  }
+  return suggestions;
+}
+
+function renderSmartAppointmentResults() {
+  const box=$("smartAppointmentResults");
+  if(!box||!smartAppointmentDraft) return;
+  const draft=smartAppointmentDraft;
+  box.innerHTML=`<div class="smart-customer-card"><small>ERKANNT</small><strong>${esc(draft.person.name||"Kunde")}</strong><span>${esc(draft.kind.label)} · ${esc(smartCity(draft.person)||"Adresse in Pipedrive")}</span></div>
+    <h3>Beste Terminvorschläge</h3>
+    ${draft.suggestions.length?draft.suggestions.map((item,index)=>`<button type="button" class="smart-suggestion ${index===0?"recommended":""}" data-smart-suggestion="${index}">
+      <span><small>${index===0?"BESTER VORSCHLAG":"ALTERNATIVE"}</small><strong>${esc(formatPipedriveAppointmentDate(item.date))}, ${esc(item.time)} Uhr</strong><em>${esc(item.reason)}</em></span><b>Auswählen</b>
+    </button>`).join(""):`<div class="empty-mini">Kein freies Zeitfenster gefunden.</div>`}`;
+  box.querySelectorAll("[data-smart-suggestion]").forEach(button=>button.onclick=()=>confirmSmartAppointment(Number(button.dataset.smartSuggestion)));
+}
+
+async function analyzeSmartAppointment() {
+  const text=$("smartAppointmentText")?.value.trim();
+  if(!text) return showStatus("smartAppointmentStatus","Sag oder schreibe kurz, um welchen Kunden und Vorgang es geht.",false);
+  showStatus("smartAppointmentStatus","Kunde und passende Termine werden gesucht …",true);
+  try{
+    const ignored=new Set(["kunde","kundin","herr","frau","hat","eine","einen","möchte","wünscht","termin","reklamation","nachkontrolle","besichtigung","anfrage","neu","neukunde"]);
+    const words=text.replace(/[.,!?]/g," ").split(/\s+/).filter(word=>word.length>2&&!ignored.has(word.toLowerCase()));
+    let result=null,term="";
+    for(const candidate of words){
+      const found=await searchPipedrive(candidate);
+      if(found.people?.length){result=found;term=candidate;break;}
+    }
+    if(!result?.people?.length){
+      smartAppointmentDraft=null;
+      $("smartAppointmentResults").innerHTML=`<div class="smart-new-customer"><strong>Kein Bestandskunde gefunden</strong><span>Die Anfrage wird als Neukunde übernommen. Ergänze dort nur noch Name, Telefonnummer und Objektadresse.</span><button type="button" id="smartStartNewCustomer" class="primary">Neukunden-Anfrage öffnen</button></div>`;
+      $("smartStartNewCustomer").onclick=()=>{v287SetModal("smartAppointmentModal",false);startNewVisit();state.visit.inquiry.message=text;saveState();renderVisit();};
+      return showStatus("smartAppointmentStatus",`„${term||words[0]||text}“ wurde nicht eindeutig in Pipedrive gefunden.`,false);
+    }
+    const person=result.people[0];
+    const detail=await loadPipedrivePerson(person.id);
+    const fullPerson={...person,...(detail.person||{})};
+    const kind=smartCaseType(text);
+    smartAppointmentDraft={text,person:fullPerson,kind,suggestions:buildSmartSuggestions(text,fullPerson)};
+    renderSmartAppointmentResults();
+    showStatus("smartAppointmentStatus","Vorgang erkannt. Wähle nur noch einen Termin aus.",true);
+  }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
+}
+
+async function confirmSmartAppointment(index) {
+  const draft=smartAppointmentDraft,item=draft?.suggestions?.[index];
+  if(!draft||!item) return;
+  if(!confirm(`${draft.person.name}: ${item.kind} am ${formatPipedriveAppointmentDate(item.date)} um ${item.time} Uhr in Pipedrive anlegen?`)) return;
+  showStatus("smartAppointmentStatus","Termin wird in Pipedrive angelegt …",true);
+  try{
+    await createPipedriveActivity({
+      subject:`${item.kind} – ${draft.person.name}`,
+      type:item.kind==="Rückruf"?"call":"meeting",
+      dueDate:item.date,dueTime:item.time,duration:item.duration,
+      personId:draft.person.id,dealId:draft.person.dealId||"",
+      location:draft.person.objectAddress||draft.person.postalAddress||draft.person.address||"",
+      note:`Über mainabdichter PRO geplant. Eingabe: ${draft.text}`
+    });
+    await syncPipedriveDashboard();
+    showStatus("smartAppointmentStatus","Termin wurde angelegt und mit Pipedrive synchronisiert.",true);
+    window.setTimeout(()=>v287SetModal("smartAppointmentModal",false),900);
+  }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
+}
 
 function todayIso() { return new Date().toISOString().slice(0,10); }
 function contextEmpty(t="Keine Informationen vorhanden."){return `<div class="empty-mini">${esc(t)}</div>`;}function contextDate(v){if(!v)return"–";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("de-DE");}function localRecordContext(c,address){const e=String(c?.email||"").toLowerCase(),p=String(c?.phone||"").replace(/\D/g,""),ad=String(address||c?.objectAddress||"").toLowerCase();const m=i=>{const x=i?.visit?.customer||i?.customer||{};return Boolean((e&&String(x.email||"").toLowerCase()===e)||(p&&String(x.phone||"").replace(/\D/g,"").endsWith(p.slice(-8)))||(ad&&String(i.objectAddress||x.objectAddress||[x.street,x.zip,x.city].filter(Boolean).join(" ")).toLowerCase()===ad));};return{localVisits:loadArchive().filter(m),localWorksites:loadWorksites().filter(m)};}function renderRecordContext(){const c=state.visit.recordContext||{},card=$("recordContextCard");if(!card)return;if(!c.loaded&&!c.error){card.classList.add("hidden");return;}card.classList.remove("hidden");showStatus("recordContextStatus",c.error?`Bauakte nur teilweise geladen: ${c.error}`:`Bauakte geladen: ${contextDate(c.loadedAt)}`,!c.error);const d=c.deal||{},p=c.person||{};$("recordContextSummary").innerHTML=`<div class="record-alert"><strong>${(c.relatedDeals?.length||c.localWorksites?.length)?"Es bestehen bereits Vorgänge zu diesem Kunden/Objekt.":"Keine frühere Ausführung gefunden."}</strong><span>${esc(d.title||"Aktueller Vorgang")}</span>${c.caseType?`<span class="case-type-badge">Vorgangsart: ${esc(c.caseType)}</span>`:""}</div>`;const caseButtons={Reklamation:$("contextTypeComplaint"),Nachkontrolle:$("contextTypeFollowup"),Folgeauftrag:$("contextTypeFollowOn")};Object.entries(caseButtons).forEach(([type,button])=>{if(!button)return;button.classList.toggle("selected-case-type",c.caseType===type);button.setAttribute("aria-pressed",c.caseType===type?"true":"false");});$("contextDeal").innerHTML=d.id?`<div class="context-list"><div><span>Deal</span><strong>${esc(d.title||"–")}</strong></div><div><span>Phase</span><strong>${esc(d.stage_name||d.stage?.name||"–")}</strong></div><div><span>Status</span><strong>${esc(d.status||"–")}</strong></div><div><span>Wert</span><strong>${d.value?eur(d.value):"–"}</strong></div><div><span>Kontakt</span><strong>${esc(p.name||[p.firstName,p.lastName].filter(Boolean).join(" ")||"–")}</strong></div></div>`:contextEmpty();$("contextNotes").innerHTML=(c.notes||[]).length?c.notes.map(n=>`<article class="context-entry"><small>${esc(contextDate(n.add_time||n.update_time))}</small><div>${n.content||esc(n.note||"")}</div></article>`).join(""):contextEmpty();$("contextActivities").innerHTML=(c.activities||[]).length?c.activities.map(i=>`<article class="context-entry"><strong>${esc(i.subject||i.type||"Aktivität")}</strong><small>${esc([i.due_date,i.due_time].filter(Boolean).join(" "))}</small><p>${esc(i.note||"")}</p></article>`).join(""):contextEmpty();$("contextFiles").innerHTML=(c.files||[]).length?c.files.map(f=>`<article class="context-entry"><strong>${esc(f.name||"Dokument")}</strong><small>${esc(contextDate(f.add_time))}</small>${f.url?`<a href="${esc(f.url)}" target="_blank">In Pipedrive öffnen</a>`:""}</article>`).join(""):contextEmpty();$("contextRelatedDeals").innerHTML=(c.relatedDeals||[]).length?c.relatedDeals.map(i=>`<article class="context-entry"><strong>${esc(i.title||"Deal")}</strong><small>${esc(i.status||"")}</small><p>${i.value?eur(i.value):""}</p></article>`).join(""):contextEmpty();$("contextLexware").innerHTML=(c.lexwareDocuments||[]).length?c.lexwareDocuments.map(i=>`<article class="context-entry"><strong>${esc(i.voucherNumber||i.voucherType||"Dokument")}</strong><small>${esc(i.voucherDate||"")} · ${esc(i.voucherStatus||"")}</small><p>${i.totalAmount?eur(i.totalAmount):""}</p></article>`).join(""):contextEmpty("Keine Lexware-Dokumente gefunden.");const l=[...(c.localVisits||[]).map(i=>({t:"Besichtigung/Angebot",d:i.visitDate||i.createdAt,x:i.objectAddress})),...(c.localWorksites||[]).map(i=>({t:"Baustelle/Arbeitsnachweis",d:i.date||i.createdAt,x:i.objectAddress}))];$("contextLocal").innerHTML=l.length?l.map(i=>`<article class="context-entry"><strong>${esc(i.t)}</strong><small>${esc(i.d||"")}</small><p>${esc(i.x||"")}</p></article>`).join(""):contextEmpty();}async function loadCompleteRecordContext(personId,dealId){const c={loaded:false,loadedAt:new Date().toISOString(),deal:null,person:null,notes:[],activities:[],files:[],relatedDeals:[],lexwareContact:null,lexwareDocuments:[],localVisits:[],localWorksites:[],caseType:state.visit.recordContext?.caseType||"",error:""};try{if(dealId){const d=await loadPipedriveDealContext(dealId);Object.assign(c,d.context||{});}else if(personId){c.person=(await loadPipedrivePerson(personId)).person;}const cu=state.visit.customer,n=[cu.firstName,cu.lastName].filter(Boolean).join(" ")||cu.company;try{const l=await loadLexwareCustomerHistory({contactId:cu.lexwareContactId,email:cu.email,name:n});c.lexwareContact=l.contact||null;c.lexwareDocuments=l.documents||[];if(l.contact?.id)cu.lexwareContactId=l.contact.id;}catch(e){c.error=`Lexware: ${e.message}`;}Object.assign(c,localRecordContext(cu,cu.objectAddress));c.loaded=true;}catch(e){c.error=e.message;}state.visit.recordContext=c;saveState();renderRecordContext();}
@@ -911,6 +1023,17 @@ function initializeV28Dashboard() {
     document.body.classList.toggle("resource-modal-open", open);
   };
   if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>setNewInquiryModal(true);
+  if ($("v28SmartAppointment")) $("v28SmartAppointment").onclick=()=>{
+    smartAppointmentDraft=null;
+    $("smartAppointmentText").value="";
+    $("smartAppointmentResults").innerHTML="";
+    showStatus("smartAppointmentStatus","Zum Beispiel: „Kunde Höffner hat eine Reklamation und möchte nächste Woche einen Termin.“",true);
+    v287SetModal("smartAppointmentModal",true);
+    window.setTimeout(()=>$("smartAppointmentText")?.focus(),50);
+  };
+  if ($("closeSmartAppointment")) $("closeSmartAppointment").onclick=()=>v287SetModal("smartAppointmentModal",false);
+  if ($("analyzeSmartAppointment")) $("analyzeSmartAppointment").onclick=analyzeSmartAppointment;
+  if ($("smartAppointmentModal")) $("smartAppointmentModal").onclick=event=>{if(event.target===$("smartAppointmentModal"))v287SetModal("smartAppointmentModal",false);};
   if ($("closeNewInquiryModal")) $("closeNewInquiryModal").onclick=()=>setNewInquiryModal(false);
   if ($("newInquiryModal")) $("newInquiryModal").onclick=event=>{
     if(event.target===$("newInquiryModal")) setNewInquiryModal(false);
