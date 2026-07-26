@@ -149,6 +149,83 @@ export function createFullBackupPayload() {
   };
 }
 
+function recordTime(record) {
+  return Date.parse(record?.updatedAt || record?.createdAt || "") || 0;
+}
+
+function mergeRecords(remoteItems, localItems) {
+  const merged = new Map();
+  for (const item of Array.isArray(remoteItems) ? remoteItems : []) {
+    const key = String(item?.id || item?.pipedriveId || crypto.randomUUID());
+    merged.set(key, item);
+  }
+  for (const item of Array.isArray(localItems) ? localItems : []) {
+    const key = String(item?.id || item?.pipedriveId || crypto.randomUUID());
+    const current = merged.get(key);
+    if (!current || recordTime(item) >= recordTime(current)) merged.set(key, item);
+  }
+  return [...merged.values()].sort((a, b) => recordTime(b) - recordTime(a));
+}
+
+function visitHasBusinessData(visit) {
+  const customer = visit?.customer || {};
+  return Boolean(
+    customer.firstName || customer.lastName || customer.company ||
+    customer.objectAddress || customer.street ||
+    (Array.isArray(visit?.areas) && visit.areas.length)
+  );
+}
+
+export function backupHasBusinessData(payload) {
+  return Boolean(
+    (Array.isArray(payload?.archive) && payload.archive.length) ||
+    (Array.isArray(payload?.customers) && payload.customers.length) ||
+    (Array.isArray(payload?.worksites) && payload.worksites.length) ||
+    visitHasBusinessData(payload?.visit)
+  );
+}
+
+export function mergeFullBackupPayload(remotePayload, localPayload) {
+  if (!remotePayload || typeof remotePayload !== "object") return localPayload;
+  if (!localPayload || typeof localPayload !== "object") return remotePayload;
+
+  const localHasData = backupHasBusinessData(localPayload);
+  const localConnection = {
+    workerUrl: localPayload.settings?.workerUrl || "",
+    appSecret: localPayload.settings?.appSecret || ""
+  };
+  const settings = localHasData
+    ? merge(remotePayload.settings || {}, localPayload.settings || {})
+    : merge(localPayload.settings || {}, remotePayload.settings || {});
+
+  // Die auf diesem Gerät bereits funktionierende Verbindung darf durch eine
+  // ältere oder unvollständige Sicherung nicht entfernt werden.
+  if (localConnection.workerUrl) settings.workerUrl = localConnection.workerUrl;
+  if (localConnection.appSecret) settings.appSecret = localConnection.appSecret;
+
+  return {
+    ...remotePayload,
+    ...localPayload,
+    settings,
+    visit: localHasData && visitHasBusinessData(localPayload.visit)
+      ? localPayload.visit
+      : remotePayload.visit || localPayload.visit,
+    discount: localHasData
+      ? localPayload.discount || remotePayload.discount
+      : remotePayload.discount || localPayload.discount,
+    archive: mergeRecords(remotePayload.archive, localPayload.archive),
+    customers: mergeRecords(remotePayload.customers, localPayload.customers),
+    worksites: mergeRecords(remotePayload.worksites, localPayload.worksites),
+    exportedAt: new Date().toISOString(),
+    metadata: {
+      ...(remotePayload.metadata || {}),
+      ...(localPayload.metadata || {}),
+      source: "mainabdichter",
+      mergedDuringDeviceSetup: true
+    }
+  };
+}
+
 export function restoreFullBackupPayload(payload) {
   if (!payload || typeof payload !== "object") {
     throw new Error("Ungültige Sicherungsdatei.");

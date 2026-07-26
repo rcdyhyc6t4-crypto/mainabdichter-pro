@@ -282,10 +282,15 @@ export async function testGoogleDrive() {
   return api("/drive/test");
 }
 
-export async function saveDriveBackup(payload) {
+export async function saveDriveBackup(payload, expectedRemoteModifiedTime = "") {
   return api("/drive/backup", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(expectedRemoteModifiedTime
+        ? { "X-Backup-Base-Modified": expectedRemoteModifiedTime }
+        : {})
+    },
     body: JSON.stringify(payload)
   });
 }

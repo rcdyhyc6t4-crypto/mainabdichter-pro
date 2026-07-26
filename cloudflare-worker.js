@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.13.9
+// mainabdichter PRO Cloudflare Worker V32.14.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -165,7 +165,7 @@ async function uploadDriveDocument(env, file, metadata) {
   return data;
 }
 
-async function saveDriveBackup(env, payload) {
+async function saveDriveBackup(env, payload, expectedRemoteModifiedTime = "") {
   const parent = await ensureDriveFolder(env, "mainabdichter PRO");
   const backups = await ensureDriveFolder(env, "Datensicherung", parent.id);
   const q = [
@@ -175,9 +175,23 @@ async function saveDriveBackup(env, payload) {
   ].join(" and ");
   const existing = await googleDriveRequest(
     env,
-    `/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`
+    `/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)&pageSize=1`
   );
-  const fileId = existing.files?.[0]?.id || "";
+  const currentFile = existing.files?.[0] || null;
+  const fileId = currentFile?.id || "";
+  if (
+    expectedRemoteModifiedTime &&
+    currentFile?.modifiedTime &&
+    currentFile.modifiedTime !== expectedRemoteModifiedTime
+  ) {
+    const error = new Error("Die zentrale Datensicherung wurde inzwischen auf einem anderen Gerät geändert.");
+    error.status = 409;
+    error.details = {
+      expectedRemoteModifiedTime,
+      currentRemoteModifiedTime: currentFile.modifiedTime
+    };
+    throw error;
+  }
   const token = await googleAccessToken(env);
   const boundary = `mainabdichter_backup_${crypto.randomUUID()}`;
   const metadata = JSON.stringify({
@@ -1177,7 +1191,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.13.9",
+          workerVersion: "32.14.0",
           time: new Date().toISOString()
         });
       }
@@ -1209,7 +1223,9 @@ export default {
         if (encodedSize > 25 * 1024 * 1024) {
           return jsonResponse(request, { ok: false, error: "Die Datensicherung ist größer als 25 MB." }, 413);
         }
-        const file = await saveDriveBackup(env, payload);
+        const expectedRemoteModifiedTime =
+          request.headers.get("X-Backup-Base-Modified") || "";
+        const file = await saveDriveBackup(env, payload, expectedRemoteModifiedTime);
         return jsonResponse(request, { ok: true, file });
       }
 
@@ -1423,7 +1439,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.13.9",
+          workerVersion: "32.14.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

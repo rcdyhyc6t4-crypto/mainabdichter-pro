@@ -1,11 +1,11 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload } from "./storage-v227.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, backupHasBusinessData, mergeFullBackupPayload } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.13.8";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.14.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.13.8";
+const MAINABDICHTER_APP_VERSION = "32.14.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -5432,6 +5432,8 @@ let automaticDriveSaveTimer = 0;
 let automaticDriveSaving = false;
 let automaticDriveRetry = false;
 let automaticDriveLoading = false;
+let driveBootstrapComplete = false;
+let lastKnownRemoteModifiedTime = "";
 const DRIVE_SYNC_TIME_KEY = "mainabdichter_drive_sync_time";
 const LOCAL_CHANGE_TIME_KEY = "mainabdichter_local_change_time";
 
@@ -5446,15 +5448,18 @@ async function runAutomaticDriveBackup() {
   if (automaticDriveSaving || !hasConnectionConfig()) return;
   automaticDriveSaving = true;
   try {
+    const ready = await ensureDriveBootstrap();
+    if (!ready) throw new Error("Zentraler Datenstand konnte noch nicht sicher geprüft werden.");
     await synchronizeFromDrive();
     collectVisibleAutomaticData();
     const payload = createFullBackupPayload();
     payload.metadata ||= {};
     payload.metadata.lastChangedAt =
       localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || payload.exportedAt;
-    const saved = await saveDriveBackup(payload);
+    const saved = await saveDriveBackup(payload, lastKnownRemoteModifiedTime);
     const synchronizedAt =
       saved?.file?.modifiedTime || payload.exportedAt || new Date().toISOString();
+    lastKnownRemoteModifiedTime = saved?.file?.modifiedTime || synchronizedAt;
     localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
     localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
     automaticDriveRetry = false;
@@ -5479,12 +5484,60 @@ function backupTimestamp(payload, file) {
   return candidates.length ? Math.max(...candidates) : 0;
 }
 
+function renderAfterDriveRestore() {
+  renderVisit();
+  updateGeneratedRecommendation();
+  renderSettings();
+  renderOffer();
+  renderArchive();
+  updateDashboardOverview();
+  updateBackupTime();
+}
+
+async function ensureDriveBootstrap() {
+  if (driveBootstrapComplete) return true;
+  if (!hasConnectionConfig()) return false;
+  if (automaticDriveLoading) return false;
+  automaticDriveLoading = true;
+  try {
+    const response = await loadDriveBackup();
+    const localPayload = createFullBackupPayload();
+    if (response?.exists && response.backup) {
+      const merged = mergeFullBackupPayload(response.backup, localPayload);
+      restoreFullBackupPayload(merged);
+      const remoteTime = backupTimestamp(response.backup, response.file);
+      const synchronizedAt = new Date(remoteTime || Date.now()).toISOString();
+      lastKnownRemoteModifiedTime = response.file?.modifiedTime || synchronizedAt;
+      localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
+      localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+      renderAfterDriveRestore();
+    } else {
+      lastKnownRemoteModifiedTime = "";
+    }
+    driveBootstrapComplete = true;
+    return true;
+  } catch (error) {
+    console.warn("Erstsynchronisierung wurde aus Sicherheitsgründen nicht freigegeben:", error);
+    return false;
+  } finally {
+    automaticDriveLoading = false;
+  }
+}
+
 async function synchronizeFromDrive({ force = false } = {}) {
   if (automaticDriveLoading || !hasConnectionConfig()) return false;
+  if (!driveBootstrapComplete) return ensureDriveBootstrap();
   automaticDriveLoading = true;
   try {
     const response = await loadDriveBackup();
     if (!response?.exists || !response.backup) return false;
+    const fetchedRemoteModifiedTime = response.file?.modifiedTime || "";
+    const remoteRevisionChanged = Boolean(
+      fetchedRemoteModifiedTime &&
+      lastKnownRemoteModifiedTime &&
+      fetchedRemoteModifiedTime !== lastKnownRemoteModifiedTime
+    );
+    lastKnownRemoteModifiedTime = fetchedRemoteModifiedTime;
     const remoteTime = backupTimestamp(response.backup, response.file);
     const localChangeTime = Date.parse(
       localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || ""
@@ -5492,20 +5545,22 @@ async function synchronizeFromDrive({ force = false } = {}) {
     const lastSyncTime = Date.parse(
       localStorage.getItem(DRIVE_SYNC_TIME_KEY) || ""
     ) || 0;
-    if (!force && remoteTime <= Math.max(localChangeTime, lastSyncTime)) {
+    if (
+      !force &&
+      !remoteRevisionChanged &&
+      remoteTime <= Math.max(localChangeTime, lastSyncTime)
+    ) {
       return false;
     }
-    restoreFullBackupPayload(response.backup);
+    const localPayload = createFullBackupPayload();
+    const restoredPayload = backupHasBusinessData(localPayload)
+      ? mergeFullBackupPayload(response.backup, localPayload)
+      : response.backup;
+    restoreFullBackupPayload(restoredPayload);
     const synchronizedAt = new Date(remoteTime || Date.now()).toISOString();
     localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
     localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
-    renderVisit();
-    updateGeneratedRecommendation();
-    renderSettings();
-    renderOffer();
-    renderArchive();
-    updateDashboardOverview();
-    updateBackupTime();
+    renderAfterDriveRestore();
     return true;
   } catch (error) {
     console.warn("Drive-Synchronisierung konnte nicht geladen werden:", error);
@@ -5522,7 +5577,9 @@ function scheduleAutomaticSave() {
     collectVisibleAutomaticData();
   }, 350);
   window.clearTimeout(automaticDriveSaveTimer);
-  automaticDriveSaveTimer = window.setTimeout(runAutomaticDriveBackup, 4000);
+  automaticDriveSaveTimer = window.setTimeout(async () => {
+    if (await ensureDriveBootstrap()) await runAutomaticDriveBackup();
+  }, 4000);
 }
 
 document.addEventListener("input", scheduleAutomaticSave, true);
@@ -5543,6 +5600,6 @@ window.setInterval(runAutomaticDriveBackup, 5 * 60 * 1000);
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
 
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
-await synchronizeFromDrive();
+await ensureDriveBootstrap();
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeV28Dashboard); else initializeV28Dashboard();
