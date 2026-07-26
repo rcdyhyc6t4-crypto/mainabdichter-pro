@@ -5,7 +5,7 @@ import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDe
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.9.0";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.13.5";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.13.2";
+const MAINABDICHTER_APP_VERSION = "32.13.5";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -576,8 +576,28 @@ function renderSmartAppointmentResults() {
     <h3>Beste Terminvorschläge</h3>
     ${draft.suggestions.length?draft.suggestions.map((item,index)=>`<button type="button" class="smart-suggestion ${index===0?"recommended":""}" data-smart-suggestion="${index}">
       <span><small>${index===0?"BESTER VORSCHLAG":"ALTERNATIVE"}</small><strong>${esc(formatPipedriveAppointmentDate(item.date))}, ${esc(item.time)} Uhr</strong><em>${esc(item.reason)}</em></span><b>Auswählen</b>
-    </button>`).join(""):`<div class="empty-mini">Kein freies Zeitfenster gefunden.</div>`}`;
+    </button>`).join(""):`<div class="empty-mini">Kein freies Zeitfenster gefunden.</div>`}
+    <div class="smart-custom-appointment">
+      <h3>Datum und Uhrzeit selbst wählen</h3>
+      <div class="smart-custom-appointment-fields">
+        <label>Tag<input id="smartCustomDate" type="date" min="${todayIso()}" value="${esc(draft.suggestions[0]?.date||todayIso())}"></label>
+        <label>Uhrzeit<input id="smartCustomTime" type="time" value="${esc(draft.suggestions[0]?.time||"09:00")}"></label>
+      </div>
+      <button type="button" id="smartUseCustomAppointment" class="primary">Diesen Termin auswählen</button>
+    </div>`;
   box.querySelectorAll("[data-smart-suggestion]").forEach(button=>button.onclick=()=>confirmSmartAppointment(Number(button.dataset.smartSuggestion)));
+  $("smartUseCustomAppointment").onclick=()=>{
+    const date=$("smartCustomDate")?.value;
+    const time=$("smartCustomTime")?.value;
+    if(!date||!time) return showStatus("smartAppointmentStatus","Bitte Tag und Uhrzeit vollständig auswählen.",false);
+    confirmSmartAppointment({
+      date,
+      time,
+      duration:draft.kind.duration,
+      kind:draft.kind.label,
+      reason:"Datum und Uhrzeit wurden selbst gewählt."
+    });
+  };
 }
 
 async function analyzeSmartAppointment() {
@@ -613,8 +633,9 @@ async function analyzeSmartAppointment() {
   }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
 }
 
-async function confirmSmartAppointment(index) {
-  const draft=smartAppointmentDraft,item=draft?.suggestions?.[index];
+async function confirmSmartAppointment(selection) {
+  const draft=smartAppointmentDraft;
+  const item=typeof selection==="number"?draft?.suggestions?.[selection]:selection;
   if(!draft||!item) return;
   if(!confirm(`${draft.person.name}: ${item.kind} am ${formatPipedriveAppointmentDate(item.date)} um ${item.time} Uhr in Pipedrive anlegen?`)) return;
   showStatus("smartAppointmentStatus","Termin wird in Pipedrive angelegt …",true);
@@ -4017,7 +4038,7 @@ function collectWorksite() {
     if (!task) return;
     const field = input.dataset.wsField;
     if (input.type === "checkbox") task[field] = input.checked;
-    else if (["wall","actualQuantity","actualHoles","actualLiters","actualHsKg","packers","resinKg","spacing","bottlesHanging","bottlesRetrieved"].includes(field)) task[field] = parseDecimal(input.value);
+    else if (["wall","actualQuantity","actualHoles","actualWidth","actualHeight","surfaceFirstRowHoles","surfaceFollowingRowHoles","actualLiters","actualHsKg","packers","resinKg","spacing","bottlesHanging","bottlesRetrieved"].includes(field)) task[field] = parseDecimal(input.value);
     else task[field] = input.value;
   });
   return worksite;
@@ -4569,6 +4590,13 @@ function renderWorksiteEditor() {
     if (task.isInteriorWall === undefined) task.isInteriorWall = false;
     if (task.isExteriorWall === undefined) task.isExteriorWall = false;
     if (task.actualQuantity === undefined || task.actualQuantity === null) task.actualQuantity = Number(task.plannedQuantity || 0);
+    if (task.type === "Flächensperre") {
+      if (!Number(task.plannedWidth)) task.plannedWidth = Number(task.plannedQuantity || 0);
+      if (!Number(task.plannedHeight)) task.plannedHeight = 1;
+      if (!Number(task.actualWidth)) task.actualWidth = Number(task.plannedWidth || 0);
+      if (!Number(task.actualHeight)) task.actualHeight = Number(task.plannedHeight || 1);
+      recalculateWorksiteTask(state.settings, task);
+    }
     if (task.injectionPressureless === undefined) task.injectionPressureless = /drucklos/i.test(task.injectionType || "");
     if (task.injectionLowPressure === undefined) task.injectionLowPressure = /niederdruck/i.test(task.injectionType || "");
   });
@@ -4589,13 +4617,22 @@ function renderWorksiteEditor() {
           <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="isExteriorWall" ${task.isExteriorWall?"checked":""}> Außenwand</label>
         </div>` : "";
     const quantityLabel = task.type === "Flächensperre" ? "Tatsächliche Fläche m²" : "Tatsächliche Laufmeter";
+    const surfaceFields = task.type === "Flächensperre" ? `
+        <div><label>Bohrlöcher erste Reihe · Faktor 14</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="surfaceFirstRowHoles" value="${formatDecimalInput(task.surfaceFirstRowHoles)}"></div>
+        <div><label>Bohrlöcher darüberliegende Reihen · Faktor 10</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="surfaceFollowingRowHoles" value="${formatDecimalInput(task.surfaceFollowingRowHoles)}"></div>
+        <div><label>Errechnete Breite</label><input value="${num(task.actualWidth)} m" readonly></div>
+        <div><label>Errechnete Höhe</label><input value="${num(task.actualHeight)} m" readonly></div>
+        <div><label>Bohrreihen rechnerisch</label><input value="${num(task.surfaceRowCount)}" readonly></div>
+        <div><label>Erste Reihe · 12,5 cm über Boden · Faktor 14</label><input value="${num(task.surfaceFirstRowLiters)} l" readonly></div>
+        <div><label>Darüberliegende Reihen · vertikal 25 cm · Faktor 10</label><input value="${num(task.surfaceFollowingRowsLiters)} l" readonly></div>
+        <div><label>Fläche gesamt</label><input value="${num(task.actualQuantity)} m²" readonly></div>` : "";
     const hzFields = usesHz ? `
-        <div><label>${quantityLabel}</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>
+        ${task.type === "Flächensperre" ? surfaceFields : `<div><label>${quantityLabel}</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>`}
         <div><label>Bohrlochabstand</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>12,5 cm</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>25 cm</option></select></div>
         <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
-        <div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>
-        <div><label>Sollmenge je Bohrloch</label><input value="${Math.round(Number(task.targetLitersPerHole || 0) * 1000)} ml" readonly></div>
-        <div><label>Istmenge je Bohrloch</label><input type="number" inputmode="numeric" min="0" step="10" data-ws-task="${task.id}" data-ws-field="actualMlPerHole" value="${Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)}"></div>
+        ${task.type === "Flächensperre" ? `<div><label>Ist-Bohrlöcher gesamt</label><input value="${num(task.actualHoles)}" readonly></div>` : `<div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>`}
+        ${task.type === "Flächensperre" ? "" : `<div><label>Sollmenge je Bohrloch</label><input value="${Math.round(Number(task.targetLitersPerHole || 0) * 1000)} ml" readonly></div>
+        <div><label>Istmenge je Bohrloch</label><input type="number" inputmode="numeric" min="0" step="10" data-ws-task="${task.id}" data-ws-field="actualMlPerHole" value="${Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)}"></div>`}
         <div><label>Sollverbrauch ohne Reserve</label><input value="${num(task.plannedLiters)} l" readonly></div>
         <div><label>Istverbrauch HZ 250 PRO</label><input value="${num(task.actualLiters)} l" readonly></div>
         <div class="full injection-choice"><label>Injektionsart</label>
@@ -4674,7 +4711,7 @@ function renderWorksiteEditor() {
     sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos");
     renderWorksiteEditor();
   });
-  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"], [data-ws-field="actualMlPerHole"]').forEach(input => {
+  document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"], [data-ws-field="actualWidth"], [data-ws-field="actualHeight"], [data-ws-field="surfaceFirstRowHoles"], [data-ws-field="surfaceFollowingRowHoles"], [data-ws-field="actualMlPerHole"]').forEach(input => {
     const recalculate = () => {
       const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
       if (!task) return;
@@ -4686,8 +4723,6 @@ function renderWorksiteEditor() {
       if (field === "actualQuantity") {
         if (task.type === "Horizontalsperre") {
           task.actualHoles = Math.ceil(Number(task.actualQuantity || 0) / Number(task.spacing || .25));
-        } else if (task.type === "Flächensperre") {
-          task.actualHoles = Math.ceil(Number(task.actualQuantity || 0) / (Number(task.spacing || .25) * .25));
         }
       }
 
@@ -4698,7 +4733,7 @@ function renderWorksiteEditor() {
       restoreWorksiteView(view);
     };
     input.onchange = recalculate;
-    if (["actualHoles","actualQuantity"].includes(input.dataset.wsField)) input.onblur = recalculate;
+    if (["actualHoles","actualQuantity","surfaceFirstRowHoles","surfaceFollowingRowHoles"].includes(input.dataset.wsField)) input.onblur = recalculate;
   });
   document.querySelectorAll("[data-start-injection]").forEach(button => {
     button.onclick = () => openInjectionAssistant(ws, button.dataset.startInjection);
@@ -4779,18 +4814,34 @@ function openAdditionalWorkPicker(ws) {
     <select id="extraCatalogItem">${catalog.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join("")}</select>
     <div class="grid">
       <div><label>Bereich / Wand</label><input id="extraArea" placeholder="z. B. Keller Außenwand"></div>
-      <div><label>Menge</label><input id="extraQuantity" type="number" inputmode="decimal" min="0" step=".1" value="1"></div>
+      <div id="extraQuantityField"><label>Menge</label><input id="extraQuantity" type="number" inputmode="decimal" min="0" step=".1" value="1"></div>
+      <div id="extraSurfaceWidthField" hidden><label>Länge der zusätzlichen Wand m</label><input id="extraSurfaceWidth" type="number" inputmode="decimal" min="0" step=".25" value="1"></div>
+      <div id="extraSurfaceHeightField" hidden><label>Höhe der zusätzlichen Wand m</label><input id="extraSurfaceHeight" type="number" inputmode="decimal" min="0" step=".25" value="1"></div>
     </div>
     <label>Besonderheit (optional)</label><input id="extraNote" placeholder="Nur wenn wirklich nötig">
     <label class="switch-row"><input id="extraApproved" type="checkbox" checked> Vom Kunden vor Ort beauftragt</label>
     <div class="modal-actions"><button type="button" class="secondary" data-close-modal>Abbrechen</button><button type="button" class="primary" id="addCatalogWork">Übernehmen</button></div>
   </section>`;
   document.body.appendChild(overlay);
+  const updateExtraFields = () => {
+    const selected = catalog[Number(overlay.querySelector("#extraCatalogItem").value)];
+    const isSurface = selected?.type === "Flächensperre";
+    overlay.querySelector("#extraQuantityField").hidden = isSurface;
+    overlay.querySelector("#extraSurfaceWidthField").hidden = !isSurface;
+    overlay.querySelector("#extraSurfaceHeightField").hidden = !isSurface;
+  };
+  overlay.querySelector("#extraCatalogItem").onchange = updateExtraFields;
+  updateExtraFields();
   overlay.querySelector("[data-close-modal]").onclick = () => overlay.remove();
   overlay.querySelector("#addCatalogWork").onclick = () => {
     const item = catalog[Number(overlay.querySelector("#extraCatalogItem").value)];
     const area = overlay.querySelector("#extraArea").value.trim() || "Zusätzlicher Bereich";
-    const quantity = parseDecimal(overlay.querySelector("#extraQuantity").value);
+    const isSurface = item?.type === "Flächensperre";
+    const surfaceWidth = parseDecimal(overlay.querySelector("#extraSurfaceWidth").value);
+    const surfaceHeight = parseDecimal(overlay.querySelector("#extraSurfaceHeight").value);
+    const quantity = isSurface
+      ? surfaceWidth * surfaceHeight
+      : parseDecimal(overlay.querySelector("#extraQuantity").value);
     if (!item || quantity <= 0) return;
     const linked = reportableWorksiteTasks(ws).find(task => !task.additionalWork && task.type === item.type);
     ws.tasks.push({
@@ -4802,12 +4853,15 @@ function openAdditionalWorkPicker(ws) {
       completed:false, additionalWork:true, linkedTaskId:linked?.id || "",
       customerApproved:overlay.querySelector("#extraApproved").checked, photos:[],
       wall:30, originalWall:30, spacing:.25, actualHoles:0, plannedHoles:0,
+      plannedWidth:isSurface ? surfaceWidth : 0, plannedHeight:isSurface ? surfaceHeight : 0,
+      actualWidth:isSurface ? surfaceWidth : 0, actualHeight:isSurface ? surfaceHeight : 0,
+      surfaceFirstRowHoles:0, surfaceFollowingRowHoles:0,
       targetLitersPerHole:0, actualLitersPerHole:0, actualLiters:0,
       injectionLowPressure:false, injectionPressureless:false, holeRecords:[]
     });
     const added = ws.tasks.at(-1);
-    recalculateWorksiteTask(state.settings, added, "actualQuantity");
-    if (taskUsesHz(added)) added.actualHoles = added.plannedHoles;
+    recalculateWorksiteTask(state.settings, added, isSurface ? "actualWidth" : "actualQuantity");
+    if (taskUsesHz(added) && !isSurface) added.actualHoles = added.plannedHoles;
     persistWorksite(ws);
     overlay.remove();
     sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionExecution");
@@ -4917,7 +4971,7 @@ function injectionExceptionsHtml(task) {
 
 function buildWorksitePrint(ws) {
   const totals=worksiteMaterialTotals(ws);
-  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div><div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${injectionExceptionsHtml(task)}${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div>${task.type==="Flächensperre"?`<div><strong>Ausgeführte Fläche:</strong> ${num(task.actualWidth)} × ${num(task.actualHeight)} m = ${num(task.actualQuantity)} m²</div><div><strong>Bohrreihen:</strong> ${num(task.surfaceRowCount)}</div><div><strong>Unterste Reihe · 12,5 cm über Boden · Faktor 14:</strong> ${num(task.surfaceFirstRowHoles)} Bohrlöcher / ${num(task.surfaceFirstRowLiters)} l</div><div><strong>Weitere Reihen · vertikal alle 25 cm · Faktor 10:</strong> ${num(task.surfaceFollowingRowHoles)} Bohrlöcher / ${num(task.surfaceFollowingRowsLiters)} l</div>`:""}<div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div>${task.type==="Flächensperre"?"":`<div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div>`}<div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${injectionExceptionsHtml(task)}${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
 $("backToVisitInput").onclick = () => {

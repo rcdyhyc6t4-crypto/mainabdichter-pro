@@ -76,6 +76,10 @@ function baseTask(data = {}) {
     originalWall: 0,
     spacing: 0,
     plannedQuantity: 0,
+    plannedWidth: 0,
+    plannedHeight: 0,
+    actualWidth: 0,
+    actualHeight: 0,
     unitName: "Stück",
     scope: "",
     plannedHoles: 0,
@@ -128,6 +132,10 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         spacing: Number(measure.spacing || .25),
         plannedQuantity: result.quantity,
         actualQuantity: result.quantity,
+        plannedWidth: measure.type === "Flächensperre" ? Number(measure.width || 0) : 0,
+        plannedHeight: measure.type === "Flächensperre" ? Number(measure.height || 0) : 0,
+        actualWidth: measure.type === "Flächensperre" ? Number(measure.width || 0) : 0,
+        actualHeight: measure.type === "Flächensperre" ? Number(measure.height || 0) : 0,
         unitName: result.unitName,
         scope: result.scope,
         plannedHoles: result.holes,
@@ -199,10 +207,15 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   // The calculator includes reserve for quotation/loading. On site we use raw consumption only.
   let measure;
   if (task.type === "Flächensperre") {
+    const width = Number(task.actualWidth || task.plannedWidth || task.plannedQuantity || 0);
+    const height = Number(task.actualHeight || task.plannedHeight || 1);
+    task.actualWidth = width;
+    task.actualHeight = height;
+    task.actualQuantity = width * height;
     measure = {
       type: task.type,
-      width: Number(task.plannedQuantity || task.actualQuantity || 0),
-      height: 1,
+      width,
+      height,
       wall,
       spacing,
       extraResinKg: 0
@@ -221,8 +234,15 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   const rawPerHole = result.holes > 0 ? Number(result.rawLiters || 0) / result.holes : 0;
 
   if (taskUsesHz(task)) {
-    task.plannedHoles = result.holes;
-    task.plannedLiters = Number(result.rawLiters || 0);
+    const plannedResult = task.type === "Flächensperre"
+      ? calculateMeasure(settings, {
+          ...measure,
+          width: Number(task.plannedWidth || measure.width || 0),
+          height: Number(task.plannedHeight || measure.height || 0)
+        })
+      : result;
+    task.plannedHoles = plannedResult.holes;
+    task.plannedLiters = Number(plannedResult.rawLiters || 0);
     task.targetLitersPerHole = rawPerHole;
 
     if (!Number.isFinite(Number(task.actualHoles)) || Number(task.actualHoles) < 0) {
@@ -240,7 +260,26 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       task.actualQuantity = Number(task.plannedQuantity || 0);
     }
 
-    task.actualLiters = Number(task.actualHoles || 0) * rawPerHole;
+    if (task.type === "Flächensperre") {
+      const firstRowResult = calculateMeasure(settings, { ...measure, height: Math.min(.25, Number(measure.height || 0)) });
+      const followingRowsLiters = Math.max(0, Number(result.rawLiters || 0) - Number(firstRowResult.rawLiters || 0));
+      task.surfaceFirstRowHoles = Number(firstRowResult.holes || 0);
+      task.surfaceFollowingRowHoles = Math.max(0, Number(result.holes || 0) - task.surfaceFirstRowHoles);
+      task.surfaceFirstRowLiters = Number(firstRowResult.rawLiters || 0);
+      task.surfaceFollowingRowsLiters = followingRowsLiters;
+      // First row is 12.5 cm above the floor; every following row is 25 cm higher.
+      const surfaceHeight = Number(measure.height || 0);
+      task.surfaceFirstRowHeight = .125;
+      task.surfaceVerticalSpacing = .25;
+      task.surfaceRowCount = surfaceHeight < task.surfaceFirstRowHeight
+        ? 0
+        : Math.floor((surfaceHeight - task.surfaceFirstRowHeight) / task.surfaceVerticalSpacing) + 1;
+      task.actualHoles = result.holes;
+      task.actualLiters = Number(result.rawLiters || 0);
+      task.targetLitersPerHole = result.holes > 0 ? Number(result.rawLiters || 0) / result.holes : 0;
+    } else {
+      task.actualLiters = Number(task.actualHoles || 0) * rawPerHole;
+    }
   } else {
     task.plannedHoles = 0;
     task.actualHoles = 0;

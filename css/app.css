@@ -1879,7 +1879,13 @@ html, body {
 .smart-selected-customer{border-color:#80c981;background:#f3fbf3}.smart-selected-customer small{color:#298a2d;font-weight:700}
 .smart-customer-card,.smart-new-customer{display:grid;gap:4px;padding:14px;border-radius:13px;background:#f3f8f3;margin:12px 0}.smart-customer-card small{font-size:10px;color:#4a9c42}.smart-customer-card strong{font-size:17px}.smart-customer-card span,.smart-new-customer span{font-size:12px;color:#647068}
 .smart-suggestion{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:13px;margin:8px 0;border:1px solid #dde4df;background:#fff;border-radius:13px}.smart-suggestion.recommended{border-color:#43ae38;background:#f8fcf7}.smart-suggestion span{display:grid;gap:3px}.smart-suggestion small{font-size:9px;color:#43ae38;font-weight:800}.smart-suggestion strong{font-size:14px}.smart-suggestion em{font-size:11px;color:#69736b;font-style:normal}.smart-suggestion b{font-size:11px;color:#318329;white-space:nowrap}
-@media(max-width:520px){.smart-appointment-actions{display:grid}.smart-suggestion{align-items:flex-start}.smart-suggestion b{display:none}.smart-customer-search-row{grid-template-columns:1fr}.smart-customer-search-row button{width:100%}}
+.smart-custom-appointment{margin-top:14px;padding:14px;border:1px solid #dce5dd;border-radius:13px;background:#f9fbf9}
+.smart-custom-appointment h3{margin:0 0 10px;font-size:15px}
+.smart-custom-appointment-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.smart-custom-appointment-fields label{display:grid;gap:5px;font-size:12px;font-weight:700;color:#445049}
+.smart-custom-appointment-fields input{width:100%;box-sizing:border-box}
+.smart-custom-appointment>button{width:100%}
+@media(max-width:520px){.smart-appointment-actions{display:grid}.smart-suggestion{align-items:flex-start}.smart-suggestion b{display:none}.smart-customer-search-row{grid-template-columns:1fr}.smart-customer-search-row button{width:100%}.smart-custom-appointment-fields{grid-template-columns:1fr}}
 .v28-dashboard-content{
   padding-top:22px;
 }

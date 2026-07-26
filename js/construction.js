@@ -80,6 +80,15 @@ function baseTask(data = {}) {
     scope: "",
     plannedHoles: 0,
     actualHoles: 0,
+    surfaceFirstRowHoles: 0,
+    surfaceFollowingRowHoles: 0,
+    surfaceFirstRowLiters: 0,
+    surfaceFollowingRowsLiters: 0,
+    surfaceRowCount: 0,
+    plannedWidth: 0,
+    plannedHeight: 0,
+    actualWidth: 0,
+    actualHeight: 0,
     plannedLiters: 0,
     actualLiters: 0,
     plannedHsKg: 0,
@@ -130,6 +139,10 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         spacing: Number(measure.spacing || .25),
         plannedQuantity: result.quantity,
         actualQuantity: result.quantity,
+        plannedWidth: measure.type === "Flächensperre" ? Number(measure.width || 0) : 0,
+        plannedHeight: measure.type === "Flächensperre" ? Number(measure.height || 0) : 0,
+        actualWidth: measure.type === "Flächensperre" ? Number(measure.width || 0) : 0,
+        actualHeight: measure.type === "Flächensperre" ? Number(measure.height || 0) : 0,
         unitName: result.unitName,
         scope: result.scope,
         plannedHoles: result.holes,
@@ -205,10 +218,12 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   // The calculator includes reserve for quotation/loading. On site we use raw consumption only.
   let measure;
   if (task.type === "Flächensperre") {
+    const width = Number(task.actualWidth || task.plannedWidth || task.plannedQuantity || 0);
+    const height = Number(task.actualHeight || task.plannedHeight || 1);
     measure = {
       type: task.type,
-      width: Number(task.actualQuantity || task.plannedQuantity || 0),
-      height: 1,
+      width,
+      height,
       wall,
       spacing,
       extraResinKg: 0
@@ -246,13 +261,45 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       task.actualQuantity = Number(task.plannedQuantity || 0);
     }
 
-    if (!Number(task.actualLitersPerHole) || changedField === "wall" || changedField === "spacing") {
-      task.actualLitersPerHole = Math.ceil(rawPerHole * 100) / 100;
+    if (task.type === "Flächensperre") {
+      const hasHoleCounts = Number(task.surfaceFirstRowHoles || 0) > 0
+        || Number(task.surfaceFollowingRowHoles || 0) > 0;
+      const geometryChanged = ["actualWidth", "actualHeight", "spacing"].includes(changedField);
+      if (!hasHoleCounts || geometryChanged) {
+        const rowCount = Number(measure.height || 0) < 0.125
+          ? 0
+          : Math.floor((Number(measure.height || 0) - 0.125) / 0.25) + 1;
+        const holesPerRow = Math.ceil(Number(measure.width || 0) / spacing);
+        task.surfaceFirstRowHoles = rowCount > 0 ? holesPerRow : 0;
+        task.surfaceFollowingRowHoles = Math.max(0, rowCount - 1) * holesPerRow;
+      }
+
+      const firstHoles = Math.max(0, Number(task.surfaceFirstRowHoles || 0));
+      const followingHoles = Math.max(0, Number(task.surfaceFollowingRowHoles || 0));
+      task.actualHoles = firstHoles + followingHoles;
+      task.surfaceRowCount = firstHoles > 0 ? 1 + followingHoles / firstHoles : 0;
+      task.actualWidth = firstHoles * spacing;
+      task.actualHeight = task.surfaceRowCount * 0.25;
+      task.actualQuantity = task.actualWidth * task.actualHeight;
+      task.surfaceFirstRowHeight = 0.125;
+      task.surfaceVerticalSpacing = 0.25;
+
+      const spacingFactor = spacing / 0.25;
+      const firstPerHole = Math.max(0.2, wall * 14 / 1000 * spacingFactor);
+      const followingPerHole = Math.max(0.2, wall * 10 / 1000 * spacingFactor);
+      task.surfaceFirstRowLiters = firstHoles * firstPerHole;
+      task.surfaceFollowingRowsLiters = followingHoles * followingPerHole;
+      task.actualLiters = task.surfaceFirstRowLiters + task.surfaceFollowingRowsLiters;
+      task.actualLitersPerHole = task.actualHoles > 0 ? task.actualLiters / task.actualHoles : 0;
+    } else {
+      if (!Number(task.actualLitersPerHole) || changedField === "wall" || changedField === "spacing") {
+        task.actualLitersPerHole = Math.ceil(rawPerHole * 100) / 100;
+      }
+      const records = Array.isArray(task.holeRecords) ? task.holeRecords : [];
+      task.actualLiters = records.length
+        ? records.reduce((sum, record) => sum + Number(record.actualLiters || 0), 0)
+        : Number(task.actualHoles || 0) * Number(task.actualLitersPerHole || rawPerHole);
     }
-    const records = Array.isArray(task.holeRecords) ? task.holeRecords : [];
-    task.actualLiters = records.length
-      ? records.reduce((sum, record) => sum + Number(record.actualLiters || 0), 0)
-      : Number(task.actualHoles || 0) * Number(task.actualLitersPerHole || rawPerHole);
   } else {
     task.plannedHoles = 0;
     task.actualHoles = 0;

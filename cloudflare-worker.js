@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.13.2
+// mainabdichter PRO Cloudflare Worker V32.13.5
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1099,7 +1099,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.13.2",
+          workerVersion: "32.13.5",
           time: new Date().toISOString()
         });
       }
@@ -1345,7 +1345,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.13.2",
+          workerVersion: "32.13.5",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -1837,6 +1837,7 @@ export default {
         const minutes=Math.max(5,Number(input.duration||60));
         const hours=String(Math.floor(minutes/60)).padStart(2,"0");
         const mins=String(minutes%60).padStart(2,"0");
+        const activityLocation=cleanText(input.location);
         const payload={
           subject,
           type:cleanText(input.type)||"meeting",
@@ -1845,7 +1846,9 @@ export default {
           duration:`${hours}:${mins}`,
           person_id:personId,
           deal_id:Number(input.dealId||0)||undefined,
-          location:cleanText(input.location)||undefined,
+          // Pipedrive API v2 erwartet hier ein Location-Objekt. Die Adresse
+          // kommt aus dem getrennten Objektadressfeld des vorhandenen Kunden.
+          location:activityLocation?{value:activityLocation}:undefined,
           note:cleanText(input.note)||undefined,
           done:false
         };

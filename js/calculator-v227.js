@@ -102,7 +102,11 @@ export function calculateMeasure(settings, measure) {
       rawLitersPerSquareMeter * reserveFactor;
 
     const holesPerRow = ceil(width / spacing);
-    const rowCount = ceil(height / 0.25);
+    const firstRowHeight = 0.125;
+    const verticalRowSpacing = 0.25;
+    const rowCount = height < firstRowHeight
+      ? 0
+      : Math.floor((height - firstRowHeight) / verticalRowSpacing) + 1;
     holes = holesPerRow * rowCount;
     rawLiters = holesPerRow * firstRowLitersPerHole
       + Math.max(0, rowCount - 1) * holesPerRow * followingRowLitersPerHole;
