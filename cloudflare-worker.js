@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.13.6
+// mainabdichter PRO Cloudflare Worker V32.13.8
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1099,7 +1099,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.13.6",
+          workerVersion: "32.13.8",
           time: new Date().toISOString()
         });
       }
@@ -1345,7 +1345,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.13.6",
+          workerVersion: "32.13.8",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -1805,7 +1805,7 @@ export default {
         // anhand der Aktivitäts-ID zusammenführen.
         for (const done of ["false", "true"]) {
           let cursor="";
-          let reachedRequestedDate=false;
+          let statusPageCount=0;
           do {
             const params=new URLSearchParams({
               done,
@@ -1818,10 +1818,10 @@ export default {
             const result=await pipedriveRequest(env,`/api/v2/activities?${params.toString()}`);
             const page=Array.isArray(result.data)?result.data:[];
             allActivities.push(...page);
-            reachedRequestedDate=page.some(item=>item?.due_date&&item.due_date<date);
             cursor=cleanText(result.additional_data?.next_cursor||result.additional_data?.pagination?.next_cursor||"");
             pageCount+=1;
-          } while(cursor&&!reachedRequestedDate&&pageCount<100);
+            statusPageCount+=1;
+          } while(cursor&&statusPageCount<100);
         }
         // Zweiter, unabhaengiger Abrufweg: Einige Pipedrive-Konten liefern
         // synchronisierte Kalenderaktivitaeten ueber die v2-Sammlung nicht
@@ -1841,13 +1841,14 @@ export default {
           const nextStart=Number(pagination.next_start);
           start=Number.isFinite(nextStart)?nextStart:start+page.length;
           v1PageCount+=1;
-          if(page.some(item=>item?.due_date&&item.due_date<date)) moreV1=false;
           if(!page.length) moreV1=false;
         }
         const uniqueActivities=[...new Map(allActivities.map(item=>[String(item?.id||crypto.randomUUID()),item])).values()];
         const activities=uniqueActivities.filter(item=>item&&item.due_date&&(upcoming?item.due_date>=date:item.due_date===date)).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const attendee=Array.isArray(item.attendees)?item.attendees.find(x=>x?.person_id)||item.attendees[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||attendee?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:item.due_date||"",dueTime:item.due_time||"",duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||attendee?.name||""};});
         activities.sort((a,b)=>`${a.dueDate} ${a.dueTime||"00:00"}`.localeCompare(`${b.dueDate} ${b.dueTime||"00:00"}`));
-        return jsonResponse(request,{ok:true,activities,diagnostics:{v2Pages:pageCount,v1Pages:v1PageCount,received:allActivities.length,unique:uniqueActivities.length,matched:activities.length,fromDate:date,statusGroups:["open","done"],sources:["v2","v1"]}});
+        const datedActivities=uniqueActivities.filter(item=>item?.due_date);
+        const availableDates=datedActivities.map(item=>item.due_date).sort();
+        return jsonResponse(request,{ok:true,activities,diagnostics:{v2Pages:pageCount,v1Pages:v1PageCount,received:allActivities.length,unique:uniqueActivities.length,dated:datedActivities.length,matched:activities.length,fromDate:date,earliestDate:availableDates[0]||"",latestDate:availableDates.at(-1)||"",statusGroups:["open","done"],sources:["v2","v1"],paginationComplete:true}});
       }
 
       if (url.pathname === "/pipedrive/activities" && request.method === "POST") {
