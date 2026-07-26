@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.12.0</title>
-<link rel="stylesheet" href="css/app.css?v=32.12.0">
+<title>mainabdichter PRO V32.12.1</title>
+<link rel="stylesheet" href="css/app.css?v=32.12.1">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -166,6 +166,30 @@ main{width:100%;max-width:100%}
         <div><small>INTELLIGENTE TERMINPLANUNG</small><h2 id="smartAppointmentTitle">Was soll ich einplanen?</h2><p>Nenne nur Kunde, Anliegen und wenn nötig den gewünschten Zeitraum.</p></div>
         <button type="button" id="closeSmartAppointment" aria-label="Schließen">×</button>
       </header>
+      <div class="smart-manual-fields">
+        <div>
+          <label for="smartCustomerSearch">Kunde händisch auswählen</label>
+          <div class="smart-customer-search-row">
+            <input id="smartCustomerSearch" type="search" placeholder="Name, Ort, Telefon oder E-Mail">
+            <button type="button" id="smartSearchCustomer" class="secondary">Suchen</button>
+          </div>
+          <div id="smartCustomerSearchResults" class="smart-customer-search-results"></div>
+        </div>
+        <div>
+          <label for="smartAppointmentReason">Termingrund auswählen</label>
+          <select id="smartAppointmentReason">
+            <option value="">Automatisch aus Eingabe erkennen</option>
+            <option value="Besichtigung">Besichtigung</option>
+            <option value="Rückruf">Rückruf</option>
+            <option value="Nachkontrolle">Nachkontrolle</option>
+            <option value="Reklamation">Reklamation</option>
+            <option value="Nachbesserung">Nachbesserung</option>
+            <option value="Ausführung">Ausführung</option>
+            <option value="Abholung">Material-/Flaschenabholung</option>
+            <option value="Sonstiger Termin">Sonstiger Termin</option>
+          </select>
+        </div>
+      </div>
       <label for="smartAppointmentText">Sprache oder Texteingabe</label>
       <textarea id="smartAppointmentText" rows="4" placeholder="Zum Beispiel: Kunde Höffner hat eine Reklamation und möchte nächste Woche einen Termin."></textarea>
       <div class="smart-appointment-actions">
@@ -1169,7 +1193,7 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.12.0"></script>
+<script type="module" src="js/app.js?v=32.12.1"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

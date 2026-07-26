@@ -1867,9 +1867,19 @@ html, body {
 .smart-appointment-launch strong,.smart-appointment-launch small{display:block}.smart-appointment-launch strong{font-size:14px}.smart-appointment-launch small{font-size:11px;color:#69736b;margin-top:2px}.smart-appointment-launch em{font-style:normal;font-size:24px;color:#43ae38}
 .smart-appointment-dialog{max-width:620px}.smart-appointment-dialog textarea{width:100%;box-sizing:border-box;font-size:16px;line-height:1.45}
 .smart-appointment-actions{display:flex;gap:10px;margin-top:10px}.smart-appointment-actions button{flex:1}
+.smart-manual-fields{display:grid;gap:12px;margin-bottom:15px;padding:13px;border:1px solid #e1e8e2;border-radius:13px;background:#f9fbf9}
+.smart-manual-fields label{display:block;margin-bottom:5px;font-size:12px;font-weight:700;color:#445049}
+.smart-manual-fields input,.smart-manual-fields select{width:100%;box-sizing:border-box}
+.smart-customer-search-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.smart-customer-search-results{display:grid;gap:7px;margin-top:8px}
+.smart-customer-result,.smart-selected-customer{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid #dce5dd;border-radius:10px;background:#fff;text-align:left}
+.smart-customer-result span,.smart-customer-result strong,.smart-customer-result small,.smart-selected-customer span,.smart-selected-customer strong,.smart-selected-customer small,.smart-selected-customer em{display:block}
+.smart-customer-result small,.smart-selected-customer small,.smart-selected-customer em{margin-top:2px;font-size:11px;color:#68716a;font-style:normal}
+.smart-customer-result b{font-size:11px;color:#298a2d}
+.smart-selected-customer{border-color:#80c981;background:#f3fbf3}.smart-selected-customer small{color:#298a2d;font-weight:700}
 .smart-customer-card,.smart-new-customer{display:grid;gap:4px;padding:14px;border-radius:13px;background:#f3f8f3;margin:12px 0}.smart-customer-card small{font-size:10px;color:#4a9c42}.smart-customer-card strong{font-size:17px}.smart-customer-card span,.smart-new-customer span{font-size:12px;color:#647068}
 .smart-suggestion{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:13px;margin:8px 0;border:1px solid #dde4df;background:#fff;border-radius:13px}.smart-suggestion.recommended{border-color:#43ae38;background:#f8fcf7}.smart-suggestion span{display:grid;gap:3px}.smart-suggestion small{font-size:9px;color:#43ae38;font-weight:800}.smart-suggestion strong{font-size:14px}.smart-suggestion em{font-size:11px;color:#69736b;font-style:normal}.smart-suggestion b{font-size:11px;color:#318329;white-space:nowrap}
-@media(max-width:520px){.smart-appointment-actions{display:grid}.smart-suggestion{align-items:flex-start}.smart-suggestion b{display:none}}
+@media(max-width:520px){.smart-appointment-actions{display:grid}.smart-suggestion{align-items:flex-start}.smart-suggestion b{display:none}.smart-customer-search-row{grid-template-columns:1fr}.smart-customer-search-row button{width:100%}}
 .v28-dashboard-content{
   padding-top:22px;
 }

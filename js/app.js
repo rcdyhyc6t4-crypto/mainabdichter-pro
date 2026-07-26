@@ -471,8 +471,22 @@ let cachedAcceptedQuotations = [];
 let cachedOpenLexofficeQuotations = [];
 let cachedUpcomingPipedriveActivities = [];
 let smartAppointmentDraft = null;
+let smartAppointmentPerson = null;
+
+const SMART_APPOINTMENT_KINDS = {
+  "Besichtigung": {label:"Besichtigung",duration:60,priority:1},
+  "Rückruf": {label:"Rückruf",duration:20,priority:2},
+  "Nachkontrolle": {label:"Nachkontrolle",duration:45,priority:2},
+  "Reklamation": {label:"Reklamation",duration:60,priority:3},
+  "Nachbesserung": {label:"Nachbesserung",duration:90,priority:3},
+  "Ausführung": {label:"Ausführung",duration:480,priority:2},
+  "Abholung": {label:"Abholung",duration:30,priority:1},
+  "Sonstiger Termin": {label:"Sonstiger Termin",duration:60,priority:1}
+};
 
 function smartCaseType(text) {
+  const selected=$("smartAppointmentReason")?.value;
+  if(selected&&SMART_APPOINTMENT_KINDS[selected]) return {...SMART_APPOINTMENT_KINDS[selected]};
   const value=String(text||"").toLowerCase();
   if(/reklamation|mangel|problem|wieder feucht/.test(value)) return {label:"Reklamation",duration:60,priority:3};
   if(/nachkontrolle|kontrolle|überprüf/.test(value)) return {label:"Nachkontrolle",duration:45,priority:2};
@@ -481,6 +495,37 @@ function smartCaseType(text) {
   if(/abhol|flasche|material/.test(value)) return {label:"Abholung",duration:30,priority:1};
   if(/ausführung|baustelle/.test(value)) return {label:"Ausführung",duration:480,priority:2};
   return {label:"Besichtigung",duration:60,priority:1};
+}
+
+function renderSmartSelectedCustomer(person) {
+  smartAppointmentPerson=person||null;
+  const box=$("smartCustomerSearchResults");
+  if(!box) return;
+  if(!person){box.innerHTML="";return;}
+  box.innerHTML=`<div class="smart-selected-customer"><span><small>AUSGEWÄHLTER KUNDE</small><strong>${esc(person.name||"Kunde")}</strong><em>${esc(smartCity(person)||person.email||person.phone||"Pipedrive")}</em></span><button type="button" id="smartClearCustomer" class="secondary">Ändern</button></div>`;
+  $("smartClearCustomer").onclick=()=>{smartAppointmentPerson=null;box.innerHTML="";$("smartCustomerSearch")?.focus();};
+}
+
+async function searchSmartAppointmentCustomer() {
+  const term=$("smartCustomerSearch")?.value.trim();
+  if(!term) return showStatus("smartAppointmentStatus","Bitte gib Name, Ort, Telefonnummer oder E-Mail des Kunden ein.",false);
+  showStatus("smartAppointmentStatus","Kunden werden in Pipedrive gesucht …",true);
+  try{
+    const result=await searchPipedrive(term);
+    const people=result.people||[];
+    const box=$("smartCustomerSearchResults");
+    if(!people.length){box.innerHTML=`<div class="empty-mini">Kein passender Bestandskunde gefunden.</div>`;return showStatus("smartAppointmentStatus","Kein Bestandskunde gefunden. Du kannst den Vorgang über die Texteingabe als Neukunden-Anfrage starten.",false);}
+    box.innerHTML=people.slice(0,8).map((person,index)=>`<button type="button" class="smart-customer-result" data-smart-customer="${index}"><span><strong>${esc(person.name||"Kunde")}</strong><small>${esc(smartCity(person)||person.email||person.phone||"Keine Anschrift hinterlegt")}</small></span><b>Auswählen</b></button>`).join("");
+    box.querySelectorAll("[data-smart-customer]").forEach(button=>button.onclick=async()=>{
+      const person=people[Number(button.dataset.smartCustomer)];
+      showStatus("smartAppointmentStatus","Kundendaten werden geladen …",true);
+      try{
+        const detail=await loadPipedrivePerson(person.id);
+        renderSmartSelectedCustomer({...person,...(detail.person||{})});
+        showStatus("smartAppointmentStatus","Kunde ausgewählt. Jetzt Termingrund wählen oder das Anliegen beschreiben.",true);
+      }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
+    });
+  }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
 }
 
 function smartDateStart(text) {
@@ -537,9 +582,13 @@ function renderSmartAppointmentResults() {
 
 async function analyzeSmartAppointment() {
   const text=$("smartAppointmentText")?.value.trim();
-  if(!text) return showStatus("smartAppointmentStatus","Sag oder schreibe kurz, um welchen Kunden und Vorgang es geht.",false);
+  const selectedReason=$("smartAppointmentReason")?.value;
+  if(!text&&!smartAppointmentPerson) return showStatus("smartAppointmentStatus","Wähle einen Kunden aus oder sag beziehungsweise schreibe kurz, um wen es geht.",false);
+  if(!text&&!selectedReason) return showStatus("smartAppointmentStatus","Bitte wähle zusätzlich den Termingrund aus.",false);
   showStatus("smartAppointmentStatus","Kunde und passende Termine werden gesucht …",true);
   try{
+    let fullPerson=smartAppointmentPerson;
+    if(!fullPerson){
     const ignored=new Set(["kunde","kundin","herr","frau","hat","eine","einen","möchte","wünscht","termin","reklamation","nachkontrolle","besichtigung","anfrage","neu","neukunde"]);
     const words=text.replace(/[.,!?]/g," ").split(/\s+/).filter(word=>word.length>2&&!ignored.has(word.toLowerCase()));
     let result=null,term="";
@@ -555,9 +604,10 @@ async function analyzeSmartAppointment() {
     }
     const person=result.people[0];
     const detail=await loadPipedrivePerson(person.id);
-    const fullPerson={...person,...(detail.person||{})};
+    fullPerson={...person,...(detail.person||{})};
+    }
     const kind=smartCaseType(text);
-    smartAppointmentDraft={text,person:fullPerson,kind,suggestions:buildSmartSuggestions(text,fullPerson)};
+    smartAppointmentDraft={text:text||`${kind.label} für ${fullPerson.name||"Kunde"}`,person:fullPerson,kind,suggestions:buildSmartSuggestions(text,fullPerson)};
     renderSmartAppointmentResults();
     showStatus("smartAppointmentStatus","Vorgang erkannt. Wähle nur noch einen Termin aus.",true);
   }catch(error){showStatus("smartAppointmentStatus",error.message,false);}
@@ -1025,7 +1075,11 @@ function initializeV28Dashboard() {
   if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>setNewInquiryModal(true);
   if ($("v28SmartAppointment")) $("v28SmartAppointment").onclick=()=>{
     smartAppointmentDraft=null;
+    smartAppointmentPerson=null;
     $("smartAppointmentText").value="";
+    $("smartCustomerSearch").value="";
+    $("smartAppointmentReason").value="";
+    $("smartCustomerSearchResults").innerHTML="";
     $("smartAppointmentResults").innerHTML="";
     showStatus("smartAppointmentStatus","Zum Beispiel: „Kunde Höffner hat eine Reklamation und möchte nächste Woche einen Termin.“",true);
     v287SetModal("smartAppointmentModal",true);
@@ -1033,6 +1087,8 @@ function initializeV28Dashboard() {
   };
   if ($("closeSmartAppointment")) $("closeSmartAppointment").onclick=()=>v287SetModal("smartAppointmentModal",false);
   if ($("analyzeSmartAppointment")) $("analyzeSmartAppointment").onclick=analyzeSmartAppointment;
+  if ($("smartSearchCustomer")) $("smartSearchCustomer").onclick=searchSmartAppointmentCustomer;
+  if ($("smartCustomerSearch")) $("smartCustomerSearch").onkeydown=event=>{if(event.key==="Enter"){event.preventDefault();searchSmartAppointmentCustomer();}};
   if ($("smartAppointmentModal")) $("smartAppointmentModal").onclick=event=>{if(event.target===$("smartAppointmentModal"))v287SetModal("smartAppointmentModal",false);};
   if ($("closeNewInquiryModal")) $("closeNewInquiryModal").onclick=()=>setNewInquiryModal(false);
   if ($("newInquiryModal")) $("newInquiryModal").onclick=event=>{
