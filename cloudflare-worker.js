@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.19.2
+// mainabdichter PRO Cloudflare Worker V32.19.3
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1494,9 +1494,45 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.19.2",
+          workerVersion: "32.19.3",
           time: new Date().toISOString()
         });
+      }
+
+      // Safari/iOS blockiert gelegentlich Cross-Origin-Aufrufe mit
+      // benutzerdefinierten Headern. Dieser TLS-geschützte Request benötigt
+      // deshalb keinen CORS-Preflight.
+      if (url.pathname === "/mobile-sync" && request.method === "POST") {
+        const input = JSON.parse(await request.text().catch(() => "{}"));
+        if (!input || input.secret !== env.APP_SECRET) {
+          return jsonResponse(request, { ok: false, error: "Nicht autorisiert." }, 401);
+        }
+        if (input.action === "load") {
+          const backup = await loadDriveBackup(env);
+          return jsonResponse(request, {
+            ok: true,
+            exists: Boolean(backup),
+            backup: backup?.payload || null,
+            file: backup?.file || null
+          });
+        }
+        if (input.action === "save") {
+          const payload = input.payload;
+          if (!payload || typeof payload !== "object") {
+            return jsonResponse(request, { ok: false, error: "Sicherungsdaten fehlen." }, 400);
+          }
+          const encodedSize = new TextEncoder().encode(JSON.stringify(payload)).byteLength;
+          if (encodedSize > 25 * 1024 * 1024) {
+            return jsonResponse(request, { ok: false, error: "Die Datensicherung ist größer als 25 MB." }, 413);
+          }
+          const file = await saveDriveBackup(
+            env,
+            payload,
+            String(input.expectedRemoteModifiedTime || "")
+          );
+          return jsonResponse(request, { ok: true, file });
+        }
+        return jsonResponse(request, { ok: false, error: "Synchronisationsaktion ist ungültig." }, 400);
       }
 
       if (
@@ -1829,7 +1865,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.19.2",
+          workerVersion: "32.19.3",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

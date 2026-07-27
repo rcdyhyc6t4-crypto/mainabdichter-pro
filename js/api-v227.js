@@ -331,20 +331,34 @@ export async function testGoogleDrive() {
 }
 
 export async function saveDriveBackup(payload, expectedRemoteModifiedTime = "") {
-  return api("/drive/backup", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(expectedRemoteModifiedTime
-        ? { "X-Backup-Base-Modified": expectedRemoteModifiedTime }
-        : {})
-    },
-    body: JSON.stringify(payload)
+  return mobileBackupApi("save", {
+    payload,
+    expectedRemoteModifiedTime
   });
 }
 
+async function mobileBackupApi(action, values = {}) {
+  const { url, secret } = config();
+  if (!url || !secret) throw new Error("Zugangsdaten fehlen.");
+  const response = await fetchWithTimeout(`${url}/mobile-sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=UTF-8"
+    },
+    body: JSON.stringify({ action, secret, ...values })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || "Zentrale Datensicherung konnte nicht geladen werden.");
+    error.status = response.status;
+    error.details = data.details || data;
+    throw error;
+  }
+  return data;
+}
+
 export async function loadDriveBackup() {
-  return api("/drive/backup");
+  return mobileBackupApi("load");
 }
 
 export async function loadPipedriveDealContext(dealId){return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/context`);}

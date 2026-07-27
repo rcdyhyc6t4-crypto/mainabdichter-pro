@@ -1,0 +1,7 @@
+mainabdichter PRO V32.19.3
+
+- Zentraler Drive-Abruf nutzt auf iPhone/iPad einen Safari-kompatiblen Request.
+- Kein benutzerdefinierter Header und damit kein fehleranfälliger CORS-Preflight.
+- APP_SECRET wird weiterhin ausschließlich TLS-verschlüsselt übertragen.
+- Speichern und Laden unterstützen weiterhin den Versions-/Konfliktschutz.
+- Notfall-Wiederherstellung und genaue Diagnose bleiben enthalten.
