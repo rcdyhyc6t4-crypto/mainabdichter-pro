@@ -1,4 +1,4 @@
-mainabdichter PRO V32.18.1 – Komplettpaket
+mainabdichter PRO V32.18.3 – Komplettpaket
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.

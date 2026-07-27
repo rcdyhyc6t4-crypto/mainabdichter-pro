@@ -153,6 +153,10 @@ function mappedCustomFields(values) {
       }
       continue;
     }
+    if (type.includes("varchar")) {
+      custom[fieldKey]=String(value).slice(0,255);
+      continue;
+    }
     custom[fieldKey]=value;
   }
   return custom;
@@ -186,7 +190,7 @@ export function worksiteSyncValues(worksite) {
   const tasks=worksite.tasks||[];
   const sum=key=>tasks.reduce((total,t)=>total+parseDecimal(t[key]),0);
   const charges=[...new Set(tasks.map(t=>t.chargeHz).filter(Boolean))].join(", ");
-  const notes=tasks.map(t=>`${t.areaName} – ${t.type}: ${t.note||"ausgeführt"}`).join("\n");
+  const notes=tasks.map(t=>`${t.areaName} – ${t.type}: ${t.actualNote||t.note||"ausgeführt"}`).join("\n");
   return mappedCustomFields({
     objectAddress:worksite.objectAddress,
     workDate:worksite.date,

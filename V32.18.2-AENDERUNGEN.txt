@@ -1,0 +1,8 @@
+mainabdichter PRO V32.18.2
+
+- Pipedrive-Kurztextfelder werden automatisch auf maximal 255 Zeichen begrenzt.
+- Die vollständigen Ausführungs- und Baustellennotizen bleiben in App und PDF erhalten.
+- Vollständige Bemerkungen werden zusätzlich als Pipedrive-Notiz übertragen.
+- Eine fehlgeschlagene Pipedrive-Übertragung setzt eine lokal bestätigte Baustellenplanung nicht mehr zurück.
+- Die Planung bleibt in der App verbindlich gespeichert und wird zur erneuten Synchronisation vorgemerkt.
+- Bestehende Adress-, Dubletten-, Deal-ID- und Pipedrive-Feldregeln bleiben unverändert.

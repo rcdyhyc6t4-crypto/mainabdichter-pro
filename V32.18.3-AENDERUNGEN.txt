@@ -1,0 +1,8 @@
+mainabdichter PRO V32.18.3
+
+- „Alle Maßnahmen geprüft“ ist jetzt antippbar und springt direkt zur ersten offenen Maßnahme.
+- Auch die weiteren Prüfpunkte führen direkt zum passenden Eingabefeld.
+- Jeder Arbeitsnachweis wird getrennt nach Baustelle/Kunde zwischengespeichert.
+- Beim Verlassen einer Baustelle wird der aktuelle Nachweis automatisch gesichert.
+- Eine zusätzliche Schutzprüfung verhindert, dass sichtbare Daten in eine andere Baustelle gespeichert werden.
+- Tatsächliche Ausführungsnotizen erscheinen korrekt im PDF und in Pipedrive.

@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.18.1
+// mainabdichter PRO Cloudflare Worker V32.18.3
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1230,7 +1230,8 @@ function normalizeDealCustomFieldValue(field, rawValue) {
     return rawValue;
   }
 
-  return String(rawValue);
+  const text = String(rawValue);
+  return field.type.includes("varchar") ? text.slice(0, 255) : text;
 }
 
 async function sanitizeDealCustomFields(env, customFields) {
@@ -1260,6 +1261,9 @@ async function sanitizeDealCustomFields(env, customFields) {
       continue;
     }
 
+    if (field.type.includes("varchar") && String(rawValue).length > 255) {
+      warnings.push(`Der Kurztext „${field.name || key}“ wurde sicher auf 255 Zeichen gekürzt.`);
+    }
     fields[key] = value;
   }
 
@@ -1490,7 +1494,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.18.1",
+          workerVersion: "32.18.3",
           time: new Date().toISOString()
         });
       }
@@ -1825,7 +1829,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.18.1",
+          workerVersion: "32.18.3",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

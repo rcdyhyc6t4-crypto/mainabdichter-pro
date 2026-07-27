@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.1";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.3";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.1";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.3";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,10 +13,10 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.1";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.3";
 
 
-const MAINABDICHTER_APP_VERSION = "32.18.1";
+const MAINABDICHTER_APP_VERSION = "32.18.3";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -450,13 +450,17 @@ async function uploadWorksiteAttachments(worksite) {
 async function syncWorksiteDeal(worksite, stageKey = null, pdf = null, uploadAttachments = true) {
   const personId = worksite.pipedrivePersonId || await ensurePipedrivePerson(worksite.customer);
   worksite.pipedrivePersonId = personId;
+  const completeNotes = (worksite.tasks || [])
+    .map(task => `<strong>${esc(task.areaName || "Bereich")} – ${esc(task.type || "Leistung")}</strong><br>${esc(task.actualNote || task.note || "ausgeführt").replace(/\n/g, "<br>")}`)
+    .join("<br><br>");
+  const generalNotes = String(worksite.generalNotes || "").trim();
   const response = await syncPipedriveDeal({
     dealId: worksite.pipedriveDealId || worksite.customer?.pipedriveDealId || "",
     personId,
     title: `${worksiteCustomerName(worksite)} – ${worksite.objectAddress || "Baustelle"}`,
     stageId: stageKey ? requiredPipedriveStageId(stageKey) : undefined,
     customFields: worksiteSyncValues(worksite),
-    note: `Baustellenstatus: ${worksite.status || "geplant"}<br>Arbeitsnachweis zuletzt synchronisiert: ${new Date().toLocaleString("de-DE")}`
+    note: `Baustellenstatus: ${worksite.status || "geplant"}<br>Arbeitsnachweis zuletzt synchronisiert: ${new Date().toLocaleString("de-DE")}${generalNotes ? `<br><br><strong>Allgemeine Bemerkungen</strong><br>${esc(generalNotes).replace(/\n/g, "<br>")}` : ""}${completeNotes ? `<br><br><strong>Ausführung und Besonderheiten</strong><br>${completeNotes}` : ""}`
   });
   worksite.pipedriveDealId = String(response.deal?.id || worksite.pipedriveDealId || "");
   worksite.customer.pipedriveDealId = worksite.pipedriveDealId;
@@ -4835,6 +4839,11 @@ function renderWorksites() {
 function collectWorksite() {
   const worksite = getWorksite(activeWorksiteId);
   if (!worksite) return null;
+  const renderedWorksiteId = $("worksiteEditor")?.dataset.worksiteId || "";
+  if (renderedWorksiteId && renderedWorksiteId !== activeWorksiteId) {
+    console.warn("Arbeitsnachweis nicht gespeichert: angezeigte und aktive Baustelle stimmen nicht überein.");
+    return null;
+  }
   worksite.date = $("wsDate").value;
   worksite.employees = $("wsEmployees").value.trim();
   worksite.startTime = $("wsStart").value;
@@ -4861,6 +4870,8 @@ function collectWorksite() {
   worksite.tasks.forEach(task => {
     if (taskIsTechnical(task)) recalculateWorksiteTask(state.settings, task, "actualHoles");
   });
+  worksite.draftOwnerKey = `${worksite.id}:${worksite.pipedriveDealId || worksite.customer?.pipedriveId || "lokal"}`;
+  worksite.draftUpdatedAt = new Date().toISOString();
   return worksite;
 }
 
@@ -5238,15 +5249,31 @@ function renderWorksitePhotoPage(ws) {
 function renderWorksiteReportChecklist(ws) {
   const box = $("wsReportChecklist");
   if (!box) return;
+  const firstOpenTask = reportableWorksiteTasks(ws).find(task => !task.completed);
   const checks = [
-    ["Alle Maßnahmen geprüft", reportableWorksiteTasks(ws).every(task => task.completed)],
-    ["Arbeitszeit erfasst", Boolean(ws.startTime && ws.endTime)],
-    ["Mitarbeiter erfasst", Boolean(String(ws.employees || "").trim())],
-    ["Bemerkungen geprüft", true],
-    ["Kundenbestätigung", Boolean(String(ws.customerSignature || "").trim() && ws.customerSignatureData)]
+    ["Alle Maßnahmen geprüft", !firstOpenTask, "wsSectionExecution", firstOpenTask?.id || ""],
+    ["Arbeitszeit erfasst", Boolean(ws.startTime && ws.endTime), ws.startTime ? "wsSectionReport" : "wsSectionOverview", ws.startTime ? "wsEnd" : "wsStart"],
+    ["Mitarbeiter erfasst", Boolean(String(ws.employees || "").trim()), "wsSectionOverview", "wsEmployees"],
+    ["Bemerkungen geprüft", true, "wsSectionNotes", "wsGeneralNotes"],
+    ["Kundenbestätigung", Boolean(String(ws.customerSignature || "").trim() && ws.customerSignatureData), "wsSectionReport", "wsCustomerSignature"]
   ];
-  box.innerHTML = checks.map(([label, ok]) => `
-    <div class="${ok ? "ok" : "missing"}"><span>${ok ? "✓" : "!"}</span><strong>${esc(label)}</strong></div>`).join("");
+  box.innerHTML = checks.map(([label, ok, section, target]) => `
+    <button type="button" class="${ok ? "ok" : "missing"}" data-check-section="${section}" data-check-target="${esc(target)}">
+      <span>${ok ? "✓" : "!"}</span><strong>${esc(label)}</strong><small>${ok ? "Antippen zum Prüfen" : "Antippen und erledigen →"}</small>
+    </button>`).join("");
+  box.querySelectorAll("[data-check-section]").forEach(button => button.onclick = () => {
+    saveActiveWorksite(false);
+    activateWorksiteSection(button.dataset.checkSection);
+    setTimeout(() => {
+      const target = button.dataset.checkTarget;
+      let element = target ? document.getElementById(target) : null;
+      if (!element && target) element = document.querySelector(`[data-ws-task="${CSS.escape(target)}"]`)?.closest(".worksite-task-card");
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      element?.focus?.({ preventScroll: true });
+      element?.classList.add("worksite-check-target");
+      setTimeout(() => element?.classList.remove("worksite-check-target"), 1800);
+    }, 80);
+  });
 }
 
 function invoiceReviewRows(ws) {
@@ -5428,8 +5455,13 @@ function initializeWorksiteSignatures(ws) {
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
+  $("worksiteEditor").dataset.worksiteId = ws.id;
   $("wsCustomer").textContent = worksiteCustomerName(ws);
   $("wsAddress").textContent = ws.objectAddress || "–";
+  if ($("wsDraftStatus")) {
+    const saved = ws.draftUpdatedAt ? new Date(ws.draftUpdatedAt).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"}) : "";
+    $("wsDraftStatus").textContent = `Eigener Arbeitsnachweis für ${worksiteCustomerName(ws)}${saved ? ` · gespeichert ${saved} Uhr` : " · automatisch gespeichert"}`;
+  }
   $("wsDate").value = ws.date || "";
   if ($("wsPlanningDate")) $("wsPlanningDate").value = ws.date || "";
   $("wsEmployees").value = ws.employees || "";
@@ -5852,7 +5884,7 @@ function injectionExceptionsHtml(task) {
 
 function buildWorksitePrint(ws) {
   const totals=worksiteMaterialTotals(ws);
-  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div>${task.type==="Flächensperre"?`<div><strong>Ausgeführte Fläche:</strong> ${num(task.actualWidth)} lfm × ${num(task.actualHeight)} m = ${num(task.actualQuantity)} m²</div><div><strong>Bohrreihen:</strong> ${num(task.surfaceRowCount)}</div><div><strong>Unterste Reihe · 12,5 cm über Boden · Faktor 14:</strong> ${num(task.surfaceFirstRowHoles)} Bohrlöcher × ${Math.round(Number(task.surfaceFirstRowMlPerHole || 0))} ml = ${num(task.surfaceFirstRowLiters)} l</div><div><strong>Weitere Reihen · vertikal alle 25 cm · Faktor 10:</strong> ${num(task.surfaceFollowingRowHoles)} Bohrlöcher × ${Math.round(Number(task.surfaceFollowingRowMlPerHole || 0))} ml = ${num(task.surfaceFollowingRowsLiters)} l</div>`:""}<div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div>${task.type==="Flächensperre"?"":`<div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div>`}<div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.note||"–")}</div>${injectionExceptionsHtml(task)}${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div>${task.type==="Flächensperre"?`<div><strong>Ausgeführte Fläche:</strong> ${num(task.actualWidth)} lfm × ${num(task.actualHeight)} m = ${num(task.actualQuantity)} m²</div><div><strong>Bohrreihen:</strong> ${num(task.surfaceRowCount)}</div><div><strong>Unterste Reihe · 12,5 cm über Boden · Faktor 14:</strong> ${num(task.surfaceFirstRowHoles)} Bohrlöcher × ${Math.round(Number(task.surfaceFirstRowMlPerHole || 0))} ml = ${num(task.surfaceFirstRowLiters)} l</div><div><strong>Weitere Reihen · vertikal alle 25 cm · Faktor 10:</strong> ${num(task.surfaceFollowingRowHoles)} Bohrlöcher × ${Math.round(Number(task.surfaceFollowingRowMlPerHole || 0))} ml = ${num(task.surfaceFollowingRowsLiters)} l</div>`:""}<div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div>${task.type==="Flächensperre"?"":`<div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div>`}<div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.actualNote||task.note||"–")}</div>${injectionExceptionsHtml(task)}${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
 $("backToVisitInput").onclick = () => {
@@ -5929,12 +5961,16 @@ $("createWorksite").onclick = async () => {
   }
 };
 $("closeWorksite").onclick = () => {
+  saveActiveWorksite(false);
   activeWorksiteId = null;
+  delete $("worksiteEditor").dataset.worksiteId;
   sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
   renderWorksites();
 };
 if ($("closeWorksiteDetail")) $("closeWorksiteDetail").onclick = () => {
+  saveActiveWorksite(false);
   activeWorksiteId = null;
+  delete $("worksiteEditor").dataset.worksiteId;
   sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
   renderWorksites();
 };
@@ -5975,14 +6011,22 @@ if ($("confirmWorksitePlanning")) $("confirmWorksitePlanning").onclick = async (
     ws.planningConfirmedAt = new Date().toISOString();
     persistWorksite(ws);
     await syncWorksiteDeal(ws, "executionPlanned", null, false);
+    ws.pipedrivePendingSync = false;
+    ws.pipedriveSyncError = "";
+    persistWorksite(ws);
     if ($("wsDate")) $("wsDate").value = date;
     renderWorksitePlanning(ws);
     renderV28Dashboard();
     showStatus("worksiteStatus", "Ausführung wurde verbindlich geplant und in Pipedrive auf „Ausführung geplant“ verschoben.", true);
   } catch (error) {
-    ws.status = "planning";
+    ws.status = "planned";
+    ws.pipedrivePendingSync = true;
+    ws.pipedriveSyncError = error.message;
     persistWorksite(ws);
-    showStatus("worksiteStatus", `Planung konnte nicht bestätigt werden: ${error.message}`, false);
+    if ($("wsDate")) $("wsDate").value = date;
+    renderWorksitePlanning(ws);
+    renderV28Dashboard();
+    showStatus("worksiteStatus", `Ausführung ist in der App verbindlich geplant. Die Pipedrive-Übertragung wird später erneut versucht: ${error.message}`, false);
   } finally {
     button.disabled = false;
   }
