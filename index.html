@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.15.1</title>
-<link rel="stylesheet" href="css/app.css?v=32.15.1">
+<title>mainabdichter PRO V32.16.0</title>
+<link rel="stylesheet" href="css/app.css?v=32.16.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -46,9 +46,9 @@ main{width:100%;max-width:100%}
         <span>Guten Morgen,</span>
         <strong>Mike <em>👋</em></strong>
       </div>
-      <button type="button" id="v28SystemStatus" class="v287-sync-card">
-        <span class="v287-sync-line"><i id="v28SystemDot" class="v28-status-dot v28-status-yellow"></i><strong id="v287SyncTitle">Wird geprüft</strong></span>
-        <small id="v287SyncTime">Letzte Synchronisation noch offen</small>
+      <button type="button" id="v28ConversationNotes" class="v287-sync-card communication-note-card">
+        <span class="v287-sync-line"><i class="communication-note-icon">✎</i><strong>Gesprächsnotizen</strong></span>
+        <small><b id="v28OpenNoteCount">0</b> offen · Antippen zum Erfassen</small>
       </button>
     </section>
 
@@ -63,6 +63,11 @@ main{width:100%;max-width:100%}
       <button type="button" id="v28SmartAppointment" class="smart-appointment-launch">
         <span>✦</span><span><strong>Termin intelligent planen</strong><small>Kunde und Anliegen einfach sagen oder schreiben</small></span><em>›</em>
       </button>
+      <div class="dashboard-communication-row">
+        <button type="button" id="v28QuickNote"><span>✎</span><strong>Gesprächsnotiz</strong><small>Sprechen oder schreiben</small></button>
+        <button type="button" id="v28EmailInbox"><span>✉</span><strong>Neue E-Mails</strong><small><b id="v28EmailCount">0</b> ungeprüft</small></button>
+        <button type="button" id="v28WhatsAppBusiness"><span>◉</span><strong>WhatsApp Business</strong><small>Kunde auswählen</small></button>
+      </div>
     </section>
 
     <section class="v28-section v284-accepted-section">
@@ -198,6 +203,70 @@ main{width:100%;max-width:100%}
       </div>
       <div id="smartAppointmentStatus" class="status"></div>
       <div id="smartAppointmentResults"></div>
+    </div>
+  </section>
+
+  <section id="conversationNotesModal" class="v28-modal hidden" aria-hidden="true">
+    <div class="v28-modal-dialog communication-dialog" role="dialog" aria-modal="true" aria-labelledby="conversationNotesTitle">
+      <header>
+        <div><small>KOMMUNIKATION</small><h2 id="conversationNotesTitle">Gesprächsnotizen</h2><p>Schnell festhalten und später in einen Termin umwandeln.</p></div>
+        <button type="button" id="closeConversationNotes" aria-label="Schließen">×</button>
+      </header>
+      <div class="communication-note-form">
+        <label for="communicationCustomerSearch">Kunde</label>
+        <div class="smart-customer-search-row">
+          <input id="communicationCustomerSearch" type="search" placeholder="Name, Ort, Telefon oder E-Mail">
+          <button type="button" id="communicationSearchCustomer" class="secondary">Suchen</button>
+        </div>
+        <div id="communicationCustomerResults" class="smart-customer-search-results"></div>
+        <label for="communicationNoteText">Was wurde besprochen?</label>
+        <textarea id="communicationNoteText" rows="4" placeholder="Zum Beispiel: Herr Müller möchte nächste Woche zurückgerufen werden."></textarea>
+        <div class="smart-appointment-actions">
+          <button type="button" class="speech-button" data-speech-target="communicationNoteText">🎤 Sprechen</button>
+          <button type="button" id="openSelectedWhatsAppBusiness" class="secondary">WhatsApp Business</button>
+          <button type="button" id="saveCommunicationNote" class="primary">Notiz speichern</button>
+        </div>
+        <div id="communicationNoteStatus" class="status"></div>
+      </div>
+      <h3>Offene Notizen</h3>
+      <div id="conversationNotesList" class="communication-list"></div>
+    </div>
+  </section>
+
+  <section id="emailInboxModal" class="v28-modal hidden" aria-hidden="true">
+    <div class="v28-modal-dialog communication-dialog" role="dialog" aria-modal="true" aria-labelledby="emailInboxTitle">
+      <header>
+        <div><small>POSTEINGANG</small><h2 id="emailInboxTitle">Neue E-Mails und Anfragen</h2><p>Bestehende Kunden werden zugeordnet. Neue Anfragen bleiben bis zu deiner Bestätigung offen.</p></div>
+        <button type="button" id="closeEmailInbox" aria-label="Schließen">×</button>
+      </header>
+      <div class="v284-accepted-actions">
+        <button type="button" id="refreshEmailInbox" class="secondary">E-Mails aktualisieren</button>
+      </div>
+      <div id="emailInboxStatus" class="status"></div>
+      <div id="emailInboxList" class="communication-list"></div>
+    </div>
+  </section>
+
+  <section id="appointmentCompleteModal" class="v28-modal hidden" aria-hidden="true">
+    <div class="v28-modal-dialog appointment-complete-dialog" role="dialog" aria-modal="true" aria-labelledby="appointmentCompleteTitle">
+      <header>
+        <div><small>TERMIN ABSCHLIESSEN</small><h2 id="appointmentCompleteTitle">Wie ist der Termin ausgegangen?</h2><p>Ein kurzer Abschluss genügt. Termin und Notiz werden in Pipedrive gespeichert.</p></div>
+        <button type="button" id="closeAppointmentComplete" aria-label="Schließen">×</button>
+      </header>
+      <div class="appointment-outcome-options">
+        <button type="button" data-appointment-outcome="Alles in Ordnung"><strong>✓ Alles in Ordnung</strong><small>Keine weitere Maßnahme erforderlich</small></button>
+        <button type="button" data-appointment-outcome="Nachkontrolle erfolgreich"><strong>✓ Nachkontrolle erfolgreich</strong><small>Ausführung ist in Ordnung</small></button>
+        <button type="button" data-appointment-outcome="Weiterer Termin erforderlich"><strong>↻ Weiterer Termin</strong><small>Direkt anschließend einplanen</small></button>
+        <button type="button" data-appointment-outcome="Angebot erstellen"><strong>☷ Angebot erstellen</strong><small>Ergebnis zur Kalkulation übernehmen</small></button>
+        <button type="button" data-appointment-outcome="Kein Auftrag"><strong>– Kein Auftrag</strong><small>Termin ohne Folgeauftrag abschließen</small></button>
+      </div>
+      <label for="appointmentOutcomeNote">Kurze Ergänzung – optional</label>
+      <textarea id="appointmentOutcomeNote" rows="3" placeholder="Zum Beispiel: Messwerte unauffällig, Kunde zufrieden."></textarea>
+      <div id="appointmentCompleteStatus" class="status"></div>
+      <div class="appointment-complete-actions">
+        <button type="button" id="openAppointmentRecord" class="secondary">Termin und Bauakte öffnen</button>
+        <button type="button" id="confirmAppointmentComplete" class="primary">Speichern und Termin erledigen</button>
+      </div>
     </div>
   </section>
 
@@ -1241,8 +1310,8 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.15.1"></script>
-<script type="module" src="js/cloud-migration.js?v=32.15.1"></script>
+<script type="module" src="js/app.js?v=32.16.0"></script>
+<script type="module" src="js/cloud-migration.js?v=32.16.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

@@ -1,0 +1,54 @@
+mainabdichter PRO V32.16.0
+Kommunikation, übersichtliches Dashboard und Terminabschluss
+============================================================
+
+Ausgangsstand:
+- GitHub main
+- V32.15.1
+- Commit 7572cee05833b4a797c3f70ed69d455bdf87f615
+
+Neu:
+- Synchronisationsstatus auf dem Dashboard durch offene Gesprächsnotizen ersetzt.
+- Kompakter Kommunikationsbereich direkt unter der intelligenten Terminplanung:
+  Gesprächsnotiz, neue E-Mails und WhatsApp Business.
+- Gesprächsnotizen per Text oder Sprache, Kundensuche in Pipedrive,
+  automatische lokale Speicherung und Google-Drive-Komplettsicherung.
+- Gesprächsnotizen werden bei eindeutigem Kunden als Pipedrive-Personen-
+  oder Deal-Notiz gespeichert.
+- Offene Gesprächsnotizen können erledigt oder direkt in einen intelligenten
+  Termin umgewandelt werden.
+- Gmail-Posteingang ausschließlich lesend:
+  neue Nachrichten, Erkennung neuer Anfragen und exakte Kundenzuordnung über
+  die Absender-E-Mail-Adresse.
+- Jede Gmail-Nachrichten-ID wird verarbeitet, ohne Gmail zu verändern.
+- Neue E-Mail-Anfragen werden nicht als Baustelle angelegt, sondern zunächst
+  zur Prüfung und Terminvereinbarung geöffnet.
+- Kundenbezogene E-Mails erscheinen in der Kommunikationshistorie der Kundenakte.
+- WhatsApp-Schaltflächen verwenden den direkten WhatsApp-Business-Aufruf.
+- Pipedrive-Termine erhalten einen einfachen Abschlussdialog:
+  alles in Ordnung, Nachkontrolle erfolgreich, weiterer Termin,
+  Angebot erstellen oder kein Auftrag.
+- Beim Abschluss wird die bestehende Pipedrive-Aktivität als erledigt markiert
+  und das Ergebnis als streng zugeordnete Personen-/Deal-Notiz gespeichert.
+
+Bewusst unverändert:
+- Pipedrive-Feld postal_adress bleibt das maßgebliche Postanschrift-Feld.
+- postal_address wird nicht unzulässig an die Personen-API v2 gesendet.
+- Bestehende Pipedrive-Personen- und Deal-IDs werden weiterverwendet.
+- Vor Neuanlage bleiben exakte E-Mail-/Telefonprüfung und Dublettenschutz aktiv.
+- Objektanschrift, Dealphasen, PDF-Uploads und Lagerlogik wurden nicht ersetzt.
+
+Einmalige Gmail-Einrichtung:
+- Google OAuth-Freigabe mit dem Umfang gmail.readonly.
+- Der daraus erzeugte Refresh-Token wird als Cloudflare-Secret
+  GMAIL_REFRESH_TOKEN hinterlegt.
+- GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET werden weiterverwendet.
+- Die App sendet, löscht, archiviert oder markiert keine Gmail-Nachrichten.
+
+Automatisch geprüft:
+- JavaScript-Syntax aller im Build enthaltenen Module.
+- Cloudflare-Worker-Syntax.
+- Zeitzonenlogik für Pipedrive-Termine.
+- DOM-Referenzen der neuen Kommunikations- und Terminabschluss-Elemente.
+- Versionsgleichheit V32.16.0.
+- Git-Diff auf ungültige Leerzeichen und Konfliktmarkierungen.

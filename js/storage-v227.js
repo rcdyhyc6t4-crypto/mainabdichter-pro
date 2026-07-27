@@ -58,6 +58,57 @@ export function resetSettings() {
 
 const ARCHIVE_KEY = "mainabdichter_v13_archive";
 const CUSTOMERS_KEY = "mainabdichter_v30_customers";
+const COMMUNICATION_NOTES_KEY = "mainabdichter_v32_communication_notes";
+const EMAIL_INBOX_STATE_KEY = "mainabdichter_v32_email_inbox_state";
+
+export function loadCommunicationNotes() {
+  try {
+    const data = JSON.parse(localStorage.getItem(COMMUNICATION_NOTES_KEY) || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCommunicationNote(note) {
+  const notes = loadCommunicationNotes();
+  const now = new Date().toISOString();
+  const normalized = {
+    ...note,
+    id: note.id || crypto.randomUUID(),
+    status: note.status || "open",
+    createdAt: note.createdAt || now,
+    updatedAt: now
+  };
+  const index = notes.findIndex(item => item.id === normalized.id);
+  if (index >= 0) notes[index] = { ...notes[index], ...normalized };
+  else notes.unshift(normalized);
+  localStorage.setItem(COMMUNICATION_NOTES_KEY, JSON.stringify(notes));
+  return normalized;
+}
+
+export function loadEmailInboxState() {
+  try {
+    const data = JSON.parse(localStorage.getItem(EMAIL_INBOX_STATE_KEY) || "{}");
+    return data && typeof data === "object"
+      ? { processedIds: [], assignments: {}, ...data }
+      : { processedIds: [], assignments: {} };
+  } catch {
+    return { processedIds: [], assignments: {} };
+  }
+}
+
+export function saveEmailInboxState(value) {
+  const normalized = {
+    processedIds: Array.from(new Set(value?.processedIds || [])).slice(-2000),
+    assignments: value?.assignments && typeof value.assignments === "object"
+      ? value.assignments
+      : {},
+    updatedAt: new Date().toISOString()
+  };
+  localStorage.setItem(EMAIL_INBOX_STATE_KEY, JSON.stringify(normalized));
+  return normalized;
+}
 
 export function loadCustomers() {
   try {
@@ -140,6 +191,8 @@ export function createFullBackupPayload() {
     archive: loadArchive(),
     customers: loadCustomers(),
     worksites: JSON.parse(localStorage.getItem("mainabdichter_v18_worksites") || "[]"),
+    communicationNotes: loadCommunicationNotes(),
+    emailInboxState: loadEmailInboxState(),
     metadata: {
       source: "mainabdichter",
       containsSensitiveConnectionData: Boolean(
@@ -216,6 +269,18 @@ export function mergeFullBackupPayload(remotePayload, localPayload) {
     archive: mergeRecords(remotePayload.archive, localPayload.archive),
     customers: mergeRecords(remotePayload.customers, localPayload.customers),
     worksites: mergeRecords(remotePayload.worksites, localPayload.worksites),
+    communicationNotes: mergeRecords(remotePayload.communicationNotes, localPayload.communicationNotes),
+    emailInboxState: {
+      processedIds: Array.from(new Set([
+        ...(remotePayload.emailInboxState?.processedIds || []),
+        ...(localPayload.emailInboxState?.processedIds || [])
+      ])).slice(-2000),
+      assignments: {
+        ...(remotePayload.emailInboxState?.assignments || {}),
+        ...(localPayload.emailInboxState?.assignments || {})
+      },
+      updatedAt: new Date().toISOString()
+    },
     exportedAt: new Date().toISOString(),
     metadata: {
       ...(remotePayload.metadata || {}),
@@ -258,6 +323,14 @@ export function restoreFullBackupPayload(payload) {
     localStorage.setItem("mainabdichter_v18_worksites", JSON.stringify(payload.worksites));
   }
 
+  if (Array.isArray(payload.communicationNotes)) {
+    localStorage.setItem(COMMUNICATION_NOTES_KEY, JSON.stringify(payload.communicationNotes));
+  }
+
+  if (payload.emailInboxState && typeof payload.emailInboxState === "object") {
+    saveEmailInboxState(payload.emailInboxState);
+  }
+
   return {
     settingsRestored: Boolean(payload.settings),
     visitRestored: Boolean(payload.visit),
@@ -270,6 +343,9 @@ export function restoreFullBackupPayload(payload) {
       : 0,
     worksiteCount: Array.isArray(payload.worksites)
       ? payload.worksites.length
+      : 0,
+    communicationNoteCount: Array.isArray(payload.communicationNotes)
+      ? payload.communicationNotes.length
       : 0
   };
 }

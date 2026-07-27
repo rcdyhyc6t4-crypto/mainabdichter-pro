@@ -197,6 +197,18 @@ export async function createPipedriveActivity(payload) {
   });
 }
 
+export async function completePipedriveActivity(activityId, payload) {
+  return api(`/pipedrive/activities/${encodeURIComponent(activityId)}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function loadGmailInbox() {
+  return api("/gmail/inbox");
+}
+
 export async function loadAcceptedLexwareQuotations(dateFrom) {
   const query = dateFrom
     ? `?updatedDateFrom=${encodeURIComponent(dateFrom)}`
@@ -238,6 +250,14 @@ export async function syncPipedriveDeal(payload) {
 
 export async function addPipedriveDealNote(dealId, content) {
   return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/note`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function addPipedrivePersonNote(personId, content) {
+  return api(`/pipedrive/persons/${encodeURIComponent(personId)}/note`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content })

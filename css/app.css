@@ -2187,3 +2187,37 @@ button.danger{
   .migration-item button{padding:8px 10px}
   .migration-actions{flex-direction:column}
 }
+
+/* V32.16.0 – ruhiges Kommunikations-Dashboard */
+.communication-note-card{border-color:#cfe5cf;background:#f4fbf3}
+.communication-note-icon{display:grid;place-items:center;width:25px;height:25px;border-radius:9px;background:#319a31;color:#fff;font-style:normal;font-weight:900}
+.communication-note-card small b{font-size:1.05em;color:#237a29}
+.dashboard-communication-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:11px}
+.dashboard-communication-row>button{display:grid;grid-template-columns:38px minmax(0,1fr);gap:1px 9px;align-items:center;text-align:left;padding:11px;border:1px solid #dce7dd;border-radius:15px;background:#fff;box-shadow:0 5px 16px rgba(31,65,39,.05)}
+.dashboard-communication-row>button>span{grid-row:1/3;display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#edf7ed;color:#2f8f32;font-size:18px;font-weight:900}
+.dashboard-communication-row strong{font-size:12px;line-height:1.2}
+.dashboard-communication-row small{font-size:9px;color:#667069;line-height:1.25}
+.communication-dialog{width:min(720px,100%)}
+.communication-note-form{display:grid;gap:9px;padding:14px;border-radius:16px;background:#f5f8f5;margin-bottom:18px}
+.communication-list{display:grid;gap:10px}
+.communication-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;padding:14px;border:1px solid #dfe8df;border-radius:15px;background:#fff}
+.communication-item>div:first-child{display:grid;gap:4px;min-width:0}
+.communication-item small{font-size:10px;color:#68726b}
+.communication-item strong{font-size:14px}
+.communication-item p{margin:2px 0 0;color:#414a44;font-size:12px;line-height:1.45;white-space:pre-wrap}
+.communication-item em{font-size:10px;font-style:normal;font-weight:800;color:#287a2d}
+.communication-item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.communication-item-actions button{padding:8px 10px;font-size:10px}
+.appointment-outcome-options{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:14px 0 18px}
+.appointment-outcome-options button{display:grid;gap:3px;text-align:left;padding:13px;border:1px solid #dae5da;border-radius:14px;background:#fff}
+.appointment-outcome-options button.selected{border-color:#319a31;background:#eef8ed;box-shadow:0 0 0 2px rgba(49,154,49,.14)}
+.appointment-outcome-options strong{font-size:13px}.appointment-outcome-options small{font-size:10px;color:#68726b}
+.appointment-complete-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+@media(max-width:620px){
+  .dashboard-communication-row{grid-template-columns:1fr}
+  .dashboard-communication-row>button{min-height:58px}
+  .communication-item{grid-template-columns:1fr}
+  .communication-item-actions{justify-content:stretch}
+  .communication-item-actions button{flex:1}
+  .appointment-outcome-options,.appointment-complete-actions{grid-template-columns:1fr}
+}

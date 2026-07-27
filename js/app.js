@@ -1,11 +1,11 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, backupHasBusinessData, mergeFullBackupPayload } from "./storage-v227.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, backupHasBusinessData, mergeFullBackupPayload, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.15.1";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.16.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.15.1";
+const MAINABDICHTER_APP_VERSION = "32.16.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -472,6 +472,309 @@ let cachedOpenLexofficeQuotations = [];
 let cachedUpcomingPipedriveActivities = [];
 let smartAppointmentDraft = null;
 let smartAppointmentPerson = null;
+let communicationSelectedPerson = null;
+let cachedGmailMessages = [];
+let selectedAppointmentOutcome = "";
+let selectedAppointmentItem = null;
+
+function normalizePhoneForWhatsApp(value) {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = `49${digits.slice(1)}`;
+  return digits;
+}
+
+function openWhatsAppBusiness(person, text = "") {
+  const phone = normalizePhoneForWhatsApp(person?.mobile || person?.phone);
+  if (!phone) {
+    alert("Für diesen Kunden ist keine Mobilnummer hinterlegt.");
+    return;
+  }
+  const url = `whatsapp-business://send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(text)}`;
+  const started = Date.now();
+  window.location.href = url;
+  window.setTimeout(() => {
+    if (Date.now() - started < 1800 && document.visibilityState === "visible") {
+      alert("WhatsApp Business konnte nicht direkt geöffnet werden. Bitte prüfe, ob WhatsApp Business installiert ist.");
+    }
+  }, 1200);
+}
+
+function communicationCustomerLabel(person) {
+  return person?.name || [person?.firstName, person?.lastName].filter(Boolean).join(" ") || "Kunde";
+}
+
+function renderCommunicationCustomer(person) {
+  communicationSelectedPerson = person || null;
+  const box = $("communicationCustomerResults");
+  if (!box) return;
+  if (!person) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = `<div class="smart-selected-customer"><span><small>AUSGEWÄHLTER KUNDE</small><strong>${esc(communicationCustomerLabel(person))}</strong><em>${esc(person.objectAddress || person.postalAddress || person.email || person.mobile || person.phone || "Pipedrive")}</em></span><button type="button" id="communicationClearCustomer" class="secondary">Ändern</button></div>`;
+  $("communicationClearCustomer").onclick = () => {
+    communicationSelectedPerson = null;
+    box.innerHTML = "";
+    $("communicationCustomerSearch")?.focus();
+  };
+}
+
+async function searchCommunicationCustomer() {
+  const term = $("communicationCustomerSearch")?.value.trim();
+  if (!term) return showStatus("communicationNoteStatus", "Bitte Name, Ort, Telefonnummer oder E-Mail eingeben.", false);
+  showStatus("communicationNoteStatus", "Kunde wird in Pipedrive gesucht …", true);
+  try {
+    const data = await searchPipedrive(term);
+    const people = data.people || [];
+    const box = $("communicationCustomerResults");
+    if (!people.length) {
+      box.innerHTML = `<div class="empty-mini">Kein eindeutiger Bestandskunde gefunden.</div>`;
+      return showStatus("communicationNoteStatus", "Die Notiz kann trotzdem ohne Kundenzuordnung gespeichert werden.", false);
+    }
+    box.innerHTML = people.slice(0, 8).map((person, index) => `<button type="button" class="smart-customer-result" data-communication-customer="${index}"><span><strong>${esc(communicationCustomerLabel(person))}</strong><small>${esc(person.city || person.email || person.mobile || person.phone || "Pipedrive")}</small></span><b>Auswählen</b></button>`).join("");
+    box.querySelectorAll("[data-communication-customer]").forEach(button => {
+      button.onclick = async () => {
+        const person = people[Number(button.dataset.communicationCustomer)];
+        try {
+          const detail = await loadPipedrivePerson(person.id);
+          renderCommunicationCustomer({ ...person, ...(detail.person || {}) });
+          showStatus("communicationNoteStatus", "Kunde ausgewählt.", true);
+        } catch (error) {
+          showStatus("communicationNoteStatus", error.message, false);
+        }
+      };
+    });
+  } catch (error) {
+    showStatus("communicationNoteStatus", error.message, false);
+  }
+}
+
+function renderConversationNotes() {
+  const notes = loadCommunicationNotes();
+  const open = notes.filter(note => note.status === "open");
+  if ($("v28OpenNoteCount")) $("v28OpenNoteCount").textContent = open.length;
+  const list = $("conversationNotesList");
+  if (!list) return;
+  list.innerHTML = open.length ? open.map(note => `<article class="communication-item">
+    <div><small>${esc(new Date(note.createdAt).toLocaleString("de-DE"))}</small><strong>${esc(note.customerName || "Allgemeine Notiz")}</strong><p>${esc(note.text || "")}</p></div>
+    <div class="communication-item-actions">
+      <button type="button" class="secondary" data-note-appointment="${note.id}">Termin erstellen</button>
+      <button type="button" class="primary" data-note-done="${note.id}">Erledigt</button>
+    </div>
+  </article>`).join("") : `<div class="empty-mini">Keine offenen Gesprächsnotizen.</div>`;
+  list.querySelectorAll("[data-note-done]").forEach(button => {
+    button.onclick = () => {
+      const note = notes.find(item => item.id === button.dataset.noteDone);
+      if (!note) return;
+      saveCommunicationNote({ ...note, status: "done", completedAt: new Date().toISOString() });
+      renderConversationNotes();
+      scheduleAutomaticSave();
+    };
+  });
+  list.querySelectorAll("[data-note-appointment]").forEach(button => {
+    button.onclick = () => {
+      const note = notes.find(item => item.id === button.dataset.noteAppointment);
+      if (!note) return;
+      smartAppointmentPerson = note.personId ? {
+        id: note.personId,
+        name: note.customerName,
+        dealId: note.dealId,
+        mobile: note.mobile,
+        phone: note.phone,
+        objectAddress: note.objectAddress
+      } : null;
+      $("smartAppointmentText").value = note.text || "";
+      $("smartAppointmentReason").value = "";
+      renderSmartSelectedCustomer(smartAppointmentPerson);
+      v287SetModal("conversationNotesModal", false);
+      v287SetModal("smartAppointmentModal", true);
+    };
+  });
+}
+
+async function persistCommunicationNote() {
+  const text = $("communicationNoteText")?.value.trim();
+  if (!text) return showStatus("communicationNoteStatus", "Bitte die Gesprächsnotiz sprechen oder eingeben.", false);
+  const person = communicationSelectedPerson;
+  const note = saveCommunicationNote({
+    text,
+    customerName: communicationCustomerLabel(person),
+    customerEmail: person?.email || "",
+    personId: person?.id || "",
+    dealId: person?.dealId || person?.pipedriveDealId || "",
+    mobile: person?.mobile || "",
+    phone: person?.phone || "",
+    objectAddress: person?.objectAddress || person?.postalAddress || "",
+    source: "Telefonnotiz"
+  });
+  try {
+    const content = `<strong>Gesprächsnotiz über mainabdichter PRO</strong><br>${esc(text).replace(/\n/g, "<br>")}`;
+    if (note.dealId) await addPipedriveDealNote(note.dealId, content);
+    else if (note.personId) await addPipedrivePersonNote(note.personId, content);
+    $("communicationNoteText").value = "";
+    showStatus("communicationNoteStatus", note.personId ? "Notiz gespeichert und mit Pipedrive synchronisiert." : "Notiz gespeichert.", true);
+    renderConversationNotes();
+    scheduleAutomaticSave();
+  } catch (error) {
+    showStatus("communicationNoteStatus", `Notiz ist lokal gespeichert. Pipedrive: ${error.message}`, false);
+  }
+}
+
+function emailLooksLikeInquiry(message) {
+  return Boolean(message?.isInquiry || /anfrage|angebot|besichtigung|feucht|keller|schimmel|wassereintritt/i.test(`${message?.subject || ""} ${message?.body || ""}`));
+}
+
+async function loadAndMatchEmailInbox() {
+  showStatus("emailInboxStatus", "Neue E-Mails werden gelesen und Kunden zugeordnet …", true);
+  try {
+    const data = await loadGmailInbox();
+    const inboxState = loadEmailInboxState();
+    const unprocessed = (data.messages || []).filter(item => !inboxState.processedIds.includes(item.id));
+    cachedGmailMessages = await Promise.all(unprocessed.slice(0, 30).map(async message => {
+      if (!message.email) return { ...message, matchedPerson: null };
+      try {
+        const search = await searchPipedrive(message.email);
+        const exact = (search.people || []).find(person =>
+          String(person.email || "").toLowerCase() === String(message.email).toLowerCase()
+        );
+        return { ...message, matchedPerson: exact || null };
+      } catch {
+        return { ...message, matchedPerson: null };
+      }
+    }));
+    const existingCommunicationIds = new Set(
+      loadCommunicationNotes().map(note => note.sourceId).filter(Boolean)
+    );
+    cachedGmailMessages.filter(message => message.matchedPerson).forEach(message => {
+      if (existingCommunicationIds.has(message.id)) return;
+      saveCommunicationNote({
+        source: "E-Mail",
+        sourceId: message.id,
+        status: "archived",
+        text: `${message.subject}\n${message.snippet || ""}`,
+        customerName: communicationCustomerLabel(message.matchedPerson),
+        customerEmail: message.email || "",
+        personId: message.matchedPerson.id || "",
+        dealId: message.matchedPerson.dealId || "",
+        receivedAt: message.receivedAt
+      });
+    });
+    renderEmailInbox();
+    showStatus("emailInboxStatus", `${cachedGmailMessages.length} neue E-Mails wurden geprüft. Gmail bleibt unverändert.`, true);
+  } catch (error) {
+    cachedGmailMessages = [];
+    renderEmailInbox();
+    showStatus("emailInboxStatus", error.message, false);
+  }
+}
+
+function markEmailProcessed(messageId) {
+  const stateValue = loadEmailInboxState();
+  stateValue.processedIds.push(messageId);
+  saveEmailInboxState(stateValue);
+  cachedGmailMessages = cachedGmailMessages.filter(item => item.id !== messageId);
+  renderEmailInbox();
+  scheduleAutomaticSave();
+}
+
+function renderEmailInbox() {
+  if ($("v28EmailCount")) $("v28EmailCount").textContent = cachedGmailMessages.length;
+  const list = $("emailInboxList");
+  if (!list) return;
+  list.innerHTML = cachedGmailMessages.length ? cachedGmailMessages.map(message => {
+    const person = message.matchedPerson;
+    const classification = person ? `Bestehender Kunde: ${communicationCustomerLabel(person)}` : emailLooksLikeInquiry(message) ? "Neue Anfrage – Termin vereinbaren" : "Noch nicht zugeordnet";
+    return `<article class="communication-item email-item">
+      <div><small>${esc(new Date(message.receivedAt).toLocaleString("de-DE"))} · ${esc(message.email || message.from || "")}</small><strong>${esc(message.subject || "E-Mail")}</strong><em>${esc(classification)}</em><p>${esc(message.snippet || "")}</p></div>
+      <div class="communication-item-actions">
+        <button type="button" class="secondary" data-email-note="${message.id}">Als Notiz</button>
+        <button type="button" class="secondary" data-email-appointment="${message.id}">${person ? "Termin" : "Anfrage übernehmen"}</button>
+        <button type="button" class="primary" data-email-done="${message.id}">Erledigt</button>
+      </div>
+    </article>`;
+  }).join("") : `<div class="empty-mini">Keine neuen ungeprüften E-Mails.</div>`;
+  list.querySelectorAll("[data-email-done]").forEach(button => button.onclick = () => markEmailProcessed(button.dataset.emailDone));
+  list.querySelectorAll("[data-email-note]").forEach(button => button.onclick = () => {
+    const message = cachedGmailMessages.find(item => item.id === button.dataset.emailNote);
+    if (!message) return;
+    communicationSelectedPerson = message.matchedPerson;
+    $("communicationNoteText").value = `E-Mail: ${message.subject}\n${message.snippet || ""}`;
+    renderCommunicationCustomer(message.matchedPerson);
+    v287SetModal("emailInboxModal", false);
+    v287SetModal("conversationNotesModal", true);
+  });
+  list.querySelectorAll("[data-email-appointment]").forEach(button => button.onclick = () => {
+    const message = cachedGmailMessages.find(item => item.id === button.dataset.emailAppointment);
+    if (!message) return;
+    if (message.matchedPerson) {
+      smartAppointmentPerson = message.matchedPerson;
+      $("smartAppointmentText").value = `${message.subject}. ${message.snippet || ""}`;
+      renderSmartSelectedCustomer(message.matchedPerson);
+      v287SetModal("emailInboxModal", false);
+      v287SetModal("smartAppointmentModal", true);
+    } else {
+      startNewVisit();
+      state.visit.customer.email = message.email || "";
+      state.visit.inquiry.source = "E-Mail";
+      state.visit.inquiry.message = `${message.subject}\n${message.body || message.snippet || ""}`;
+      state.visit.inquiry.gmailMessageId = message.id;
+      saveState();
+      renderVisit();
+      v287SetModal("emailInboxModal", false);
+      show("visit");
+    }
+  });
+}
+
+function openAppointmentCompletion(item) {
+  selectedAppointmentItem = item || null;
+  selectedAppointmentOutcome = "";
+  $("appointmentCompleteTitle").textContent = item ? `${item.personName || item.subject || "Termin"} abschließen` : "Termin abschließen";
+  $("appointmentOutcomeNote").value = "";
+  document.querySelectorAll("[data-appointment-outcome]").forEach(button => button.classList.remove("selected"));
+  showStatus("appointmentCompleteStatus", "Wähle nur das passende Ergebnis.", true);
+  v287SetModal("v287AppointmentsModal", false);
+  v287SetModal("appointmentCompleteModal", true);
+}
+
+async function confirmAppointmentCompletion() {
+  const item = selectedAppointmentItem;
+  if (!item || !selectedAppointmentOutcome) {
+    return showStatus("appointmentCompleteStatus", "Bitte zuerst ein Ergebnis auswählen.", false);
+  }
+  showStatus("appointmentCompleteStatus", "Ergebnis wird gespeichert und der Termin in Pipedrive erledigt …", true);
+  try {
+    await completePipedriveActivity(item.id, {
+      outcome: selectedAppointmentOutcome,
+      note: $("appointmentOutcomeNote").value.trim(),
+      existingNote: item.note || "",
+      personId: item.personId || "",
+      dealId: item.dealId || ""
+    });
+    await syncPipedriveDashboard();
+    showStatus("appointmentCompleteStatus", "Termin wurde gespeichert und in Pipedrive als erledigt markiert.", true);
+    const outcome = selectedAppointmentOutcome;
+    window.setTimeout(() => {
+      v287SetModal("appointmentCompleteModal", false);
+      if (outcome === "Weiterer Termin erforderlich") {
+        smartAppointmentPerson = {
+          id: item.personId,
+          name: item.personName,
+          dealId: item.dealId,
+          objectAddress: item.location
+        };
+        $("smartAppointmentText").value = `Weiterer Termin nach ${item.subject || "Kundentermin"}`;
+        renderSmartSelectedCustomer(smartAppointmentPerson);
+        v287SetModal("smartAppointmentModal", true);
+      } else if (outcome === "Angebot erstellen") {
+        show("offer");
+      }
+    }, 700);
+  } catch (error) {
+    showStatus("appointmentCompleteStatus", error.message, false);
+  }
+}
 
 const SMART_APPOINTMENT_KINDS = {
   "Besichtigung": {label:"Besichtigung",duration:60,priority:1},
@@ -667,7 +970,7 @@ async function syncPipedriveDashboard() {
   if (box) box.innerHTML='<div class="empty-mini">Termine werden geladen …</div>';
   try {
     const data=await loadPipedriveActivities(todayIso(), true);
-    cachedUpcomingPipedriveActivities=data.activities||[];
+    cachedUpcomingPipedriveActivities=(data.activities||[]).filter(item=>!item.done);
     const todayItems=cachedUpcomingPipedriveActivities.filter(item=>item.dueDate===todayIso());
     if ($("dashboardAppointmentCount")) $("dashboardAppointmentCount").textContent = todayItems.length;
     const diagnostics=data.diagnostics||{};
@@ -726,9 +1029,9 @@ function renderUpcomingAppointments() {
     <span class="v287-appointment-date"><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(formatPipedriveAppointmentDate(item.dueDate))}</small></span>
     <span><strong>${esc(item.personName||item.subject||"Termin")}</strong><small>${esc(item.subject||item.type||"Pipedrive-Termin")}${item.location?` · ${esc(item.location)}`:""}</small></span><em>›</em>
   </button>`).join(""):'<div class="empty-mini">Keine kommenden offenen Pipedrive-Termine vorhanden.</div>';
-  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openPipedriveAppointment(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
+  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
   const todayBox=$("pipedriveTodayList");
-  if (todayBox) todayBox.querySelectorAll("[data-activity-id]").forEach(button=>button.onclick=()=>openPipedriveAppointment(items.find(item=>String(item.id||"")===button.dataset.activityId)));
+  if (todayBox) todayBox.querySelectorAll("[data-activity-id]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.activityId)));
 }
 
 async function syncAcceptedQuotationDashboard() {
@@ -965,15 +1268,8 @@ function renderV28Dashboard() {
   }
   $("v28OpenOffers").textContent = (state.offers || []).filter(o=>!["accepted","completed","rejected"].includes(String(o.status||"").toLowerCase())).length;
 
-  const status = typeof v28SystemStatusFromDom === "function" ? v28SystemStatusFromDom() : "yellow";
-  const statusDot = $("v28SystemDot");
-  if (statusDot) statusDot.className = `v28-status-dot v28-status-${status}`;
-  if ($("v287SyncTitle")) $("v287SyncTitle").textContent =
-    status === "green" ? "Alles in Ordnung" : status === "red" ? "Verbindung prüfen" : "Wird geprüft";
-  if ($("v287SyncTime")) $("v287SyncTime").textContent =
-    status === "green"
-      ? `Letzte Synchronisation heute, ${new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})} Uhr`
-      : "Letzte Synchronisation noch offen";
+  renderConversationNotes();
+  if ($("v28EmailCount")) $("v28EmailCount").textContent = cachedGmailMessages.length;
 }
 
 function v287SetModal(id, open) {
@@ -1087,7 +1383,70 @@ function initializeV28Dashboard() {
   if ($("v287InventoryListModal")) $("v287InventoryListModal").onclick = event => {
     if (event.target === $("v287InventoryListModal")) v287SetModal("v287InventoryListModal", false);
   };
-  if ($("v28SystemStatus")) $("v28SystemStatus").onclick = () => $("testConnections")?.click();
+  if ($("v28ConversationNotes")) $("v28ConversationNotes").onclick = () => {
+    renderConversationNotes();
+    v287SetModal("conversationNotesModal", true);
+  };
+  if ($("v28QuickNote")) $("v28QuickNote").onclick = () => {
+    communicationSelectedPerson = null;
+    $("communicationCustomerSearch").value = "";
+    $("communicationNoteText").value = "";
+    renderCommunicationCustomer(null);
+    renderConversationNotes();
+    v287SetModal("conversationNotesModal", true);
+    window.setTimeout(() => $("communicationNoteText")?.focus(), 50);
+  };
+  if ($("v28EmailInbox")) $("v28EmailInbox").onclick = () => {
+    v287SetModal("emailInboxModal", true);
+    loadAndMatchEmailInbox();
+  };
+  if ($("v28WhatsAppBusiness")) $("v28WhatsAppBusiness").onclick = () => {
+    communicationSelectedPerson = null;
+    $("communicationCustomerSearch").value = "";
+    $("communicationNoteText").value = "";
+    renderCommunicationCustomer(null);
+    showStatus("communicationNoteStatus", "Kunde auswählen und anschließend WhatsApp Business öffnen.", true);
+    v287SetModal("conversationNotesModal", true);
+    window.setTimeout(() => $("communicationCustomerSearch")?.focus(), 50);
+  };
+  if ($("communicationSearchCustomer")) $("communicationSearchCustomer").onclick = searchCommunicationCustomer;
+  if ($("communicationCustomerSearch")) $("communicationCustomerSearch").onkeydown = event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchCommunicationCustomer();
+    }
+  };
+  if ($("saveCommunicationNote")) $("saveCommunicationNote").onclick = persistCommunicationNote;
+  if ($("openSelectedWhatsAppBusiness")) $("openSelectedWhatsAppBusiness").onclick = () => openWhatsAppBusiness(
+    communicationSelectedPerson,
+    $("communicationNoteText")?.value.trim() || ""
+  );
+  if ($("closeConversationNotes")) $("closeConversationNotes").onclick = () => v287SetModal("conversationNotesModal", false);
+  if ($("conversationNotesModal")) $("conversationNotesModal").onclick = event => {
+    if (event.target === $("conversationNotesModal")) v287SetModal("conversationNotesModal", false);
+  };
+  if ($("closeEmailInbox")) $("closeEmailInbox").onclick = () => v287SetModal("emailInboxModal", false);
+  if ($("refreshEmailInbox")) $("refreshEmailInbox").onclick = loadAndMatchEmailInbox;
+  if ($("emailInboxModal")) $("emailInboxModal").onclick = event => {
+    if (event.target === $("emailInboxModal")) v287SetModal("emailInboxModal", false);
+  };
+  document.querySelectorAll("[data-appointment-outcome]").forEach(button => {
+    button.onclick = () => {
+      selectedAppointmentOutcome = button.dataset.appointmentOutcome || "";
+      document.querySelectorAll("[data-appointment-outcome]").forEach(item => item.classList.toggle("selected", item === button));
+      showStatus("appointmentCompleteStatus", `Ausgewählt: ${selectedAppointmentOutcome}`, true);
+    };
+  });
+  if ($("confirmAppointmentComplete")) $("confirmAppointmentComplete").onclick = confirmAppointmentCompletion;
+  if ($("openAppointmentRecord")) $("openAppointmentRecord").onclick = () => {
+    const item = selectedAppointmentItem;
+    v287SetModal("appointmentCompleteModal", false);
+    openPipedriveAppointment(item);
+  };
+  if ($("closeAppointmentComplete")) $("closeAppointmentComplete").onclick = () => v287SetModal("appointmentCompleteModal", false);
+  if ($("appointmentCompleteModal")) $("appointmentCompleteModal").onclick = event => {
+    if (event.target === $("appointmentCompleteModal")) v287SetModal("appointmentCompleteModal", false);
+  };
   const openAcceptedOffers = async () => {
     const modal = $("v284AcceptedOffersModal");
     if (!modal) return;
@@ -5598,10 +5957,14 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") void synchronizeFromDrive();
 });
 window.setInterval(runAutomaticDriveBackup, 5 * 60 * 1000);
+window.setInterval(() => {
+  if (document.visibilityState === "visible" && hasConnectionConfig()) void loadAndMatchEmailInbox();
+}, 5 * 60 * 1000);
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
 
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 await ensureDriveBootstrap();
+if (hasConnectionConfig()) void loadAndMatchEmailInbox();
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeV28Dashboard); else initializeV28Dashboard();

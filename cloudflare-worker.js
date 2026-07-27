@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.15.1
+// mainabdichter PRO Cloudflare Worker V32.16.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -57,6 +57,72 @@ async function googleAccessToken(env) {
     throw error;
   }
   return data.access_token;
+}
+
+async function gmailAccessToken(env) {
+  const refreshToken = env.GMAIL_REFRESH_TOKEN || env.GOOGLE_REFRESH_TOKEN;
+  const required = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
+  const missing = required.filter(key => !env[key]);
+  if (!refreshToken) missing.push("GMAIL_REFRESH_TOKEN");
+  if (missing.length) {
+    const error = new Error(`Gmail-Lesezugriff ist noch nicht eingerichtet (${missing.join(", ")}).`);
+    error.status = 503;
+    throw error;
+  }
+  return oauthRefreshToken("https://oauth2.googleapis.com/token", {
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token"
+  }, "Gmail");
+}
+
+function decodeGmailText(value) {
+  if (!value) return "";
+  const normalized = String(value).replace(/-/g, "+").replace(/_/g, "/");
+  try {
+    const bytes = Uint8Array.from(atob(normalized), char => char.charCodeAt(0));
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+function gmailMessageText(payload) {
+  if (!payload) return "";
+  if (payload.mimeType === "text/plain" && payload.body?.data) {
+    return decodeGmailText(payload.body.data);
+  }
+  const parts = Array.isArray(payload.parts) ? payload.parts : [];
+  const plain = parts.map(gmailMessageText).filter(Boolean).join("\n");
+  if (plain) return plain;
+  if (payload.body?.data) {
+    return decodeGmailText(payload.body.data)
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&");
+  }
+  return "";
+}
+
+async function gmailRequest(env, path) {
+  const token = await gmailAccessToken(env);
+  const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me${path}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(
+      response.status === 403
+        ? "Gmail ist verbunden, aber der einmalige Lesezugriff gmail.readonly fehlt."
+        : "Gmail konnte nicht gelesen werden."
+    );
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
 }
 
 async function googleDriveRequest(env, path, options = {}) {
@@ -1398,7 +1464,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.15.1",
+          workerVersion: "32.16.0",
           time: new Date().toISOString()
         });
       }
@@ -1683,6 +1749,20 @@ export default {
         return jsonResponse(request, { ok: true, note: result.data || result }, 201);
       }
 
+      if (/^\/pipedrive\/persons\/\d+\/note$/.test(url.pathname) && request.method === "POST") {
+        const personId = Number(url.pathname.split("/")[3]);
+        const input = await request.json();
+        const result = await pipedriveRequest(env, "/api/v1/notes", {
+          method: "POST",
+          body: JSON.stringify({
+            person_id: personId,
+            content: String(input.content || ""),
+            pinned_to_person_flag: 1
+          })
+        });
+        return jsonResponse(request, { ok: true, note: result.data || result }, 201);
+      }
+
       if (/^\/pipedrive\/deals\/\d+\/file$/.test(url.pathname) && request.method === "POST") {
         const dealId = Number(url.pathname.split("/")[3]);
         const form = await request.formData();
@@ -1719,7 +1799,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.15.1",
+          workerVersion: "32.16.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -2168,6 +2248,48 @@ export default {
         });
       }
 
+      if (url.pathname === "/gmail/inbox" && request.method === "GET") {
+        const query = encodeURIComponent("in:inbox newer_than:30d -from:me");
+        const list = await gmailRequest(env, `/messages?q=${query}&maxResults=50`);
+        const ids = (list.messages || []).map(item => item.id).filter(Boolean);
+        const messages = [];
+        for (let index = 0; index < ids.length; index += 10) {
+          const batch = await Promise.all(ids.slice(index, index + 10).map(id =>
+            gmailRequest(env, `/messages/${encodeURIComponent(id)}?format=full`)
+          ));
+          messages.push(...batch.map(message => {
+            const headers = Object.fromEntries(
+              (message.payload?.headers || []).map(item => [
+                String(item.name || "").toLowerCase(),
+                cleanText(item.value)
+              ])
+            );
+            const from = headers.from || "";
+            const emailMatch = from.match(/<([^>]+)>/) || from.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/);
+            const email = cleanText(emailMatch?.[1] || emailMatch?.[0] || from).toLowerCase();
+            const name = cleanText(from.replace(/<[^>]+>/g, "").replace(/^"|"$/g, ""));
+            const subject = headers.subject || "(ohne Betreff)";
+            const body = gmailMessageText(message.payload).replace(/\s+/g, " ").trim().slice(0, 12000);
+            const inquiryText = `${subject} ${body}`.toLowerCase();
+            return {
+              id: message.id,
+              threadId: message.threadId || "",
+              from,
+              name,
+              email,
+              subject,
+              date: headers.date || "",
+              receivedAt: new Date(Number(message.internalDate || Date.now())).toISOString(),
+              snippet: cleanText(message.snippet || body).slice(0, 500),
+              body,
+              isInquiry: /anfrage|angebot|besichtigung|feucht|keller|schimmel|wassereintritt|horizontalsperre|flächensperre|wand.?sohlen/.test(inquiryText)
+            };
+          }));
+        }
+        messages.sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
+        return jsonResponse(request, { ok: true, messages, readOnly: true });
+      }
+
       if (url.pathname === "/pipedrive/activities" && request.method === "GET") {
         const date = url.searchParams.get("date") || new Date().toISOString().slice(0,10);
         const upcoming = url.searchParams.get("upcoming") === "true";
@@ -2218,7 +2340,7 @@ export default {
           if(!page.length) moreV1=false;
         }
         const uniqueActivities=[...new Map(allActivities.map(item=>[String(item?.id||crypto.randomUUID()),item])).values()];
-        const normalizedActivities=uniqueActivities.filter(item=>item&&item.due_date).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const attendee=Array.isArray(item.attendees)?item.attendees.find(x=>x?.person_id)||item.attendees[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||attendee?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");const localTime=item.due_time?utcActivityTimeToBerlin(item.due_date,item.due_time):{dueDate:item.due_date||"",dueTime:""};return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:localTime.dueDate,dueTime:localTime.dueTime,duration:item.duration||"",personId,dealId,location,note:item.note||"",personName:item.person_name||p?.name||attendee?.name||""};});
+        const normalizedActivities=uniqueActivities.filter(item=>item&&item.due_date).map(item=>{const p=Array.isArray(item.participants)?item.participants.find(x=>x?.primary)||item.participants[0]:null;const attendee=Array.isArray(item.attendees)?item.attendees.find(x=>x?.person_id)||item.attendees[0]:null;const location=item.location&&typeof item.location==="object"?(item.location.value||item.location.address||item.location.formatted_address||""):(item.location||"");const personId=item.person_id&&typeof item.person_id==="object"?(item.person_id.value||item.person_id.id||""):(item.person_id||p?.person_id||attendee?.person_id||"");const dealId=item.deal_id&&typeof item.deal_id==="object"?(item.deal_id.value||item.deal_id.id||""):(item.deal_id||"");const localTime=item.due_time?utcActivityTimeToBerlin(item.due_date,item.due_time):{dueDate:item.due_date||"",dueTime:""};return{id:item.id||"",subject:item.subject||"Ohne Betreff",type:item.type||"",dueDate:localTime.dueDate,dueTime:localTime.dueTime,duration:item.duration||"",personId,dealId,location,note:item.note||"",done:Boolean(item.done),personName:item.person_name||p?.name||attendee?.name||""};});
         const activities=normalizedActivities.filter(item=>upcoming?item.dueDate>=date:item.dueDate===date);
         activities.sort((a,b)=>`${a.dueDate} ${a.dueTime||"00:00"}`.localeCompare(`${b.dueDate} ${b.dueTime||"00:00"}`));
         const availableDates=normalizedActivities.map(item=>item.dueDate).sort();
@@ -2256,6 +2378,52 @@ export default {
         Object.keys(payload).forEach(key=>payload[key]===undefined&&delete payload[key]);
         const result=await pipedriveRequest(env,"/api/v2/activities",{method:"POST",body:JSON.stringify(payload)});
         return jsonResponse(request,{ok:true,activity:result.data||result,localSchedule:{dueDate,dueTime:localDueTime,timeZone:BUSINESS_TIME_ZONE},apiSchedule:{dueDate:apiDue.dueDate,dueTime:apiDue.dueTime,timeZone:"UTC"}},201);
+      }
+
+      const completeActivityMatch = url.pathname.match(/^\/pipedrive\/activities\/(\d+)\/complete$/);
+      if (completeActivityMatch && request.method === "POST") {
+        const activityId = Number(completeActivityMatch[1]);
+        const input = await request.json().catch(() => ({}));
+        const outcome = cleanText(input.outcome);
+        if (!activityId || !outcome) {
+          return jsonResponse(request, { ok: false, error: "Termin oder Ergebnis fehlt." }, 400);
+        }
+        const existingNote = cleanText(input.existingNote);
+        const detail = cleanText(input.note);
+        const completedAt = new Intl.DateTimeFormat("de-DE", {
+          timeZone: BUSINESS_TIME_ZONE,
+          dateStyle: "short",
+          timeStyle: "short"
+        }).format(new Date());
+        const resultNote = [
+          existingNote,
+          `Abschluss über mainabdichter PRO am ${completedAt}: ${outcome}.`,
+          detail
+        ].filter(Boolean).join("\n");
+        const updated = await pipedriveRequest(env, `/api/v1/activities/${activityId}`, {
+          method: "PUT",
+          body: JSON.stringify({ done: 1, note: resultNote })
+        });
+        const personId = Number(input.personId || 0) || undefined;
+        const dealId = Number(input.dealId || 0) || undefined;
+        if (personId || dealId) {
+          const content = [
+            `<strong>Termin abgeschlossen: ${escapeHtml(outcome)}</strong>`,
+            detail ? `<br>${escapeHtml(detail).replace(/\n/g, "<br>")}` : "",
+            `<br><small>${escapeHtml(completedAt)} · mainabdichter PRO</small>`
+          ].join("");
+          await pipedriveRequest(env, "/api/v1/notes", {
+            method: "POST",
+            body: JSON.stringify({
+              content,
+              person_id: personId,
+              deal_id: dealId,
+              pinned_to_person_flag: personId ? 1 : undefined,
+              pinned_to_deal_flag: dealId ? 1 : undefined
+            })
+          });
+        }
+        return jsonResponse(request, { ok: true, activity: updated.data || updated, outcome });
       }
 
       if (url.pathname === "/lexware/accepted-quotations" && request.method === "GET") {

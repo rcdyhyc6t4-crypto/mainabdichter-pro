@@ -1,4 +1,4 @@
-import { state, loadArchive, loadCustomers, saveCustomer } from "./storage-v227.js";
+import { state, loadArchive, loadCustomers, saveCustomer, loadCommunicationNotes } from "./storage-v227.js";
 import {
   hasConnectionConfig,
   searchPipedrive,
@@ -357,7 +357,7 @@ function renderCustomerRecord(customer) {
       ? `<a href="tel:${esc(item.phone)}"><small>Telefon</small><strong>${esc(item.phone)}</strong></a>`
       : `<div><small>Telefon</small><strong>Nicht hinterlegt</strong></div>`,
     whatsappPhone(item)
-      ? `<a class="customer-whatsapp" href="https://wa.me/${esc(normalizePhone(whatsappPhone(item)).replace("+", ""))}" target="_blank" rel="noopener"><small>WhatsApp</small><strong>${esc(item.mobile || item.phone)}</strong></a>`
+      ? `<a class="customer-whatsapp" href="whatsapp-business://send?phone=${esc(normalizePhone(whatsappPhone(item)).replace("+", ""))}"><small>WhatsApp Business</small><strong>${esc(item.mobile || item.phone)}</strong></a>`
       : "",
     item.email
       ? `<a href="mailto:${esc(item.email)}"><small>E-Mail</small><strong>${esc(item.email)}</strong></a>`
@@ -396,7 +396,19 @@ function renderCustomerRecord(customer) {
     : `<strong>Noch nicht mit Pipedrive verbunden</strong><span>Beim nächsten Speichern wird die Synchronisation versucht.</span>`;
 
   const pipedrive = item.externalHistory?.pipedrive;
-  const pipedriveEntries = pipedrive
+  const localCommunicationEntries = loadCommunicationNotes()
+    .filter(note =>
+      (item.pipedriveId && String(note.personId || "") === String(item.pipedriveId)) ||
+      (item.email && String(note.customerEmail || "").toLowerCase() === String(item.email).toLowerCase())
+    )
+    .map(note => ({
+      title: note.source === "E-Mail" ? "E-Mail" : "Gesprächsnotiz",
+      meta: `${formatDate(note.updatedAt || note.createdAt)} · ${String(note.text || "").slice(0, 180)}`,
+      status: note.status === "done" ? "Erledigt" : "Notiz"
+    }));
+  const pipedriveEntries = [
+    ...localCommunicationEntries,
+    ...(pipedrive
     ? [
         ...(pipedrive.deals || []).map(deal => ({
           title: deal.title || "Pipedrive-Deal",
@@ -414,7 +426,8 @@ function renderCustomerRecord(customer) {
           status: "Notiz"
         }))
       ]
-    : [];
+    : [])
+  ];
   $("customerRecordPipedriveHistory").innerHTML = pipedriveEntries.length
     ? pipedriveEntries.map(entry => `
       <article class="customer-record-row">
