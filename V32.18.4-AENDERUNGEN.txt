@@ -1,0 +1,9 @@
+mainabdichter PRO V32.18.4
+
+- Neuer einfacher Schritt: die vier Eckpunkte der tatsächlichen Wand markieren.
+- Reihenfolge: oben links, oben rechts, unten rechts, unten links.
+- Bei Möbeln oder Verkleidungen kann eine Ecke als „verdeckt“ markiert und an ihrer gedachten Position gesetzt werden.
+- Das Messraster wird perspektivisch nur innerhalb der markierten Wandfläche verteilt.
+- Die markierte Wandkontur wird im Aufmaß dargestellt.
+- Geschätzte/verdeckte Ecken werden im Ergebnis kenntlich gemacht.
+- Bestehende Wandmessungen bleiben lesbar; ohne Eckpunkte gilt weiterhin das vollständige Foto als Wandfläche.

@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.3";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.5";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.3";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.5";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,10 +13,10 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.3";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.5";
 
 
-const MAINABDICHTER_APP_VERSION = "32.18.3";
+const MAINABDICHTER_APP_VERSION = "32.18.5";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -3378,17 +3378,20 @@ $("humidity").oninput = updateDewPoint;
 
 let activeWallSurveyAreaId = "";
 let activeWallSurveyPointId = "";
+let wallSurveyCornerDraft = [];
+let wallSurveyNextCornerEstimated = false;
 
 function activeWallSurveyArea() {
   return state.visit.areas.find(area => area.id === activeWallSurveyAreaId);
 }
 
 function setWallSurveyStep(step) {
-  ["Photo", "Dimensions", "Measure", "Result"].forEach((name, index) => {
+  ["Photo", "Corners", "Dimensions", "Measure", "Result"].forEach((name, index) => {
     $(`wallSurveyStep${name}`).classList.toggle("hidden", index + 1 !== step);
   });
-  $("wallSurveyStepLabel").textContent = `Schritt ${step} von 4`;
+  $("wallSurveyStepLabel").textContent = `Schritt ${step} von 5`;
   $("wallSurveyProgress").value = step;
+  if (step === 2) drawWallSurveyCornerCanvas();
 }
 
 function wallSurveyImage() {
@@ -3403,6 +3406,76 @@ async function loadCanvasImage(source) {
     image.onerror = () => reject(new Error("Das Wandfoto konnte nicht geöffnet werden."));
     image.src = source;
   });
+}
+
+const WALL_CORNER_NAMES = ["oben links", "oben rechts", "unten rechts", "unten links"];
+
+async function drawWallSurveyCornerCanvas() {
+  const canvas = $("wallSurveyCornerCanvas");
+  const source = wallSurveyImage();
+  if (!canvas || !source) return;
+  const image = await loadCanvasImage(source);
+  canvas.width = 1200;
+  canvas.height = Math.round(canvas.width * image.height / image.width);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  if (wallSurveyCornerDraft.length) {
+    context.beginPath();
+    wallSurveyCornerDraft.forEach((point, index) => {
+      const x = point.x * canvas.width;
+      const y = point.y * canvas.height;
+      if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    });
+    if (wallSurveyCornerDraft.length === 4) context.closePath();
+    context.strokeStyle = "#42ad35";
+    context.lineWidth = 7;
+    context.stroke();
+  }
+  wallSurveyCornerDraft.forEach((point, index) => {
+    const x = point.x * canvas.width;
+    const y = point.y * canvas.height;
+    context.beginPath();
+    context.arc(x, y, 24, 0, Math.PI * 2);
+    context.fillStyle = point.estimated ? "#ffab00" : "#42ad35";
+    context.fill();
+    context.strokeStyle = "#fff";
+    context.lineWidth = 7;
+    if (point.estimated) context.setLineDash([9, 7]);
+    context.stroke();
+    context.setLineDash([]);
+    context.fillStyle = "#fff";
+    context.font = "bold 24px Arial";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(String(index + 1), x, y);
+  });
+  const next = wallSurveyCornerDraft.length;
+  $("wallSurveyCornerHint").textContent = next < 4
+    ? `${next + 1}. Ecke ${WALL_CORNER_NAMES[next]} antippen${wallSurveyNextCornerEstimated ? " · verdeckt/geschätzt" : ""}`
+    : "✓ Wandfläche markiert";
+  $("wallSurveyCornersNext").disabled = wallSurveyCornerDraft.length !== 4;
+  $("wallSurveyCornerEstimated").disabled = wallSurveyCornerDraft.length === 4;
+  $("wallSurveyCornerEstimated").classList.toggle("active", wallSurveyNextCornerEstimated);
+  $("wallSurveyCornerCanvasWrap").classList.toggle("wall-corner-valid", wallSurveyCornerDraft.length === 4);
+}
+
+function addWallSurveyCorner(event) {
+  if (wallSurveyCornerDraft.length >= 4) return;
+  const canvas = $("wallSurveyCornerCanvas");
+  const rect = canvas.getBoundingClientRect();
+  wallSurveyCornerDraft.push({
+    x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+    estimated: wallSurveyNextCornerEstimated
+  });
+  wallSurveyNextCornerEstimated = false;
+  drawWallSurveyCornerCanvas();
+}
+
+function resetWallSurveyCorners() {
+  wallSurveyCornerDraft = [];
+  wallSurveyNextCornerEstimated = false;
+  drawWallSurveyCornerCanvas();
 }
 
 async function drawWallSurveyCanvas(canvas, result = false) {
@@ -3442,6 +3515,19 @@ async function drawWallSurveyCanvas(canvas, result = false) {
     context.moveTo(70, marginTop); context.lineTo(70, marginTop + photoHeight);
     context.moveTo(54, marginTop); context.lineTo(86, marginTop);
     context.moveTo(54, marginTop + photoHeight); context.lineTo(86, marginTop + photoHeight);
+    context.stroke();
+  }
+
+  if (survey.corners?.length === 4) {
+    context.beginPath();
+    survey.corners.forEach((point, index) => {
+      const x = marginX + point.x * photoWidth;
+      const y = marginTop + point.y * photoHeight;
+      if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    });
+    context.closePath();
+    context.strokeStyle = result ? "#42ad35" : "rgba(255,255,255,.85)";
+    context.lineWidth = result ? 7 : 4;
     context.stroke();
   }
 
@@ -3539,6 +3625,10 @@ async function useWallSurveyPhoto(file) {
   const area = activeWallSurveyArea();
   area.wallSurvey ||= { points:[] };
   area.wallSurvey.photoData = await compressImage(file, 1200);
+  area.wallSurvey.corners = [];
+  area.wallSurvey.points = [];
+  area.measurements = [];
+  wallSurveyCornerDraft = [];
   $("wallSurveyPhotoPreview").src = area.wallSurvey.photoData;
   $("wallSurveyPhotoPreview").classList.remove("hidden");
   $("wallSurveyPhotoNext").disabled = false;
@@ -3550,6 +3640,7 @@ function openWallSurvey(areaId) {
   activeWallSurveyPointId = "";
   const area = activeWallSurveyArea();
   area.wallSurvey ||= { photoData:"", width:"", height:"", points:[], createdAt:new Date().toISOString() };
+  wallSurveyCornerDraft = [...(area.wallSurvey.corners || [])].map(point => ({...point}));
   $("wallSurveyDialog").classList.remove("hidden");
   $("wallSurveyWidth").value = area.wallSurvey.width || "";
   $("wallSurveyHeight").value = area.wallSurvey.height || "";
@@ -3561,7 +3652,7 @@ function openWallSurvey(areaId) {
     $("wallSurveyPhotoPreview").classList.add("hidden");
     $("wallSurveyPhotoNext").disabled = true;
   }
-  setWallSurveyStep(area.wallSurvey.points?.length ? 3 : area.wallSurvey.photoData ? 2 : 1);
+  setWallSurveyStep(area.wallSurvey.points?.length ? 4 : area.wallSurvey.photoData ? (area.wallSurvey.corners?.length === 4 ? 3 : 2) : 1);
   if (area.wallSurvey.points?.length) {
     drawWallSurveyCanvas($("wallSurveyCanvas"));
     renderWallSurveyPoints();
@@ -3577,7 +3668,25 @@ function closeWallSurvey() {
 if ($("closeWallSurvey")) $("closeWallSurvey").onclick = closeWallSurvey;
 if ($("wallSurveyPhotoInput")) $("wallSurveyPhotoInput").onchange = event => useWallSurveyPhoto(event.target.files[0]);
 if ($("wallSurveyPhotoLibrary")) $("wallSurveyPhotoLibrary").onchange = event => useWallSurveyPhoto(event.target.files[0]);
-if ($("wallSurveyPhotoNext")) $("wallSurveyPhotoNext").onclick = () => setWallSurveyStep(2);
+if ($("wallSurveyPhotoNext")) $("wallSurveyPhotoNext").onclick = () => {
+  const area = activeWallSurveyArea();
+  wallSurveyCornerDraft = [...(area?.wallSurvey?.corners || [])].map(point => ({...point}));
+  setWallSurveyStep(2);
+};
+if ($("wallSurveyCornerCanvas")) $("wallSurveyCornerCanvas").onclick = addWallSurveyCorner;
+if ($("wallSurveyCornerReset")) $("wallSurveyCornerReset").onclick = resetWallSurveyCorners;
+if ($("wallSurveyCornerEstimated")) $("wallSurveyCornerEstimated").onclick = () => {
+  wallSurveyNextCornerEstimated = !wallSurveyNextCornerEstimated;
+  drawWallSurveyCornerCanvas();
+};
+if ($("wallSurveyCornersNext")) $("wallSurveyCornersNext").onclick = () => {
+  const area = activeWallSurveyArea();
+  if (!area || wallSurveyCornerDraft.length !== 4) return;
+  area.wallSurvey.corners = wallSurveyCornerDraft.map(point => ({...point}));
+  area.wallSurvey.cornersEstimated = wallSurveyCornerDraft.some(point => point.estimated);
+  saveState();
+  setWallSurveyStep(3);
+};
 if ($("wallSurveyPointClose")) $("wallSurveyPointClose").onclick = closeWallSurveyPoint;
 if ($("wallSurveySavePoint")) $("wallSurveySavePoint").onclick = () => saveWallSurveyPoint(false);
 if ($("wallSurveyInaccessible")) $("wallSurveyInaccessible").onclick = () => saveWallSurveyPoint(true);
@@ -3592,25 +3701,25 @@ if ($("wallSurveyCreateGrid")) $("wallSurveyCreateGrid").onclick = async () => {
   const previousDevice = area.measurements?.find(item => item.device)?.device || "";
   area.wallSurvey.width = width;
   area.wallSurvey.height = height;
-  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice);
+  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice, area.wallSurvey.corners);
   area.wallSurvey.updatedAt = new Date().toISOString();
   area.measurements = area.wallSurvey.points;
   saveState();
-  setWallSurveyStep(3);
+  setWallSurveyStep(4);
   await drawWallSurveyCanvas($("wallSurveyCanvas"));
   renderWallSurveyPoints();
 };
 if ($("wallSurveyToResult")) $("wallSurveyToResult").onclick = async () => {
   const area = activeWallSurveyArea();
   const progress = wallSurveyProgress(area.wallSurvey.points);
-  setWallSurveyStep(4);
+  setWallSurveyStep(5);
   await drawWallSurveyCanvas($("wallSurveyResultCanvas"), true);
   const measured = area.wallSurvey.points.filter(point => String(point.value).trim()).length;
   const inaccessible = area.wallSurvey.points.filter(point => point.status === "inaccessible").length;
   $("wallSurveyResultSummary").innerHTML = `
     <div><strong>${num(area.wallSurvey.width)} × ${num(area.wallSurvey.height)} m</strong><small>Wandmaß</small></div>
     <div><strong>${num(area.wallSurvey.width * area.wallSurvey.height)} m²</strong><small>Bruttofläche</small></div>
-    <div><strong>${measured}/${progress.total}</strong><small>gemessen${inaccessible ? ` · ${inaccessible} nicht zugänglich` : ""}</small></div>`;
+    <div><strong>${measured}/${progress.total}</strong><small>gemessen${inaccessible ? ` · ${inaccessible} nicht zugänglich` : ""}${area.wallSurvey.cornersEstimated ? " · verdeckte Ecke geschätzt" : ""}</small></div>`;
 };
 if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
   const area = activeWallSurveyArea();
@@ -3656,7 +3765,7 @@ function renderAreas() {
         <div><label>Referenzwert „trocken“</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
       </div>
       <button type="button" class="wall-survey-launch" data-wall-survey="${area.id}">
-        <span>▦</span><span><strong>${area.wallSurvey?.points?.length ? "Wandmessung weiterführen" : "Geführte Wandmessung starten"}</strong><small>Foto → Maße → Punkte antippen → fertiges Aufmaß</small></span><span>›</span>
+        <span>▦</span><span><strong>${area.wallSurvey?.points?.length ? "Wandmessung weiterführen" : "Geführte Wandmessung starten"}</strong><small>Foto → Wand markieren → Maße → Messpunkte → Aufmaß</small></span><span>›</span>
       </button>
       ${area.wallSurvey?.annotatedImageData ? `<div class="wall-survey-mini"><img src="${area.wallSurvey.annotatedImageData}" alt="Bemaßtes Wandaufmaß"><span><strong>Aufmaß gespeichert</strong><small>${num(area.wallSurvey.width)} × ${num(area.wallSurvey.height)} m · ${area.wallSurvey.points.length} Messpunkte</small></span></div>` : ""}
       <details class="manual-measurements"><summary>Messwerte als Liste anzeigen</summary><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Einzelnen Messpunkt ergänzen</button></details>

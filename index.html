@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.18.3</title>
-<link rel="stylesheet" href="css/app.css?v=32.18.3">
+<title>mainabdichter PRO V32.18.5</title>
+<link rel="stylesheet" href="css/app.css?v=32.18.5">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -1328,7 +1328,7 @@ main{width:100%;max-width:100%}
       <div><small>GEFÜHRTE WANDMESSUNG</small><h2 id="wallSurveyTitle">Eine Aufgabe nach der anderen</h2></div>
       <button type="button" id="closeWallSurvey" class="wall-survey-close" aria-label="Schließen">×</button>
     </header>
-    <div class="wall-survey-progress"><span id="wallSurveyStepLabel">Schritt 1 von 4</span><progress id="wallSurveyProgress" max="4" value="1"></progress></div>
+    <div class="wall-survey-progress"><span id="wallSurveyStepLabel">Schritt 1 von 5</span><progress id="wallSurveyProgress" max="5" value="1"></progress></div>
 
     <section id="wallSurveyStepPhoto" class="wall-survey-step">
       <div class="wall-survey-instruction"><b>1</b><div><strong>Fotografiere die komplette Wand</strong><small>Möglichst gerade und so, dass alle Wandkanten sichtbar sind.</small></div></div>
@@ -1338,8 +1338,18 @@ main{width:100%;max-width:100%}
       <button type="button" id="wallSurveyPhotoNext" class="primary wall-survey-main-action" disabled>Foto verwenden</button>
     </section>
 
+    <section id="wallSurveyStepCorners" class="wall-survey-step hidden">
+      <div class="wall-survey-instruction"><b>2</b><div><strong>Die 4 Ecken der Wand antippen</strong><small>Ist eine Ecke zugestellt, markiere einfach ihre gedachte Position.</small></div></div>
+      <div id="wallSurveyCornerCanvasWrap" class="wall-survey-canvas-wrap wall-corner-canvas-wrap">
+        <canvas id="wallSurveyCornerCanvas"></canvas>
+        <div id="wallSurveyCornerHint" class="wall-corner-hint">1. Ecke oben links antippen</div>
+      </div>
+      <button type="button" id="wallSurveyCornerEstimated" class="secondary wall-corner-estimated">Ecke ist verdeckt</button>
+      <div class="wall-corner-actions"><button type="button" id="wallSurveyCornerReset" class="secondary">Neu markieren</button><button type="button" id="wallSurveyCornersNext" class="primary" disabled>Wand übernehmen</button></div>
+    </section>
+
     <section id="wallSurveyStepDimensions" class="wall-survey-step hidden">
-      <div class="wall-survey-instruction"><b>2</b><div><strong>Nur Länge und Höhe eingeben</strong><small>Diese Werte sind der sichere Maßstab für Foto und Aufmaß.</small></div></div>
+      <div class="wall-survey-instruction"><b>3</b><div><strong>Nur Länge und Höhe eingeben</strong><small>Diese Werte sind der sichere Maßstab für Foto und Aufmaß.</small></div></div>
       <div class="wall-dimension-inputs">
         <div><label>Wandlänge in Meter</label><input id="wallSurveyWidth" type="number" inputmode="decimal" min=".5" step=".01" placeholder="z. B. 4,20"></div>
         <div><label>Wandhöhe in Meter</label><input id="wallSurveyHeight" type="number" inputmode="decimal" min=".5" step=".01" placeholder="z. B. 2,40"></div>
@@ -1348,7 +1358,7 @@ main{width:100%;max-width:100%}
     </section>
 
     <section id="wallSurveyStepMeasure" class="wall-survey-step hidden">
-      <div class="wall-survey-instruction"><b>3</b><div><strong>Punkt antippen und messen</strong><small>Nach dem Speichern wird automatisch der nächste offene Punkt ausgewählt.</small></div></div>
+      <div class="wall-survey-instruction"><b>4</b><div><strong>Punkt antippen und messen</strong><small>Die Punkte liegen jetzt nur innerhalb der markierten Wand.</small></div></div>
       <div id="wallSurveyCanvasWrap" class="wall-survey-canvas-wrap">
         <canvas id="wallSurveyCanvas"></canvas>
         <div id="wallSurveyPoints" class="wall-survey-points"></div>
@@ -1364,7 +1374,7 @@ main{width:100%;max-width:100%}
     </section>
 
     <section id="wallSurveyStepResult" class="wall-survey-step hidden">
-      <div class="wall-survey-instruction"><b>4</b><div><strong>Fertig – kurz kontrollieren</strong><small>Maße und Messpunkte werden automatisch in Bauakte und Protokoll übernommen.</small></div></div>
+      <div class="wall-survey-instruction"><b>5</b><div><strong>Fertig – kurz kontrollieren</strong><small>Maße und Messpunkte werden automatisch in Bauakte und Protokoll übernommen.</small></div></div>
       <canvas id="wallSurveyResultCanvas" class="wall-survey-result"></canvas>
       <div id="wallSurveyResultSummary" class="wall-survey-result-summary"></div>
       <button type="button" id="wallSurveyFinish" class="primary wall-survey-main-action">Aufmaß speichern</button>
@@ -1395,9 +1405,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.18.3"></script>
-<script type="module" src="js/cloud-migration.js?v=32.18.3"></script>
+<script type="module" src="js/app.js?v=32.18.5"></script>
+<script type="module" src="js/cloud-migration.js?v=32.18.5"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.18.3"></script>
+<script type="module" src="js/customers.js?v=32.18.5"></script>
 </body>
 </html>

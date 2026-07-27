@@ -1,0 +1,7 @@
+mainabdichter PRO V32.18.5
+
+- Anzahl der Messpunkte deutlich reduziert.
+- Kleine Wand: automatisch 6 Messpunkte.
+- Normale Wand: automatisch 9 Messpunkte.
+- Große Wand: automatisch 12 Messpunkte.
+- Die Punkte bleiben gleichmäßig unten, mittig und oben innerhalb der markierten Wand verteilt.

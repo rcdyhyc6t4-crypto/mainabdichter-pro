@@ -1,6 +1,6 @@
 {
   "name": "mainabdichter-pro",
-  "version": "32.18.3",
+  "version": "32.18.5",
   "private": true,
   "scripts": {
     "build": "node --check js/customers.js && node --check js/app.js && node --check js/pipedrive-sync-v227.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js && node tests/timezone-worker.test.cjs && node tests/wall-survey.test.cjs && node tests/mobile-navigation.test.cjs && node tests/pipedrive-short-text.test.cjs && node tests/worksite-draft-isolation.test.cjs",
