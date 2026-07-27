@@ -1,0 +1,10 @@
+mainabdichter PRO V32.18.8
+
+- Nach jedem Baustellenabschluss wird automatisch „Rechnung schreiben“ vorgemerkt.
+- Das Dashboard zeigt die Anzahl der noch offenen Rechnungen gut sichtbar an.
+- Antippen öffnet einen Filter ausschließlich mit abgeschlossenen Baustellen ohne Rechnungsbestätigung.
+- Bereits vor diesem Update abgeschlossene Baustellen gelten ebenfalls als Rechnung offen, solange sie nicht bestätigt wurden.
+- Im abgeschlossenen Arbeitsnachweis steht der Knopf „Rechnung geschrieben“.
+- Erst nach dieser Bestätigung verschwindet der Vorgang aus dem Rechnungsfilter.
+- In der Kundenakte wird „Rechnung offen“ oder „Rechnung geschrieben“ angezeigt.
+- Der abgeschlossene Arbeitsnachweis bleibt unabhängig davon dauerhaft in der Kundenakte.

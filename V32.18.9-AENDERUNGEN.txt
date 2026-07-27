@@ -1,0 +1,8 @@
+mainabdichter PRO V32.18.9
+
+- Lexoffice: Abgeschlossene Baustellen aus einem angenommenen Lexoffice-Angebot können direkt als bearbeitbarer Rechnungsentwurf weitergeführt werden.
+- Rechnungssicherheit: Der Entwurf wird nicht automatisch finalisiert; die Rechnungserinnerung bleibt bis zur ausdrücklichen Bestätigung erhalten.
+- Mitarbeiter: Genau drei feste Mitarbeiterplätze im Admin-Menü, Mike Sprager ist als Standard vorausgewählt.
+- Besichtigung: Nur der aktuelle Arbeitsschritt ist sichtbar.
+- Besichtigung: Nach vollständiger Eingabe wechselt die App automatisch zum nächsten Hauptschritt.
+- Navigation: Die obere Schrittleiste und „Direkt zu“ bleiben für Vor- und Zurückspringen verfügbar.

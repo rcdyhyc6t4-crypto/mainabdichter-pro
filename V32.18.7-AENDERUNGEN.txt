@@ -1,0 +1,9 @@
+mainabdichter PRO V32.18.7
+
+- Abgeschlossene Baustellen verschwinden sofort aus der aktiven Baustellenliste.
+- Die vollständigen Baustellendaten und der Arbeitsnachweis bleiben erhalten.
+- In der Kundenakte heißt der Bereich jetzt „Baustellen und Arbeitsnachweise“.
+- Abgeschlossene Arbeitsnachweise sind dort eindeutig als „Arbeitsnachweis“ gekennzeichnet.
+- Durch Antippen öffnet sich der abgeschlossene Nachweis direkt im Abschlussbereich.
+- Abgeschlossene Nachweise bleiben gesperrt, damit sie nicht versehentlich verändert werden.
+- Noch abzuholende Injektionsflaschen und Nachkontrolldaten bleiben weiterhin erhalten.

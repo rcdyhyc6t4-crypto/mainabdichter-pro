@@ -149,6 +149,8 @@ Ihre Vorteile:
 Die Auswahl des Abdichtungssystems erfolgt passend zur festgestellten Schadenssituation und zu den technischen Anforderungen des jeweiligen Bauteils.`
     },
     lexofficeOfferImportFrom: "2026-07-26",
+    employees: ["Mike Sprager", "", ""],
+    defaultVisitEmployee: "Mike Sprager",
     noticeTexts: {
       standard: "Feuchteschäden können unterschiedliche Ursachen und Folgeschäden aufweisen. Die Bearbeitung erfolgt daher im Ausschlussverfahren. Es werden zunächst die sichtbaren und messbaren Schadensursachen bearbeitet. Nach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Weitere Maßnahmen erfolgen nur nach gesonderter Feststellung und Abstimmung mit dem Auftraggeber. Werden infolge des Schadensbildes nach der Injektion zusätzliche Fehlstellen, zum Beispiel Risse oder Kiesnester, sichtbar, sind ergänzende Maßnahmen, zum Beispiel eine Harzverpressung, gesondert zu beauftragen und abzurechnen.\n\nDie angebotene Abdichtungsmaßnahme dient ausschließlich der Unterbindung des kapillaren Feuchtetransports im Bauteil. Nicht Bestandteil des Angebots sind Schäden oder Feuchteeintritte infolge von drückendem Wasser, Rissen im Mauerwerk oder Putz, Undichtigkeiten im Boden-Wand-Anschluss, mangelhaften Wanddurchführungen oder vergleichbaren Fremdeinflüssen.\n\nMaßnahmen gegen drückendes Wasser beziehungsweise eindringendes Wasser sind nicht enthalten und werden, soweit erforderlich, gesondert berechnet (98,00 € brutto je Packer). Maßnahmen gegen eine Über- oder Unterwanderung der Abdichtung sind ebenfalls nicht enthalten. Hierfür können ergänzende Abdichtungsmaßnahmen, zum Beispiel eine Erweiterung der Horizontalsperre oder Flächensperre, erforderlich werden.\n\nNach ausreichender Austrocknung kann ein Austausch des salzbelasteten Putzsystems erforderlich sein. Diese Leistung ist nicht Bestandteil des Angebots.\n\nGewährleistungsansprüche bestehen nicht für Schäden infolge außergewöhnlicher Naturereignisse, insbesondere Hochwasser, Starkregen oder Überflutung, soweit diese außerhalb des vereinbarten Leistungsumfangs liegen.\n\nGrundlage der Ausführung ist die jeweils gültige Richtlinie „Flächensperre / Horizontalsperre mit flüssigen Injektionsmitteln“ der BKM.MANNESMANN AG. Im Übrigen gelten die gesetzlichen Vorschriften des BGB.",
       wallSole: "Der Wand-Sohlen-Anschluss wird grundsätzlich im Ausschlussverfahren ausgeführt. Der Leistungsumfang umfasst das Öffnen des Estrichs auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte, die Reinigung des Anschlussbereiches, die Herstellung einer Dichtkehle, das Aufbringen des Dichtmörtels bis mindestens 15 cm über eine vorhandene Sperrbahn sowie das anschließende Einbringen einer Horizontalsperre mit BKM HZ 250 Pro.\n\nNach einer angemessenen Standzeit wird das Bauwerk erneut überprüft. Sollte sich dabei zeigen, dass eine ergänzende Harzverpressung erforderlich ist, wird diese ausschließlich in den tatsächlich notwendigen Bereichen ausgeführt und nach dem tatsächlich ausgeführten Umfang gesondert berechnet.",
@@ -179,7 +181,7 @@ Die Auswahl des Abdichtungssystems erfolgt passend zur festgestellten Schadenssi
       roomTemp: "", humidity: "", surfaceTemp: "", dewPoint: ""
     },
     visitDate: new Date().toISOString().slice(0, 10),
-    visitEmployee: "",
+    visitEmployee: "Mike Sprager",
     visitStartTime: "",
     visitEndTime: "",
     visitNumber: "",

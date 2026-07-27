@@ -175,6 +175,14 @@ export async function createLexwareQuotation(payload) {
   });
 }
 
+export async function createLexwareInvoiceDraft(quotationId) {
+  return api("/lexware/invoices/from-quotation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quotationId })
+  });
+}
+
 
 export async function createPipedrivePerson(payload) {
   return api("/pipedrive/persons", {

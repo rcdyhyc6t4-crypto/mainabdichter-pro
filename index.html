@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.18.6</title>
-<link rel="stylesheet" href="css/app.css?v=32.18.6">
+<title>mainabdichter PRO V32.18.9</title>
+<link rel="stylesheet" href="css/app.css?v=32.18.9">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -88,6 +88,7 @@ main{width:100%;max-width:100%}
         <button type="button" id="v28OpenOffersCard" class="v28-overview-card"><span class="v28-overview-icon v28-green-icon">▤</span><span><strong id="v28OpenOffers">0</strong><b>Offene Angebote</b><small>Warten auf Rückmeldung</small></span><em>›</em></button>
         <button type="button" id="v28OpenExecutionsCard" class="v28-overview-card"><span class="v28-overview-icon v28-yellow-icon">⌑</span><span><strong id="v28OpenExecutions">0</strong><b>Offene Ausführungen</b><small>Termin und Material planen</small></span><em>›</em></button>
         <button type="button" id="v28PlannedExecutionsCard" class="v28-overview-card"><span class="v28-overview-icon v28-blue-icon">✓</span><span><strong id="v28PlannedExecutions">0</strong><b>Ausführung geplant</b><small>Termin verbindlich bestätigt</small></span><em>›</em></button>
+        <button type="button" id="v28PendingInvoicesCard" class="v28-overview-card invoice-reminder-card"><span class="v28-overview-icon v28-red-icon">€</span><span><strong id="v28PendingInvoices">0</strong><b>Rechnung schreiben</b><small id="v28PendingInvoiceHint">Keine Rechnung offen</small></span><em>›</em></button>
         <button type="button" class="v28-overview-card" data-v28-target="more"><span class="v28-overview-icon v28-yellow-icon">↻</span><span><strong id="v28Followups">0</strong><b>Nachkontrolle</b><small id="v28FollowupHint">Keine fällig</small></span><em>›</em></button>
         <button type="button" class="v28-overview-card" id="v28BottleCard"><span class="v28-overview-icon v28-red-icon">♙</span><span><strong id="v28BottleCount">0</strong><b>Flaschen abholen</b><small id="v28BottleSites">Auf 0 Baustellen</small></span><em>›</em></button>
         <button type="button" class="v28-overview-card" data-v28-target="dashboard"><span class="v28-overview-icon v28-blue-icon">▦</span><span><strong id="v28MoreAppointments">0</strong><b>Weiterer Termin</b><small id="v28AppointmentHint">Heute nichts mehr</small></span><em>›</em></button>
@@ -445,7 +446,7 @@ main{width:100%;max-width:100%}
     <summary>1. Kunde und Termin <span class="step-state"></span></summary>
     <section class="visit-time-card">
       <label for="visitEmployee">Mitarbeiter auswählen</label>
-      <input id="visitEmployee" placeholder="Name des Mitarbeiters" autocomplete="name">
+      <select id="visitEmployee" autocomplete="name"></select>
       <button id="startVisitWork" type="button" class="primary workday-main-button">Besichtigung beginnen</button>
       <div id="visitStartStatus" class="workday-status"></div>
     </section>
@@ -758,7 +759,7 @@ main{width:100%;max-width:100%}
       <div id="customerRecordOffers" class="customer-record-list"></div>
     </section>
     <section class="customer-record-section">
-      <header><div><span>AUSFÜHRUNG</span><h3>Baustellen</h3></div><b id="customerRecordWorksiteCount">0</b></header>
+      <header><div><span>AUSFÜHRUNG UND ARCHIV</span><h3>Baustellen und Arbeitsnachweise</h3></div><b id="customerRecordWorksiteCount">0</b></header>
       <div id="customerRecordWorksites" class="customer-record-list"></div>
     </section>
     <section class="customer-record-section">
@@ -943,7 +944,7 @@ main{width:100%;max-width:100%}
         <div class="workday-start-card">
           <span class="dashboard-eyebrow">ARBEITSBEGINN</span>
           <label for="wsEmployees">Mitarbeiter auswählen</label>
-          <input id="wsEmployees" placeholder="Name des Mitarbeiters">
+          <select id="wsEmployees"></select>
           <button id="startWorkday" type="button" class="primary workday-main-button">Arbeitsbeginn</button>
           <div id="workdayStartStatus" class="workday-time-status"></div>
           <details class="time-correction">
@@ -1089,6 +1090,13 @@ main{width:100%;max-width:100%}
           <button id="syncWorksitePipedrive" class="secondary">Mit Pipedrive synchronisieren</button>
           <button id="completeWorksite" class="primary">Abschließen, PDF hochladen und Material abbuchen</button>
         </div>
+        <div id="worksiteInvoiceReminder" class="worksite-invoice-reminder hidden">
+          <div><span class="dashboard-eyebrow">RECHNUNG OFFEN</span><strong>Arbeitsnachweis abgeschlossen – Rechnung noch schreiben</strong><small>Der Hinweis bleibt auf dem Dashboard, bis du die Rechnung bestätigst.</small></div>
+          <div class="worksite-invoice-actions">
+            <button type="button" id="createLexwareInvoiceDraft" class="primary">Entwurf in Lexoffice erstellen</button>
+            <button type="button" id="markWorksiteInvoiced" class="secondary">Rechnung geschrieben</button>
+          </div>
+        </div>
         <div id="worksiteStatus" class="status"></div>
       </div>
     </section>
@@ -1229,6 +1237,15 @@ main{width:100%;max-width:100%}
     <p class="hint">Ab diesem Angebotsdatum werden offene Angebote sowie angenommene Angebote ohne bereits angelegte Baustelle aus Lexoffice geladen.</p>
     <div class="grid">
       <div><label for="lexofficeOfferImportFrom">Angebote abrufen ab</label><input id="lexofficeOfferImportFrom" type="date"></div>
+    </div>
+  </details>
+  <details class="card" open>
+    <summary>Mitarbeiter</summary>
+    <p class="hint">Es stehen genau drei feste Plätze zur Verfügung. Mitarbeiter 1 wird bei neuen Besichtigungen und Arbeitsnachweisen automatisch vorausgewählt.</p>
+    <div class="grid">
+      <div><label for="employeeName1">Mitarbeiter 1 · Standard</label><input id="employeeName1" autocomplete="name"></div>
+      <div><label for="employeeName2">Mitarbeiter 2</label><input id="employeeName2" autocomplete="name" placeholder="Noch nicht belegt"></div>
+      <div><label for="employeeName3">Mitarbeiter 3</label><input id="employeeName3" autocomplete="name" placeholder="Noch nicht belegt"></div>
     </div>
   </details>
   <details class="card" open>
@@ -1418,9 +1435,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.18.6"></script>
-<script type="module" src="js/cloud-migration.js?v=32.18.6"></script>
+<script type="module" src="js/app.js?v=32.18.9"></script>
+<script type="module" src="js/cloud-migration.js?v=32.18.9"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.18.6"></script>
+<script type="module" src="js/customers.js?v=32.18.9"></script>
 </body>
 </html>

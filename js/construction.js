@@ -173,6 +173,7 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
     customer: clone(visit.customer),
     pipedrivePersonId: visit.customer?.pipedriveId || "",
     pipedriveDealId: visit.customer?.pipedriveDealId || "",
+    lexwareQuotationId: visit.lexwareQuotationId || "",
     building: clone(visit.building),
     visitNumber: visit.visitNumber || "",
     objectAddress: visit.customer.objectAddress || [
@@ -183,7 +184,7 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
     startTime: "",
     endTime: "",
     pauseMinutes: 0,
-    employees: "Mike Sprager",
+    employees: visit.visitEmployee || settings.defaultVisitEmployee || settings.employees?.[0] || "Mike Sprager",
     weather: visit.visitWeather || "",
     outdoorTemp: visit.visitOutdoorTemp || "",
     latitude: visit.visitLatitude || "",
@@ -443,5 +444,5 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
     address.street || contact.street || "",
     [address.zip || contact.zip || "", address.city || contact.city || ""].filter(Boolean).join(" ")
   ].filter(Boolean).join(", ");
-  return {id:crypto.randomUUID(),offerRecordId:"",pipedrivePersonId:"",pipedriveDealId:"",lexwareQuotationId:quotation.id||"",lexwareVoucherNumber:quotation.voucherNumber||"",status:"planning",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),customer:{salutation:contact.salutation||"",firstName:contact.firstName||(nameParts.length>1?nameParts.slice(0,-1).join(" "):""),lastName:contact.lastName||(nameParts.at(-1)||customerName),company:contact.company||"",phone:contact.phone||"",email:contact.email||"",street:address.street||contact.street||"",zip:address.zip||contact.zip||"",city:address.city||contact.city||"",objectAddress,lexwareContactId:contact.id||quotation.contactId||""},building:{},visitNumber:quotation.voucherNumber||"",objectAddress,date:"",startTime:"",endTime:"",pauseMinutes:0,employees:"Mike Sprager",weather:"",outdoorTemp:"",latitude:"",longitude:"",generalNotes:"",customerSignature:"",workerSignature:"",materialBooked:false,materialBookedAt:"",materialReserved:false,materialReservedAt:"",materialReservation:[],tasks};
+  return {id:crypto.randomUUID(),offerRecordId:"",pipedrivePersonId:"",pipedriveDealId:"",lexwareQuotationId:quotation.id||"",lexwareVoucherNumber:quotation.voucherNumber||"",status:"planning",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),customer:{salutation:contact.salutation||"",firstName:contact.firstName||(nameParts.length>1?nameParts.slice(0,-1).join(" "):""),lastName:contact.lastName||(nameParts.at(-1)||customerName),company:contact.company||"",phone:contact.phone||"",email:contact.email||"",street:address.street||contact.street||"",zip:address.zip||contact.zip||"",city:address.city||contact.city||"",objectAddress,lexwareContactId:contact.id||quotation.contactId||""},building:{},visitNumber:quotation.voucherNumber||"",objectAddress,date:"",startTime:"",endTime:"",pauseMinutes:0,employees:settings.defaultVisitEmployee||settings.employees?.[0]||"Mike Sprager",weather:"",outdoorTemp:"",latitude:"",longitude:"",generalNotes:"",customerSignature:"",workerSignature:"",materialBooked:false,materialBookedAt:"",materialReserved:false,materialReservedAt:"",materialReservation:[],tasks};
 }

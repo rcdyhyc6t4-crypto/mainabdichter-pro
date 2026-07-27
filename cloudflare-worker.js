@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.18.6
+// mainabdichter PRO Cloudflare Worker V32.18.8
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1494,7 +1494,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.18.6",
+          workerVersion: "32.18.8",
           time: new Date().toISOString()
         });
       }
@@ -1829,7 +1829,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.18.6",
+          workerVersion: "32.18.8",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -2917,6 +2917,34 @@ export default {
           },
           201
         );
+      }
+
+      if (
+        url.pathname === "/lexware/invoices/from-quotation" &&
+        request.method === "POST"
+      ) {
+        const payload = await request.json();
+        const quotationId = String(payload.quotationId || "").trim();
+        if (!quotationId) {
+          return jsonResponse(request, {
+            ok: false,
+            error: "Für diese Baustelle ist kein Lexoffice-Angebot hinterlegt."
+          }, 400);
+        }
+        const createdInvoice = await lexwareRequest(
+          env,
+          `/invoices?precedingSalesVoucherId=${encodeURIComponent(quotationId)}&finalize=false`,
+          {
+            method: "POST",
+            body: JSON.stringify({})
+          }
+        );
+        return jsonResponse(request, {
+          ok: true,
+          invoiceId: createdInvoice.id,
+          resourceUri: createdInvoice.resourceUri,
+          editUrl: `https://app.lexware.de/permalink/invoices/edit/${createdInvoice.id}`
+        }, 201);
       }
 
       return jsonResponse(

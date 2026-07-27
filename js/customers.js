@@ -9,7 +9,7 @@ import {
   createPipedrivePerson,
   lookupGermanLocalities,
   lookupGermanStreets
-} from "./api-v227.js?v=32.18.6";
+} from "./api-v227.js?v=32.18.8";
 
 const $ = id => document.getElementById(id);
 let activeRecordCustomer = null;
@@ -523,15 +523,20 @@ function renderCustomerRecord(customer) {
   $("customerRecordWorksiteCount").textContent = String(worksites.length);
   $("customerRecordWorksites").innerHTML = worksites.length
     ? worksites.sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).map(worksite => `
-      <article class="customer-record-row">
+      <button type="button" class="customer-record-row customer-worksite-record ${worksite.status === "completed" ? "completed" : ""}" data-customer-worksite="${esc(worksite.id)}">
         <div>
-          <strong>${esc(worksite.visitNumber || "Baustelle")}</strong>
+          <strong>${esc(worksite.status === "completed" ? "Arbeitsnachweis" : (worksite.visitNumber || "Baustelle"))}</strong>
           <span>${esc(formatDate(worksite.date))} · ${esc(worksite.objectAddress || item.objectAddress || "")}</span>
-          <small>${esc((worksite.tasks || []).map(task => task.type).filter(Boolean).join(", ") || "Keine Maßnahmen hinterlegt")}</small>
+          <small>${esc((worksite.tasks || []).map(task => task.type).filter(Boolean).join(", ") || "Keine Maßnahmen hinterlegt")}${worksite.status === "completed" && worksite.invoiceStatus !== "invoiced" ? " · Rechnung offen" : worksite.invoiceStatus === "invoiced" ? " · Rechnung geschrieben" : ""}</small>
         </div>
-        <em>${esc(recordStatus(worksite.status))}</em>
-      </article>`).join("")
+        <em>${esc(worksite.status === "completed" ? "Ansehen ›" : recordStatus(worksite.status))}</em>
+      </button>`).join("")
     : `<div class="customer-record-empty">Für diesen Kunden ist noch keine Baustelle gespeichert.</div>`;
+  $("customerRecordWorksites").querySelectorAll("[data-customer-worksite]").forEach(button => {
+    button.onclick = () => window.dispatchEvent(new CustomEvent("mainabdichter:open-worksite-record", {
+      detail: { worksiteId:button.dataset.customerWorksite, section:"wsSectionReport" }
+    }));
+  });
 
   $("customerRecordPipedrive").innerHTML = item.pipedriveId
     ? `<strong>Mit Pipedrive verbunden</strong><span>Personen-ID ${esc(item.pipedriveId)}${item.lastPipedriveSync?.at ? ` · zuletzt ${esc(new Date(item.lastPipedriveSync.at).toLocaleString("de-DE"))}` : ""}</span>`

@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.6";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.9";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.6";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.9";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,10 +13,32 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.6";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.9";
+
+function configuredEmployees() {
+  const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
+  const names = [stored[0] || state.settings.defaultVisitEmployee || "Mike Sprager", stored[1] || "", stored[2] || ""]
+    .map(name => String(name || "").trim());
+  if (!names[0]) names[0] = "Mike Sprager";
+  return names;
+}
+
+function defaultEmployeeName() {
+  return configuredEmployees()[0];
+}
+
+function renderEmployeeSelect(id, selected = "") {
+  const select = $(id);
+  if (!select) return;
+  const employees = configuredEmployees().filter(Boolean);
+  const wanted = String(selected || "").trim();
+  const options = wanted && !employees.includes(wanted) ? [wanted, ...employees] : employees;
+  select.innerHTML = options.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+  select.value = options.includes(wanted) ? wanted : (options[0] || "");
+}
 
 
-const MAINABDICHTER_APP_VERSION = "32.18.6";
+const MAINABDICHTER_APP_VERSION = "32.18.9";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1320,8 +1342,14 @@ function renderV28Dashboard() {
   const active = worksites.filter(worksite => worksite.status !== "completed");
   const openExecutions = worksites.filter(worksite => !worksite.status || worksite.status === "planning");
   const plannedExecutions = worksites.filter(worksite => worksite.status === "planned");
+  const pendingInvoices = worksites.filter(worksite => worksite.status === "completed" && worksite.invoiceStatus !== "invoiced");
   if ($("v28OpenExecutions")) $("v28OpenExecutions").textContent = openExecutions.length;
   if ($("v28PlannedExecutions")) $("v28PlannedExecutions").textContent = plannedExecutions.length;
+  if ($("v28PendingInvoices")) $("v28PendingInvoices").textContent = pendingInvoices.length;
+  if ($("v28PendingInvoiceHint")) $("v28PendingInvoiceHint").textContent = pendingInvoices.length
+    ? `${pendingInvoices.length === 1 ? "Eine Rechnung wartet" : `${pendingInvoices.length} Rechnungen warten`}`
+    : "Keine Rechnung offen";
+  $("v28PendingInvoicesCard")?.classList.toggle("has-pending", pendingInvoices.length > 0);
   $("v28ActiveWorksiteCount").textContent = active.length;
   $("v28ActiveWorksiteStatus").textContent = active.length ? "In Arbeit" : "Keine aktive Baustelle";
   const first = active[0];
@@ -1626,6 +1654,9 @@ function initializeV28Dashboard() {
   if ($("v28PlannedExecutionsCard")) $("v28PlannedExecutionsCard").onclick=()=>{
     worksiteViewFilter="planned"; show("worksites"); renderWorksites();
   };
+  if ($("v28PendingInvoicesCard")) $("v28PendingInvoicesCard").onclick=()=>{
+    worksiteViewFilter="invoice"; show("worksites"); renderWorksites();
+  };
   document.querySelectorAll("[data-v28-target]").forEach(button=>button.onclick=()=>show(button.dataset.v28Target));
   renderV28Dashboard();
 }
@@ -1751,6 +1782,7 @@ function startNewVisit() {
   state.visit.visitStartTime = "";
   state.visit.visitEndTime = "";
   state.visit.visitNumber = createVisitNumber();
+  state.visit.visitEmployee = defaultEmployeeName();
   saveState();
   saveVisitExplicitSavepoint();
   renderVisit();
@@ -1834,7 +1866,7 @@ function loadArchiveRecord(id, asCopy = false, destination = "offer") {
 
   if (asCopy) {
     state.visit.visitDate = todayLocal();
-    state.visit.visitEmployee = "";
+    state.visit.visitEmployee = defaultEmployeeName();
     state.visit.visitStartTime = "";
     state.visit.visitEndTime = "";
     state.visit.visitNumber = createVisitNumber();
@@ -2153,7 +2185,10 @@ $('closeCustomerAdvice').onclick=()=>show('visit');
 $('advicePrev').onclick=()=>{adviceState.stage=Math.max(1,adviceState.stage-1);renderAdvice();};
 $('adviceNext').onclick=()=>{const max=(ADVICE_CONTENT[adviceState.type]?.steps||[]).length||1;adviceState.stage=Math.min(max,adviceState.stage+1);renderAdvice();};
 document.querySelectorAll('[data-advice-type]').forEach(b=>b.onclick=()=>{adviceState.type=b.dataset.adviceType;adviceState.stage=1;renderAdvice();});
-document.querySelectorAll('[data-open-step]').forEach((b,i)=>b.onclick=()=>openGuideStep(i===4?5:i));
+document.querySelectorAll('[data-open-step]').forEach(button=>button.onclick=()=>{
+  const guideIndex={1:0,2:2,3:3,4:4,5:6}[Number(button.dataset.openStep)];
+  if(Number.isInteger(guideIndex))openGuideStep(guideIndex);
+});
 
 if ($("dashboardNewVisit")) $("dashboardNewVisit").onclick = startNewVisit;
 if ($("quickCreateOffer")) $("quickCreateOffer").onclick = () => show("offer");
@@ -2675,7 +2710,19 @@ function moisturePatternLabel(value){
 }
 function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7)return checks.every(x=>x.ok);if(index===8)return checks.every(x=>x.ok)&&visitProtocolReviewed();if(index===9)return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
-function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];const routePosition=MAIN_GUIDE_ROUTE.indexOf(index);if($('guidedStepLabel'))$('guidedStepLabel').textContent=routePosition>=0?`Hauptschritt ${routePosition+1} von ${MAIN_GUIDE_ROUTE.length}`:"Zusatzbereich";if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=MAIN_GUIDE_ROUTE.length;if($('guidedProgress'))$('guidedProgress').value=routePosition>=0?routePosition+1:Math.max(1,MAIN_GUIDE_ROUTE.filter(routeIndex=>routeIndex<index).length);if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Speichern und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}if($("visitJumpSelect"))$("visitJumpSelect").value=item.id;renderVisitChecklist();}
+function applyGuideVisibility(index){
+  GUIDE_STEPS.forEach((step,i)=>{
+    const el=$(step.id);
+    if(!el)return;
+    const current=i===index;
+    if(el.tagName==='DETAILS')el.open=current;
+    el.classList.toggle('guide-hidden',!current);
+    el.classList.toggle('is-current',current);
+    el.classList.toggle('is-complete',stepComplete(i));
+    el.classList.toggle('is-incomplete',!stepComplete(i));
+  });
+}
+function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();applyGuideVisibility(index);const item=GUIDE_STEPS[index];const routePosition=MAIN_GUIDE_ROUTE.indexOf(index);if($('guidedStepLabel'))$('guidedStepLabel').textContent=routePosition>=0?`Hauptschritt ${routePosition+1} von ${MAIN_GUIDE_ROUTE.length}`:"Zusatzbereich";if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=MAIN_GUIDE_ROUTE.length;if($('guidedProgress'))$('guidedProgress').value=routePosition>=0?routePosition+1:Math.max(1,MAIN_GUIDE_ROUTE.filter(routeIndex=>routeIndex<index).length);if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Speichern und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}if($("visitJumpSelect"))$("visitJumpSelect").value=item.id;renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexoffice übernommen':'Manuell erfasst';}}
 function jumpToVisitCheck(check){
   openGuideStep(check.step);
@@ -2702,6 +2749,7 @@ function renderVisitChecklist(){
   if($("offerBasisStatus")&&!reviewed)showStatus("offerBasisStatus",complete?"Bitte zuerst unten auf „Protokoll prüfen“ tippen.":"Die Angebotsgrundlage wird nach vollständigem Protokoll freigegeben.",false);
 }
 function updateVisitGuide(){
+  applyGuideVisibility(currentGuideStep());
   GUIDE_STEPS.forEach((step,i)=>{
     const el=$(step.id);
     if(!el)return;
@@ -2710,6 +2758,20 @@ function updateVisitGuide(){
   });
   renderVisitChecklist();
 }
+
+let visitAutoAdvanceTimer = null;
+function scheduleVisitAutoAdvance() {
+  clearTimeout(visitAutoAdvanceTimer);
+  visitAutoAdvanceTimer = setTimeout(() => {
+    if (!$("visit")?.classList.contains("active")) return;
+    const current = currentGuideStep();
+    const routePosition = MAIN_GUIDE_ROUTE.indexOf(current);
+    if (routePosition < 0 || routePosition >= MAIN_GUIDE_ROUTE.length - 1 || !stepComplete(current)) return;
+    openGuideStep(MAIN_GUIDE_ROUTE[routePosition + 1]);
+  }, 850);
+}
+$("visit")?.addEventListener("input", scheduleVisitAutoAdvance);
+$("visit")?.addEventListener("change", scheduleVisitAutoAdvance);
 function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;if(!visitProtocolReviewed())return 7;return 9;}
 
 function renderInspectionSummary(){
@@ -3162,7 +3224,8 @@ function renderVisit() {
   if (!state.visit.visitNumber) state.visit.visitNumber = createVisitNumber();
 
   $("visitNumber").value = state.visit.visitNumber;
-  $("visitEmployee").value = state.visit.visitEmployee || "";
+  renderEmployeeSelect("visitEmployee", state.visit.visitEmployee || defaultEmployeeName());
+  state.visit.visitEmployee = $("visitEmployee").value;
   $("visitDate").value = state.visit.visitDate;
   $("visitStartTime").value = state.visit.visitStartTime || "";
   $("visitEndTime").value = state.visit.visitEndTime || "";
@@ -4921,6 +4984,10 @@ const DOCUMENT_PROFILE_FIELDS = {
 function renderSettings() {
   migrateWorkerUrl();
   const s = state.settings;
+  const employees = configuredEmployees();
+  ["employeeName1","employeeName2","employeeName3"].forEach((id, index) => {
+    if ($(id)) $(id).value = employees[index] || "";
+  });
   const documentProfile = getDocumentProfile(s);
   s.documentProfile = { ...documentProfile };
   Object.entries(DOCUMENT_PROFILE_FIELDS).forEach(([id, key]) => {
@@ -5033,10 +5100,12 @@ function worksiteCustomerName(worksite) {
 function renderWorksites() {
   const allWorksites = loadWorksites();
   const list = worksiteViewFilter === "planning"
-    ? allWorksites.filter(item => !item.status || item.status === "planning")
+    ? allWorksites.filter(item => (!item.status || item.status === "planning") && item.status !== "completed")
     : worksiteViewFilter === "planned"
       ? allWorksites.filter(item => item.status === "planned")
-      : allWorksites;
+      : worksiteViewFilter === "invoice"
+        ? allWorksites.filter(item => item.status === "completed" && item.invoiceStatus !== "invoiced")
+        : allWorksites.filter(item => item.status !== "completed");
   const box = $("worksiteList");
   if (!box) return;
   $("worksiteEditor").classList.toggle("hidden", !activeWorksiteId);
@@ -5048,7 +5117,8 @@ function renderWorksites() {
     return;
   }
   const filterTitle = worksiteViewFilter === "planning" ? "Offene Ausführungen"
-    : worksiteViewFilter === "planned" ? "Ausführung geplant" : "Baustellen";
+    : worksiteViewFilter === "planned" ? "Ausführung geplant"
+      : worksiteViewFilter === "invoice" ? "Rechnung schreiben" : "Baustellen";
   box.innerHTML = `<div class="card-title-row"><h2>${filterTitle}</h2>${worksiteViewFilter !== "all" ? '<button type="button" class="secondary" id="showAllWorksites">Alle Baustellen</button>' : ""}</div>` + (list.length ? list.map(item => `
     <div class="worksite-list-item">
       <div><strong>${esc(worksiteCustomerName(item))}</strong><span>${esc(item.objectAddress || "–")}</span><small>${esc(item.date || "Termin noch offen")} · ${esc(worksiteStatusLabel(item.status))}</small></div>
@@ -5691,7 +5761,8 @@ function renderWorksiteEditor() {
   }
   $("wsDate").value = ws.date || "";
   if ($("wsPlanningDate")) $("wsPlanningDate").value = ws.date || "";
-  $("wsEmployees").value = ws.employees || "";
+  renderEmployeeSelect("wsEmployees", ws.employees || defaultEmployeeName());
+  if (!ws.employees) ws.employees = $("wsEmployees").value;
   $("wsStart").value = ws.startTime || "";
   $("wsEnd").value = ws.endTime || "";
   $("wsPause").value = formatDecimalInput(ws.pauseMinutes || 0);
@@ -5717,6 +5788,51 @@ function renderWorksiteEditor() {
   renderWorksitePhotoPage(ws);
   renderWorksiteReportChecklist(ws);
   renderWorksiteInvoiceReview(ws);
+  const invoicePending = ws.status === "completed" && ws.invoiceStatus !== "invoiced";
+  if ($("worksiteInvoiceReminder")) $("worksiteInvoiceReminder").classList.toggle("hidden", !invoicePending);
+  if ($("createLexwareInvoiceDraft")) {
+    const invoiceButton = $("createLexwareInvoiceDraft");
+    invoiceButton.textContent = ws.lexwareInvoiceId ? "Entwurf in Lexoffice öffnen" : "Entwurf in Lexoffice erstellen";
+    invoiceButton.onclick = async () => {
+      try {
+        if (ws.lexwareInvoiceEditUrl) {
+          window.open(ws.lexwareInvoiceEditUrl, "_blank", "noopener");
+          return;
+        }
+        if (!ws.lexwareQuotationId) {
+          throw new Error("Diese Baustelle stammt nicht aus einem Lexoffice-Angebot. Bitte die Rechnung in Lexoffice anlegen und danach hier als geschrieben markieren.");
+        }
+        invoiceButton.disabled = true;
+        invoiceButton.textContent = "Entwurf wird erstellt …";
+        const result = await createLexwareInvoiceDraft(ws.lexwareQuotationId);
+        ws.lexwareInvoiceId = result.invoiceId;
+        ws.lexwareInvoiceEditUrl = result.editUrl;
+        ws.invoiceStatus = "draft-created";
+        ws.invoiceDraftCreatedAt = new Date().toISOString();
+        persistWorksite(ws);
+        renderV28Dashboard();
+        window.open(result.editUrl, "_blank", "noopener");
+        showStatus("worksiteStatus", "Rechnungsentwurf wurde in Lexoffice erstellt und zur Prüfung geöffnet.", true);
+      } catch (error) {
+        showStatus("worksiteStatus", `Lexoffice-Rechnung konnte nicht erstellt werden: ${error.message}`, false);
+      } finally {
+        invoiceButton.disabled = false;
+        invoiceButton.textContent = ws.lexwareInvoiceId ? "Entwurf in Lexoffice öffnen" : "Entwurf in Lexoffice erstellen";
+      }
+    };
+  }
+  if ($("markWorksiteInvoiced")) {
+    $("markWorksiteInvoiced").onclick = () => {
+      if (!confirm(`Rechnung für ${worksiteCustomerName(ws)} wirklich als geschrieben markieren?`)) return;
+      ws.invoiceStatus = "invoiced";
+      ws.invoicedAt = new Date().toISOString();
+      persistWorksite(ws);
+      activeWorksiteId = null;
+      delete $("worksiteEditor").dataset.worksiteId;
+      renderV28Dashboard();
+      renderWorksites();
+    };
+  }
   bindWorksiteSectionNavigation();
   const storedSection = sessionStorage.getItem("mainabdichter_active_worksite_section") || "wsSectionOverview";
   activateWorksiteSection(document.getElementById(storedSection) ? storedSection : "wsSectionOverview");
@@ -6397,6 +6513,8 @@ $("completeWorksite").onclick = async () => {
     }
     const oldStatus=ws.status;
     ws.status="completed";
+    ws.invoiceStatus="pending";
+    ws.invoicePendingAt = new Date().toISOString();
     ws.reportLockedAt = new Date().toISOString();
     const pdf=await createWorksitePdf(ws, state.settings);
     try {
@@ -6412,10 +6530,22 @@ $("completeWorksite").onclick = async () => {
     }
     catch(error) { ws.status=oldStatus; persistWorksite(ws); throw error; }
     deductWorksiteInventory(ws);
-    persistWorksite(ws); saveState(); renderInventorySettings(); renderWorksiteEditor();
-    showStatus("worksiteStatus","Google Drive ✓ Pipedrive ✓ Material abgebucht ✓",true);
+    persistWorksite(ws); saveState(); renderInventorySettings();
+    activeWorksiteId = null;
+    delete $("worksiteEditor").dataset.worksiteId;
+    renderWorksites();
+    showStatus("worksiteStatus","Abgeschlossen: Der Arbeitsnachweis liegt jetzt in der Kundenakte.",true);
   } catch(error){ addSyncLog("Baustellenabschluss",false,error.message); showStatus("worksiteStatus",`Abschluss abgebrochen: ${error.message}`,false); }
 };
+
+window.addEventListener("mainabdichter:open-worksite-record", event => {
+  const worksiteId = String(event.detail?.worksiteId || "");
+  if (!worksiteId || !getWorksite(worksiteId)) return;
+  activeWorksiteId = worksiteId;
+  sessionStorage.setItem("mainabdichter_active_worksite_section", event.detail?.section || "wsSectionReport");
+  show("worksites");
+  renderWorksites();
+});
 
 function renderSettingsExtras() {
   $("settingsExtras").innerHTML = state.settings.extras.map(extra => {
@@ -6463,6 +6593,9 @@ $("loadArticles").onclick = async () => {
 };
 function collectSettings() {
   const s = state.settings;
+  s.employees = ["employeeName1","employeeName2","employeeName3"].map(id => $(id)?.value.trim() || "");
+  if (!s.employees[0]) s.employees[0] = "Mike Sprager";
+  s.defaultVisitEmployee = s.employees[0];
   const documentProfile = getDocumentProfile(s);
   Object.entries(DOCUMENT_PROFILE_FIELDS).forEach(([id, key]) => {
     documentProfile[key] = $(id)?.value.trim() || "";
