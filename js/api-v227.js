@@ -69,21 +69,23 @@ export async function api(path, options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detailParts = [];
+    const readableDetail = value => {
+      if (!value) return "";
+      if (typeof value === "string") return value;
+      if (typeof value.message === "string") return value.message;
+      if (typeof value.error_description === "string") return value.error_description;
+      if (typeof value.error === "string") return value.error;
+      if (value.error && typeof value.error.message === "string") return value.error.message;
+      return "";
+    };
 
     if (data.status) {
       detailParts.push(`HTTP ${data.status}`);
     }
 
     if (data.details) {
-      if (typeof data.details === "string") {
-        detailParts.push(data.details);
-      } else if (data.details.message) {
-        detailParts.push(data.details.message);
-      } else if (data.details.error) {
-        detailParts.push(data.details.error);
-      } else {
-        detailParts.push(JSON.stringify(data.details));
-      }
+      const readable = readableDetail(data.details);
+      if (readable && readable !== data.error) detailParts.push(readable);
     }
 
     const suffix = detailParts.length ? ` – ${detailParts.join(" – ")}` : "";

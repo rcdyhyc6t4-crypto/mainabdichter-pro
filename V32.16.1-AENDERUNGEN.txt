@@ -1,0 +1,7 @@
+mainabdichter PRO V32.16.1
+
+- Dashboard-Karte oben rechts auf „Notizen“ und die offene Anzahl gekürzt.
+- Notizkarte kompakter und typografisch an das Dashboard angepasst.
+- Technische Gmail-Fehlerdetails wie „[object Object]“ werden nicht mehr angezeigt.
+- Gmail benötigt weiterhin einmalig einen Refresh-Token mit gmail.readonly-Freigabe.
+- Bestehende Pipedrive-, Adress-, Termin- und Synchronisationslogik unverändert.

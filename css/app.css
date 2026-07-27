@@ -2188,9 +2188,12 @@ button.danger{
   .migration-actions{flex-direction:column}
 }
 
-/* V32.16.0 – ruhiges Kommunikations-Dashboard */
-.communication-note-card{border-color:#cfe5cf;background:#f4fbf3}
+/* V32.16.1 – kompakte Notizkarte und ruhiges Kommunikations-Dashboard */
+.communication-note-card{display:flex;align-items:center;gap:9px;width:auto;min-width:0;padding:10px 12px;border-color:#cfe5cf;background:#f4fbf3}
 .communication-note-icon{display:grid;place-items:center;width:25px;height:25px;border-radius:9px;background:#319a31;color:#fff;font-style:normal;font-weight:900}
+.communication-note-card>span{display:grid;gap:1px;text-align:left}
+.communication-note-card>span>strong{font-size:13px;line-height:1.1;color:#26302a}
+.communication-note-card>span>small{font-size:9px;line-height:1.2;color:#667069}
 .communication-note-card small b{font-size:1.05em;color:#237a29}
 .dashboard-communication-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:11px}
 .dashboard-communication-row>button{display:grid;grid-template-columns:38px minmax(0,1fr);gap:1px 9px;align-items:center;text-align:left;padding:11px;border:1px solid #dce7dd;border-radius:15px;background:#fff;box-shadow:0 5px 16px rgba(31,65,39,.05)}
@@ -2214,6 +2217,8 @@ button.danger{
 .appointment-outcome-options strong{font-size:13px}.appointment-outcome-options small{font-size:10px;color:#68726b}
 .appointment-complete-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
 @media(max-width:620px){
+  .v287-greeting-row{grid-template-columns:minmax(0,1fr) auto}
+  .communication-note-card{width:auto;padding:9px 10px}
   .dashboard-communication-row{grid-template-columns:1fr}
   .dashboard-communication-row>button{min-height:58px}
   .communication-item{grid-template-columns:1fr}
