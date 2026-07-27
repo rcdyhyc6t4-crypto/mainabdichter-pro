@@ -84,6 +84,8 @@ function baseTask(data = {}) {
     surfaceFollowingRowHoles: 0,
     surfaceFirstRowLiters: 0,
     surfaceFollowingRowsLiters: 0,
+    surfaceFirstRowMlPerHole: 0,
+    surfaceFollowingRowMlPerHole: 0,
     surfaceRowCount: 0,
     plannedWidth: 0,
     plannedHeight: 0,
@@ -218,8 +220,11 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   // The calculator includes reserve for quotation/loading. On site we use raw consumption only.
   let measure;
   if (task.type === "Flächensperre") {
-    const width = Number(task.actualWidth || task.plannedWidth || task.plannedQuantity || 0);
-    const height = Number(task.actualHeight || task.plannedHeight || 1);
+    const width = Math.max(0, Number(task.actualWidth ?? task.plannedWidth ?? task.plannedQuantity ?? 0));
+    const height = Math.max(0, Number(task.actualHeight ?? task.plannedHeight ?? 1));
+    task.actualWidth = width;
+    task.actualHeight = height;
+    task.actualQuantity = width * height;
     measure = {
       type: task.type,
       width,
@@ -242,8 +247,15 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
   const rawPerHole = result.holes > 0 ? Number(result.rawLiters || 0) / result.holes : 0;
 
   if (taskUsesHz(task)) {
-    task.plannedHoles = result.holes;
-    task.plannedLiters = Number(result.rawLiters || 0);
+    const plannedResult = task.type === "Flächensperre"
+      ? calculateMeasure(settings, {
+          ...measure,
+          width: Math.max(0, Number(task.plannedWidth || 0)),
+          height: Math.max(0, Number(task.plannedHeight || 0))
+        })
+      : result;
+    task.plannedHoles = plannedResult.holes;
+    task.plannedLiters = Number(plannedResult.rawLiters || 0);
     task.targetLitersPerHole = rawPerHole;
 
     if (!Number.isFinite(Number(task.actualHoles)) || Number(task.actualHoles) <= 0) {
@@ -277,16 +289,18 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       const firstHoles = Math.max(0, Number(task.surfaceFirstRowHoles || 0));
       const followingHoles = Math.max(0, Number(task.surfaceFollowingRowHoles || 0));
       task.actualHoles = firstHoles + followingHoles;
-      task.surfaceRowCount = firstHoles > 0 ? 1 + followingHoles / firstHoles : 0;
-      task.actualWidth = firstHoles * spacing;
-      task.actualHeight = task.surfaceRowCount * 0.25;
-      task.actualQuantity = task.actualWidth * task.actualHeight;
+      task.surfaceRowCount = Number(measure.height || 0) < 0.125
+        ? 0
+        : Math.floor((Number(measure.height || 0) - 0.125) / 0.25) + 1;
+      task.actualQuantity = Number(task.actualWidth || 0) * Number(task.actualHeight || 0);
       task.surfaceFirstRowHeight = 0.125;
       task.surfaceVerticalSpacing = 0.25;
 
       const spacingFactor = spacing / 0.25;
       const firstPerHole = Math.max(0.2, wall * 14 / 1000 * spacingFactor);
       const followingPerHole = Math.max(0.2, wall * 10 / 1000 * spacingFactor);
+      task.surfaceFirstRowMlPerHole = Math.round(firstPerHole * 1000);
+      task.surfaceFollowingRowMlPerHole = Math.round(followingPerHole * 1000);
       task.surfaceFirstRowLiters = firstHoles * firstPerHole;
       task.surfaceFollowingRowsLiters = followingHoles * followingPerHole;
       task.actualLiters = task.surfaceFirstRowLiters + task.surfaceFollowingRowsLiters;

@@ -1,6 +1,6 @@
 {
-  "version": "32.14.0",
-  "name": "mainabdichter PRO V32.14.0 sichere Geräte-Synchronisierung",
-  "build": "2026-07-26",
+  "version": "32.15.1",
+  "name": "mainabdichter PRO V32.15.1 Baustellennachweis Flächensperre",
+  "build": "2026-07-27",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

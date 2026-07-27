@@ -1,9 +1,11 @@
-// mainabdichter PRO Cloudflare Worker V32.14.0
+// mainabdichter PRO Cloudflare Worker V32.15.1
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
 const LEXWARE_API = "https://api.lexware.io/v1";
 const GOOGLE_DRIVE_API = "https://www.googleapis.com/drive/v3";
+const DROPBOX_API = "https://api.dropboxapi.com/2";
+const MICROSOFT_GRAPH_API = "https://graph.microsoft.com/v1.0";
 
 // Cache pro Worker-Instanz für das konfigurierte Pipedrive-Adressfeld.
 let pipedrivePersonAddressFieldCache = null;
@@ -72,6 +74,211 @@ async function googleDriveRequest(env, path, options = {}) {
     throw error;
   }
   return data;
+}
+
+async function oauthRefreshToken(url, values, label) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(values)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.access_token) {
+    const error = new Error(`${label}-Anmeldung konnte nicht erneuert werden.`);
+    error.status = response.status || 500;
+    error.details = data;
+    throw error;
+  }
+  return data.access_token;
+}
+
+async function dropboxAccessToken(env) {
+  const missing = ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "DROPBOX_REFRESH_TOKEN"].filter(key => !env[key]);
+  if (missing.length) {
+    const error = new Error(`Dropbox ist noch nicht eingerichtet (${missing.join(", ")}).`);
+    error.status = 503;
+    throw error;
+  }
+  return oauthRefreshToken("https://api.dropboxapi.com/oauth2/token", {
+    grant_type: "refresh_token",
+    refresh_token: env.DROPBOX_REFRESH_TOKEN,
+    client_id: env.DROPBOX_APP_KEY,
+    client_secret: env.DROPBOX_APP_SECRET
+  }, "Dropbox");
+}
+
+async function oneDriveAccessToken(env) {
+  const missing = ["MS_CLIENT_ID", "MS_CLIENT_SECRET", "MS_REFRESH_TOKEN"].filter(key => !env[key]);
+  if (missing.length) {
+    const error = new Error(`OneDrive ist noch nicht eingerichtet (${missing.join(", ")}).`);
+    error.status = 503;
+    throw error;
+  }
+  const tenant = env.MS_TENANT_ID || "common";
+  return oauthRefreshToken(`https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/token`, {
+    client_id: env.MS_CLIENT_ID,
+    client_secret: env.MS_CLIENT_SECRET,
+    refresh_token: env.MS_REFRESH_TOKEN,
+    grant_type: "refresh_token",
+    scope: "offline_access Files.Read User.Read"
+  }, "OneDrive");
+}
+
+async function dropboxRequest(env, path, body = {}) {
+  const token = await dropboxAccessToken(env);
+  const response = await fetch(`${DROPBOX_API}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("Dropbox API Fehler");
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
+}
+
+async function oneDriveRequest(env, path) {
+  const token = await oneDriveAccessToken(env);
+  const response = await fetch(`${MICROSOFT_GRAPH_API}${path}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("OneDrive API Fehler");
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
+}
+
+async function listMigrationItems(env, source, container = "", cursor = "") {
+  if (source === "dropbox") {
+    const data = cursor
+      ? await dropboxRequest(env, "/files/list_folder/continue", { cursor })
+      : await dropboxRequest(env, "/files/list_folder", {
+          path: container || "",
+          recursive: false,
+          include_deleted: false,
+          limit: 500
+        });
+    return {
+      items: (data.entries || []).map(item => ({
+        id: item.id || item.path_lower,
+        name: item.name,
+        path: item.path_lower,
+        kind: item[".tag"] === "folder" ? "folder" : "file",
+        size: Number(item.size || 0),
+        mimeType: "application/octet-stream"
+      })),
+      cursor: data.has_more ? data.cursor : ""
+    };
+  }
+  const endpoint = cursor
+    ? cursor.replace(MICROSOFT_GRAPH_API, "")
+    : container
+      ? `/me/drive/items/${encodeURIComponent(container)}/children?$top=200`
+      : "/me/drive/root/children?$top=200";
+  const data = await oneDriveRequest(env, endpoint);
+  return {
+    items: (data.value || []).map(item => ({
+      id: item.id,
+      name: item.name,
+      path: item.parentReference?.path || "",
+      kind: item.folder ? "folder" : "file",
+      size: Number(item.size || 0),
+      mimeType: item.file?.mimeType || "application/octet-stream"
+    })),
+    cursor: data["@odata.nextLink"] || ""
+  };
+}
+
+async function findDriveFile(env, name, parentId, size) {
+  const q = [
+    `name='${driveQueryText(name)}'`,
+    `'${driveQueryText(parentId)}' in parents`,
+    "trashed=false"
+  ].join(" and ");
+  const data = await googleDriveRequest(
+    env,
+    `/files?q=${encodeURIComponent(q)}&fields=files(id,name,size,mimeType,webViewLink)&pageSize=10`
+  );
+  return (data.files || []).find(file => Number(file.size || 0) === Number(size || 0)) || null;
+}
+
+async function migrationDownload(env, source, itemId, itemPath) {
+  if (source === "dropbox") {
+    const token = await dropboxAccessToken(env);
+    return fetch("https://content.dropboxapi.com/2/files/download", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Dropbox-API-Arg": JSON.stringify({ path: itemPath || itemId })
+      }
+    });
+  }
+  const token = await oneDriveAccessToken(env);
+  return fetch(`${MICROSOFT_GRAPH_API}/me/drive/items/${encodeURIComponent(itemId)}/content`, {
+    headers: { Authorization: `Bearer ${token}` },
+    redirect: "follow"
+  });
+}
+
+async function uploadMigrationFile(env, source, item, parentId) {
+  const existing = await findDriveFile(env, item.name, parentId, item.size);
+  if (existing) return { ...existing, skipped: true };
+  const download = await migrationDownload(env, source, item.id, item.path);
+  if (!download.ok || !download.body) {
+    const error = new Error(`${source === "dropbox" ? "Dropbox" : "OneDrive"}-Download fehlgeschlagen.`);
+    error.status = download.status || 502;
+    throw error;
+  }
+  const token = await googleAccessToken(env);
+  const mimeType = item.mimeType || download.headers.get("Content-Type") || "application/octet-stream";
+  const session = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": mimeType,
+        ...(item.size ? { "X-Upload-Content-Length": String(item.size) } : {})
+      },
+      body: JSON.stringify({
+        name: item.name,
+        parents: [parentId],
+        appProperties: { source, sourceId: String(item.id || ""), migratedBy: "mainabdichter-pro" }
+      })
+    }
+  );
+  if (!session.ok) {
+    const error = new Error("Google-Drive-Upload konnte nicht gestartet werden.");
+    error.status = session.status;
+    error.details = await session.json().catch(() => ({}));
+    throw error;
+  }
+  const uploadUrl = session.headers.get("Location");
+  const uploaded = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": mimeType,
+      ...(item.size ? { "Content-Length": String(item.size) } : {})
+    },
+    body: download.body
+  });
+  const data = await uploaded.json().catch(() => ({}));
+  if (!uploaded.ok) {
+    const error = new Error("Datei konnte nicht nach Google Drive kopiert werden.");
+    error.status = uploaded.status;
+    error.details = data;
+    throw error;
+  }
+  return { ...data, skipped: false };
 }
 
 function driveQueryText(value) {
@@ -1191,7 +1398,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.14.0",
+          workerVersion: "32.15.1",
           time: new Date().toISOString()
         });
       }
@@ -1212,6 +1419,79 @@ export default {
       if (url.pathname === "/drive/test" && request.method === "GET") {
         const profile = await googleDriveRequest(env, "/about?fields=user(displayName,emailAddress)");
         return jsonResponse(request, { ok: true, user: profile.user || null });
+      }
+
+      if (url.pathname === "/migration/status" && request.method === "GET") {
+        const services = {};
+        for (const source of ["dropbox", "onedrive"]) {
+          try {
+            if (source === "dropbox") {
+              const account = await dropboxRequest(env, "/users/get_current_account");
+              services.dropbox = {
+                connected: true,
+                name: account.name?.display_name || "",
+                email: account.email || ""
+              };
+            } else {
+              const account = await oneDriveRequest(env, "/me?$select=displayName,userPrincipalName");
+              services.onedrive = {
+                connected: true,
+                name: account.displayName || "",
+                email: account.userPrincipalName || ""
+              };
+            }
+          } catch (error) {
+            services[source] = { connected: false, error: error.message };
+          }
+        }
+        try {
+          const drive = await googleDriveRequest(env, "/about?fields=user(displayName,emailAddress)");
+          services.googleDrive = {
+            connected: true,
+            name: drive.user?.displayName || "",
+            email: drive.user?.emailAddress || ""
+          };
+        } catch (error) {
+          services.googleDrive = { connected: false, error: error.message };
+        }
+        return jsonResponse(request, { ok: true, services });
+      }
+
+      if (url.pathname === "/migration/items" && request.method === "GET") {
+        const source = url.searchParams.get("source");
+        if (!["dropbox", "onedrive"].includes(source)) {
+          return jsonResponse(request, { ok: false, error: "Ungültige Quelle." }, 400);
+        }
+        const data = await listMigrationItems(
+          env,
+          source,
+          url.searchParams.get("container") || "",
+          url.searchParams.get("cursor") || ""
+        );
+        return jsonResponse(request, { ok: true, ...data });
+      }
+
+      if (url.pathname === "/migration/folder" && request.method === "POST") {
+        const payload = await request.json().catch(() => ({}));
+        const sourceName = payload.source === "dropbox" ? "Dropbox" : "OneDrive";
+        let parent = payload.parentId || "";
+        if (!parent) {
+          const migrationRoot = await ensureDriveFolder(env, "Cloud-Migration");
+          parent = (await ensureDriveFolder(env, sourceName, migrationRoot.id)).id;
+        }
+        const folder = payload.name
+          ? await ensureDriveFolder(env, String(payload.name).slice(0, 240), parent)
+          : { id: parent, name: sourceName };
+        return jsonResponse(request, { ok: true, folder });
+      }
+
+      if (url.pathname === "/migration/copy" && request.method === "POST") {
+        const payload = await request.json().catch(() => ({}));
+        if (!["dropbox", "onedrive"].includes(payload.source) || !payload.item?.id || !payload.parentId) {
+          return jsonResponse(request, { ok: false, error: "Quelldatei oder Zielordner fehlt." }, 400);
+        }
+        const file = await uploadMigrationFile(env, payload.source, payload.item, payload.parentId);
+        return jsonResponse(request, { ok: true, file });
       }
 
       if (url.pathname === "/drive/backup" && request.method === "POST") {
@@ -1439,7 +1719,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.14.0",
+          workerVersion: "32.15.1",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

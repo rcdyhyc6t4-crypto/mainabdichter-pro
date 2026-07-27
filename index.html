@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.14.0</title>
-<link rel="stylesheet" href="css/app.css?v=32.14.0">
+<title>mainabdichter PRO V32.15.1</title>
+<link rel="stylesheet" href="css/app.css?v=32.15.1">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -998,6 +998,7 @@ main{width:100%;max-width:100%}
     <button data-more-page="offer" class="more-action"><span>☷</span><strong>Vorgänge</strong><small>Angebote und Kalkulation</small></button>
     <button data-more-action="newInquiry" class="more-action"><span>＋</span><strong>Anfrage importieren</strong><small>WhatsApp oder E-Mail</small></button>
     <button data-more-page="customerAdvice" class="more-action"><span>▶</span><strong>Kundenberatung</strong><small>Maßnahmen anschaulich erklären</small></button>
+    <button data-more-page="cloudMigration" class="more-action"><span>☁</span><strong>Cloud-Migration</strong><small>Dropbox und OneDrive nach Google Drive</small></button>
   </section>
 
   <section class="card backup-page-card">
@@ -1008,6 +1009,53 @@ main{width:100%;max-width:100%}
       <button id="exportArchive" class="backup-action"><span>⇩</span><div><strong>Lokal exportieren</strong><small>Sicherungsdatei herunterladen</small></div></button>
     </div>
     <div class="backup-info"><span>Letzte Sicherung</span><strong id="lastBackupTime">Noch keine Sicherung</strong></div>
+  </section>
+</section>
+
+<section id="cloudMigration" class="page">
+  <section class="page-heading-card">
+    <div>
+      <span class="dashboard-eyebrow">ADMIN-WERKZEUG</span>
+      <h1>Cloud-Migration</h1>
+      <p>Dateien und komplette Ordner sicher nach Google Drive kopieren.</p>
+    </div>
+  </section>
+  <section class="card migration-safety-card">
+    <strong>Die Quelldateien bleiben erhalten.</strong>
+    <p class="hint">Die Migration kopiert ausschließlich. Bereits vollständig vorhandene Dateien werden übersprungen. Ein abgebrochener Lauf kann fortgesetzt werden.</p>
+  </section>
+  <section class="card">
+    <div class="card-title-row">
+      <div><span class="dashboard-eyebrow">VERBINDUNGEN</span><h2>Cloudspeicher</h2></div>
+      <button id="migrationTestConnections" type="button" class="secondary">Verbindungen prüfen</button>
+    </div>
+    <div id="migrationConnections" class="connection-grid">
+      <div class="connection-state">Dropbox: nicht geprüft</div>
+      <div class="connection-state">OneDrive: nicht geprüft</div>
+      <div class="connection-state">Google Drive: nicht geprüft</div>
+    </div>
+  </section>
+  <section class="card">
+    <span class="dashboard-eyebrow">QUELLE AUSWÄHLEN</span>
+    <div class="migration-source-buttons">
+      <button type="button" class="secondary" data-migration-source="dropbox">Dropbox öffnen</button>
+      <button type="button" class="secondary" data-migration-source="onedrive">OneDrive öffnen</button>
+    </div>
+    <div id="migrationBreadcrumbs" class="migration-breadcrumbs"></div>
+    <div id="migrationBrowser" class="migration-browser">
+      <p class="hint">Wähle zuerst Dropbox oder OneDrive.</p>
+    </div>
+    <div class="migration-actions">
+      <button id="migrationSelectAll" type="button" class="secondary" disabled>Alles auswählen</button>
+      <button id="migrationStart" type="button" class="primary" disabled>Auswahl nach Google Drive kopieren</button>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-title-row"><div><span class="dashboard-eyebrow">FORTSCHRITT</span><h2 id="migrationProgressTitle">Noch nicht gestartet</h2></div><strong id="migrationProgressPercent">0 %</strong></div>
+    <progress id="migrationProgress" max="100" value="0"></progress>
+    <div id="migrationCurrentFile" class="hint"></div>
+    <div id="migrationSummary" class="migration-summary"></div>
+    <div id="migrationLog" class="migration-log"></div>
   </section>
 </section>
 
@@ -1193,7 +1241,8 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.14.0"></script>
+<script type="module" src="js/app.js?v=32.15.1"></script>
+<script type="module" src="js/cloud-migration.js?v=32.15.1"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
 <script type="module" src="js/customers.js?v=30.6.0"></script>
 </body>

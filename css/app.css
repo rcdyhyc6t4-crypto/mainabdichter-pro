@@ -2160,3 +2160,30 @@ button.danger{
 .planning-action-cell button{width:100%}.worksite-reservation-summary{margin:12px 0}
 .reservation-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #e4ebe2}
 .reservation-ok{color:#28772d}.reservation-short{color:#a33}
+/* Cloud-Migration V32.15.0 */
+.migration-safety-card{border-left:5px solid #2e7d32}
+.migration-safety-card>strong{color:#1b5e20}
+.migration-source-buttons,.migration-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.migration-source-buttons button{flex:1;min-width:150px}
+.migration-breadcrumbs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0}
+.migration-breadcrumbs button{border:0;background:transparent;color:var(--primary,#175b50);padding:5px;font-weight:700}
+.migration-browser{border:1px solid rgba(24,70,63,.18);border-radius:14px;overflow:hidden;min-height:86px}
+.migration-browser>.hint{padding:18px}
+.migration-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border-bottom:1px solid rgba(24,70,63,.12)}
+.migration-item:last-child{border-bottom:0}
+.migration-item label{display:flex;align-items:center;gap:10px;min-width:0;flex:1;margin:0}
+.migration-item label>span:last-child{display:flex;flex-direction:column;min-width:0}
+.migration-item strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.migration-item small{color:#63736f}
+.migration-item-icon{font-size:22px;color:#b98a2e}
+.migration-actions #migrationStart{flex:1}
+#migrationProgress{width:100%;height:18px;accent-color:#2e7d32}
+.migration-summary{font-weight:700;margin:12px 0}
+.migration-log{max-height:280px;overflow:auto;border-radius:12px;background:#f5f7f6}
+.migration-log-line{padding:9px 11px;border-bottom:1px solid #e1e7e5;font-size:13px}
+.migration-log-line.ok{color:#1b5e20}.migration-log-line.error{color:#a61b1b}.migration-log-line.skip{color:#6c5a20}
+@media(max-width:520px){
+  .migration-item{align-items:flex-start}
+  .migration-item button{padding:8px 10px}
+  .migration-actions{flex-direction:column}
+}
