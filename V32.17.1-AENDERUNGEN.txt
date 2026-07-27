@@ -1,0 +1,11 @@
+mainabdichter PRO V32.17.1
+
+- Offizielles BKM.MANNESMANN-YouTube-Video aVOKzvBJWdc in die Kundenerklärung eingebaut.
+- Das Video ist bei Horizontalsperre direkt in der App abspielbar.
+- Bei Flächensperre wird dasselbe Video mit dem klaren Hinweis angezeigt,
+  dass dort das Injektionsprinzip rasterförmig über die Wandfläche angewendet wird.
+- Datenschutzfreundliche Einbettung über youtube-nocookie.com; das Video lädt
+  erst nach aktivem Antippen.
+- Zusätzlicher Knopf „Auf YouTube öffnen“, falls die Einbettung nicht lädt.
+- Bestehende Ablaufbilder bleiben als Offline-Rückfall und Schritt-für-Schritt-Erklärung erhalten.
+- Alle Funktionen aus V32.17.0 (Adresshilfe und Vorbereitungsunterlagen) sind enthalten.

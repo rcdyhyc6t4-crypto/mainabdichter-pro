@@ -36,3 +36,32 @@ test("Baustellen übernehmen Google-Drive-Unterlagen aus der Vorbereitung", () =
   expect(html).toContain('id="wsPreparationDocuments"');
   expect(html).toContain('id="wsInheritedDocumentList"');
 });
+
+test("Baustellenführung kann beendet werden und öffnet keine alte Baustelle erneut", () => {
+  const app = readFileSync("js/app.js", "utf8");
+  expect(app).toContain("function finishWorksiteGuide()");
+  expect(app).toContain('button.dataset.bottomPage === "worksites"');
+  expect(app).toContain('sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0])');
+  expect(app).not.toContain('$("worksiteStepNext").disabled = index >= WORKSITE_SECTION_ORDER.length - 1');
+});
+
+test("Ist-Verbrauch wird vor dem Speichern aus Bohrlöchern und ml neu berechnet", () => {
+  const app = readFileSync("js/app.js", "utf8");
+  const construction = readFileSync("js/construction.js", "utf8");
+  expect(app).toContain('recalculateWorksiteTask(state.settings, task, "actualHoles")');
+  expect(construction).toContain("Math.round(Number(task.actualLiters || 0) * 1000) / 1000");
+  expect(construction).toContain("plannedLiters: result.rawLiters");
+});
+
+test("BKM-Video öffnet sich für Kunden direkt in der App", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.locator("#openCustomerAdvice").evaluate(button => button.click());
+  await expect(page.locator("#customerAdvice")).toHaveClass(/active/);
+  await expect(page.locator("#adviceVideoPanel")).toBeVisible();
+  await expect(page.locator("#playAdviceVideo")).toContainText("Video in der App");
+  await page.locator("#playAdviceVideo").click();
+  await expect(page.locator("#adviceVideoPanel iframe")).toHaveAttribute(
+    "src",
+    /youtube-nocookie\.com\/embed\/aVOKzvBJWdc/
+  );
+});

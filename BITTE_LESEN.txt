@@ -1,4 +1,4 @@
-mainabdichter PRO V32.17.0 – Komplettpaket
+mainabdichter PRO V32.18.1 – Komplettpaket
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.
@@ -11,6 +11,8 @@ NEU:
 - Unterlagen aus Besichtigung/Vorbereitung werden in die Ausführung übernommen.
 - Aufmaß, Grundriss, Pläne und andere Drive-Unterlagen sind in der Ausführung
   und unter „Dokumente“ direkt sichtbar und antippbar.
+- Das BKM.MANNESMANN-Video zur Horizontalsperre ist in der Kundenerklärung
+  für Horizontalsperre und Flächensperre direkt in der App abspielbar.
 
 GESCHÜTZT UND UNVERÄNDERT:
 - Pipedrive-Postanschrift `postal_adress`

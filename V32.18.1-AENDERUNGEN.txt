@@ -1,0 +1,18 @@
+mainabdichter PRO V32.18.1
+
+MOBILE BEDIENUNG VOR DEM UPLOAD ÜBERARBEITET
+
+- Untere Hauptnavigation auf iPhone und iPad dauerhaft fixiert.
+- iPhone-Safe-Area am unteren Bildschirmrand berücksichtigt.
+- Breiten werden auf die tatsächlich verfügbare Bildschirmbreite begrenzt.
+- Dynamische iPhone-Höhe und ein-/ausblendende Browserleisten berücksichtigt.
+- Wandmessung, Fotos, Unterschriften, Karten und Eingabefelder passen sich an kleine Displays an.
+- Baustellenausführung besitzt eine dauerhaft erreichbare Auswahl „Direkt zu“.
+- Besichtigung besitzt eine Auswahl „Direkt zu“ für jeden Abschnitt.
+- Zurück/Weiter bleibt bei der Baustellenausführung über der Hauptnavigation erreichbar.
+- Automatischer Speicherstatus wird sichtbar angezeigt.
+- Vor jedem Seitenwechsel werden offene Eingaben automatisch zwischengespeichert.
+- Auch offene Baustellendaten werden bei Navigation und App-Wechsel gesichert.
+- Geführte Besichtigung auf sechs Hauptstationen verkürzt.
+- Vorgeschichte, Dokumente und Zusatzleistungen bleiben vollständig erhalten, werden im Hauptweg aber übersprungen.
+- Zusatzbereiche sind jederzeit über „Direkt zu“ erreichbar.

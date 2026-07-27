@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.17.0";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.1";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.17.0";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.1";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,9 +13,10 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.1";
 
 
-const MAINABDICHTER_APP_VERSION = "32.17.0";
+const MAINABDICHTER_APP_VERSION = "32.18.1";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1954,6 +1955,12 @@ function exportArchiveData(
 }
 
 function show(pageId) {
+  try {
+    collectVisibleAutomaticData();
+    if (activeWorksiteId) saveActiveWorksite(false);
+  } catch (error) {
+    console.warn("Zwischenspeichern vor Seitenwechsel fehlgeschlagen:", error);
+  }
   document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
   document.querySelectorAll(".main-nav button").forEach(button => button.classList.toggle("active", button.dataset.page === pageId));
   const targetPage = $(pageId);
@@ -2081,7 +2088,22 @@ if ($("objectAddress")) $("objectAddress").addEventListener("input", () => {
 });
 ["Complaint","Followup","FollowOn"].forEach(k=>{const b=$(`contextType${k}`);if(!b)return;b.onclick=()=>{const x={Complaint:"Reklamation",Followup:"Nachkontrolle",FollowOn:"Folgeauftrag"}[k];state.visit.inquiry||={source:"",ownerStatus:"",appointment:"",message:"",rawText:"",screenshot:"",importedAt:""};state.visit.recordContext||={};state.visit.recordContext.caseType=x;state.visit.inquiry.source=x;saveState();renderRecordContext();showStatus("recordContextStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);showStatus("visitStatus",`Vorgangsart „${x}“ wurde gespeichert.`,true);};});
 
-$('guidedNext').onclick=()=>{const i=currentGuideStep();const last=GUIDE_STEPS.length-1;if(i<last&&!stepComplete(i)){showStatus('visitStatus','Bitte diesen Schritt zuerst vollständig ausfüllen.',false);openGuideStep(i);return;}if(i===last){if(stepComplete(last)){renderOffer();show('offer');}else openGuideStep(firstMissingGuideStep());return;}openGuideStep(i+1);};
+$('guidedNext').onclick=()=>{
+  const current=currentGuideStep();
+  if(!stepComplete(current)){
+    showStatus('visitStatus','Bitte nur die noch markierten Pflichtangaben ergänzen.',false);
+    openGuideStep(current);
+    return;
+  }
+  const routePosition=MAIN_GUIDE_ROUTE.indexOf(current);
+  const nextPosition=routePosition>=0?routePosition+1:MAIN_GUIDE_ROUTE.findIndex(index=>index>current);
+  if(nextPosition<0||nextPosition>=MAIN_GUIDE_ROUTE.length){
+    if(stepComplete(GUIDE_STEPS.length-1)){renderOffer();show('offer');}
+    else openGuideStep(firstMissingGuideStep());
+    return;
+  }
+  openGuideStep(MAIN_GUIDE_ROUTE[nextPosition]);
+};
 $('goToMissingStep').onclick=()=>{const missing=guideChecks().find(x=>!x.ok);if(missing)jumpToVisitCheck(missing);else openGuideStep(7);};
 $('finishVisitGuide').onclick=()=>{const last=GUIDE_STEPS.length-1;if(!stepComplete(last))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
 $("visitOfferBasis")?.querySelector("summary")?.addEventListener("click",event=>{
@@ -2105,7 +2127,14 @@ if ($("quickShowFollowups")) $("quickShowFollowups").onclick = () => { $("archiv
 if ($("showAllOffers")) $("showAllOffers").onclick = () => $("archiveList").scrollIntoView({behavior:"smooth"});
 if ($("showAllFollowups")) $("showAllFollowups").onclick = () => { $("archiveFilter").value = "followup"; renderArchive(); $("archiveList").scrollIntoView({behavior:"smooth"}); };
 $("icloudSave").onclick = () => { exportArchiveData("mainabdichter-komplettsicherung.json"); localStorage.setItem("mainabdichter_v14_last_backup",new Date().toISOString()); updateBackupTime(); };
-document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => show(button.dataset.bottomPage));
+document.querySelectorAll("[data-bottom-page]").forEach(button => button.onclick = () => {
+  if (button.dataset.bottomPage === "worksites") {
+    if (activeWorksiteId) saveActiveWorksite(false);
+    activeWorksiteId = null;
+    sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
+  }
+  show(button.dataset.bottomPage);
+});
 if ($("bottomCustomers")) $("bottomCustomers").onclick = () => show("customers");
 window.addEventListener("mainabdichter:use-customer", event => {
   const customer = event.detail?.customer;
@@ -2416,6 +2445,13 @@ function openVisitSection(target, smooth = true) {
 document.querySelectorAll("[data-open-step]").forEach(button => {
   button.onclick = () => openVisitSection($(VISIT_TOOLBAR_TARGETS[Number(button.dataset.openStep)]));
 });
+if ($("visitJumpSelect")) $("visitJumpSelect").onchange = () => {
+  const target = $($("visitJumpSelect").value);
+  if (!target) return;
+  const guideIndex = GUIDE_STEPS.findIndex(step => step.id === target.id);
+  if (guideIndex >= 0) openGuideStep(guideIndex);
+  else openVisitSection(target);
+};
 
 document.querySelectorAll("#visit details.compact-step > summary").forEach(summary => {
   summary.addEventListener("click", event => {
@@ -2469,6 +2505,7 @@ const GUIDE_STEPS = [
   {id:"visitCompletion", label:"Vollständigkeit", instruction:"Fehlende Informationen direkt ergänzen"},
   {id:"visitOfferBasis", label:"Angebotsgrundlage", instruction:"Ganz zum Schluss die Angebotsgrundlage freigeben"}
 ];
+const MAIN_GUIDE_ROUTE = [0, 2, 3, 4, 7, 9];
 const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Kunde und Termin",key:"visitEmployee",label:"Mitarbeiter"},
   {group:"Kunde und Termin",key:"visitStartTime",label:"Besichtigung begonnen"},
@@ -2574,7 +2611,7 @@ function moisturePatternLabel(value){
 }
 function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7)return checks.every(x=>x.ok);if(index===8)return checks.every(x=>x.ok)&&visitProtocolReviewed();if(index===9)return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
-function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];if($('guidedStepLabel'))$('guidedStepLabel').textContent=`Schritt ${index+1} von ${GUIDE_STEPS.length}`;if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=GUIDE_STEPS.length;if($('guidedProgress'))$('guidedProgress').value=index+1;if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Bestätigen und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}renderVisitChecklist();}
+function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();GUIDE_STEPS.forEach((step,i)=>{const el=$(step.id);if(!el)return;if(el.tagName==='DETAILS')el.open=i===index;el.classList.toggle('is-current',i===index);el.classList.toggle('is-complete',stepComplete(i));el.classList.toggle('is-incomplete',!stepComplete(i));});const item=GUIDE_STEPS[index];const routePosition=MAIN_GUIDE_ROUTE.indexOf(index);if($('guidedStepLabel'))$('guidedStepLabel').textContent=routePosition>=0?`Hauptschritt ${routePosition+1} von ${MAIN_GUIDE_ROUTE.length}`:"Zusatzbereich";if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=MAIN_GUIDE_ROUTE.length;if($('guidedProgress'))$('guidedProgress').value=routePosition>=0?routePosition+1:Math.max(1,MAIN_GUIDE_ROUTE.filter(routeIndex=>routeIndex<index).length);if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Speichern und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}if($("visitJumpSelect"))$("visitJumpSelect").value=item.id;renderVisitChecklist();}
 function renderCustomerSourceState(){const selected=customerIsSelected(),c=state.visit.customer||{};$('customerSourceActions')?.classList.toggle('hidden',selected);$('customerConfirmed')?.classList.toggle('hidden',!selected);if(selected){$('confirmedCustomerName').textContent=[c.salutation,c.firstName,c.lastName].filter(Boolean).join(' ')||c.company||'Kunde';$('confirmedCustomerSource').textContent=c.pipedriveId?'Aus Pipedrive übernommen':c.lexwareContactId?'Aus Lexoffice übernommen':'Manuell erfasst';}}
 function jumpToVisitCheck(check){
   openGuideStep(check.step);
@@ -2649,6 +2686,9 @@ const adviceState={type:'Horizontalsperre',stage:1};
 const ADVICE_CONTENT={
   'Horizontalsperre':{
     image:'assets/advice/horizontalsperre.png',
+    videoId:'aVOKzvBJWdc',
+    videoTitle:'BKM.MANNESMANN erklärt die Horizontalsperre',
+    videoNote:'Das Herstellervideo zeigt verständlich, wie das Injektionsverfahren aufsteigende Feuchtigkeit im Mauerwerk stoppt.',
     note:'Die Sperre stoppt den weiteren kapillaren Feuchtetransport. Die bereits im Mauerwerk vorhandene Feuchtigkeit muss anschließend natürlich austrocknen.',
     steps:[
       {title:'Feuchtigkeit steigt aus dem Fundament auf',text:'Bei einer fehlenden oder defekten Horizontalsperre steigt Feuchtigkeit kapillar aus dem Fundament in die darüberliegende Wand.',details:['Darstellung immer mit Fundament unter der Wand','Erdreich liegt seitlich am Bauteil an','Feuchtigkeit steigt im Mauerwerk nach oben']},
@@ -2660,6 +2700,9 @@ const ADVICE_CONTENT={
   },
   'Flächensperre':{
     image:'assets/advice/flaechensperre.png',
+    videoId:'aVOKzvBJWdc',
+    videoTitle:'BKM.MANNESMANN erklärt das Injektionsprinzip',
+    videoNote:'Das Video zeigt das grundsätzliche Injektions- und Wirkprinzip. Bei der Flächensperre wird dieses Prinzip nicht nur in einer Reihe, sondern rasterförmig über die betroffene Wandfläche ausgeführt.',
     note:'Die Flächensperre wird vollständig von innen ausgeführt. Ein Freischachten der Außenwand ist hierfür nicht erforderlich.',
     steps:[
       {title:'Feuchtigkeit aus Fundament und Erdreich',text:'Bei einer defekten oder fehlenden Vertikalabdichtung dringt Feuchtigkeit seitlich aus dem anliegenden Erdreich und zusätzlich aus dem Fundament in die Wand ein.',details:['Fundament immer unter der Wand darstellen','Erdreich immer seitlich neben der Wand darstellen','Feuchtigkeitswege von unten und von der Seite zeigen']},
@@ -2700,6 +2743,25 @@ function renderAdvice(){
   const step=content.steps[adviceState.stage-1];
   const img=$('adviceImage');
   if(img){img.src=content.image;img.alt=`${adviceState.type} – Innenabdichtung`}
+  const videoPanel=$("adviceVideoPanel");
+  if(videoPanel){
+    videoPanel.classList.toggle("hidden",!content.videoId);
+    videoPanel.innerHTML=content.videoId?`
+      <div class="advice-video-copy">
+        <span class="dashboard-eyebrow">HERSTELLERVIDEO</span>
+        <h2>${esc(content.videoTitle)}</h2>
+        <p>${esc(content.videoNote)}</p>
+      </div>
+      <div class="advice-video-placeholder">
+        <button type="button" id="playAdviceVideo" class="primary">▶ Video in der App abspielen</button>
+        <a class="secondary button-link" href="https://youtu.be/${encodeURIComponent(content.videoId)}" target="_blank" rel="noopener">Auf YouTube öffnen</a>
+      </div>`:"";
+    const playButton=$("playAdviceVideo");
+    if(playButton)playButton.onclick=()=>{
+      const placeholder=videoPanel.querySelector(".advice-video-placeholder");
+      placeholder.innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(content.videoId)}?autoplay=1&rel=0" title="${esc(content.videoTitle)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><a class="secondary button-link advice-youtube-fallback" href="https://youtu.be/${encodeURIComponent(content.videoId)}" target="_blank" rel="noopener">Falls das Video nicht lädt: auf YouTube öffnen</a>`;
+    };
+  }
   $('adviceTypeLabel').textContent=adviceState.type.toUpperCase();
   $('adviceTitle').textContent=step.title;
   $('adviceText').textContent=step.text;
@@ -3310,6 +3372,262 @@ $("climateMeasured").onchange = () => {
 $("roomTemp").oninput = updateDewPoint;
 $("humidity").oninput = updateDewPoint;
 
+let activeWallSurveyAreaId = "";
+let activeWallSurveyPointId = "";
+
+function activeWallSurveyArea() {
+  return state.visit.areas.find(area => area.id === activeWallSurveyAreaId);
+}
+
+function setWallSurveyStep(step) {
+  ["Photo", "Dimensions", "Measure", "Result"].forEach((name, index) => {
+    $(`wallSurveyStep${name}`).classList.toggle("hidden", index + 1 !== step);
+  });
+  $("wallSurveyStepLabel").textContent = `Schritt ${step} von 4`;
+  $("wallSurveyProgress").value = step;
+}
+
+function wallSurveyImage() {
+  const area = activeWallSurveyArea();
+  return area?.wallSurvey?.photoData || "";
+}
+
+async function loadCanvasImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Das Wandfoto konnte nicht geöffnet werden."));
+    image.src = source;
+  });
+}
+
+async function drawWallSurveyCanvas(canvas, result = false) {
+  const area = activeWallSurveyArea();
+  const survey = area?.wallSurvey;
+  if (!canvas || !survey?.photoData) return;
+  const image = await loadCanvasImage(survey.photoData);
+  const photoWidth = result ? 1040 : 1200;
+  const photoHeight = Math.round(photoWidth * image.height / image.width);
+  const marginX = result ? 100 : 0;
+  const marginTop = result ? 90 : 0;
+  canvas.width = result ? 1240 : photoWidth;
+  canvas.height = result ? photoHeight + 190 : photoHeight;
+  const context = canvas.getContext("2d");
+  context.fillStyle = result ? "#ffffff" : "#202420";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, marginX, marginTop, photoWidth, photoHeight);
+
+  if (result) {
+    context.strokeStyle = "#1f2922";
+    context.fillStyle = "#1f2922";
+    context.lineWidth = 4;
+    context.font = "bold 30px Arial";
+    context.textAlign = "center";
+    context.beginPath();
+    context.moveTo(marginX, 48); context.lineTo(marginX + photoWidth, 48);
+    context.moveTo(marginX, 32); context.lineTo(marginX, 64);
+    context.moveTo(marginX + photoWidth, 32); context.lineTo(marginX + photoWidth, 64);
+    context.stroke();
+    context.fillText(`${num(survey.width)} m`, marginX + photoWidth / 2, 38);
+    context.save();
+    context.translate(45, marginTop + photoHeight / 2);
+    context.rotate(-Math.PI / 2);
+    context.fillText(`${num(survey.height)} m`, 0, 0);
+    context.restore();
+    context.beginPath();
+    context.moveTo(70, marginTop); context.lineTo(70, marginTop + photoHeight);
+    context.moveTo(54, marginTop); context.lineTo(86, marginTop);
+    context.moveTo(54, marginTop + photoHeight); context.lineTo(86, marginTop + photoHeight);
+    context.stroke();
+  }
+
+  (survey.points || []).forEach(point => {
+    const x = marginX + point.x * photoWidth;
+    const y = marginTop + point.y * photoHeight;
+    const pointState = measurementPointState(point, area.dryReference);
+    const colors = { open:"#ffab00", normal:"#4caf50", raised:"#ffd333", high:"#e33b2e", measured:"#3b82c4", inaccessible:"#818782" };
+    context.beginPath();
+    context.arc(x, y, result ? 18 : 14, 0, Math.PI * 2);
+    context.fillStyle = colors[pointState] || colors.open;
+    context.fill();
+    context.lineWidth = 4;
+    context.strokeStyle = "#fff";
+    context.stroke();
+    context.fillStyle = pointState === "high" || pointState === "measured" || pointState === "inaccessible" ? "#fff" : "#111";
+    context.font = `bold ${result ? 15 : 12}px Arial`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(point.number, x, y);
+    if (result && String(point.value).trim()) {
+      context.font = "bold 18px Arial";
+      context.fillStyle = "#fff";
+      context.strokeStyle = "#222";
+      context.lineWidth = 5;
+      context.strokeText(`${point.value} D`, x, y + 35);
+      context.fillText(`${point.value} D`, x, y + 35);
+    }
+  });
+}
+
+function renderWallSurveyPoints() {
+  const area = activeWallSurveyArea();
+  const survey = area?.wallSurvey;
+  if (!survey) return;
+  const box = $("wallSurveyPoints");
+  box.innerHTML = survey.points.map(point => `
+    <button type="button" class="wall-measure-point ${measurementPointState(point, area.dryReference)} ${point.id === activeWallSurveyPointId ? "active" : ""}"
+      style="left:${point.x * 100}%;top:${point.y * 100}%" data-wall-point="${point.id}" aria-label="Messpunkt ${point.number}">
+      ${point.number}
+    </button>`).join("");
+  box.querySelectorAll("[data-wall-point]").forEach(button => button.onclick = () => openWallSurveyPoint(button.dataset.wallPoint));
+  const progress = wallSurveyProgress(survey.points);
+  $("wallSurveyMeasurementStatus").textContent = progress.complete
+    ? `✓ Alle ${progress.total} Messpunkte erledigt`
+    : `${progress.done} von ${progress.total} Messpunkten erledigt`;
+  $("wallSurveyToResult").disabled = progress.done === 0;
+}
+
+function openWallSurveyPoint(pointId) {
+  const area = activeWallSurveyArea();
+  const point = area?.wallSurvey?.points.find(item => item.id === pointId);
+  if (!point) return;
+  activeWallSurveyPointId = pointId;
+  $("wallSurveyPointTitle").textContent = `Messpunkt ${point.number} · ${point.height} cm Höhe`;
+  $("wallSurveyDevice").value = point.device || "";
+  $("wallSurveyValue").value = point.value ?? "";
+  $("wallSurveyMeasureCard").classList.remove("hidden");
+  renderWallSurveyPoints();
+  setTimeout(() => $("wallSurveyValue").focus(), 50);
+}
+
+function closeWallSurveyPoint() {
+  activeWallSurveyPointId = "";
+  $("wallSurveyMeasureCard").classList.add("hidden");
+  renderWallSurveyPoints();
+}
+
+function saveWallSurveyPoint(inaccessible = false) {
+  const area = activeWallSurveyArea();
+  const survey = area?.wallSurvey;
+  const point = survey?.points.find(item => item.id === activeWallSurveyPointId);
+  if (!point) return;
+  point.device = $("wallSurveyDevice").value || point.device || "";
+  point.status = inaccessible ? "inaccessible" : "measured";
+  point.value = inaccessible ? "" : $("wallSurveyValue").value;
+  if (!inaccessible && (!point.device || String(point.value).trim() === "")) {
+    alert("Bitte Messgerät und Messwert eingeben.");
+    return;
+  }
+  area.measurements = survey.points.map(item => ({
+    id:item.id, device:item.device, value:item.value, unit:"Digits",
+    height:String(item.height), location:item.location,
+    status:item.status, x:item.x, y:item.y, xMeters:item.xMeters
+  }));
+  saveState();
+  drawWallSurveyCanvas($("wallSurveyCanvas"));
+  const next = survey.points.find(item => item.status !== "inaccessible" && String(item.value ?? "").trim() === "");
+  if (next) openWallSurveyPoint(next.id);
+  else closeWallSurveyPoint();
+}
+
+async function useWallSurveyPhoto(file) {
+  if (!file) return;
+  const area = activeWallSurveyArea();
+  area.wallSurvey ||= { points:[] };
+  area.wallSurvey.photoData = await compressImage(file, 1200);
+  $("wallSurveyPhotoPreview").src = area.wallSurvey.photoData;
+  $("wallSurveyPhotoPreview").classList.remove("hidden");
+  $("wallSurveyPhotoNext").disabled = false;
+  saveState();
+}
+
+function openWallSurvey(areaId) {
+  activeWallSurveyAreaId = areaId;
+  activeWallSurveyPointId = "";
+  const area = activeWallSurveyArea();
+  area.wallSurvey ||= { photoData:"", width:"", height:"", points:[], createdAt:new Date().toISOString() };
+  $("wallSurveyDialog").classList.remove("hidden");
+  $("wallSurveyWidth").value = area.wallSurvey.width || "";
+  $("wallSurveyHeight").value = area.wallSurvey.height || "";
+  if (area.wallSurvey.photoData) {
+    $("wallSurveyPhotoPreview").src = area.wallSurvey.photoData;
+    $("wallSurveyPhotoPreview").classList.remove("hidden");
+    $("wallSurveyPhotoNext").disabled = false;
+  } else {
+    $("wallSurveyPhotoPreview").classList.add("hidden");
+    $("wallSurveyPhotoNext").disabled = true;
+  }
+  setWallSurveyStep(area.wallSurvey.points?.length ? 3 : area.wallSurvey.photoData ? 2 : 1);
+  if (area.wallSurvey.points?.length) {
+    drawWallSurveyCanvas($("wallSurveyCanvas"));
+    renderWallSurveyPoints();
+  }
+}
+
+function closeWallSurvey() {
+  $("wallSurveyDialog").classList.add("hidden");
+  activeWallSurveyAreaId = "";
+  activeWallSurveyPointId = "";
+}
+
+if ($("closeWallSurvey")) $("closeWallSurvey").onclick = closeWallSurvey;
+if ($("wallSurveyPhotoInput")) $("wallSurveyPhotoInput").onchange = event => useWallSurveyPhoto(event.target.files[0]);
+if ($("wallSurveyPhotoLibrary")) $("wallSurveyPhotoLibrary").onchange = event => useWallSurveyPhoto(event.target.files[0]);
+if ($("wallSurveyPhotoNext")) $("wallSurveyPhotoNext").onclick = () => setWallSurveyStep(2);
+if ($("wallSurveyPointClose")) $("wallSurveyPointClose").onclick = closeWallSurveyPoint;
+if ($("wallSurveySavePoint")) $("wallSurveySavePoint").onclick = () => saveWallSurveyPoint(false);
+if ($("wallSurveyInaccessible")) $("wallSurveyInaccessible").onclick = () => saveWallSurveyPoint(true);
+if ($("wallSurveyCreateGrid")) $("wallSurveyCreateGrid").onclick = async () => {
+  const area = activeWallSurveyArea();
+  const width = parseDecimal($("wallSurveyWidth").value);
+  const height = parseDecimal($("wallSurveyHeight").value);
+  if (width < .5 || height < .5) {
+    alert("Bitte Wandlänge und Wandhöhe eingeben.");
+    return;
+  }
+  const previousDevice = area.measurements?.find(item => item.device)?.device || "";
+  area.wallSurvey.width = width;
+  area.wallSurvey.height = height;
+  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice);
+  area.wallSurvey.updatedAt = new Date().toISOString();
+  area.measurements = area.wallSurvey.points;
+  saveState();
+  setWallSurveyStep(3);
+  await drawWallSurveyCanvas($("wallSurveyCanvas"));
+  renderWallSurveyPoints();
+};
+if ($("wallSurveyToResult")) $("wallSurveyToResult").onclick = async () => {
+  const area = activeWallSurveyArea();
+  const progress = wallSurveyProgress(area.wallSurvey.points);
+  setWallSurveyStep(4);
+  await drawWallSurveyCanvas($("wallSurveyResultCanvas"), true);
+  const measured = area.wallSurvey.points.filter(point => String(point.value).trim()).length;
+  const inaccessible = area.wallSurvey.points.filter(point => point.status === "inaccessible").length;
+  $("wallSurveyResultSummary").innerHTML = `
+    <div><strong>${num(area.wallSurvey.width)} × ${num(area.wallSurvey.height)} m</strong><small>Wandmaß</small></div>
+    <div><strong>${num(area.wallSurvey.width * area.wallSurvey.height)} m²</strong><small>Bruttofläche</small></div>
+    <div><strong>${measured}/${progress.total}</strong><small>gemessen${inaccessible ? ` · ${inaccessible} nicht zugänglich` : ""}</small></div>`;
+};
+if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
+  const area = activeWallSurveyArea();
+  const canvas = $("wallSurveyResultCanvas");
+  area.wallSurvey.annotatedImageData = canvas.toDataURL("image/jpeg", .78);
+  area.wallSurvey.completedAt = new Date().toISOString();
+  area.measurements = area.wallSurvey.points.map(point => ({ ...point, unit:"Digits" }));
+  if (area.wallSurvey.documentPhotoId) {
+    area.photos = area.photos.filter(photo => photo.id !== area.wallSurvey.documentPhotoId);
+  }
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .82));
+  const photo = await stageVisitPhoto(new File([blob], `Aufmass-${area.name || "Wand"}.jpg`, { type:"image/jpeg" }), area);
+  photo.caption = `Bemaßtes Wandaufmaß mit ${area.wallSurvey.points.length} Messpunkten`;
+  photo.show = false;
+  area.wallSurvey.documentPhotoId = photo.id;
+  saveState();
+  closeWallSurvey();
+  renderAreas();
+  syncPendingVisitPhotos();
+};
+
 function renderAreas() {
   const scrollY = captureVisitScroll();
   const box = $("areas");
@@ -3333,7 +3651,11 @@ function renderAreas() {
       <div class="grid">
         <div><label>Referenzwert „trocken“</label><input data-area="${area.id}" data-field="dryReference" value="${esc(area.dryReference || "")}"></div>
       </div>
-      <h3>Messpunkte</h3><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Messpunkt</button>
+      <button type="button" class="wall-survey-launch" data-wall-survey="${area.id}">
+        <span>▦</span><span><strong>${area.wallSurvey?.points?.length ? "Wandmessung weiterführen" : "Geführte Wandmessung starten"}</strong><small>Foto → Maße → Punkte antippen → fertiges Aufmaß</small></span><span>›</span>
+      </button>
+      ${area.wallSurvey?.annotatedImageData ? `<div class="wall-survey-mini"><img src="${area.wallSurvey.annotatedImageData}" alt="Bemaßtes Wandaufmaß"><span><strong>Aufmaß gespeichert</strong><small>${num(area.wallSurvey.width)} × ${num(area.wallSurvey.height)} m · ${area.wallSurvey.points.length} Messpunkte</small></span></div>` : ""}
+      <details class="manual-measurements"><summary>Messwerte als Liste anzeigen</summary><div id="measurements-${area.id}"></div><button class="secondary" data-add-measurement="${area.id}">+ Einzelnen Messpunkt ergänzen</button></details>
       <h3>Maßnahmen</h3><div id="measures-${area.id}"></div><button class="secondary" data-add-measure="${area.id}">+ Maßnahme</button>
       <h3>Fotos</h3>
       <div class="visit-photo-actions">
@@ -3362,6 +3684,8 @@ function renderAreas() {
     state.visit.areas = state.visit.areas.filter(area => area.id !== button.dataset.deleteArea);
     saveState(); updateGeneratedRecommendation(); renderAreas();
   });
+
+  box.querySelectorAll("[data-wall-survey]").forEach(button => button.onclick = () => openWallSurvey(button.dataset.wallSurvey));
 
   box.querySelectorAll("[data-add-measurement]").forEach(button => button.onclick = () => {
     const area = state.visit.areas.find(item => item.id === button.dataset.addMeasurement);
@@ -3426,6 +3750,12 @@ function renderMeasurements(area) {
       const measurement = area.measurements.find(item => item.id === input.dataset.mid);
       measurement[input.dataset.mf] = input.value;
       measurement.unit = "Digits";
+      const visualPoint = area.wallSurvey?.points?.find(item => item.id === measurement.id);
+      if (visualPoint) {
+        visualPoint[input.dataset.mf] = input.value;
+        visualPoint.unit = "Digits";
+        visualPoint.status = String(measurement.value ?? "").trim() ? "measured" : "open";
+      }
       saveState();
       updateVisitGuide();
     };
@@ -3433,6 +3763,9 @@ function renderMeasurements(area) {
 
   box.querySelectorAll("[data-delete-measurement]").forEach(button => button.onclick = () => {
     area.measurements = area.measurements.filter(item => item.id !== button.dataset.deleteMeasurement);
+    if (area.wallSurvey?.points) {
+      area.wallSurvey.points = area.wallSurvey.points.filter(item => item.id !== button.dataset.deleteMeasurement);
+    }
     saveState();
     renderAreas();
   });
@@ -4014,12 +4347,23 @@ $("sendLexware").onclick = async () => {
   }
 };
 
+function wallSurveyReportHtml(area) {
+  const survey = area.wallSurvey;
+  if (!survey?.annotatedImageData) return "";
+  const inaccessible = (survey.points || []).filter(point => point.status === "inaccessible").length;
+  return `<h3>Bemaßtes Wandaufmaß</h3>
+    <div class="photo-card wall-survey-report">
+      <img src="${survey.annotatedImageData}" alt="Bemaßtes Wandaufmaß">
+      <p>${num(survey.width)} m Länge × ${num(survey.height)} m Höhe = ${num(Number(survey.width) * Number(survey.height))} m² Bruttofläche · ${(survey.points || []).length} Messpunkte${inaccessible ? ` · ${inaccessible} nicht zugänglich/nicht geprüft` : ""}</p>
+    </div>`;
+}
+
 function buildReport() {
   let html = `<div class="report-section"><h2>Kunde und Objekt</h2><table class="report-table"><tr><th>Kunde</th><td>${esc([state.visit.customer.salutation,state.visit.customer.firstName,state.visit.customer.lastName].filter(Boolean).join(" "))}</td></tr><tr><th>Besichtigungsnummer</th><td>${esc(state.visit.visitNumber || "")}</td></tr><tr><th>Besichtigungsdatum</th><td>${esc(state.visit.visitDate || "")}</td></tr><tr><th>Beginn</th><td>${esc(state.visit.visitStartTime || "")}</td></tr><tr><th>Ende</th><td>${esc(state.visit.visitEndTime || "")}</td></tr><tr><th>Dauer</th><td>${esc($("visitDuration")?.value || "")}</td></tr>${state.visit.visitLatitude?`<tr><th>GPS-Standort</th><td>${esc(state.visit.visitLatitude)}, ${esc(state.visit.visitLongitude)} (${esc(state.visit.visitAccuracy)})</td></tr>`:""}${state.visit.visitWeather?`<tr><th>Wetter</th><td>${esc(state.visit.visitWeather)}, ${esc(state.visit.visitOutdoorTemp)} °C, Niederschlag ${esc(state.visit.visitPrecipitation)} mm</td></tr>`:""}<tr><th>Objekt</th><td>${esc(state.visit.customer.objectAddress || [state.visit.customer.street,state.visit.customer.zip,state.visit.customer.city].filter(Boolean).join(", "))}</td></tr><tr><th>Baujahr</th><td>${esc(state.visit.building.yearBuilt)}</td></tr><tr><th>Bauart</th><td>${esc(state.visit.building.buildingType)}</td></tr><tr><th>Fundamentart</th><td>${esc(state.visit.building.foundationType)}</td></tr>${state.visit.building.climateMeasured?`<tr><th>Raumtemperatur</th><td>${esc(state.visit.building.roomTemp)} °C</td></tr><tr><th>Luftfeuchtigkeit</th><td>${esc(state.visit.building.humidity)} %</td></tr><tr><th>Oberflächentemperatur</th><td>${esc(state.visit.building.surfaceTemp)} °C</td></tr><tr><th>Taupunkt</th><td>${esc(state.visit.building.dewPoint)} °C</td></tr>`:""}</table></div>`;
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table><h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,
@@ -4480,7 +4824,11 @@ function renderWorksites() {
       <div class="worksite-list-actions"><button class="secondary" data-open-worksite="${item.id}">Öffnen</button><button class="danger" data-delete-worksite="${item.id}">Löschen</button></div>
     </div>`).join("") : `<p class="hint">In diesem Bereich gibt es aktuell keine Baustelle.</p>`);
   if ($("showAllWorksites")) $("showAllWorksites").onclick = () => { worksiteViewFilter = "all"; renderWorksites(); };
-  box.querySelectorAll("[data-open-worksite]").forEach(button => button.onclick = () => { activeWorksiteId = button.dataset.openWorksite; renderWorksites(); });
+  box.querySelectorAll("[data-open-worksite]").forEach(button => button.onclick = () => {
+    activeWorksiteId = button.dataset.openWorksite;
+    sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
+    renderWorksites();
+  });
   box.querySelectorAll("[data-delete-worksite]").forEach(button => button.onclick = () => { if(confirm("Baustelle wirklich löschen?")){ deleteWorksite(button.dataset.deleteWorksite); renderWorksites(); } });
 }
 
@@ -4509,6 +4857,9 @@ function collectWorksite() {
     if (input.type === "checkbox") task[field] = input.checked;
     else if (["wall","actualQuantity","actualHoles","actualWidth","actualHeight","surfaceFirstRowHoles","surfaceFollowingRowHoles","actualLiters","actualHsKg","packers","resinKg","spacing","bottlesHanging","bottlesRetrieved"].includes(field)) task[field] = parseDecimal(input.value);
     else task[field] = input.value;
+  });
+  worksite.tasks.forEach(task => {
+    if (taskIsTechnical(task)) recalculateWorksiteTask(state.settings, task, "actualHoles");
   });
   return worksite;
 }
@@ -4667,10 +5018,11 @@ function activateWorksiteSection(sectionId) {
     button.classList.toggle("active", button.dataset.worksiteSection === sectionId);
   });
   sessionStorage.setItem("mainabdichter_active_worksite_section", sectionId);
+  if ($("worksiteJumpSelect")) $("worksiteJumpSelect").value = sectionId;
   const index = WORKSITE_SECTION_ORDER.indexOf(sectionId);
   if ($("worksiteStepBack")) $("worksiteStepBack").disabled = index <= 0;
   if ($("worksiteStepNext")) {
-    $("worksiteStepNext").disabled = index >= WORKSITE_SECTION_ORDER.length - 1;
+    $("worksiteStepNext").disabled = false;
     $("worksiteStepNext").textContent = index >= WORKSITE_SECTION_ORDER.length - 1 ? "Fertig" : "Weiter →";
   }
   if ($("worksiteStepStatus")) $("worksiteStepStatus").textContent = `Schritt ${index + 1} von ${WORKSITE_SECTION_ORDER.length}`;
@@ -4742,12 +5094,27 @@ function bindWorksiteSectionNavigation() {
     const current = sessionStorage.getItem("mainabdichter_active_worksite_section") || WORKSITE_SECTION_ORDER[0];
     const currentIndex = Math.max(0, WORKSITE_SECTION_ORDER.indexOf(current));
     const targetIndex = Math.max(0, Math.min(WORKSITE_SECTION_ORDER.length - 1, currentIndex + direction));
-    if (targetIndex === currentIndex) return;
+    if (targetIndex === currentIndex) {
+      if (direction > 0 && currentIndex === WORKSITE_SECTION_ORDER.length - 1) finishWorksiteGuide();
+      return;
+    }
     if (activeWorksiteId) saveActiveWorksite(false);
     activateWorksiteSection(WORKSITE_SECTION_ORDER[targetIndex]);
   };
   if ($("worksiteStepBack")) $("worksiteStepBack").onclick = () => move(-1);
   if ($("worksiteStepNext")) $("worksiteStepNext").onclick = () => move(1);
+  if ($("worksiteJumpSelect")) $("worksiteJumpSelect").onchange = () => {
+    if (activeWorksiteId) saveActiveWorksite(false);
+    activateWorksiteSection($("worksiteJumpSelect").value);
+  };
+}
+
+function finishWorksiteGuide() {
+  if (activeWorksiteId) saveActiveWorksite(false);
+  activeWorksiteId = null;
+  sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
+  renderWorksites();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function renderWorksiteOverview(ws) {
@@ -5548,6 +5915,7 @@ $("createWorksite").onclick = async () => {
 
     persistWorksite(ws);
     activeWorksiteId = ws.id;
+    sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
     addSyncLog("Angebot → Baustelle", true, "Kunde und Baustelle wurden zu Pipedrive übertragen.", {
       personId: ws.pipedrivePersonId,
       dealId: ws.pipedriveDealId
@@ -5560,9 +5928,14 @@ $("createWorksite").onclick = async () => {
     button.disabled = false;
   }
 };
-$("closeWorksite").onclick = () => { activeWorksiteId=null; renderWorksites(); };
+$("closeWorksite").onclick = () => {
+  activeWorksiteId = null;
+  sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
+  renderWorksites();
+};
 if ($("closeWorksiteDetail")) $("closeWorksiteDetail").onclick = () => {
   activeWorksiteId = null;
+  sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
   renderWorksites();
 };
 if ($("wsAddExtraWork")) $("wsAddExtraWork").onclick = addAdditionalWorkToActiveWorksite;
@@ -5950,7 +6323,15 @@ function collectVisibleAutomaticData() {
   const activePage = document.querySelector(".page.active")?.id;
   if (activePage === "visit") collectVisit();
   if (activePage === "settings") collectSettings();
+  if (activePage === "worksites" && activeWorksiteId) saveActiveWorksite(false);
   saveState();
+}
+
+function setAutomaticSaveState(text, pending = false) {
+  document.querySelectorAll("[data-autosave-state]").forEach(element => {
+    element.textContent = text;
+    element.classList.toggle("pending", pending);
+  });
 }
 
 async function runAutomaticDriveBackup() {
@@ -6081,9 +6462,16 @@ async function synchronizeFromDrive({ force = false } = {}) {
 
 function scheduleAutomaticSave() {
   localStorage.setItem(LOCAL_CHANGE_TIME_KEY, new Date().toISOString());
+  setAutomaticSaveState("speichert …", true);
   window.clearTimeout(automaticLocalSaveTimer);
   automaticLocalSaveTimer = window.setTimeout(() => {
-    collectVisibleAutomaticData();
+    try {
+      collectVisibleAutomaticData();
+      setAutomaticSaveState("✓ gespeichert");
+    } catch (error) {
+      setAutomaticSaveState("Speichern prüfen", true);
+      console.warn("Automatisches lokales Speichern fehlgeschlagen:", error);
+    }
   }, 350);
   window.clearTimeout(automaticDriveSaveTimer);
   automaticDriveSaveTimer = window.setTimeout(async () => {
@@ -6110,6 +6498,22 @@ window.setInterval(() => {
 }, 5 * 60 * 1000);
 
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeAppMenu(); });
+
+function synchronizeVisibleViewport() {
+  const viewport = window.visualViewport;
+  const width = Math.round(viewport?.width || window.innerWidth);
+  const height = Math.round(viewport?.height || window.innerHeight);
+  const offsetTop = Math.round(viewport?.offsetTop || 0);
+  document.documentElement.style.setProperty("--app-visible-width", `${width}px`);
+  document.documentElement.style.setProperty("--app-visible-height", `${height}px`);
+  document.documentElement.style.setProperty("--app-visible-top", `${offsetTop}px`);
+  document.body.classList.toggle("iphone-keyboard-open", height < window.innerHeight * .72);
+}
+window.visualViewport?.addEventListener("resize", synchronizeVisibleViewport);
+window.visualViewport?.addEventListener("scroll", synchronizeVisibleViewport);
+window.addEventListener("resize", synchronizeVisibleViewport);
+window.addEventListener("orientationchange", () => setTimeout(synchronizeVisibleViewport, 120));
+synchronizeVisibleViewport();
 
 renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
 await ensureDriveBootstrap();

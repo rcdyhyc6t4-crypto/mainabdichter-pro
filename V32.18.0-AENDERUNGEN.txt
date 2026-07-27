@@ -1,0 +1,16 @@
+mainabdichter PRO V32.18.0
+
+NEU: ADHS-freundliche geführte Wandmessung
+
+1. Komplette Wand fotografieren oder Bild auswählen.
+2. Nur Wandlänge und Wandhöhe eingeben.
+3. Die App erstellt automatisch eine Messkette direkt auf dem Wandfoto.
+4. Messpunkt antippen, Messgerät auswählen und Wert in Digits eingeben.
+5. Nach „Speichern & weiter“ wird automatisch der nächste offene Punkt geöffnet.
+6. Nicht erreichbare Bereiche können als „nicht zugänglich“ markiert werden.
+7. Messpunkte werden anhand des Trocken-Referenzwerts farblich dargestellt.
+8. Die App erstellt ein bemaßtes Aufmaß mit Länge, Höhe, Fläche und eingezeichneten Messwerten.
+9. Messwerte werden in die bestehende Feuchtemessung übernommen.
+10. Das bemaßte Aufmaß wird in Bauakte, Google-Drive-Fotoablage und Besichtigungsprotokoll übernommen.
+
+Die bisherige Messwertliste bleibt zur Kontrolle und manuellen Korrektur vorhanden, ist aber standardmäßig zugeklappt.

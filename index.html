@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.17.0</title>
-<link rel="stylesheet" href="css/app.css?v=32.17.0">
+<title>mainabdichter PRO V32.18.1</title>
+<link rel="stylesheet" href="css/app.css?v=32.18.1">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -340,9 +340,9 @@ main{width:100%;max-width:100%}
       <button type="button" data-open-step="5">Extras</button>
     </div>
     <div id="guidedAssistant" class="guided-assistant">
-      <div><span id="guidedStepLabel">Schritt 1 von 7</span><strong id="guidedInstruction">Kunde und Termin prüfen</strong></div>
-      <progress id="guidedProgress" max="7" value="1"></progress>
-      <button id="guidedNext" class="primary">Bestätigen und weiter</button>
+      <div><span id="guidedStepLabel">Hauptschritt 1 von 6</span><strong id="guidedInstruction">Kunde und Termin prüfen</strong></div>
+      <progress id="guidedProgress" max="6" value="1"></progress>
+      <button id="guidedNext" class="primary">Speichern und weiter</button>
     </div>
     <div id="customerConfirmed" class="customer-confirmed hidden">
       <div><span>✓ Kunde übernommen</span><strong id="confirmedCustomerName">–</strong><small id="confirmedCustomerSource">Pipedrive</small></div>
@@ -355,6 +355,21 @@ main{width:100%;max-width:100%}
     </div>
     <button id="openCustomerAdvice" class="customer-advice-launch">▶ Maßnahme dem Kunden zeigen</button>
   </div>
+  <nav class="mobile-workflow-jump visit-workflow-jump" aria-label="Besichtigung schnell wechseln">
+    <label for="visitJumpSelect">Direkt zu</label>
+    <select id="visitJumpSelect">
+      <option value="visitStep1">1 · Kunde und Termin</option>
+      <option value="visitStep2">2 · Gebäude und Raum</option>
+      <option value="visitStep3">3 · Schadensbild</option>
+      <option value="visitStep4">4 · Messen und Maßnahmen</option>
+      <option value="visitStep5">Fotos und Dokumente</option>
+      <option value="visitStep6">Zusatzleistungen</option>
+      <option value="visitSummary">Protokoll prüfen</option>
+      <option value="visitCompletion">Fehlende Angaben</option>
+      <option value="visitOfferBasis">Angebot freigeben</option>
+    </select>
+    <span data-autosave-state>✓ gespeichert</span>
+  </nav>
 
   <details id="inquiryPlanningCard" class="card compact-step inquiry-planning-card">
     <summary>0. Anfrage und Termin <span id="inquiryPlanningState" class="step-state"></span></summary>
@@ -593,6 +608,8 @@ main{width:100%;max-width:100%}
   </section>
   <section class="advice-layout advice-layout-v25">
     <div class="card advice-visual">
+      <div id="adviceVideoPanel" class="advice-video-panel hidden"></div>
+      <div id="adviceImageLabel" class="advice-media-label">Ablaufgrafik</div>
       <div class="advice-image-frame"><img id="adviceImage" alt="Technische Darstellung der ausgewählten Innenabdichtung"></div>
       <div class="animation-controls"><button id="advicePrev" class="secondary">Zurück</button><span id="adviceStage">1 von 1</span><button id="adviceNext" class="primary">Weiter</button></div>
     </div>
@@ -884,6 +901,19 @@ main{width:100%;max-width:100%}
       <button type="button" data-worksite-section="wsSectionNotes">Bemerkungen</button>
       <button type="button" data-worksite-section="wsSectionReport">Arbeitsnachweis</button>
     </nav>
+    <nav class="mobile-workflow-jump worksite-workflow-jump" aria-label="Baustelle schnell wechseln">
+      <label for="worksiteJumpSelect">Direkt zu</label>
+      <select id="worksiteJumpSelect">
+        <option value="wsSectionOverview">Übersicht und Arbeitsbeginn</option>
+        <option value="wsSectionExecution">Ausführung</option>
+        <option value="wsSectionPhotos">Fotos</option>
+        <option value="wsSectionDocuments">Dokumente</option>
+        <option value="wsSectionMaterial">Materialverbrauch</option>
+        <option value="wsSectionNotes">Bemerkungen</option>
+        <option value="wsSectionReport">Arbeitsnachweis und Abschluss</option>
+      </select>
+      <span data-autosave-state>✓ gespeichert</span>
+    </nav>
 
     <section id="wsSectionOverview" class="worksite-section active">
       <div class="card">
@@ -1054,7 +1084,7 @@ main{width:100%;max-width:100%}
     </section>
     <nav class="worksite-step-actions" aria-label="Schrittweise Navigation">
       <button id="worksiteStepBack" type="button" class="secondary">← Zurück</button>
-      <span id="worksiteStepStatus">Schritt 1 von 8</span>
+      <span id="worksiteStepStatus">Schritt 1 von 7</span>
       <button id="worksiteStepNext" type="button" class="primary">Weiter →</button>
     </nav>
   </div>
@@ -1291,6 +1321,55 @@ main{width:100%;max-width:100%}
   <div id="settingsStatus" class="status"></div>
 </section>
 </main>
+<div id="wallSurveyDialog" class="wall-survey-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="wallSurveyTitle">
+  <div class="wall-survey-shell">
+    <header class="wall-survey-header">
+      <div><small>GEFÜHRTE WANDMESSUNG</small><h2 id="wallSurveyTitle">Eine Aufgabe nach der anderen</h2></div>
+      <button type="button" id="closeWallSurvey" class="wall-survey-close" aria-label="Schließen">×</button>
+    </header>
+    <div class="wall-survey-progress"><span id="wallSurveyStepLabel">Schritt 1 von 4</span><progress id="wallSurveyProgress" max="4" value="1"></progress></div>
+
+    <section id="wallSurveyStepPhoto" class="wall-survey-step">
+      <div class="wall-survey-instruction"><b>1</b><div><strong>Fotografiere die komplette Wand</strong><small>Möglichst gerade und so, dass alle Wandkanten sichtbar sind.</small></div></div>
+      <label class="wall-photo-picker">📷 Wand fotografieren<input id="wallSurveyPhotoInput" type="file" accept="image/*" capture="environment"></label>
+      <label class="wall-photo-picker secondary">Bild auswählen<input id="wallSurveyPhotoLibrary" type="file" accept="image/*"></label>
+      <img id="wallSurveyPhotoPreview" class="wall-survey-photo-preview hidden" alt="Wandfoto">
+      <button type="button" id="wallSurveyPhotoNext" class="primary wall-survey-main-action" disabled>Foto verwenden</button>
+    </section>
+
+    <section id="wallSurveyStepDimensions" class="wall-survey-step hidden">
+      <div class="wall-survey-instruction"><b>2</b><div><strong>Nur Länge und Höhe eingeben</strong><small>Diese Werte sind der sichere Maßstab für Foto und Aufmaß.</small></div></div>
+      <div class="wall-dimension-inputs">
+        <div><label>Wandlänge in Meter</label><input id="wallSurveyWidth" type="number" inputmode="decimal" min=".5" step=".01" placeholder="z. B. 4,20"></div>
+        <div><label>Wandhöhe in Meter</label><input id="wallSurveyHeight" type="number" inputmode="decimal" min=".5" step=".01" placeholder="z. B. 2,40"></div>
+      </div>
+      <button type="button" id="wallSurveyCreateGrid" class="primary wall-survey-main-action">Messkette automatisch erstellen</button>
+    </section>
+
+    <section id="wallSurveyStepMeasure" class="wall-survey-step hidden">
+      <div class="wall-survey-instruction"><b>3</b><div><strong>Punkt antippen und messen</strong><small>Nach dem Speichern wird automatisch der nächste offene Punkt ausgewählt.</small></div></div>
+      <div id="wallSurveyCanvasWrap" class="wall-survey-canvas-wrap">
+        <canvas id="wallSurveyCanvas"></canvas>
+        <div id="wallSurveyPoints" class="wall-survey-points"></div>
+      </div>
+      <div id="wallSurveyMeasureCard" class="wall-survey-measure-card hidden">
+        <div class="wall-point-title"><strong id="wallSurveyPointTitle">Messpunkt</strong><button type="button" id="wallSurveyPointClose">×</button></div>
+        <label>Messgerät</label><select id="wallSurveyDevice"><option value="">– auswählen –</option><option>Gann Hydromette Compact B</option><option>Trotec Mikrowellenmessgerät</option></select>
+        <label>Messwert in Digits</label><input id="wallSurveyValue" type="number" inputmode="numeric" step="1" placeholder="Wert eingeben">
+        <div class="wall-point-actions"><button type="button" id="wallSurveyInaccessible" class="secondary">Nicht zugänglich</button><button type="button" id="wallSurveySavePoint" class="primary">Speichern & weiter</button></div>
+      </div>
+      <div id="wallSurveyMeasurementStatus" class="wall-survey-status">Noch keine Messwerte erfasst.</div>
+      <button type="button" id="wallSurveyToResult" class="primary wall-survey-main-action">Aufmaß erstellen</button>
+    </section>
+
+    <section id="wallSurveyStepResult" class="wall-survey-step hidden">
+      <div class="wall-survey-instruction"><b>4</b><div><strong>Fertig – kurz kontrollieren</strong><small>Maße und Messpunkte werden automatisch in Bauakte und Protokoll übernommen.</small></div></div>
+      <canvas id="wallSurveyResultCanvas" class="wall-survey-result"></canvas>
+      <div id="wallSurveyResultSummary" class="wall-survey-result-summary"></div>
+      <button type="button" id="wallSurveyFinish" class="primary wall-survey-main-action">Aufmaß speichern</button>
+    </section>
+  </div>
+</div>
 <nav class="bottom-nav redesign-bottom-nav">
   <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Übersicht</small></button>
   <button id="bottomCustomers" data-bottom-page="customers"><span>♙</span><small>Kunden</small></button>
@@ -1315,9 +1394,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.17.0"></script>
-<script type="module" src="js/cloud-migration.js?v=32.17.0"></script>
+<script type="module" src="js/app.js?v=32.18.1"></script>
+<script type="module" src="js/cloud-migration.js?v=32.18.1"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.17.0"></script>
+<script type="module" src="js/customers.js?v=32.18.1"></script>
 </body>
 </html>

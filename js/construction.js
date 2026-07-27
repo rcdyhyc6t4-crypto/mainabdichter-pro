@@ -149,8 +149,8 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
         scope: result.scope,
         plannedHoles: result.holes,
         actualHoles: result.holes,
-        plannedLiters: result.saleLiters,
-        actualLiters: result.saleLiters,
+        plannedLiters: result.rawLiters,
+        actualLiters: result.rawLiters,
         plannedHsKg: result.hsKg || 0,
         actualHsKg: result.hsKg || 0,
         targetLitersPerHole: targetPerHole(result),
@@ -254,7 +254,10 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
           width: Math.max(0, Number(task.plannedWidth || 0)),
           height: Math.max(0, Number(task.plannedHeight || 0))
         })
-      : result;
+      : calculateMeasure(settings, {
+          ...measure,
+          length: Math.max(0, Number(task.plannedQuantity || 0))
+        });
     task.plannedHoles = plannedResult.holes;
     task.plannedLiters = Number(plannedResult.rawLiters || 0);
     task.targetLitersPerHole = rawPerHole;
@@ -314,6 +317,7 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       task.actualLiters = records.length
         ? records.reduce((sum, record) => sum + Number(record.actualLiters || 0), 0)
         : Number(task.actualHoles || 0) * Number(task.actualLitersPerHole || rawPerHole);
+      task.actualLiters = Math.round(Number(task.actualLiters || 0) * 1000) / 1000;
     }
   } else {
     task.plannedHoles = 0;
@@ -397,10 +401,10 @@ export function createWorksiteFromLexwareQuotation(settings, quotation) {
     let plannedHoles = 0, plannedLiters = 0, plannedHsKg = 0, targetLitersPerHole = 0;
     if (["Horizontalsperre","Wand-Sohlen-Anschluss"].includes(type)) {
       const result = calculateMeasure(settings,{type,length:quantity,wall,spacing,extraResinKg:0});
-      plannedHoles=result.holes; plannedLiters=result.saleLiters; plannedHsKg=result.hsKg||0; targetLitersPerHole=targetPerHole(result);
+      plannedHoles=result.holes; plannedLiters=result.rawLiters; plannedHsKg=result.hsKg||0; targetLitersPerHole=targetPerHole(result);
     } else if (type === "Flächensperre") {
       const result = calculateMeasure(settings,{type,width:quantity,height:1,wall,spacing,extraResinKg:0});
-      plannedHoles=result.holes; plannedLiters=result.saleLiters; targetLitersPerHole=targetPerHole(result);
+      plannedHoles=result.holes; plannedLiters=result.rawLiters; targetLitersPerHole=targetPerHole(result);
     }
     return baseTask({
       sourceLineItemId: item.id || "",

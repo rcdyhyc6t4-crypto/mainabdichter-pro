@@ -1,0 +1,8 @@
+mainabdichter PRO V32.17.2
+
+- „Fertig“ im letzten Schritt der Baustellenakte funktioniert wieder und führt zurück zur Baustellenübersicht.
+- Beim Öffnen des Bereichs „Baustellen“, einer anderen Baustelle oder einer neu angelegten Baustelle beginnt die Ansicht wieder sauber in der Übersicht.
+- Der Ist-Verbrauch wird beim Speichern neu aus Ist-Bohrlöchern × Istmenge je Bohrloch berechnet.
+- Beispiel: 4 Bohrlöcher × 420 ml = 1,68 l.
+- Angebotsreserve und wirklicher Baustellenverbrauch bleiben getrennt.
+- Die Lagerabbuchung nach erfolgreichem Pipedrive-Abschluss verwendet den exakten Ist-Verbrauch.
