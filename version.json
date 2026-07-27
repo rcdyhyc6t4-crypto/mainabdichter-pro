@@ -1,6 +1,6 @@
 {
-  "version": "32.18.5",
-  "name": "mainabdichter PRO V32.18.5 Reduzierte-Messpunkte",
+  "version": "32.18.6",
+  "name": "mainabdichter PRO V32.18.6 Besichtigungs-Speichersteuerung",
   "build": "2026-07-27",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

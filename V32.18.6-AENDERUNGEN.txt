@@ -1,0 +1,13 @@
+mainabdichter PRO V32.18.6
+
+- Alle vier Eckpunkte können mit Finger oder Apple Pencil nachträglich verschoben werden.
+- Im fertigen Aufmaß stehen drei klare Aktionen zur Verfügung: Abbrechen, Alles löschen, Aufmaß speichern.
+- Abbrechen schließt den Assistenten und behält den aktuellen Zwischenstand.
+- Alles löschen entfernt ausschließlich diese Wandmessung mit Foto, Eckpunkten, Messwerten und Aufmaß.
+- Speichern legt das Aufmaß zusammen mit der vollständigen Besichtigung im lokalen Vorgangsarchiv ab.
+- Die Besichtigung kann später mit denselben Wanddaten und Messwerten erneut geöffnet werden.
+- Die drei Aktionen gelten zusätzlich für die komplette Besichtigung.
+- „Abbrechen ohne Speichern“ stellt den letzten bewusst zwischengespeicherten Gesamtstand wieder her.
+- „Alles löschen“ entfernt die komplette geöffnete Besichtigung nach eindeutiger Rückfrage.
+- „Zwischenspeichern“ sichert Besuchstag, Zeiten, Kunde, Gebäude, Schäden, Fotos, Dokumente, Messwerte, Aufmaße, Maßnahmen und Notizen unter Vorgänge.
+- Jeder gespeicherte Vorgang besitzt jetzt den direkten Knopf „Besichtigung“, der die vollständigen Daten wieder zur Bearbeitung öffnet.
