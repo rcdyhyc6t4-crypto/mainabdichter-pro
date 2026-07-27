@@ -211,6 +211,21 @@ export async function loadGmailInbox() {
   return api("/gmail/inbox");
 }
 
+export async function lookupGermanLocalities({ postalCode = "", name = "" } = {}) {
+  const params = new URLSearchParams();
+  if (postalCode) params.set("postalCode", postalCode);
+  if (name) params.set("name", name);
+  return api(`/address/localities?${params.toString()}`);
+}
+
+export async function lookupGermanStreets({ name = "", postalCode = "", locality = "" } = {}) {
+  const params = new URLSearchParams();
+  if (name) params.set("name", name);
+  if (postalCode) params.set("postalCode", postalCode);
+  if (locality) params.set("locality", locality);
+  return api(`/address/streets?${params.toString()}`);
+}
+
 export async function loadAcceptedLexwareQuotations(dateFrom) {
   const query = dateFrom
     ? `?updatedDateFrom=${encodeURIComponent(dateFrom)}`

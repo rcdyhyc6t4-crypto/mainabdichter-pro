@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.16.1
+// mainabdichter PRO Cloudflare Worker V32.17.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -123,6 +123,32 @@ async function gmailRequest(env, path) {
     throw error;
   }
   return data;
+}
+
+function openPlzRegexPrefix(value) {
+  const clean = cleanText(value).slice(0, 80);
+  if (!clean) return "";
+  return `^${clean.replace(/[.^$*+?()[\]{}|\\]/g, "\\$&")}.*`;
+}
+
+async function openPlzRequest(path, params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (cleanText(value)) query.set(key, cleanText(value));
+  });
+  query.set("page", "1");
+  query.set("pageSize", "25");
+  const response = await fetch(`https://openplzapi.org/de/${path}?${query.toString()}`, {
+    headers: { Accept: "application/json" }
+  });
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    const error = new Error("Die deutsche Adressprüfung ist derzeit nicht erreichbar.");
+    error.status = response.status || 502;
+    error.details = data;
+    throw error;
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 async function googleDriveRequest(env, path, options = {}) {
@@ -1464,7 +1490,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.16.1",
+          workerVersion: "32.17.0",
           time: new Date().toISOString()
         });
       }
@@ -1799,7 +1825,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.16.1",
+          workerVersion: "32.17.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -2288,6 +2314,47 @@ export default {
         }
         messages.sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
         return jsonResponse(request, { ok: true, messages, readOnly: true });
+      }
+
+      if (url.pathname === "/address/localities" && request.method === "GET") {
+        const postalCode = cleanText(url.searchParams.get("postalCode")).replace(/\D/g, "").slice(0, 5);
+        const name = cleanText(url.searchParams.get("name"));
+        if (!postalCode && name.length < 2) {
+          return jsonResponse(request, { ok: true, localities: [], source: "OpenPLZ" });
+        }
+        const rows = await openPlzRequest("Localities", {
+          postalCode,
+          name: name ? openPlzRegexPrefix(name) : ""
+        });
+        const localities = rows.map(item => ({
+          name: cleanText(item.name),
+          postalCode: cleanText(item.postalCode || item.postalcode),
+          municipality: cleanText(item.municipality?.name),
+          district: cleanText(item.district?.name),
+          federalState: cleanText(item.federalState?.name)
+        })).filter(item => item.name && item.postalCode);
+        return jsonResponse(request, { ok: true, localities, source: "OpenPLZ" });
+      }
+
+      if (url.pathname === "/address/streets" && request.method === "GET") {
+        const name = cleanText(url.searchParams.get("name"));
+        const postalCode = cleanText(url.searchParams.get("postalCode")).replace(/\D/g, "").slice(0, 5);
+        const locality = cleanText(url.searchParams.get("locality"));
+        if (name.length < 3) {
+          return jsonResponse(request, { ok: true, streets: [], source: "OpenPLZ" });
+        }
+        const rows = await openPlzRequest("Streets", {
+          name: openPlzRegexPrefix(name),
+          postalCode,
+          locality
+        });
+        const streets = rows.map(item => ({
+          name: cleanText(item.name),
+          postalCode: cleanText(item.postalCode || item.postalcode),
+          locality: cleanText(item.locality),
+          borough: cleanText(item.borough || item.suburb)
+        })).filter(item => item.name);
+        return jsonResponse(request, { ok: true, streets, source: "OpenPLZ" });
       }
 
       if (url.pathname === "/pipedrive/activities" && request.method === "GET") {

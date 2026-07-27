@@ -196,6 +196,7 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
     materialReserved: false,
     materialReservedAt: "",
     materialReservation: [],
+    preparationDocuments: clone(visit.documents || []),
     tasks
   };
 }

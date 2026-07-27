@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.17.0";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.16.1";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.17.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -15,7 +15,7 @@ import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocumen
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 
 
-const MAINABDICHTER_APP_VERSION = "32.16.1";
+const MAINABDICHTER_APP_VERSION = "32.17.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -102,6 +102,96 @@ function syncObjectAddressFromPostal(force = false) {
     $("objectAddressHint").textContent = different
       ? "Abweichende Objektanschrift bitte vollständig eintragen."
       : "Wird automatisch aus Straße, PLZ und Ort übernommen.";
+  }
+}
+
+const visitAddressCache = new Map();
+let visitAddressTimer = 0;
+function visitAddressOptions(listId, items, valueKey, label) {
+  const list = $(listId);
+  if (!list) return;
+  list.replaceChildren(...items.map(item => {
+    const option = document.createElement("option");
+    option.value = item[valueKey] || "";
+    option.label = label(item);
+    return option;
+  }));
+}
+function visitAddressStatus(message = "", error = false) {
+  const box = $("visitAddressAssistStatus");
+  if (!box) return;
+  box.textContent = message;
+  box.classList.toggle("is-error", error);
+}
+async function visitAddressLookup(key, loader) {
+  if (!visitAddressCache.has(key)) visitAddressCache.set(key, loader());
+  return visitAddressCache.get(key);
+}
+function updateVisitAddressState() {
+  ["street", "zip", "city"].forEach(id => state.visit.customer[id] = $(id)?.value || "");
+  syncObjectAddressFromPostal();
+  saveState();
+  updateRecordHeader();
+}
+async function assistVisitPostalCode() {
+  const zip = $("zip");
+  zip.value = zip.value.replace(/\D/g, "").slice(0, 5);
+  updateVisitAddressState();
+  if (zip.value.length !== 5) return visitAddressStatus();
+  visitAddressStatus("Ort wird gesucht …");
+  try {
+    const data = await visitAddressLookup(`zip:${zip.value}`, () => lookupGermanLocalities({ postalCode: zip.value }));
+    const places = data.localities || [];
+    visitAddressOptions("visitCitySuggestions", places, "name", item => item.postalCode);
+    if (!places.length) return visitAddressStatus("PLZ nicht gefunden – manuelle Eingabe bleibt möglich.", true);
+    if (!places.some(item => item.name.toLowerCase() === $("city").value.trim().toLowerCase())) $("city").value = places[0].name;
+    updateVisitAddressState();
+    visitAddressStatus(places.length > 1 ? `Ort eingesetzt · ${places.length} Orte auswählbar` : "✓ PLZ und Ort passen zusammen");
+  } catch {
+    visitAddressStatus("Adressprüfung derzeit nicht erreichbar – manuelle Eingabe bleibt möglich.", true);
+  }
+}
+async function assistVisitCity() {
+  const name = $("city").value.trim();
+  if (name.length < 2) return;
+  try {
+    const data = await visitAddressLookup(`city:${name.toLowerCase()}`, () => lookupGermanLocalities({ name }));
+    const places = data.localities || [];
+    visitAddressOptions("visitCitySuggestions", places, "name", item => item.postalCode);
+    const exact = places.filter(item => item.name.toLowerCase() === name.toLowerCase());
+    if (exact.length === 1) {
+      $("zip").value = exact[0].postalCode;
+      $("city").value = exact[0].name;
+      updateVisitAddressState();
+      visitAddressStatus("✓ Passende PLZ wurde eingesetzt");
+    } else if (places.length) visitAddressStatus("Ort aus der Liste auswählen.");
+  } catch {
+    visitAddressStatus("Adressprüfung derzeit nicht erreichbar – manuelle Eingabe bleibt möglich.", true);
+  }
+}
+async function assistVisitStreet() {
+  const full = $("street").value.trim();
+  const match = full.match(/^(.*?)(?:\s+(\d+[a-zA-Z]?(?:[-/]\d+[a-zA-Z]?)?))$/);
+  const streetName = (match?.[1] || full).trim();
+  const houseNumber = match?.[2] || "";
+  if (streetName.length < 3 || $("zip").value.length !== 5) return;
+  try {
+    const data = await visitAddressLookup(
+      `street:${$("zip").value}:${$("city").value.toLowerCase()}:${streetName.toLowerCase()}`,
+      () => lookupGermanStreets({ name: streetName, postalCode: $("zip").value, locality: $("city").value })
+    );
+    const streets = data.streets || [];
+    const options = streets.map(item => ({ ...item, displayName: `${item.name}${houseNumber ? ` ${houseNumber}` : ""}` }));
+    visitAddressOptions("visitStreetSuggestions", options, "displayName", item => `${item.postalCode} ${item.locality}`);
+    const exact = streets.find(item => item.name.toLowerCase() === streetName.toLowerCase());
+    if (exact) {
+      $("street").value = `${exact.name}${houseNumber ? ` ${houseNumber}` : ""}`;
+      updateVisitAddressState();
+      visitAddressStatus("✓ Straße, PLZ und Ort wurden geprüft");
+    } else if (streets.length) visitAddressStatus("Passende Straße aus der Liste auswählen.");
+    else visitAddressStatus("Straße nicht eindeutig gefunden – manuelle Eingabe bleibt möglich.", true);
+  } catch {
+    visitAddressStatus("Straßenprüfung derzeit nicht erreichbar – manuelle Eingabe bleibt möglich.", true);
   }
 }
 
@@ -1963,6 +2053,21 @@ $("acceptInquiryImport").onclick = acceptInquiryImport;
     updateRecordHeader();
   });
 });
+$("zip")?.addEventListener("input", () => {
+  clearTimeout(visitAddressTimer);
+  visitAddressTimer = setTimeout(assistVisitPostalCode, 160);
+});
+$("city")?.addEventListener("input", () => {
+  clearTimeout(visitAddressTimer);
+  visitAddressTimer = setTimeout(assistVisitCity, 350);
+});
+$("city")?.addEventListener("change", assistVisitCity);
+$("street")?.addEventListener("input", () => {
+  clearTimeout(visitAddressTimer);
+  visitAddressTimer = setTimeout(assistVisitStreet, 350);
+});
+$("street")?.addEventListener("change", assistVisitStreet);
+$("street")?.addEventListener("blur", assistVisitStreet);
 if ($("objectAddressDifferent")) $("objectAddressDifferent").addEventListener("change", () => {
   state.visit.customer.objectAddressDifferent = $("objectAddressDifferent").checked;
   syncObjectAddressFromPostal(!state.visit.customer.objectAddressDifferent);
@@ -4484,6 +4589,48 @@ async function renderWorksiteAttachments(ws) {
   }
 }
 
+function preparationDocumentsForWorksite(ws) {
+  if (Array.isArray(ws.preparationDocuments) && ws.preparationDocuments.length) return ws.preparationDocuments;
+  const archived = loadArchive().find(record => record.id === ws.offerRecordId);
+  const documents = archived?.visit?.documents || archived?.documents || [];
+  if (documents.length) {
+    ws.preparationDocuments = JSON.parse(JSON.stringify(documents));
+    persistWorksite(ws);
+  }
+  return ws.preparationDocuments || [];
+}
+
+function preparationDocumentHtml(document) {
+  const canOpen = Boolean(document.driveUrl);
+  return `<article class="worksite-attachment preparation-document ${canOpen ? "uploaded" : document.uploadStatus || "pending"}">
+    <div class="attachment-icon">${document.mimeType === "application/pdf" ? "PDF" : document.mimeType?.startsWith("image/") ? "BILD" : "DATEI"}</div>
+    <div class="attachment-main">
+      <strong>${esc(document.filename || document.name || "Dokument")}</strong>
+      <span>${esc(document.category || "Unterlage aus der Vorbereitung")}</span>
+      ${document.note ? `<small>${esc(document.note)}</small>` : ""}
+      <small class="attachment-status">${canOpen ? "✓ Aus der Vorbereitung · antippen zum Öffnen" : "Noch nicht in Google Drive verfügbar"}</small>
+    </div>
+    <div class="attachment-actions">${canOpen ? `<a class="secondary button-link" href="${esc(document.driveUrl)}" target="_blank" rel="noopener">Öffnen</a>` : ""}</div>
+  </article>`;
+}
+
+function renderPreparationDocuments(ws) {
+  const documents = preparationDocumentsForWorksite(ws);
+  const executionBox = $("wsPreparationDocuments");
+  const documentBox = $("wsInheritedDocumentList");
+  if (executionBox) {
+    executionBox.classList.toggle("hidden", !documents.length);
+    executionBox.innerHTML = documents.length ? `
+      <div class="card-title-row"><div><span class="dashboard-eyebrow">VORBEREITUNG</span><h2>Aufmaß, Pläne und Unterlagen</h2><p class="hint">Diese Dateien wurden vor der Ausführung hinterlegt.</p></div><b>${documents.length}</b></div>
+      <div class="preparation-document-grid">${documents.map(preparationDocumentHtml).join("")}</div>` : "";
+  }
+  if (documentBox) {
+    documentBox.innerHTML = documents.length ? `
+      <div class="inherited-document-heading"><strong>Aus Besichtigung und Vorbereitung</strong><small>${documents.length} Unterlage${documents.length === 1 ? "" : "n"}</small></div>
+      ${documents.map(preparationDocumentHtml).join("")}` : "";
+  }
+}
+
 
 function inventoryTrackingEnabled(productId, key) {
   const product = state.settings.inventory?.products?.find(item => item.id === productId);
@@ -4940,6 +5087,7 @@ function renderWorksiteEditor() {
   });
   renderWorksiteOverview(ws);
   renderWorksitePlanning(ws);
+  renderPreparationDocuments(ws);
   renderWorksitePhotoPage(ws);
   renderWorksiteReportChecklist(ws);
   renderWorksiteInvoiceReview(ws);

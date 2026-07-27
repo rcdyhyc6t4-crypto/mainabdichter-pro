@@ -875,6 +875,20 @@ button{border-radius:10px}.primary{background:var(--brand-green)}
   .redesign-header{min-height:64px;padding:7px 10px}.header-logo-button img{height:45px;max-width:62vw}.redesign-header-actions .header-action{padding:9px}.redesign-header-actions .header-action>span:last-child{display:none}.dashboard-welcome{align-items:flex-start;padding-top:10px}.dashboard-welcome h1{font-size:24px}.dashboard-primary-action{padding:11px 13px;font-size:11px}.dashboard-primary-action span{font-size:18px}.dashboard-status-grid{gap:8px}.dashboard-status-card{padding:12px;column-gap:9px}.dashboard-status-card .status-icon{width:34px;height:34px;font-size:16px}.dashboard-status-card strong{font-size:20px}.dashboard-action-grid{gap:8px}.dashboard-action-card{min-height:105px;padding:13px}.record-header{grid-template-columns:1fr;padding:14px}.record-quick-actions{grid-row:2}.record-meta-grid{grid-row:3;grid-template-columns:repeat(2,1fr)}.record-meta-grid>div:last-child{grid-column:1/-1}.dashboard-stat-strip{grid-template-columns:repeat(2,1fr)}.dashboard-stat-strip .wide-stat{grid-column:1/-1}
 }
 
+/* V32.17.0 – Adresshilfe und Unterlagen aus der Vorbereitung */
+.address-assist-status{min-height:18px;margin-top:-3px;color:#34743a;font-size:10px;font-weight:700}
+.address-assist-status:empty{display:none}
+.address-assist-status.is-error{color:#8b5d19}
+.preparation-documents-card{border:1px solid #cfe3cf;background:#f7fbf6}
+.preparation-document-grid{display:grid;gap:9px;margin-top:12px}
+.preparation-document{border-left:4px solid #3ba33c}
+.inherited-document-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:3px 0 10px;padding:10px 12px;border-radius:11px;background:#eef7ed}
+.inherited-document-heading strong,.inherited-document-heading small{display:block}
+.inherited-document-heading small{font-size:10px;color:#627067}
+@media(min-width:760px){
+  .preparation-document-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 /* V22.3 header, functional menu and backup page */
 .redesign-header .header-logo-button{display:flex;align-items:center;justify-content:flex-start;max-width:min(460px,52vw);padding:0;background:transparent}
 .redesign-header .header-logo-button img{display:block;width:min(390px,48vw);height:50px;object-fit:contain;object-position:left center}

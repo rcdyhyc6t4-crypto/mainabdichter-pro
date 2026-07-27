@@ -1,21 +1,26 @@
-mainabdichter PRO V30.1 – Header und angenommene Angebote korrigiert
+mainabdichter PRO V32.17.0 – Komplettpaket
 
-NUR DIESE DATEIEN BEI GITHUB ERSETZEN:
-- index.html
-- css/app.css
-- js/app.js
+DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
+Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.
 
-UNVERÄNDERT:
-- js/construction.js
-- js/pdf.js
-- Cloudflare Worker
-- assets/
-- übrige Hilfsmodule
+NEU:
+- Automatische Adresshilfe bei Kundendaten und Besichtigung:
+  PLZ ergänzt Ort, Ort ergänzt bei Eindeutigkeit die PLZ,
+  Straßen werden passend zu PLZ und Ort vorgeschlagen.
+- Manuelle Adressen bleiben immer möglich.
+- Unterlagen aus Besichtigung/Vorbereitung werden in die Ausführung übernommen.
+- Aufmaß, Grundriss, Pläne und andere Drive-Unterlagen sind in der Ausführung
+  und unter „Dokumente“ direkt sichtbar und antippbar.
 
-KORRIGIERT:
-- Angenommene Lexware-Angebote sind wieder direkt im Dashboard sichtbar.
-- Die Glocke öffnet zusätzlich dieselbe Angebotsliste.
-- Der Header verwendet wieder das echte mainabdichter-Logo.
-- Glocke und Profil stehen rechts wie in der freigegebenen Vorlage.
-- Keine weiteren Dashboard-Elemente wurden verändert.
-- JavaScript-Syntaxprüfung bestanden.
+GESCHÜTZT UND UNVERÄNDERT:
+- Pipedrive-Postanschrift `postal_adress`
+- kein unzulässiges `postal_address` an Pipedrive API v2
+- vorhandene Person-/Deal-IDs und Dublettenschutz
+- bestehende Termin-, Kalkulations-, Lager- und Arbeitsnachweisfunktionen
+
+PRÜFUNGEN:
+- JavaScript- und Worker-Syntax bestanden
+- Zeitzonentests bestanden
+- echte OpenPLZ-Abfragen für PLZ, Ort und Straße bestanden
+- Dokumentübernahme mit Google-Drive-Link bestanden
+- neue Browsertests für Adresshilfe und Vorbereitungsunterlagen bestanden

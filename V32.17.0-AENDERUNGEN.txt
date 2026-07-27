@@ -1,0 +1,21 @@
+mainabdichter PRO V32.17.0
+
+AUTOMATISCHE ADRESSHILFE
+- Nach Eingabe einer fünfstelligen deutschen PLZ wird der passende Ort eingesetzt.
+- Bei mehreren passenden Orten bleibt eine Auswahlliste verfügbar.
+- Bei Eingabe eines Ortes wird die passende PLZ ergänzt, wenn sie eindeutig ist.
+- Straßen werden passend zu PLZ und Ort vorgeschlagen und in ihrer Schreibweise geprüft.
+- Hausnummern bleiben erhalten.
+- Bei Ausfall der Adressquelle bleibt jede Adresse manuell speicherbar.
+- Adressdaten werden über den bestehenden Worker aus OpenPLZ abgerufen.
+- Pipedrive-Adressfeld `postal_adress`, API-v2-Schutz und Dublettenlogik bleiben unverändert.
+
+UNTERLAGEN IN DER AUSFÜHRUNG
+- Beim Erstellen einer Baustelle werden die Dokumentmetadaten und Google-Drive-Links
+  aus Besichtigung und Vorbereitung übernommen.
+- Aufmaß, Grundriss, Pläne, Gutachten und weitere hochgeladene Unterlagen erscheinen
+  direkt im Bereich „Ausführung“.
+- Dieselben Unterlagen erscheinen zusätzlich im Reiter „Dokumente“.
+- Hochgeladene Drive-Dateien können direkt angetippt und geöffnet werden.
+- Bereits vorhandene Baustellen übernehmen die Unterlagen nachträglich aus dem
+  zugehörigen archivierten Vorgang, sofern dieser noch vorhanden ist.

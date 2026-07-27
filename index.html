@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.16.1</title>
-<link rel="stylesheet" href="css/app.css?v=32.16.1">
+<title>mainabdichter PRO V32.17.0</title>
+<link rel="stylesheet" href="css/app.css?v=32.17.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -469,9 +469,10 @@ main{width:100%;max-width:100%}
       <div><label>Firma</label><input id="company"></div>
       <div><label>Telefon</label><input id="phone" inputmode="tel"></div>
       <div><label>E-Mail</label><input id="email"></div>
-      <div class="full"><label>Straße und Hausnummer</label><input id="street"></div>
-      <div><label>PLZ</label><input id="zip" inputmode="numeric"></div>
-      <div><label>Ort</label><input id="city"></div>
+      <div class="full"><label>Straße und Hausnummer</label><input id="street" list="visitStreetSuggestions"><datalist id="visitStreetSuggestions"></datalist></div>
+      <div><label>PLZ</label><input id="zip" inputmode="numeric" maxlength="5"></div>
+      <div><label>Ort</label><input id="city" list="visitCitySuggestions"><datalist id="visitCitySuggestions"></datalist></div>
+      <div id="visitAddressAssistStatus" class="address-assist-status full" role="status" aria-live="polite"></div>
       <div class="full object-address-control">
         <label class="customer-checkbox"><input id="objectAddressDifferent" type="checkbox"> Objektadresse weicht von der Postanschrift ab</label>
         <label for="objectAddress">Objektadresse</label>
@@ -683,9 +684,10 @@ main{width:100%;max-width:100%}
       <fieldset>
         <legend>Postanschrift</legend>
         <div class="customer-form-grid">
-          <div class="full"><label for="customerStreet">Straße und Hausnummer</label><input id="customerStreet" autocomplete="street-address"></div>
-          <div><label for="customerZip">PLZ</label><input id="customerZip" inputmode="numeric" autocomplete="postal-code"></div>
-          <div><label for="customerCity">Ort</label><input id="customerCity" autocomplete="address-level2"></div>
+          <div class="full"><label for="customerStreet">Straße und Hausnummer</label><input id="customerStreet" list="customerStreetSuggestions" autocomplete="street-address"><datalist id="customerStreetSuggestions"></datalist></div>
+          <div><label for="customerZip">PLZ</label><input id="customerZip" inputmode="numeric" maxlength="5" autocomplete="postal-code"></div>
+          <div><label for="customerCity">Ort</label><input id="customerCity" list="customerCitySuggestions" autocomplete="address-level2"><datalist id="customerCitySuggestions"></datalist></div>
+          <div id="customerAddressAssistStatus" class="address-assist-status full" role="status" aria-live="polite"></div>
         </div>
       </fieldset>
 
@@ -693,9 +695,10 @@ main{width:100%;max-width:100%}
         <legend>Objektadresse</legend>
         <label class="customer-checkbox"><input id="customerObjectDifferent" type="checkbox"> Objektadresse weicht von der Postanschrift ab</label>
         <div id="customerObjectFields" class="customer-form-grid">
-          <div class="full"><label for="customerObjectStreet">Straße und Hausnummer</label><input id="customerObjectStreet" autocomplete="off"></div>
-          <div><label for="customerObjectZip">PLZ</label><input id="customerObjectZip" inputmode="numeric" autocomplete="off"></div>
-          <div><label for="customerObjectCity">Ort</label><input id="customerObjectCity" autocomplete="off"></div>
+          <div class="full"><label for="customerObjectStreet">Straße und Hausnummer</label><input id="customerObjectStreet" list="customerObjectStreetSuggestions" autocomplete="off"><datalist id="customerObjectStreetSuggestions"></datalist></div>
+          <div><label for="customerObjectZip">PLZ</label><input id="customerObjectZip" inputmode="numeric" maxlength="5" autocomplete="off"></div>
+          <div><label for="customerObjectCity">Ort</label><input id="customerObjectCity" list="customerObjectCitySuggestions" autocomplete="off"><datalist id="customerObjectCitySuggestions"></datalist></div>
+          <div id="customerObjectAddressAssistStatus" class="address-assist-status full" role="status" aria-live="polite"></div>
         </div>
         <p id="customerObjectHint" class="hint">Die Objektadresse wird automatisch aus der Postanschrift übernommen.</p>
       </fieldset>
@@ -921,6 +924,7 @@ main{width:100%;max-width:100%}
         <h2>Was muss ausgeführt werden?</h2>
         <p>Hier stehen nur die für die Ausführung notwendigen Werte.</p>
       </div>
+      <div id="wsPreparationDocuments" class="card preparation-documents-card hidden"></div>
       <div class="card additional-work-entry">
         <div>
           <span class="dashboard-eyebrow">KUNDENWUNSCH VOR ORT</span>
@@ -946,6 +950,7 @@ main{width:100%;max-width:100%}
         <div class="card-title-row">
           <div><span class="dashboard-eyebrow">BAUAKTE</span><h2>Dokumente und Pläne</h2><p class="hint">Angebot, Aufmaß, Grundrisse, PDFs, Gutachten und Skizzen.</p></div>
         </div>
+        <div id="wsInheritedDocumentList" class="worksite-attachment-list"></div>
         <div class="grid">
           <div><label>Kategorie</label><select id="wsAttachmentCategory"><option>Aufmaß</option><option>Grundriss</option><option>Gebäudequerschnitt</option><option>Schadensbild</option><option>Messstelle</option><option>Vorher</option><option>Während</option><option>Nachher</option><option>Herstellerunterlage</option><option>Sonstiges</option></select></div>
           <div class="full"><label>Bemerkung zur Datei</label><input id="wsAttachmentNote" placeholder="z. B. Kellergrundriss mit markierter Nordwand"></div>
@@ -1310,9 +1315,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.16.1"></script>
-<script type="module" src="js/cloud-migration.js?v=32.16.1"></script>
+<script type="module" src="js/app.js?v=32.17.0"></script>
+<script type="module" src="js/cloud-migration.js?v=32.17.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=30.6.0"></script>
+<script type="module" src="js/customers.js?v=32.17.0"></script>
 </body>
 </html>

@@ -6,8 +6,10 @@ import {
   loadPipedrivePerson,
   loadPipedriveCustomerHistory,
   loadLexwareCustomerHistory,
-  createPipedrivePerson
-} from "./api-v227.js";
+  createPipedrivePerson,
+  lookupGermanLocalities,
+  lookupGermanStreets
+} from "./api-v227.js?v=32.17.0";
 
 const $ = id => document.getElementById(id);
 let activeRecordCustomer = null;
@@ -17,6 +19,146 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
 
 function clean(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+const addressAssistCache = new Map();
+const addressAssistTimers = new Map();
+
+async function cachedAddressLookup(key, loader) {
+  if (addressAssistCache.has(key)) return addressAssistCache.get(key);
+  const result = await loader();
+  addressAssistCache.set(key, result);
+  return result;
+}
+
+function setAddressAssistStatus(prefix, message = "", error = false) {
+  const box = $(prefix === "customer" ? "customerAddressAssistStatus" : "customerObjectAddressAssistStatus");
+  if (!box) return;
+  box.textContent = message;
+  box.classList.toggle("is-error", error);
+}
+
+function updateAddressDatalist(id, items, valueKey = "name", label) {
+  const list = $(id);
+  if (!list) return;
+  list.innerHTML = items.map(item => {
+    const value = clean(item[valueKey]);
+    const description = clean(label?.(item) || "");
+    return `<option value="${esc(value)}"${description ? ` label="${esc(description)}"` : ""}></option>`;
+  }).join("");
+}
+
+function splitStreetAndHouseNumber(value) {
+  const text = clean(value);
+  const match = text.match(/^(.*?)(?:\s+(\d+[a-zA-Z]?(?:[-/]\d+[a-zA-Z]?)?))$/);
+  return match ? { street: clean(match[1]), houseNumber: match[2] } : { street: text, houseNumber: "" };
+}
+
+function debounceAddress(prefix, action, delay = 350) {
+  clearTimeout(addressAssistTimers.get(prefix));
+  addressAssistTimers.set(prefix, setTimeout(action, delay));
+}
+
+function bindAddressAssist(prefix) {
+  const street = $(`${prefix}Street`);
+  const zip = $(`${prefix}Zip`);
+  const city = $(`${prefix}City`);
+  if (!street || !zip || !city) return;
+  const streetListId = `${prefix}StreetSuggestions`;
+  const cityListId = `${prefix}CitySuggestions`;
+
+  const resolvePostalCode = async () => {
+    zip.value = zip.value.replace(/\D/g, "").slice(0, 5);
+    if (prefix === "customer") syncObjectFields();
+    if (zip.value.length !== 5) {
+      setAddressAssistStatus(prefix);
+      return;
+    }
+    setAddressAssistStatus(prefix, "Ort wird gesucht …");
+    try {
+      const data = await cachedAddressLookup(`zip:${zip.value}`, () =>
+        lookupGermanLocalities({ postalCode: zip.value })
+      );
+      const places = data.localities || [];
+      updateAddressDatalist(cityListId, places, "name", item => item.postalCode);
+      if (places.length) {
+        const exact = places.find(item => clean(item.name).toLowerCase() === clean(city.value).toLowerCase());
+        if (!exact) city.value = clean(places[0].name);
+        if (prefix === "customer") syncObjectFields();
+        setAddressAssistStatus(prefix, places.length > 1
+          ? `Ort eingesetzt · ${places.length} passende Orte auswählbar`
+          : "✓ PLZ und Ort passen zusammen");
+      } else {
+        setAddressAssistStatus(prefix, "Zu dieser PLZ wurde kein Ort gefunden. Manuelle Eingabe ist möglich.", true);
+      }
+    } catch {
+      setAddressAssistStatus(prefix, "Adressprüfung derzeit nicht erreichbar – manuelle Eingabe ist möglich.", true);
+    }
+  };
+
+  const resolveCity = async () => {
+    const value = clean(city.value);
+    if (value.length < 2) return;
+    try {
+      const data = await cachedAddressLookup(`city:${value.toLowerCase()}`, () =>
+        lookupGermanLocalities({ name: value })
+      );
+      const places = data.localities || [];
+      updateAddressDatalist(cityListId, places, "name", item => item.postalCode);
+      const exactPlaces = places.filter(item => clean(item.name).toLowerCase() === value.toLowerCase());
+      if (exactPlaces.length === 1) {
+        zip.value = exactPlaces[0].postalCode;
+        city.value = exactPlaces[0].name;
+        if (prefix === "customer") syncObjectFields();
+        setAddressAssistStatus(prefix, "✓ Passende PLZ wurde eingesetzt");
+      } else if (places.length) {
+        setAddressAssistStatus(prefix, "Ort auswählen; die passende PLZ wird anschließend eingesetzt.");
+      }
+    } catch {
+      setAddressAssistStatus(prefix, "Adressprüfung derzeit nicht erreichbar – manuelle Eingabe ist möglich.", true);
+    }
+  };
+
+  const resolveStreet = async () => {
+    const entered = splitStreetAndHouseNumber(street.value);
+    if (entered.street.length < 3 || zip.value.length !== 5) return;
+    try {
+      const data = await cachedAddressLookup(
+        `street:${zip.value}:${clean(city.value).toLowerCase()}:${entered.street.toLowerCase()}`,
+        () => lookupGermanStreets({ name: entered.street, postalCode: zip.value, locality: city.value })
+      );
+      const streets = data.streets || [];
+      updateAddressDatalist(streetListId, streets.map(item => ({
+        ...item,
+        displayName: `${item.name}${entered.houseNumber ? ` ${entered.houseNumber}` : ""}`
+      })), "displayName", item => `${item.postalCode} ${item.locality}`);
+      const exact = streets.find(item => clean(item.name).toLowerCase() === entered.street.toLowerCase());
+      if (exact) {
+        street.value = `${exact.name}${entered.houseNumber ? ` ${entered.houseNumber}` : ""}`;
+        if (prefix === "customer") syncObjectFields();
+        setAddressAssistStatus(prefix, "✓ Straße, PLZ und Ort wurden geprüft");
+      } else if (streets.length) {
+        setAddressAssistStatus(prefix, "Passende Straße aus der Vorschlagsliste auswählen.");
+      } else {
+        setAddressAssistStatus(prefix, "Straße nicht eindeutig gefunden. Schreibweise bitte prüfen oder manuell übernehmen.", true);
+      }
+    } catch {
+      setAddressAssistStatus(prefix, "Straßenprüfung derzeit nicht erreichbar – manuelle Eingabe ist möglich.", true);
+    }
+  };
+
+  zip.addEventListener("input", () => debounceAddress(`${prefix}:zip`, resolvePostalCode, 150));
+  city.addEventListener("input", () => {
+    if (prefix === "customer") syncObjectFields();
+    debounceAddress(`${prefix}:city`, resolveCity);
+  });
+  city.addEventListener("change", resolveCity);
+  street.addEventListener("input", () => {
+    if (prefix === "customer") syncObjectFields();
+    debounceAddress(`${prefix}:street`, resolveStreet);
+  });
+  street.addEventListener("change", resolveStreet);
+  street.addEventListener("blur", resolveStreet);
 }
 
 function plainText(value) {
@@ -760,6 +902,8 @@ function init() {
   ["customerStreet", "customerZip", "customerCity"].forEach(id => {
     $(id).addEventListener("input", syncObjectFields);
   });
+  bindAddressAssist("customer");
+  bindAddressAssist("customerObject");
   renderList();
 }
 
