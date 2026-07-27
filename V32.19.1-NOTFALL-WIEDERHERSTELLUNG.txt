@@ -1,0 +1,13 @@
+mainabdichter PRO V32.19.1
+
+NOTFALL-WIEDERHERSTELLUNG
+
+- Prüft vor dem zentralen Abruf zuerst die vorhandene lokale Konfliktkopie.
+- Zeigt „Lokalen iPhone-Stand retten“, wenn eine verwertbare Kopie vorhanden ist.
+- Nennt vor der Wiederherstellung Zeitpunkt sowie Anzahl von Kunden, Vorgängen
+  und Baustellen.
+- Schreibt die lokale Rettung erst nach ausdrücklicher Bestätigung als neuen
+  zentralen Stand nach Google Drive.
+- Löscht die Rettungskopie nur nach einer erfolgreichen zentralen Speicherung.
+
+Bis zur Prüfung keine Daten neu eingeben.

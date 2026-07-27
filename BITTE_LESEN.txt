@@ -1,4 +1,4 @@
-mainabdichter PRO V32.19.0 – Komplettpaket
+mainabdichter PRO V32.19.1 – Notfall-Wiederherstellung
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.

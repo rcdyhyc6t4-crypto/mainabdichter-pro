@@ -1,11 +1,11 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, createServerAuthoritativePayload, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, createServerAuthoritativePayload, backupHasBusinessData, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.0";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.1";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.0";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.1";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.0";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.1";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.19.0";
+const MAINABDICHTER_APP_VERSION = "32.19.1";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -6731,6 +6731,7 @@ function setCentralSyncGate(mode = "loading", title = "", hint = "") {
   if (!gate) return;
   const retry = $("centralSyncRetry");
   const setup = $("centralSyncSetup");
+  const recovery = $("centralSyncRecovery");
   gate.classList.toggle("hidden", mode === "ready");
   gate.classList.toggle("error", mode === "error" || mode === "setup");
   gate.setAttribute("aria-busy", mode === "loading" ? "true" : "false");
@@ -6749,6 +6750,7 @@ function setCentralSyncGate(mode = "loading", title = "", hint = "") {
   }
   retry?.classList.toggle("hidden", mode !== "error");
   setup?.classList.toggle("hidden", mode !== "setup");
+  recovery?.classList.toggle("hidden", mode !== "recovery");
 }
 
 function rememberRemoteRevision(value = "") {
@@ -6766,6 +6768,77 @@ function preserveUnsyncedLocalCopy(payload, remoteModifiedTime = "") {
     }));
   } catch (error) {
     console.warn("Lokale Wiederherstellungskopie konnte nicht zusätzlich gespeichert werden:", error);
+  }
+}
+
+function readUnsyncedLocalCopy() {
+  try {
+    const recovery = JSON.parse(localStorage.getItem(LOCAL_CONFLICT_BACKUP_KEY) || "null");
+    if (!recovery?.payload || !backupHasBusinessData(recovery.payload)) return null;
+    return recovery;
+  } catch {
+    return null;
+  }
+}
+
+function recoverySummary(recovery) {
+  const payload = recovery?.payload || {};
+  const customers = Array.isArray(payload.customers) ? payload.customers.length : 0;
+  const worksites = Array.isArray(payload.worksites) ? payload.worksites.length : 0;
+  const visits = Array.isArray(payload.archive) ? payload.archive.length : 0;
+  const savedAt = recovery?.savedAt
+    ? new Date(recovery.savedAt).toLocaleString("de-DE")
+    : "unbekannt";
+  return `Gespeichert: ${savedAt} · ${customers} Kunden · ${visits} Vorgänge · ${worksites} Baustellen.`;
+}
+
+function offerUnsyncedLocalRecovery(recovery) {
+  setCentralSyncGate(
+    "recovery",
+    "Lokale iPhone-Rettung gefunden",
+    `${recoverySummary(recovery)} Noch wurde davon nichts überschrieben.`
+  );
+}
+
+async function restoreUnsyncedLocalCopy() {
+  const recovery = readUnsyncedLocalCopy();
+  if (!recovery) {
+    setCentralSyncGate(
+      "error",
+      "Keine lokale Rettungskopie gefunden",
+      "Bitte nichts neu eingeben. Kunden und Termine können anschließend aus Pipedrive erneut abgerufen werden."
+    );
+    return false;
+  }
+  if (!window.confirm(
+    `Diesen lokalen iPhone-Stand wiederherstellen?\n\n${recoverySummary(recovery)}`
+  )) return false;
+
+  setCentralSyncGate("loading", "Lokalen iPhone-Stand wiederherstellen …");
+  try {
+    const response = await loadDriveBackup();
+    const expectedRemoteModifiedTime = response?.file?.modifiedTime || "";
+    restoreFullBackupPayload(recovery.payload);
+    const saved = await saveDriveBackup(recovery.payload, expectedRemoteModifiedTime);
+    const synchronizedAt = saved?.file?.modifiedTime || new Date().toISOString();
+    rememberRemoteRevision(saved?.file?.modifiedTime || synchronizedAt);
+    localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
+    localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+    localStorage.removeItem(LOCAL_DIRTY_KEY);
+    localStorage.removeItem(LOCAL_CONFLICT_BACKUP_KEY);
+    driveBootstrapComplete = true;
+    renderAfterDriveRestore();
+    setCentralSyncGate("ready");
+    show("dashboard");
+    return true;
+  } catch (error) {
+    console.warn("Lokale Rettung konnte nicht wiederhergestellt werden:", error);
+    setCentralSyncGate(
+      "error",
+      "Lokale Daten bleiben gesichert",
+      "Die Rettungskopie wurde nicht gelöscht. Bitte erneut versuchen und bis dahin keine Daten neu eingeben."
+    );
+    return false;
   }
 }
 
@@ -7052,8 +7125,15 @@ $("centralSyncSetup")?.addEventListener("click", () => {
   show("settings");
   $("workerUrl")?.focus();
 });
+$("centralSyncRecovery")?.addEventListener("click", restoreUnsyncedLocalCopy);
 
-const centralDataReady = await ensureDriveBootstrap();
+const localEmergencyRecovery = readUnsyncedLocalCopy();
+let centralDataReady = false;
+if (localEmergencyRecovery) {
+  offerUnsyncedLocalRecovery(localEmergencyRecovery);
+} else {
+  centralDataReady = await ensureDriveBootstrap();
+}
 if (centralDataReady) {
   show("dashboard");
   if (hasConnectionConfig()) void loadAndMatchEmailInbox();
