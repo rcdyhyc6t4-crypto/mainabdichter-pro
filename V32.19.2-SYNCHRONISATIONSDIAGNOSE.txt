@@ -1,0 +1,6 @@
+mainabdichter PRO V32.19.2
+
+- Zeigt bei gescheitertem zentralen Abruf den tatsächlichen technischen Grund.
+- Unterscheidet APP_SECRET, unvollständige Drive-Einrichtung und sonstige Fehler.
+- Bietet direkt „Verbindung prüfen“ an.
+- Die lokale Notfall-Wiederherstellung aus V32.19.1 bleibt vollständig erhalten.
