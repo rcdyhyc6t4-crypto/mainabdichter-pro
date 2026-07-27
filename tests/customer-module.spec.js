@@ -7,6 +7,44 @@ test.use({
   hasTouch: true
 });
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("mainabdichter_v10_settings", JSON.stringify({
+      workerUrl: "https://mainabdichter-api.cmww7htry5.workers.dev",
+      appSecret: "browser-test"
+    }));
+  });
+  await page.route("**/drive/backup", async route => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, file: { modifiedTime: "2026-07-27T14:00:00.000Z" } })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        file: { modifiedTime: "2026-07-27T14:00:00.000Z" },
+        backup: {
+          settings: {},
+          archive: [],
+          customers: [],
+          worksites: [],
+          communicationNotes: [],
+          emailInboxState: { processedIds: [], assignments: {} },
+          drafts: [],
+          reminders: []
+        }
+      })
+    });
+  });
+});
+
 test("Worker trennt Kundenhistorie sicher vom Personenabruf", () => {
   const worker = readFileSync("cloudflare-worker.js", "utf8");
   const historyRoute = worker.indexOf("customer-history$/.test(url.pathname)");

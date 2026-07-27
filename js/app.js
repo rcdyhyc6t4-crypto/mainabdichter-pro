@@ -1,11 +1,11 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, backupHasBusinessData, mergeFullBackupPayload, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, createServerAuthoritativePayload, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.9";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.0";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.9";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.9";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.0";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.18.9";
+const MAINABDICHTER_APP_VERSION = "32.19.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -6722,6 +6722,68 @@ let driveBootstrapComplete = false;
 let lastKnownRemoteModifiedTime = "";
 const DRIVE_SYNC_TIME_KEY = "mainabdichter_drive_sync_time";
 const LOCAL_CHANGE_TIME_KEY = "mainabdichter_local_change_time";
+const LOCAL_DIRTY_KEY = "mainabdichter_v32_local_changes_pending";
+const REMOTE_BASE_TIME_KEY = "mainabdichter_v32_remote_base_modified";
+const LOCAL_CONFLICT_BACKUP_KEY = "mainabdichter_v32_unsynced_recovery";
+
+function setCentralSyncGate(mode = "loading", title = "", hint = "") {
+  const gate = $("centralSyncGate");
+  if (!gate) return;
+  const retry = $("centralSyncRetry");
+  const setup = $("centralSyncSetup");
+  gate.classList.toggle("hidden", mode === "ready");
+  gate.classList.toggle("error", mode === "error" || mode === "setup");
+  gate.setAttribute("aria-busy", mode === "loading" ? "true" : "false");
+  document.body.classList.toggle("central-syncing", mode !== "ready");
+  if ($("centralSyncTitle")) {
+    $("centralSyncTitle").textContent = title || (
+      mode === "loading" ? "Zentralen Datenstand laden …" : "Synchronisation prüfen"
+    );
+  }
+  if ($("centralSyncHint")) {
+    $("centralSyncHint").textContent = hint || (
+      mode === "loading"
+        ? "Kunden, Lager, Baustellen und Arbeitsnachweise werden abgeglichen."
+        : "Ohne einen bestätigten zentralen Stand bleiben Eingaben gesperrt."
+    );
+  }
+  retry?.classList.toggle("hidden", mode !== "error");
+  setup?.classList.toggle("hidden", mode !== "setup");
+}
+
+function rememberRemoteRevision(value = "") {
+  lastKnownRemoteModifiedTime = value;
+  if (value) localStorage.setItem(REMOTE_BASE_TIME_KEY, value);
+  else localStorage.removeItem(REMOTE_BASE_TIME_KEY);
+}
+
+function preserveUnsyncedLocalCopy(payload, remoteModifiedTime = "") {
+  try {
+    localStorage.setItem(LOCAL_CONFLICT_BACKUP_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      remoteModifiedTime,
+      payload
+    }));
+  } catch (error) {
+    console.warn("Lokale Wiederherstellungskopie konnte nicht zusätzlich gespeichert werden:", error);
+  }
+}
+
+async function uploadPendingLocalChangesIfSafe(response, localPayload, knownBase) {
+  const remoteModifiedTime = response?.file?.modifiedTime || "";
+  const hasPendingChanges = localStorage.getItem(LOCAL_DIRTY_KEY) === "1";
+  if (!hasPendingChanges) return null;
+  if (!knownBase || !remoteModifiedTime || knownBase !== remoteModifiedTime) {
+    preserveUnsyncedLocalCopy(localPayload, remoteModifiedTime);
+    return null;
+  }
+  const saved = await saveDriveBackup(localPayload, remoteModifiedTime);
+  return {
+    ...response,
+    backup: localPayload,
+    file: saved?.file || response.file
+  };
+}
 
 function collectVisibleAutomaticData() {
   const activePage = document.querySelector(".page.active")?.id;
@@ -6744,7 +6806,6 @@ async function runAutomaticDriveBackup() {
   try {
     const ready = await ensureDriveBootstrap();
     if (!ready) throw new Error("Zentraler Datenstand konnte noch nicht sicher geprüft werden.");
-    await synchronizeFromDrive();
     collectVisibleAutomaticData();
     const payload = createFullBackupPayload();
     payload.metadata ||= {};
@@ -6753,13 +6814,22 @@ async function runAutomaticDriveBackup() {
     const saved = await saveDriveBackup(payload, lastKnownRemoteModifiedTime);
     const synchronizedAt =
       saved?.file?.modifiedTime || payload.exportedAt || new Date().toISOString();
-    lastKnownRemoteModifiedTime = saved?.file?.modifiedTime || synchronizedAt;
+    rememberRemoteRevision(saved?.file?.modifiedTime || synchronizedAt);
     localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
     localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
+    localStorage.removeItem(LOCAL_DIRTY_KEY);
     automaticDriveRetry = false;
     updateBackupTime();
   } catch (error) {
-    console.warn("Automatische Drive-Sicherung wird erneut versucht:", error);
+    console.warn("Automatische Drive-Sicherung fehlgeschlagen:", error);
+    if (error?.status === 409) {
+      setCentralSyncGate(
+        "error",
+        "Änderung auf einem anderen Gerät erkannt",
+        "Deine Eingaben bleiben auf diesem Gerät erhalten und wurden nicht überschrieben. Tippe auf „Erneut versuchen“, nachdem das andere Gerät fertig synchronisiert hat."
+      );
+      return;
+    }
     if (!automaticDriveRetry) {
       automaticDriveRetry = true;
       automaticDriveSaveTimer = window.setTimeout(runAutomaticDriveBackup, 60000);
@@ -6784,54 +6854,90 @@ function renderAfterDriveRestore() {
   renderSettings();
   renderOffer();
   renderArchive();
+  renderWorksites();
   updateDashboardOverview();
+  if (typeof renderV28Dashboard === "function") renderV28Dashboard();
   updateBackupTime();
+  window.dispatchEvent(new CustomEvent("mainabdichter:central-sync-complete"));
 }
 
 async function ensureDriveBootstrap() {
   if (driveBootstrapComplete) return true;
-  if (!hasConnectionConfig()) return false;
+  if (!hasConnectionConfig()) {
+    setCentralSyncGate(
+      "setup",
+      "Zentrale Verbindung fehlt",
+      "Bitte zuerst Worker-URL und APP_SECRET eintragen. Betriebsdaten werden vorher nicht freigegeben."
+    );
+    return false;
+  }
   if (automaticDriveLoading) return false;
   automaticDriveLoading = true;
+  setCentralSyncGate("loading");
   try {
-    const response = await loadDriveBackup();
+    let response = await loadDriveBackup();
     const localPayload = createFullBackupPayload();
     if (response?.exists && response.backup) {
-      const merged = mergeFullBackupPayload(response.backup, localPayload);
-      restoreFullBackupPayload(merged);
+      const knownBase = localStorage.getItem(REMOTE_BASE_TIME_KEY) || "";
+      response = await uploadPendingLocalChangesIfSafe(response, localPayload, knownBase) || response;
+      const centralPayload = createServerAuthoritativePayload(response.backup, localPayload);
+      restoreFullBackupPayload(centralPayload);
       const remoteTime = backupTimestamp(response.backup, response.file);
       const synchronizedAt = new Date(remoteTime || Date.now()).toISOString();
-      lastKnownRemoteModifiedTime = response.file?.modifiedTime || synchronizedAt;
+      rememberRemoteRevision(response.file?.modifiedTime || synchronizedAt);
       localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
       localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+      localStorage.removeItem(LOCAL_DIRTY_KEY);
       renderAfterDriveRestore();
     } else {
-      lastKnownRemoteModifiedTime = "";
+      const saved = await saveDriveBackup(localPayload);
+      const synchronizedAt = saved?.file?.modifiedTime || new Date().toISOString();
+      rememberRemoteRevision(saved?.file?.modifiedTime || synchronizedAt);
+      localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
+      localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+      localStorage.removeItem(LOCAL_DIRTY_KEY);
+      renderAfterDriveRestore();
     }
     driveBootstrapComplete = true;
+    setCentralSyncGate("ready");
     return true;
   } catch (error) {
     console.warn("Erstsynchronisierung wurde aus Sicherheitsgründen nicht freigegeben:", error);
+    setCentralSyncGate(
+      "error",
+      "Zentraler Datenstand nicht erreichbar",
+      "Es werden keine möglicherweise veralteten Gerätedaten freigegeben. Prüfe die Internetverbindung und versuche es erneut."
+    );
     return false;
   } finally {
     automaticDriveLoading = false;
   }
 }
 
-async function synchronizeFromDrive({ force = false } = {}) {
+async function synchronizeFromDrive({ force = false, gate = false } = {}) {
   if (automaticDriveLoading || !hasConnectionConfig()) return false;
   if (!driveBootstrapComplete) return ensureDriveBootstrap();
   automaticDriveLoading = true;
+  if (gate) setCentralSyncGate("loading", "Aktuellen Datenstand abrufen …");
   try {
-    const response = await loadDriveBackup();
-    if (!response?.exists || !response.backup) return false;
+    let response = await loadDriveBackup();
+    if (!response?.exists || !response.backup) {
+      if (gate) setCentralSyncGate("ready");
+      return false;
+    }
+    const localPayload = createFullBackupPayload();
+    response = await uploadPendingLocalChangesIfSafe(
+      response,
+      localPayload,
+      lastKnownRemoteModifiedTime || localStorage.getItem(REMOTE_BASE_TIME_KEY) || ""
+    ) || response;
     const fetchedRemoteModifiedTime = response.file?.modifiedTime || "";
     const remoteRevisionChanged = Boolean(
       fetchedRemoteModifiedTime &&
       lastKnownRemoteModifiedTime &&
       fetchedRemoteModifiedTime !== lastKnownRemoteModifiedTime
     );
-    lastKnownRemoteModifiedTime = fetchedRemoteModifiedTime;
+    rememberRemoteRevision(fetchedRemoteModifiedTime);
     const remoteTime = backupTimestamp(response.backup, response.file);
     const localChangeTime = Date.parse(
       localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || ""
@@ -6844,20 +6950,27 @@ async function synchronizeFromDrive({ force = false } = {}) {
       !remoteRevisionChanged &&
       remoteTime <= Math.max(localChangeTime, lastSyncTime)
     ) {
+      if (gate) setCentralSyncGate("ready");
       return false;
     }
-    const localPayload = createFullBackupPayload();
-    const restoredPayload = backupHasBusinessData(localPayload)
-      ? mergeFullBackupPayload(response.backup, localPayload)
-      : response.backup;
-    restoreFullBackupPayload(restoredPayload);
+    const centralPayload = createServerAuthoritativePayload(response.backup, localPayload);
+    restoreFullBackupPayload(centralPayload);
     const synchronizedAt = new Date(remoteTime || Date.now()).toISOString();
     localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
     localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
+    localStorage.removeItem(LOCAL_DIRTY_KEY);
     renderAfterDriveRestore();
+    if (gate) setCentralSyncGate("ready");
     return true;
   } catch (error) {
     console.warn("Drive-Synchronisierung konnte nicht geladen werden:", error);
+    if (gate) {
+      setCentralSyncGate(
+        "error",
+        "Aktualisierung fehlgeschlagen",
+        "Die bisherigen Gerätedaten bleiben gesperrt, bis der zentrale Stand sicher geladen wurde."
+      );
+    }
     return false;
   } finally {
     automaticDriveLoading = false;
@@ -6866,6 +6979,7 @@ async function synchronizeFromDrive({ force = false } = {}) {
 
 function scheduleAutomaticSave() {
   localStorage.setItem(LOCAL_CHANGE_TIME_KEY, new Date().toISOString());
+  localStorage.setItem(LOCAL_DIRTY_KEY, "1");
   setAutomaticSaveState("speichert …", true);
   window.clearTimeout(automaticLocalSaveTimer);
   automaticLocalSaveTimer = window.setTimeout(() => {
@@ -6886,17 +7000,26 @@ function scheduleAutomaticSave() {
 document.addEventListener("input", scheduleAutomaticSave, true);
 document.addEventListener("change", scheduleAutomaticSave, true);
 document.addEventListener("click", event => {
-  if (event.target.closest("button")) scheduleAutomaticSave();
+  if (event.target.closest("button") && !event.target.closest("#centralSyncGate")) {
+    scheduleAutomaticSave();
+  }
 }, true);
 window.addEventListener("pagehide", () => {
   collectVisibleAutomaticData();
   void runAutomaticDriveBackup();
 });
-window.addEventListener("focus", () => void synchronizeFromDrive());
+window.addEventListener("focus", () => void synchronizeFromDrive({ force: true, gate: true }));
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") void synchronizeFromDrive();
+  if (document.visibilityState === "visible") {
+    void synchronizeFromDrive({ force: true, gate: true });
+  }
 });
 window.setInterval(runAutomaticDriveBackup, 5 * 60 * 1000);
+window.setInterval(() => {
+  if (document.visibilityState === "visible") {
+    void synchronizeFromDrive({ force: true });
+  }
+}, 60 * 1000);
 window.setInterval(() => {
   if (document.visibilityState === "visible" && hasConnectionConfig()) void loadAndMatchEmailInbox();
 }, 5 * 60 * 1000);
@@ -6919,8 +7042,21 @@ window.addEventListener("resize", synchronizeVisibleViewport);
 window.addEventListener("orientationchange", () => setTimeout(synchronizeVisibleViewport, 120));
 synchronizeVisibleViewport();
 
-renderVisit(); updateGeneratedRecommendation(); renderSettings(); renderOffer(); renderArchive(); updateDashboardOverview(); updateBackupTime(); show("dashboard");
-await ensureDriveBootstrap();
-if (hasConnectionConfig()) void loadAndMatchEmailInbox();
+$("centralSyncRetry")?.addEventListener("click", async () => {
+  driveBootstrapComplete = false;
+  await ensureDriveBootstrap();
+});
+$("centralSyncSetup")?.addEventListener("click", () => {
+  setCentralSyncGate("ready");
+  renderSettings();
+  show("settings");
+  $("workerUrl")?.focus();
+});
+
+const centralDataReady = await ensureDriveBootstrap();
+if (centralDataReady) {
+  show("dashboard");
+  if (hasConnectionConfig()) void loadAndMatchEmailInbox();
+}
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeV28Dashboard); else initializeV28Dashboard();

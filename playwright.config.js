@@ -2,10 +2,14 @@ const { defineConfig } = require("@playwright/test");
 
 module.exports = defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.js",
   timeout: 30_000,
   use: {
     baseURL: "http://127.0.0.1:4173",
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
+    launchOptions: {
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined
+    }
   },
   webServer: {
     command: "python3 -m http.server 4173 --bind 127.0.0.1",

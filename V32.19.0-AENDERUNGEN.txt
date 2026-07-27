@@ -1,0 +1,19 @@
+mainabdichter PRO V32.19.0
+
+- Gerätewechsel: Bei jedem Start, Fokus und Wiederöffnen wird der zentrale
+  Google-Drive-Datenstand vollständig abgerufen.
+- Serversicherheit: Zentrale Kunden, Lagerbestände, Baustellen,
+  Arbeitsnachweise, Besichtigungen, Notizen und Einstellungen ersetzen
+  veraltete lokale Gerätedaten.
+- Eingabesperre: Die App bleibt beim Start gesperrt, bis der zentrale Stand
+  erfolgreich geprüft und geladen wurde.
+- Konfliktschutz: Änderungen eines anderen Geräts können nicht unbemerkt
+  überschrieben werden.
+- Datensicherheit: Noch nicht gesendete lokale Eingaben werden nur bei
+  unverändertem Serverstand hochgeladen; sonst bleibt eine lokale
+  Wiederherstellungskopie erhalten.
+- Vollständige Sicherung: Entwürfe, Erinnerungen und der ausdrücklich
+  gespeicherte Besichtigungs-Zwischenstand gehören nun ebenfalls zur
+  zentralen Sicherung.
+- Laufender Abgleich: Zusätzlich zu Start und Gerätefokus wird der Stand bei
+  sichtbarer App jede Minute geprüft.

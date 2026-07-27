@@ -3,13 +3,45 @@ const { test, expect } = require("@playwright/test");
 
 test.use({ viewport: { width: 820, height: 1180 } });
 
-test("PLZ ergänzt beim Kunden den Ort und lässt manuelle Eingaben möglich", async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("mainabdichter_v10_settings", JSON.stringify({
       workerUrl: "https://mainabdichter-api.cmww7htry5.workers.dev",
-      appSecret: "test"
+      appSecret: "browser-test"
     }));
   });
+  await page.route("**/drive/backup", async route => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, file: { modifiedTime: "2026-07-27T14:00:00.000Z" } })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        file: { modifiedTime: "2026-07-27T14:00:00.000Z" },
+        backup: {
+          settings: {},
+          archive: [],
+          customers: [],
+          worksites: [],
+          communicationNotes: [],
+          emailInboxState: { processedIds: [], assignments: {} },
+          drafts: [],
+          reminders: []
+        }
+      })
+    });
+  });
+});
+
+test("PLZ ergänzt beim Kunden den Ort und lässt manuelle Eingaben möglich", async ({ page }) => {
   await page.route("**/address/localities?postalCode=35794", route => route.fulfill({
     status: 200,
     contentType: "application/json",

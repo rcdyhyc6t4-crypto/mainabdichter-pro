@@ -89,7 +89,10 @@ export async function api(path, options = {}) {
     }
 
     const suffix = detailParts.length ? ` – ${detailParts.join(" – ")}` : "";
-    throw new Error(`${data.error || "API-Fehler"}${suffix}`);
+    const error = new Error(`${data.error || "API-Fehler"}${suffix}`);
+    error.status = response.status;
+    error.details = data.details || data;
+    throw error;
   }
   return data;
 }

@@ -1,9 +1,17 @@
-mainabdichter PRO V32.18.9 – Komplettpaket
+mainabdichter PRO V32.19.0 – Komplettpaket
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.
 
 NEU:
+- Sichere Synchronisation beim Wechsel zwischen iPhone und iPad:
+  Beim Start, Wiederöffnen und Fokus wird immer zuerst der zentrale
+  Google-Drive-Datenstand geladen.
+- Zentrale Daten haben Vorrang vor veralteten Gerätedaten.
+- Kunden, Lagerbestand, Baustellen, Arbeitsnachweise, Besichtigungen,
+  Notizen, Einstellungen, Entwürfe und Erinnerungen werden gemeinsam gesichert.
+- Die Bedienung bleibt gesperrt, bis der zentrale Stand geprüft ist.
+- Gleichzeitige Änderungen können sich nicht unbemerkt überschreiben.
 - Automatische Adresshilfe bei Kundendaten und Besichtigung:
   PLZ ergänzt Ort, Ort ergänzt bei Eindeutigkeit die PLZ,
   Straßen werden passend zu PLZ und Ort vorgeschlagen.

@@ -60,6 +60,19 @@ const ARCHIVE_KEY = "mainabdichter_v13_archive";
 const CUSTOMERS_KEY = "mainabdichter_v30_customers";
 const COMMUNICATION_NOTES_KEY = "mainabdichter_v32_communication_notes";
 const EMAIL_INBOX_STATE_KEY = "mainabdichter_v32_email_inbox_state";
+const VISIT_EXPLICIT_SAVEPOINT_KEY = "mainabdichter_visit_explicit_savepoint_v1";
+const DRAFTS_KEY = "mainabdichter_v26_drafts";
+const REMINDERS_KEY = "mainabdichter_v26_reminders";
+const ACTIVE_DRAFT_KEY = "mainabdichter_v26_active_draft";
+
+function readStoredJson(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "null");
+    return value ?? clone(fallback);
+  } catch {
+    return clone(fallback);
+  }
+}
 
 export function loadCommunicationNotes() {
   try {
@@ -183,7 +196,7 @@ export function replaceArchive(archive) {
 
 export function createFullBackupPayload() {
   return {
-    version: 21.0,
+    version: 32.19,
     exportedAt: new Date().toISOString(),
     settings: JSON.parse(JSON.stringify(state.settings)),
     visit: JSON.parse(JSON.stringify(state.visit)),
@@ -193,6 +206,10 @@ export function createFullBackupPayload() {
     worksites: JSON.parse(localStorage.getItem("mainabdichter_v18_worksites") || "[]"),
     communicationNotes: loadCommunicationNotes(),
     emailInboxState: loadEmailInboxState(),
+    visitSavepoint: readStoredJson(VISIT_EXPLICIT_SAVEPOINT_KEY, null),
+    drafts: readStoredJson(DRAFTS_KEY, []),
+    reminders: readStoredJson(REMINDERS_KEY, []),
+    activeDraftId: localStorage.getItem(ACTIVE_DRAFT_KEY) || "",
     metadata: {
       source: "mainabdichter",
       containsSensitiveConnectionData: Boolean(
@@ -234,8 +251,42 @@ export function backupHasBusinessData(payload) {
     (Array.isArray(payload?.archive) && payload.archive.length) ||
     (Array.isArray(payload?.customers) && payload.customers.length) ||
     (Array.isArray(payload?.worksites) && payload.worksites.length) ||
+    (Array.isArray(payload?.drafts) && payload.drafts.length) ||
+    (Array.isArray(payload?.reminders) && payload.reminders.length) ||
     visitHasBusinessData(payload?.visit)
   );
+}
+
+/**
+ * Beim Start oder Gerätewechsel ist die zentrale Sicherung die einzige
+ * verbindliche Quelle. Nur die Zugangsdaten zum Worker bleiben lokal, weil
+ * sie benötigt werden, bevor die zentrale Sicherung überhaupt geladen werden
+ * kann. Sämtliche Betriebsdaten – insbesondere Lager, Kunden, Besichtigungen,
+ * Baustellen und Arbeitsnachweise – stammen vollständig vom Server.
+ */
+export function createServerAuthoritativePayload(remotePayload, localPayload = {}) {
+  if (!remotePayload || typeof remotePayload !== "object") {
+    throw new Error("Die zentrale Sicherung ist ungültig.");
+  }
+
+  const localConnection = {
+    workerUrl: localPayload.settings?.workerUrl || "",
+    appSecret: localPayload.settings?.appSecret || ""
+  };
+  const settings = merge(DEFAULTS.settings, remotePayload.settings || {});
+
+  if (localConnection.workerUrl) settings.workerUrl = localConnection.workerUrl;
+  if (localConnection.appSecret) settings.appSecret = localConnection.appSecret;
+
+  return {
+    ...clone(remotePayload),
+    settings,
+    metadata: {
+      ...(remotePayload.metadata || {}),
+      source: "mainabdichter",
+      restoredServerAuthoritativelyAt: new Date().toISOString()
+    }
+  };
 }
 
 export function mergeFullBackupPayload(remotePayload, localPayload) {
@@ -331,6 +382,26 @@ export function restoreFullBackupPayload(payload) {
     saveEmailInboxState(payload.emailInboxState);
   }
 
+  if (payload.visitSavepoint && typeof payload.visitSavepoint === "object") {
+    localStorage.setItem(VISIT_EXPLICIT_SAVEPOINT_KEY, JSON.stringify(payload.visitSavepoint));
+  } else {
+    localStorage.removeItem(VISIT_EXPLICIT_SAVEPOINT_KEY);
+  }
+
+  if (Array.isArray(payload.drafts)) {
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(payload.drafts));
+  }
+
+  if (Array.isArray(payload.reminders)) {
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(payload.reminders));
+  }
+
+  if (payload.activeDraftId) {
+    localStorage.setItem(ACTIVE_DRAFT_KEY, String(payload.activeDraftId));
+  } else {
+    localStorage.removeItem(ACTIVE_DRAFT_KEY);
+  }
+
   return {
     settingsRestored: Boolean(payload.settings),
     visitRestored: Boolean(payload.visit),
@@ -346,6 +417,8 @@ export function restoreFullBackupPayload(payload) {
       : 0,
     communicationNoteCount: Array.isArray(payload.communicationNotes)
       ? payload.communicationNotes.length
-      : 0
+      : 0,
+    draftCount: Array.isArray(payload.drafts) ? payload.drafts.length : 0,
+    reminderCount: Array.isArray(payload.reminders) ? payload.reminders.length : 0
   };
 }

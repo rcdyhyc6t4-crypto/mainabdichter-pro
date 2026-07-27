@@ -201,6 +201,11 @@ function start(){
     ['Statusmeldungen beobachten',observeStatuses]
   ].forEach(([name,fn])=>safeInit(name,fn));
   window.mainabdichterV26={saveDraft,resumeDraft,setSync,initErrors:window.mainabdichterInitErrors||[]};
+  window.addEventListener('mainabdichter:central-sync-complete',()=>{
+    renderDrafts();
+    renderReminders();
+    updateRequiredUi();
+  });
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(start,300),{once:true});
 else setTimeout(start,300);

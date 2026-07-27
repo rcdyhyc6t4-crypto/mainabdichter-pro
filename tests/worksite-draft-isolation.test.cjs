@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { webcrypto } = require("node:crypto");
 
-global.crypto = webcrypto;
+if (!global.crypto) global.crypto = webcrypto;
 const storage = new Map();
 global.localStorage = {
   getItem: key => storage.has(key) ? storage.get(key) : null,

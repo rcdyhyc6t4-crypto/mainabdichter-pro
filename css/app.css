@@ -2343,3 +2343,62 @@ button.danger{
   .communication-item-actions button{flex:1}
   .appointment-outcome-options,.appointment-complete-actions{grid-template-columns:1fr}
 }
+
+/* V32.19.0 – zentraler, geräteübergreifender Datenstand */
+.central-sync-gate{
+  position:fixed;
+  inset:0;
+  z-index:30000;
+  display:grid;
+  place-items:center;
+  box-sizing:border-box;
+  padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));
+  background:rgba(241,246,242,.96);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.central-sync-gate.hidden{display:none}
+.central-sync-card{
+  display:grid;
+  justify-items:center;
+  gap:12px;
+  width:min(430px,100%);
+  box-sizing:border-box;
+  padding:28px 22px;
+  border:1px solid #d4e3d5;
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 20px 60px rgba(31,65,39,.16);
+  text-align:center;
+}
+.central-sync-card strong{font-size:20px;line-height:1.25;color:#253028}
+.central-sync-card small{max-width:350px;font-size:13px;line-height:1.45;color:#637068}
+.central-sync-spinner{
+  width:38px;
+  height:38px;
+  box-sizing:border-box;
+  border:4px solid #dcebdd;
+  border-top-color:#3bad34;
+  border-radius:50%;
+  animation:central-sync-spin .8s linear infinite;
+}
+.central-sync-gate.error .central-sync-spinner{
+  animation:none;
+  border:0;
+}
+.central-sync-gate.error .central-sync-spinner::before{
+  content:"!";
+  display:grid;
+  place-items:center;
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  background:#fff0df;
+  color:#a45d00;
+  font-size:24px;
+  font-weight:900;
+}
+.central-sync-actions{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:3px}
+.central-sync-actions button{min-height:46px;padding:10px 16px}
+body.central-syncing{overflow:hidden}
+@keyframes central-sync-spin{to{transform:rotate(360deg)}}

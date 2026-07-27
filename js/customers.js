@@ -9,7 +9,7 @@ import {
   createPipedrivePerson,
   lookupGermanLocalities,
   lookupGermanStreets
-} from "./api-v227.js?v=32.18.8";
+} from "./api-v227.js?v=32.19.0";
 
 const $ = id => document.getElementById(id);
 let activeRecordCustomer = null;
@@ -909,6 +909,13 @@ function init() {
   });
   bindAddressAssist("customer");
   bindAddressAssist("customerObject");
+  window.addEventListener("mainabdichter:central-sync-complete", () => {
+    renderList();
+    if (activeRecordCustomer) {
+      const refreshed = loadCustomers().find(item => item.id === activeRecordCustomer.id);
+      if (refreshed) renderCustomerRecord(refreshed);
+    }
+  });
   renderList();
 }
 
