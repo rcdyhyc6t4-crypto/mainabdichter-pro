@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.18.5</title>
-<link rel="stylesheet" href="css/app.css?v=32.18.5">
+<title>mainabdichter PRO V32.18.6</title>
+<link rel="stylesheet" href="css/app.css?v=32.18.6">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -592,7 +592,16 @@ main{width:100%;max-width:100%}
     <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox" disabled> Ich habe das vollständige Besichtigungsprotokoll geprüft. Die Angaben dürfen als Angebotsgrundlage verwendet werden.</label>
     <div id="offerBasisStatus" class="status"></div>
   </details>
-  <div class="sticky-actions"><button id="saveVisit" class="secondary">Besichtigung speichern</button><button id="toOffer" class="primary">Protokoll prüfen</button><button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button><div id="finishVisitReason" class="finish-visit-reason"></div></div>
+  <div class="sticky-actions visit-sticky-actions">
+    <div class="visit-persist-actions">
+      <button id="cancelVisitChanges" class="secondary">Besichtigung abbrechen</button>
+      <button id="deleteCompleteVisit" class="danger">Komplette Besichtigung löschen</button>
+      <button id="saveVisit" class="primary">Zwischenspeichern</button>
+    </div>
+    <button id="toOffer" class="primary">Protokoll prüfen</button>
+    <button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button>
+    <div id="finishVisitReason" class="finish-visit-reason"></div>
+  </div>
 </section>
 
 <section id="customerAdvice" class="page customer-advice-page">
@@ -1377,7 +1386,11 @@ main{width:100%;max-width:100%}
       <div class="wall-survey-instruction"><b>5</b><div><strong>Fertig – kurz kontrollieren</strong><small>Maße und Messpunkte werden automatisch in Bauakte und Protokoll übernommen.</small></div></div>
       <canvas id="wallSurveyResultCanvas" class="wall-survey-result"></canvas>
       <div id="wallSurveyResultSummary" class="wall-survey-result-summary"></div>
-      <button type="button" id="wallSurveyFinish" class="primary wall-survey-main-action">Aufmaß speichern</button>
+      <div class="wall-survey-result-actions">
+        <button type="button" id="wallSurveyCancel" class="secondary">Zur Besichtigung</button>
+        <button type="button" id="wallSurveyDelete" class="danger">Nur Aufmaß löschen</button>
+        <button type="button" id="wallSurveyFinish" class="primary">Aufmaß speichern</button>
+      </div>
     </section>
   </div>
 </div>
@@ -1405,9 +1418,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.18.5"></script>
-<script type="module" src="js/cloud-migration.js?v=32.18.5"></script>
+<script type="module" src="js/app.js?v=32.18.6"></script>
+<script type="module" src="js/cloud-migration.js?v=32.18.6"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.18.5"></script>
+<script type="module" src="js/customers.js?v=32.18.6"></script>
 </body>
 </html>

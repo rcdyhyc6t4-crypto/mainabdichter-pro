@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.5";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.18.6";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.5";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.18.6";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,10 +13,10 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.5";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.18.6";
 
 
-const MAINABDICHTER_APP_VERSION = "32.18.5";
+const MAINABDICHTER_APP_VERSION = "32.18.6";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1752,8 +1752,35 @@ function startNewVisit() {
   state.visit.visitEndTime = "";
   state.visit.visitNumber = createVisitNumber();
   saveState();
+  saveVisitExplicitSavepoint();
   renderVisit();
   show("visit");
+}
+
+const VISIT_EXPLICIT_SAVEPOINT_KEY = "mainabdichter_visit_explicit_savepoint_v1";
+
+function saveVisitExplicitSavepoint() {
+  localStorage.setItem(VISIT_EXPLICIT_SAVEPOINT_KEY, JSON.stringify({
+    visit: state.visit,
+    discount: state.discount,
+    activeArchiveId,
+    savedAt: new Date().toISOString()
+  }));
+}
+
+function restoreVisitExplicitSavepoint() {
+  try {
+    const snapshot = JSON.parse(localStorage.getItem(VISIT_EXPLICIT_SAVEPOINT_KEY) || "null");
+    if (!snapshot?.visit) return false;
+    state.visit = JSON.parse(JSON.stringify(snapshot.visit));
+    state.discount = JSON.parse(JSON.stringify(snapshot.discount || state.discount));
+    activeArchiveId = snapshot.activeArchiveId || null;
+    saveState();
+    renderVisit();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function customerDisplayName(customer) {
@@ -1797,7 +1824,7 @@ function saveCurrentToArchive(showMessage = true) {
   return saved;
 }
 
-function loadArchiveRecord(id, asCopy = false) {
+function loadArchiveRecord(id, asCopy = false, destination = "offer") {
   const record = loadArchive().find(item => item.id === id);
   if (!record) return;
 
@@ -1816,13 +1843,14 @@ function loadArchiveRecord(id, asCopy = false) {
   }
 
   saveState();
+  saveVisitExplicitSavepoint();
   renderVisit();
   renderOffer();
 
   if ($("offerArchiveStatus")) $("offerArchiveStatus").value = asCopy ? "draft" : (record.status || "draft");
   if ($("followupDate")) $("followupDate").value = asCopy ? "" : (record.followupDate || "");
 
-  show("offer");
+  show(destination === "visit" ? "visit" : "offer");
 }
 
 function statusLabel(status) {
@@ -1908,13 +1936,16 @@ function renderArchive() {
         <strong>${eur(record.offerGross || 0)}</strong>
         <span class="status-badge status-${esc(record.status)}">${esc(statusLabel(record.status))}</span>
       </button>
-      <div class="row-actions"><button data-copy-record="${record.id}" title="Kopieren">⧉</button><button data-delete-record="${record.id}" title="Löschen">⋮</button></div>
+      <div class="row-actions"><button class="open-visit-record" data-open-visit-record="${record.id}" title="Besichtigung öffnen">Besichtigung</button><button data-copy-record="${record.id}" title="Kopieren">⧉</button><button data-delete-record="${record.id}" title="Löschen">⋮</button></div>
     </article>`).join("");
 
   $("archiveEmpty").style.display = filtered.length ? "none" : "block";
 
   document.querySelectorAll("[data-open-record]").forEach(el =>
     el.onclick = () => loadArchiveRecord(el.dataset.openRecord, false)
+  );
+  document.querySelectorAll("[data-open-visit-record]").forEach(el =>
+    el.onclick = () => loadArchiveRecord(el.dataset.openVisitRecord, false, "visit")
   );
   document.querySelectorAll("[data-copy-record]").forEach(el =>
     el.onclick = () => loadArchiveRecord(el.dataset.copyRecord, true)
@@ -2404,7 +2435,36 @@ if ($("continueVisit")) $("continueVisit").onclick = () => { renderVisit(); show
 if ($("openOffer")) $("openOffer").onclick = () => show("offer");
 if ($("openSettings")) $("openSettings").onclick = () => show("settings");
 $("resetVisit").onclick = () => { if (confirm("Aktuelle Besichtigung löschen?")) { resetVisit(); renderVisit(); } };
-$("saveVisit").onclick = () => { collectVisit(); saveState(); alert("Besichtigung gespeichert."); };
+$("saveVisit").onclick = () => {
+  collectVisit();
+  saveState();
+  saveCurrentToArchive(false);
+  saveVisitExplicitSavepoint();
+  renderArchive();
+  showStatus("visitStatus", "Komplette Besichtigung zwischengespeichert. Sie ist unter Vorgänge wieder abrufbar.", true);
+};
+if ($("cancelVisitChanges")) $("cancelVisitChanges").onclick = () => {
+  if (!confirm("Alle Änderungen seit dem letzten Zwischenspeichern verwerfen?")) return;
+  if (!restoreVisitExplicitSavepoint()) {
+    showStatus("visitStatus", "Es gibt noch keinen gespeicherten Zwischenstand.", false);
+    return;
+  }
+  showStatus("visitStatus", "Änderungen verworfen. Der letzte gespeicherte Stand wurde wiederhergestellt.", true);
+  show("dashboard");
+};
+if ($("deleteCompleteVisit")) $("deleteCompleteVisit").onclick = () => {
+  if (!confirm("Die komplette Besichtigung mit Kunde, Besuchsdaten, Fotos, Messwerten, Aufmaßen, Maßnahmen und Notizen wirklich löschen?")) return;
+  if (activeArchiveId) deleteArchiveRecord(activeArchiveId);
+  activeArchiveId = null;
+  resetVisit();
+  state.visit.visitDate = todayLocal();
+  state.visit.visitNumber = createVisitNumber();
+  saveState();
+  saveVisitExplicitSavepoint();
+  renderVisit();
+  renderArchive();
+  show("dashboard");
+};
 $("toOffer").onclick = () => {
   collectVisit();
   const missing=guideChecks().find(check=>!check.ok);
@@ -3380,6 +3440,7 @@ let activeWallSurveyAreaId = "";
 let activeWallSurveyPointId = "";
 let wallSurveyCornerDraft = [];
 let wallSurveyNextCornerEstimated = false;
+let wallSurveyDraggingCorner = -1;
 
 function activeWallSurveyArea() {
   return state.visit.areas.find(area => area.id === activeWallSurveyAreaId);
@@ -3459,15 +3520,47 @@ async function drawWallSurveyCornerCanvas() {
   $("wallSurveyCornerCanvasWrap").classList.toggle("wall-corner-valid", wallSurveyCornerDraft.length === 4);
 }
 
-function addWallSurveyCorner(event) {
-  if (wallSurveyCornerDraft.length >= 4) return;
+function wallSurveyCornerPosition(event) {
   const canvas = $("wallSurveyCornerCanvas");
   const rect = canvas.getBoundingClientRect();
-  wallSurveyCornerDraft.push({
+  return {
     x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
-    y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
-    estimated: wallSurveyNextCornerEstimated
-  });
+    y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+  };
+}
+
+function startWallSurveyCornerPointer(event) {
+  event.preventDefault();
+  const position = wallSurveyCornerPosition(event);
+  const canvas = $("wallSurveyCornerCanvas");
+  const rect = canvas.getBoundingClientRect();
+  const nearest = wallSurveyCornerDraft
+    .map((point, index) => ({index, distance:Math.hypot((point.x-position.x)*rect.width, (point.y-position.y)*rect.height)}))
+    .sort((a,b) => a.distance-b.distance)[0];
+  if (nearest && nearest.distance <= 48) {
+    wallSurveyDraggingCorner = nearest.index;
+  } else if (wallSurveyCornerDraft.length < 4) {
+    wallSurveyCornerDraft.push({...position, estimated:wallSurveyNextCornerEstimated});
+    wallSurveyDraggingCorner = wallSurveyCornerDraft.length - 1;
+  } else return;
+  wallSurveyNextCornerEstimated = false;
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+  drawWallSurveyCornerCanvas();
+}
+
+function moveWallSurveyCornerPointer(event) {
+  if (wallSurveyDraggingCorner < 0) return;
+  event.preventDefault();
+  const position = wallSurveyCornerPosition(event);
+  Object.assign(wallSurveyCornerDraft[wallSurveyDraggingCorner], position);
+  drawWallSurveyCornerCanvas();
+}
+
+function endWallSurveyCornerPointer(event) {
+  if (wallSurveyDraggingCorner < 0) return;
+  event.preventDefault();
+  wallSurveyDraggingCorner = -1;
+  event.currentTarget.releasePointerCapture?.(event.pointerId);
   wallSurveyNextCornerEstimated = false;
   drawWallSurveyCornerCanvas();
 }
@@ -3475,6 +3568,7 @@ function addWallSurveyCorner(event) {
 function resetWallSurveyCorners() {
   wallSurveyCornerDraft = [];
   wallSurveyNextCornerEstimated = false;
+  wallSurveyDraggingCorner = -1;
   drawWallSurveyCornerCanvas();
 }
 
@@ -3673,7 +3767,12 @@ if ($("wallSurveyPhotoNext")) $("wallSurveyPhotoNext").onclick = () => {
   wallSurveyCornerDraft = [...(area?.wallSurvey?.corners || [])].map(point => ({...point}));
   setWallSurveyStep(2);
 };
-if ($("wallSurveyCornerCanvas")) $("wallSurveyCornerCanvas").onclick = addWallSurveyCorner;
+if ($("wallSurveyCornerCanvas")) {
+  $("wallSurveyCornerCanvas").onpointerdown = startWallSurveyCornerPointer;
+  $("wallSurveyCornerCanvas").onpointermove = moveWallSurveyCornerPointer;
+  $("wallSurveyCornerCanvas").onpointerup = endWallSurveyCornerPointer;
+  $("wallSurveyCornerCanvas").onpointercancel = endWallSurveyCornerPointer;
+}
 if ($("wallSurveyCornerReset")) $("wallSurveyCornerReset").onclick = resetWallSurveyCorners;
 if ($("wallSurveyCornerEstimated")) $("wallSurveyCornerEstimated").onclick = () => {
   wallSurveyNextCornerEstimated = !wallSurveyNextCornerEstimated;
@@ -3721,6 +3820,22 @@ if ($("wallSurveyToResult")) $("wallSurveyToResult").onclick = async () => {
     <div><strong>${num(area.wallSurvey.width * area.wallSurvey.height)} m²</strong><small>Bruttofläche</small></div>
     <div><strong>${measured}/${progress.total}</strong><small>gemessen${inaccessible ? ` · ${inaccessible} nicht zugänglich` : ""}${area.wallSurvey.cornersEstimated ? " · verdeckte Ecke geschätzt" : ""}</small></div>`;
 };
+if ($("wallSurveyCancel")) $("wallSurveyCancel").onclick = closeWallSurvey;
+if ($("wallSurveyDelete")) $("wallSurveyDelete").onclick = () => {
+  const area = activeWallSurveyArea();
+  if (!area || !confirm("Nur dieses Aufmaß mit Wandfoto, Eckpunkten und zugehörigen Messpunkten löschen? Die übrige Besichtigung bleibt erhalten.")) return;
+  if (area.wallSurvey?.documentPhotoId) {
+    area.photos = (area.photos || []).filter(photo => photo.id !== area.wallSurvey.documentPhotoId);
+  }
+  area.measurements = (area.measurements || []).filter(measurement =>
+    !(area.wallSurvey?.points || []).some(point => point.id === measurement.id)
+  );
+  area.wallSurvey = { photoData:"", width:"", height:"", corners:[], points:[], createdAt:new Date().toISOString() };
+  saveState();
+  if (activeArchiveId) saveCurrentToArchive(false);
+  closeWallSurvey();
+  renderAreas();
+};
 if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
   const area = activeWallSurveyArea();
   const canvas = $("wallSurveyResultCanvas");
@@ -3736,8 +3851,11 @@ if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
   photo.show = false;
   area.wallSurvey.documentPhotoId = photo.id;
   saveState();
+  saveCurrentToArchive(false);
+  saveVisitExplicitSavepoint();
   closeWallSurvey();
   renderAreas();
+  showStatus("visitStatus", "Aufmaß und Besichtigung wurden gespeichert und sind unter Vorgänge wieder abrufbar.", true);
   syncPendingVisitPhotos();
 };
 

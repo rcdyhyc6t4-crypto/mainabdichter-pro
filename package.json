@@ -1,9 +1,9 @@
 {
   "name": "mainabdichter-pro",
-  "version": "32.18.5",
+  "version": "32.18.6",
   "private": true,
   "scripts": {
-    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pipedrive-sync-v227.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js && node tests/timezone-worker.test.cjs && node tests/wall-survey.test.cjs && node tests/mobile-navigation.test.cjs && node tests/pipedrive-short-text.test.cjs && node tests/worksite-draft-isolation.test.cjs",
+    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pipedrive-sync-v227.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js && node tests/timezone-worker.test.cjs && node tests/wall-survey.test.cjs && node tests/wall-survey-controls.test.cjs && node tests/mobile-navigation.test.cjs && node tests/pipedrive-short-text.test.cjs && node tests/worksite-draft-isolation.test.cjs",
     "test:timezone": "node tests/timezone-worker.test.cjs",
     "test": "playwright test"
   },
