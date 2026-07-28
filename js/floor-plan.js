@@ -12,14 +12,30 @@ function plan() {
 }
 
 async function imageData(file) {
-  const bitmap = await createImageBitmap(file);
-  const max = 1800;
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  let source;
+  let objectUrl = "";
+  try {
+    source = await createImageBitmap(file);
+  } catch {
+    objectUrl = URL.createObjectURL(file);
+    source = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Dieses Bildformat kann auf dem Gerät nicht gelesen werden. Bitte als Foto oder JPEG speichern."));
+      image.src = objectUrl;
+    });
+  }
+  const sourceWidth = source.width || source.naturalWidth;
+  const sourceHeight = source.height || source.naturalHeight;
+  const max = 1600;
+  const scale = Math.min(1, max / Math.max(sourceWidth, sourceHeight));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", .88);
+  canvas.width = Math.round(sourceWidth * scale);
+  canvas.height = Math.round(sourceHeight * scale);
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  if (typeof source.close === "function") source.close();
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  return canvas.toDataURL("image/jpeg", .82);
 }
 
 function openDialog() {
@@ -34,16 +50,22 @@ function closeDialog() {
 
 async function useFile(file) {
   if (!file) return;
-  const current = plan();
-  current.sourceImage = await imageData(file);
-  current.analysis = null;
-  current.walls = [];
-  current.updatedAt = new Date().toISOString();
-  saveState();
-  $("floorPlanPreview").src = current.sourceImage;
-  $("floorPlanPreview").classList.remove("hidden");
-  $("analyzeFloorPlan").disabled = false;
-  $("floorPlanAnalyzeStatus").textContent = "Originalplan geladen. Die KI kann ihn jetzt entzerren und auswerten.";
+  $("floorPlanAnalyzeStatus").textContent = "Foto wird für die Analyse vorbereitet …";
+  try {
+    const current = plan();
+    current.sourceImage = await imageData(file);
+    current.analysis = null;
+    current.walls = [];
+    current.updatedAt = new Date().toISOString();
+    saveState();
+    $("floorPlanPreview").src = current.sourceImage;
+    $("floorPlanPreview").classList.remove("hidden");
+    $("analyzeFloorPlan").disabled = false;
+    $("floorPlanAnalyzeStatus").textContent = "Originalplan geladen. Die KI kann ihn jetzt entzerren und auswerten.";
+  } catch (error) {
+    $("analyzeFloorPlan").disabled = true;
+    $("floorPlanAnalyzeStatus").textContent = `Bild konnte nicht vorbereitet werden: ${error.message}`;
+  }
 }
 
 function normalizedWall(raw, index) {
@@ -69,12 +91,21 @@ async function analyze() {
   button.disabled = true;
   button.textContent = "KI analysiert …";
   $("floorPlanAnalyzeStatus").textContent = "Plan wird entzerrt, Maßketten werden gelesen und Wände werden abgeglichen …";
+  const startedAt = Date.now();
+  const progressTimer = window.setInterval(() => {
+    const seconds = Math.round((Date.now() - startedAt) / 1000);
+    $("floorPlanAnalyzeStatus").textContent = seconds < 45
+      ? `KI analysiert den Originalplan … ${seconds} Sekunden`
+      : seconds < 120
+        ? `Geometrie und Maßketten werden geprüft … ${seconds} Sekunden`
+        : `Zweite Erkennungsstufe läuft … ${seconds} Sekunden`;
+  }, 5000);
   try {
     const result = await api("/floor-plan/analyze", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({ image:current.sourceImage }),
-      timeoutMs:120000
+      timeoutMs:240000
     });
     if (!result.plan || !Array.isArray(result.plan.walls) || !result.plan.walls.length) {
       throw new Error("Die KI hat keine Wände zurückgegeben. Bitte den Plan erneut fotografieren oder ein schärferes Bild auswählen.");
@@ -88,6 +119,7 @@ async function analyze() {
   } catch (error) {
     $("floorPlanAnalyzeStatus").textContent = `Analyse fehlgeschlagen: ${error.message || "Der Grundriss konnte nicht analysiert werden."}`;
   } finally {
+    window.clearInterval(progressTimer);
     button.textContent = originalLabel;
     button.disabled = false;
   }

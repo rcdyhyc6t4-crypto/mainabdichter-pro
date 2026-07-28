@@ -1827,7 +1827,7 @@ html, body {
   overflow-x: hidden;
 }
 
-/* V32.20.3 – vereinfachtes Dashboard */
+/* V32.20.5 – vereinfachtes Dashboard */
 .dashboard-compact-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .dashboard-compact-heading h2{margin:0;font-size:13px;letter-spacing:.09em;color:#707772}
 .dashboard-refresh-button{width:36px;height:36px;padding:0;border-radius:50%;background:#f1f5f1;color:#398f36;font-size:20px}
@@ -2520,7 +2520,7 @@ body.central-syncing{overflow:hidden}
 .measure-confirm-area small{font-weight:700;color:#59645b}
 .measure-confirm-area button{width:100%}
 
-/* V32.20.3 – KI-Grundriss und maßstabgetreues Aufmaß */
+/* V32.20.5 – KI-Grundriss und maßstabgetreues Aufmaß */
 .floor-plan-launch-card{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:12px 0 16px;padding:15px;border:2px solid #64ad44;border-radius:16px;background:#f3faef}
 .floor-plan-launch-card span,.floor-plan-launch-card strong,.floor-plan-launch-card small{display:block}.floor-plan-launch-card span{font-size:11px;font-weight:900;letter-spacing:.1em;color:#318b2d}.floor-plan-launch-card strong{margin:4px 0;font-size:17px}.floor-plan-launch-card small{color:#617064}.floor-plan-mini-summary{margin:0 0 14px;padding:11px 13px;border-radius:12px;background:#eef5eb;font-weight:800}
 .floor-plan-dialog{position:fixed;inset:0;z-index:10020;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));overflow:auto;background:rgba(16,26,19,.76)}
@@ -2538,7 +2538,7 @@ body.central-syncing{overflow:hidden}
   .measure-step-head strong{text-align:left}
 }
 
-/* V32.20.3 – Dashboard und Plus-Menü wirklich kompakt */
+/* V32.20.5 – Dashboard und Plus-Menü wirklich kompakt */
 #dashboard .dashboard-priority-section{margin-bottom:18px}
 #dashboard .dashboard-priority-section .v284-accepted-card{
   min-height:72px;
@@ -2635,7 +2635,7 @@ body.central-syncing{overflow:hidden}
   #newInquiryModal .new-inquiry-option::after{content:"›";font-size:20px;color:#79827c}
 }
 
-/* V32.20.3 – appweite Gerätevarianten: iPhone, iPad und Desktop */
+/* V32.20.5 – appweite Gerätevarianten: iPhone, iPad und Desktop */
 @media(max-width:620px){
   html,body{width:100%;max-width:100%;overflow-x:hidden!important}
   body>main{width:100%;max-width:100%;padding:0!important}
@@ -2791,4 +2791,61 @@ body.central-syncing{overflow:hidden}
   .wall-survey-shell,.floor-plan-shell{width:min(960px,100%)}
   .floor-plan-stage{max-height:55vh}
   .redesign-bottom-nav{padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+}
+
+/* V32.20.5 – iPhone-Dashboard: Text oben, eindeutige Symbole darunter */
+@media(max-width:620px){
+  #dashboard .v301-header{
+    position:sticky!important;
+    top:0;
+    z-index:120;
+    min-height:calc(72px + env(safe-area-inset-top))!important;
+    padding-top:max(10px,env(safe-area-inset-top))!important;
+    background:#fff!important;
+  }
+  #dashboard .dashboard-priority-grid{
+    grid-template-columns:1fr 1fr!important;
+    gap:7px!important;
+  }
+  #dashboard .dashboard-priority-grid .v28-overview-card{
+    grid-template-columns:36px minmax(0,1fr) 15px!important;
+    grid-template-rows:auto 36px!important;
+    min-height:88px!important;
+    padding:10px!important;
+    gap:7px 8px!important;
+    align-items:center!important;
+  }
+  #dashboard .dashboard-priority-grid .v28-overview-card>span:nth-child(2){display:contents!important}
+  #dashboard .dashboard-priority-grid .v28-overview-icon{
+    grid-column:1!important;
+    grid-row:2!important;
+    width:34px!important;
+    height:34px!important;
+  }
+  #dashboard .dashboard-priority-grid .v28-overview-card b{
+    grid-column:1/-1!important;
+    grid-row:1!important;
+    align-self:start!important;
+    font-size:12px!important;
+    line-height:1.15!important;
+    white-space:normal!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+    hyphens:none!important;
+  }
+  #dashboard .dashboard-priority-grid .v28-overview-card strong{
+    grid-column:2!important;
+    grid-row:2!important;
+    align-self:center!important;
+    font-size:23px!important;
+    line-height:1!important;
+  }
+  #dashboard .dashboard-priority-grid .v28-overview-card small{display:none!important}
+  #dashboard .dashboard-priority-grid .v28-overview-card em{
+    display:block!important;
+    grid-column:3!important;
+    grid-row:2!important;
+    align-self:center!important;
+    font-size:18px!important;
+  }
 }

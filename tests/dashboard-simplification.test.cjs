@@ -23,7 +23,7 @@ assert(!html.includes('id="v28CreateOffer"'), "Separates Neues-Angebot-Feld darf
 
 assert(html.includes('id="v287OpenInventory"'), "Lager-Popup-Schalter fehlt");
 assert(html.includes('id="v287InventoryListModal"'), "Lager-Popup fehlt");
-assert(html.includes("V32.20.3"), "Korrekturversion des kompakten Dashboards fehlt");
+assert(html.includes("V32.20.5"), "Korrekturversion des kompakten Dashboards fehlt");
 
 const css = fs.readFileSync("css/app.css", "utf8");
 assert(css.includes("Dashboard und Plus-Menü wirklich kompakt"), "Finale mobile Kompaktregeln fehlen");

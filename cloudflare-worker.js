@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.20.3
+// mainabdichter PRO Cloudflare Worker V32.20.5
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -91,6 +91,65 @@ function responseOutputText(data) {
   return "";
 }
 
+function parseFloorPlanOutput(data) {
+  const raw = responseOutputText(data).trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace < 0 || lastBrace <= firstBrace) {
+    throw new Error("Die KI-Antwort enthält keine lesbare Plangeometrie.");
+  }
+  return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+}
+
+async function requestFloorPlanAnalysis(env, image, model, strict, prompt) {
+  const body = {
+    model,
+    reasoning: { effort: "low" },
+    max_output_tokens: 12000,
+    input: [{
+      role: "user",
+      content: [
+        {
+          type: "input_text",
+          text: strict
+            ? prompt
+            : `${prompt} Antworte ausschließlich mit einem gültigen JSON-Objekt entsprechend der beschriebenen Felder, ohne Markdown und ohne zusätzlichen Text.`
+        },
+        { type: "input_image", image_url: image, detail: "high" }
+      ]
+    }]
+  };
+  if (strict) {
+    body.text = {
+      format: {
+        type: "json_schema",
+        name: "mainabdichter_floor_plan",
+        strict: true,
+        schema: FLOOR_PLAN_SCHEMA
+      }
+    };
+  }
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || `OpenAI-Analyse mit ${model} fehlgeschlagen.`);
+    error.status = response.status || 502;
+    error.details = { model, strict, openai: data?.error || data };
+    throw error;
+  }
+  return parseFloorPlanOutput(data);
+}
+
 async function analyzeFloorPlan(env, image) {
   if (!env.OPENAI_API_KEY) {
     const error = new Error("Die KI-Grundrisserkennung ist im Worker noch nicht freigeschaltet. OPENAI_API_KEY fehlt.");
@@ -118,46 +177,40 @@ async function analyzeFloorPlan(env, image) {
     "Wenn ein zwingendes Maß nicht zuverlässig lesbar ist, nicht raten: confidence reduzieren und uncertain_items ergänzen.",
     "Der Score beschreibt die geometrische Gesamtzuverlässigkeit von 0 bis 1."
   ].join(" ");
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: env.OPENAI_VISION_MODEL || "gpt-5.6-luna",
-      input: [{
-        role: "user",
-        content: [
-          { type: "input_text", text: prompt },
-          { type: "input_image", image_url: image }
-        ]
-      }],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "mainabdichter_floor_plan",
-          strict: true,
-          schema: FLOOR_PLAN_SCHEMA
-        }
-      }
-    })
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    const error = new Error(data?.error?.message || "Die KI-Grundrissanalyse ist fehlgeschlagen.");
-    error.status = response.status || 502;
-    error.details = data?.error || data;
+  const configuredModel = String(env.OPENAI_VISION_MODEL || "gpt-5.6-luna").trim();
+  const attempts = [
+    { model: configuredModel, strict: true },
+    { model: configuredModel, strict: false }
+  ];
+  if (configuredModel !== "gpt-5.6-terra") {
+    attempts.push({ model: "gpt-5.6-terra", strict: true });
+  }
+  let plan = null;
+  const failures = [];
+  for (const attempt of attempts) {
+    try {
+      plan = await requestFloorPlanAnalysis(env, image, attempt.model, attempt.strict, prompt);
+      if (plan && Array.isArray(plan.walls) && plan.walls.length) break;
+      failures.push(`${attempt.model}: keine Wände`);
+      plan = null;
+    } catch (error) {
+      failures.push(`${attempt.model}${attempt.strict ? " strukturiert" : " tolerant"}: ${error.message}`);
+    }
+  }
+  if (!plan) {
+    const error = new Error("Die KI konnte aus diesem Foto noch keinen zeichnungsfähigen Grundriss erzeugen.");
+    error.status = 422;
+    error.details = { code: "FLOOR_PLAN_ANALYSIS_FAILED", attempts: failures };
     throw error;
   }
-  let plan;
-  try {
-    plan = JSON.parse(responseOutputText(data));
-  } catch {
-    const error = new Error("Die KI hat keinen auswertbaren Grundriss geliefert.");
-    error.status = 502;
-    throw error;
-  }
+  plan.canvas_width = Number(plan.canvas_width) > 0 ? Number(plan.canvas_width) : 1000;
+  plan.canvas_height = Number(plan.canvas_height) > 0 ? Number(plan.canvas_height) : 700;
+  plan.quality ||= {
+    score: 0.5,
+    perspective_corrected: false,
+    folds_detected: false,
+    dimensions_cross_checked: false
+  };
   plan.walls = (plan.walls || []).filter(wall =>
     [wall.x1, wall.y1, wall.x2, wall.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
   );
@@ -1771,7 +1824,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.20.3",
+          workerVersion: "32.20.5",
           time: new Date().toISOString()
         });
       }
@@ -2148,7 +2201,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.20.3",
+          workerVersion: "32.20.5",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

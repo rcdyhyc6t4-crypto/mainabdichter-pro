@@ -1,0 +1,55 @@
+mainabdichter PRO V32.20.5
+
+Grundriss-Zeichnung
+
+- iPhone-Bildvorbereitung unterstützt zusätzlich den Safari-Bildweg.
+- Kleinere Bilddaten verhindern unnötig große Worker-Anfragen.
+- Laufende Analyse zeigt Zeit und aktive Erkennungsstufe sichtbar an.
+- Strukturierte Erkennung erhält automatisch eine tolerante zweite Auswertung.
+- Falls erforderlich, folgt eine abgesicherte Analyse mit GPT-5.6 Terra.
+- Unvollständige KI-Antworten werden tolerant gelesen und technische Fehler
+  werden mit einem eindeutigen Fehlercode sichtbar ausgegeben.
+
+Geräteoptimierung
+
+- Eigene iPhone-Darstellung bis 620 px: einspaltige Formulare, kompakte Listen,
+  sichere Schaltflächen, keine horizontal verschobenen oder abgeschnittenen Inhalte.
+- Eigene iPad-Darstellung von 621 bis 1024 px: sinnvolle Zweispaltenansichten,
+  mittige Popups und bessere Nutzung der größeren Fläche.
+- Dashboard, Plus-Menü, Kunden, Besichtigung, Angebote, Baustellen,
+  Arbeitsnachweis, Lager, Einstellungen, Wandaufmaß und Grundriss berücksichtigt.
+- Safe Areas, untere Navigation und Safari-Tastaturzoom berücksichtigt.
+
+Dashboard
+
+- Der große grüne Heute-Bereich bleibt unverändert erhalten.
+- Darunter stehen nur noch „Offen & wichtig“ und „Schnellzugriff“.
+- Der dauerhaft sichtbare Lagerstreifen und „Neues Angebot“ wurden entfernt.
+- Lager und Flaschenabholung öffnen als kompakte Übersichten im Popup.
+- Alle neuen Vorgänge beginnen ausschließlich über das grüne Plus:
+  Neue Anfrage, Neuer Kunde, Neuer Termin, Neue Besichtigung,
+  Neue Baustelle und Neuer Arbeitsnachweis.
+
+Neu: KI-Grundriss und automatisches Aufmaß
+
+- Der hochgeladene Originalgrundriss bleibt verbindliche Grundlage.
+- KI-Analyse über geschützten Worker-Endpunkt /floor-plan/analyze.
+- Perspektive, Drehung, Falten/Knicke und Maßketten werden bei der Rekonstruktion berücksichtigt.
+- Erkannte Wände werden als einzelne anklickbare Segmente dargestellt.
+- Nicht ausgewählte Wände bleiben neutral.
+- Mehrfachauswahl je Wand: Horizontalsperre, Flächensperre, Wand-Sohlen-Anschluss,
+  Harzverpressung, Negativabdichtung und Sanierputz.
+- Flächensperre wird als maßstäbliches Rechteck mit Wandlänge × Ausführungshöhe angezeigt.
+- Rechteck kann auf die andere Wandseite gespiegelt werden.
+- Automatische Summen in lfm und m².
+- Originalplan kann zur Kontrolle unter der Nachzeichnung ein- und ausgeblendet werden.
+- Ergebnisse werden getrennt im aktuellen Besichtigungsvorgang gespeichert.
+
+Worker-Konfiguration:
+- Secret OPENAI_API_KEY ergänzen.
+- Optional OPENAI_VISION_MODEL setzen; Standard ist gpt-5.6-luna.
+- wrangler.jsonc legt cloudflare-worker.js eindeutig als Worker-Einstieg fest.
+- keep_vars schützt bereits vorhandene Cloudflare-Variablen bei GitHub-Deployments.
+
+Bestehende Daten-, Synchronisations-, Pipedrive-, Lexoffice- und Drive-Funktionen
+wurden nicht ersetzt.

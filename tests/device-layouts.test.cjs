@@ -23,5 +23,8 @@ assert.match(css, /@media\(min-width:621px\) and \(max-width:1024px\)/, "iPad-Va
 assert.match(css, /font-size:16px!important/, "iPhone-Eingaben müssen den Safari-Tastaturzoom verhindern");
 assert.match(css, /env\(safe-area-inset-bottom\)/, "Untere iPhone-/iPad-Safe-Area fehlt");
 assert.match(css, /overflow-x:hidden!important/, "Horizontaler Seitenversatz wird nicht global verhindert");
+assert.match(css, /grid-template-rows:auto 36px!important/, "iPhone-Dashboardtexte müssen oberhalb der Kennzahlen stehen");
+assert.match(css, /word-break:normal!important/, "Dashboard-Bezeichnungen dürfen nicht buchstabenweise umbrechen");
+assert.match(css, /position:sticky!important/, "iPhone-Kopfbereich muss unterhalb der Statusleiste stehen bleiben");
 
 console.log("iPhone-, iPad- und Desktop-Layouts: OK");

@@ -77,6 +77,7 @@ export async function api(path, options = {}) {
       if (typeof value.error_description === "string") return value.error_description;
       if (typeof value.error === "string") return value.error;
       if (value.error && typeof value.error.message === "string") return value.error.message;
+      if (Array.isArray(value.attempts)) return value.attempts.join(" | ");
       return "";
     };
 
