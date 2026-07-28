@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.20.0</title>
-<link rel="stylesheet" href="css/app.css?v=32.20.0">
+<title>mainabdichter PRO V32.20.1</title>
+<link rel="stylesheet" href="css/app.css?v=32.20.1">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -80,87 +80,83 @@ main{width:100%;max-width:100%}
         <button type="button" id="v28Navigate" class="v28-navigation-button">➤ <span>Navigation starten</span></button>
         <b class="v28-card-chevron">›</b>
       </article>
-      <button type="button" id="v28SmartAppointment" class="smart-appointment-launch">
-        <span>✦</span><span><strong>Termin intelligent planen</strong><small>Kunde und Anliegen einfach sagen oder schreiben</small></span><em>›</em>
-      </button>
-      <div class="dashboard-communication-row">
-        <button type="button" id="v28QuickNote"><span>✎</span><strong>Gesprächsnotiz</strong><small>Sprechen oder schreiben</small></button>
-        <button type="button" id="v28EmailInbox"><span>✉</span><strong>Neue E-Mails</strong><small><b id="v28EmailCount">0</b> ungeprüft</small></button>
-        <button type="button" id="v28WhatsAppBusiness"><span>◉</span><strong>WhatsApp Business</strong><small>Kunde auswählen</small></button>
-      </div>
     </section>
 
-    <section class="v28-section v284-accepted-section">
+    <section class="v28-section dashboard-priority-section">
+      <div class="dashboard-compact-heading">
+        <h2>OFFEN &amp; WICHTIG</h2>
+        <button type="button" id="syncDashboardAll" class="dashboard-refresh-button" aria-label="Dashboard aktualisieren">↻</button>
+      </div>
       <button type="button" id="v284AcceptedOffersCard" class="v284-accepted-card">
         <span class="v284-accepted-icon">✓</span>
         <span class="v284-accepted-content">
-          <small>NEUE AUFTRÄGE</small>
+          <small>ANGENOMMEN</small>
           <strong><b id="v284AcceptedOfferCount">0</b> angenommene Angebote</strong>
-          <em id="v284AcceptedOfferHint">Abrufzeitraum gemäß Admin-Einstellung</em>
+          <em id="v284AcceptedOfferHint">Für die Ausführung vorbereiten</em>
         </span>
         <span class="v284-accepted-arrow">›</span>
       </button>
-    </section>
-
-    <section class="v28-section">
-      <h2>AUF EINEN BLICK</h2>
-      <div class="v28-overview-grid">
+      <div class="v28-overview-grid dashboard-priority-grid">
         <button type="button" id="v28OpenOffersCard" class="v28-overview-card"><span class="v28-overview-icon v28-green-icon">▤</span><span><strong id="v28OpenOffers">0</strong><b>Offene Angebote</b><small>Warten auf Rückmeldung</small></span><em>›</em></button>
         <button type="button" id="v28OpenExecutionsCard" class="v28-overview-card"><span class="v28-overview-icon v28-yellow-icon">⌑</span><span><strong id="v28OpenExecutions">0</strong><b>Offene Ausführungen</b><small>Termin und Material planen</small></span><em>›</em></button>
         <button type="button" id="v28PlannedExecutionsCard" class="v28-overview-card"><span class="v28-overview-icon v28-blue-icon">✓</span><span><strong id="v28PlannedExecutions">0</strong><b>Ausführung geplant</b><small>Termin verbindlich bestätigt</small></span><em>›</em></button>
         <button type="button" id="v28PendingInvoicesCard" class="v28-overview-card invoice-reminder-card"><span class="v28-overview-icon v28-red-icon">€</span><span><strong id="v28PendingInvoices">0</strong><b>Rechnung schreiben</b><small id="v28PendingInvoiceHint">Keine Rechnung offen</small></span><em>›</em></button>
         <button type="button" class="v28-overview-card" data-v28-target="more"><span class="v28-overview-icon v28-yellow-icon">↻</span><span><strong id="v28Followups">0</strong><b>Nachkontrolle</b><small id="v28FollowupHint">Keine fällig</small></span><em>›</em></button>
-        <button type="button" class="v28-overview-card" id="v28BottleCard"><span class="v28-overview-icon v28-red-icon">♙</span><span><strong id="v28BottleCount">0</strong><b>Flaschen abholen</b><small id="v28BottleSites">Auf 0 Baustellen</small></span><em>›</em></button>
-        <button type="button" class="v28-overview-card" data-v28-target="dashboard"><span class="v28-overview-icon v28-blue-icon">▦</span><span><strong id="v28MoreAppointments">0</strong><b>Weiterer Termin</b><small id="v28AppointmentHint">Heute nichts mehr</small></span><em>›</em></button>
+        <button type="button" id="v28ActiveWorksite" class="v28-overview-card"><span class="v28-overview-icon v28-green-icon">▥</span><span><strong id="v28ActiveWorksiteCount">0</strong><b>Aktive Baustellen</b><small id="v28ActiveWorksiteStatus">Keine aktive Baustelle</small></span><span id="v28WorksitePreview" class="hidden"></span><em>›</em></button>
       </div>
     </section>
 
-    <section class="v28-section">
-      <h2>AKTIVE BAUSTELLEN</h2>
-      <button type="button" id="v28ActiveWorksite" class="v28-active-worksite">
-        <span class="v28-overview-icon v28-green-icon">▥</span><span><strong id="v28ActiveWorksiteCount">0</strong><b>Baustelle aktiv</b><small id="v28ActiveWorksiteStatus">Keine aktive Baustelle</small></span><span id="v28WorksitePreview" class="v28-worksite-preview"></span><em>›</em>
-      </button>
+    <section class="v28-section dashboard-shortcuts-section">
+      <h2>SCHNELLZUGRIFF</h2>
+      <div class="dashboard-shortcuts">
+        <button type="button" id="v287OpenInventory"><span class="v28-overview-icon v28-green-icon">▦</span><strong>Lager</strong><small>Bestand im Popup öffnen</small><em>›</em></button>
+        <button type="button" id="v28BottleCard"><span class="v28-overview-icon v28-red-icon">♙</span><strong>Flaschen</strong><small><b id="v28BottleCount">0</b> · <b id="v28BottleSites">Auf 0 Baustellen</b></small><em>›</em></button>
+        <button type="button" id="v28QuickNote"><span class="v28-overview-icon v28-blue-icon">✎</span><strong>Notiz</strong><small>Gespräch festhalten</small><em>›</em></button>
+        <button type="button" id="v28EmailInbox"><span class="v28-overview-icon v28-yellow-icon">✉</span><strong>E-Mails</strong><small><b id="v28EmailCount">0</b> ungeprüft</small><em>›</em></button>
+      </div>
     </section>
-
-    <section class="v28-section v288-inventory-section">
-      <h2>LAGERBESTAND</h2>
-      <div id="v28InventoryStrip" class="v28-inventory-strip"></div>
-    </section>
-
-    <button type="button" id="v28CreateOffer" class="v28-quick-offer"><span class="v28-overview-icon v28-green-icon">☑</span><span><strong>Neues Angebot erstellen</strong><small>Schnell und einfach ein Angebot anlegen</small></span><em>›</em></button>
   </main>
 
-  <button type="button" id="v28FloatingAdd" class="v28-floating-add" aria-label="Neue Anfrage">+</button>
+  <button type="button" id="v28FloatingAdd" class="v28-floating-add" aria-label="Neu anlegen">+</button>
 
   <section id="newInquiryModal" class="v28-modal hidden" aria-hidden="true">
     <div class="v28-modal-dialog new-inquiry-dialog" role="dialog" aria-modal="true" aria-labelledby="newInquiryTitle">
       <header>
         <div>
-          <small>NEUER VORGANG</small>
-          <h2 id="newInquiryTitle">Wie kommt die Anfrage rein?</h2>
-          <p>Wähle nur den passenden Einstieg. Die App führt dich danach weiter.</p>
+          <small>ZENTRALES PLUS</small>
+          <h2 id="newInquiryTitle">Was möchtest du neu anlegen?</h2>
+          <p>Alle neuen Vorgänge beginnen ausschließlich hier.</p>
         </div>
         <button type="button" id="closeNewInquiryModal" aria-label="Schließen">×</button>
       </header>
       <div class="new-inquiry-options">
         <button type="button" id="newInquiryScreenshot" class="new-inquiry-option primary-option">
           <span>▣</span>
-          <strong>Screenshot übernehmen</strong>
-          <small>WhatsApp, E-Mail oder Kontaktformular automatisch auslesen</small>
-          <em>Empfohlen</em>
+          <strong>Neue Anfrage</strong>
+          <small>Screenshot aus WhatsApp, E-Mail oder Kontaktformular übernehmen</small>
         </button>
-        <button type="button" id="newInquiryExisting" class="new-inquiry-option">
+        <button type="button" id="newCustomerFromPlus" class="new-inquiry-option">
           <span>♙</span>
-          <strong>Vorhandener Kunde</strong>
-          <small>Kunden aus Pipedrive suchen und für die Besichtigung übernehmen</small>
+          <strong>Neuer Kunde</strong>
+          <small>Kundendaten neu erfassen</small>
+        </button>
+        <button type="button" id="newAppointmentFromPlus" class="new-inquiry-option">
+          <span>◷</span>
+          <strong>Neuer Termin</strong>
+          <small>Termin intelligent planen</small>
         </button>
         <button type="button" id="newInquiryManual" class="new-inquiry-option">
-          <span>＋</span>
-          <strong>Manuell erfassen</strong>
-          <small>Neue Besichtigung öffnen und Kundendaten selbst eintragen</small>
+          <span>⌂</span>
+          <strong>Neue Besichtigung</strong>
+          <small>Geführte Besichtigung beginnen</small>
+        </button>
+        <button type="button" id="newWorksiteFromPlus" class="new-inquiry-option">
+          <span>⚒</span>
+          <strong>Neue Baustelle</strong>
+          <small>Angenommenes Angebot zur Ausführung übernehmen</small>
         </button>
         <button type="button" id="newWorkReportDirect" class="new-inquiry-option">
-          <span>⚒</span>
+          <span>▤</span>
           <strong>Neuer Arbeitsnachweis</strong>
           <small>Kunde kurz auswählen oder eingeben und direkt mit der Ausführung beginnen</small>
         </button>
@@ -1516,10 +1512,10 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.20.0"></script>
-<script type="module" src="js/floor-plan.js?v=32.20.0"></script>
-<script type="module" src="js/cloud-migration.js?v=32.20.0"></script>
+<script type="module" src="js/app.js?v=32.20.1"></script>
+<script type="module" src="js/floor-plan.js?v=32.20.1"></script>
+<script type="module" src="js/cloud-migration.js?v=32.20.1"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.20.0"></script>
+<script type="module" src="js/customers.js?v=32.20.1"></script>
 </body>
 </html>

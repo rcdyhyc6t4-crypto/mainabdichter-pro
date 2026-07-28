@@ -1827,6 +1827,42 @@ html, body {
   overflow-x: hidden;
 }
 
+/* V32.20.1 – vereinfachtes Dashboard */
+.dashboard-compact-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dashboard-compact-heading h2{margin:0;font-size:13px;letter-spacing:.09em;color:#707772}
+.dashboard-refresh-button{width:36px;height:36px;padding:0;border-radius:50%;background:#f1f5f1;color:#398f36;font-size:20px}
+.dashboard-priority-section .v284-accepted-card{margin-bottom:10px}
+.dashboard-priority-grid{gap:9px}
+.dashboard-priority-grid .v28-overview-card{min-height:86px;padding:12px 14px;border-radius:17px;gap:10px}
+.dashboard-priority-grid .v28-overview-icon{width:42px;height:42px;border-radius:13px;font-size:19px}
+.dashboard-priority-grid .v28-overview-card strong{font-size:22px;line-height:1}
+.dashboard-priority-grid .v28-overview-card b{font-size:13px}
+.dashboard-priority-grid .v28-overview-card small{font-size:10px}
+.dashboard-shortcuts{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.dashboard-shortcuts>button{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-width:0;padding:12px;border:1px solid #e2e6e3;border-radius:17px;background:#fff;text-align:left}
+.dashboard-shortcuts>button>strong{font-size:14px}
+.dashboard-shortcuts>button>small{grid-column:1/-1;color:#737a76;font-size:10px}
+.dashboard-shortcuts>button>em{font-style:normal;color:#8c948f;font-size:21px}
+.dashboard-shortcuts .v28-overview-icon{width:40px;height:40px;border-radius:12px;font-size:18px}
+.new-inquiry-options{grid-template-columns:1fr 1fr}
+.new-inquiry-option{min-height:132px}
+.v28-floating-add{box-shadow:0 8px 24px rgba(31,117,33,.28)}
+@media(max-width:620px){
+  .dashboard-priority-grid{grid-template-columns:1fr 1fr!important}
+  .dashboard-priority-grid .v28-overview-card{min-height:92px;padding:11px 10px}
+  .dashboard-priority-grid .v28-overview-icon{width:38px;height:38px}
+  .dashboard-priority-grid .v28-overview-card strong{font-size:20px}
+  .dashboard-priority-grid .v28-overview-card small{display:none}
+  .dashboard-shortcuts{grid-template-columns:1fr 1fr}
+  .dashboard-shortcuts>button{min-height:78px}
+  .new-inquiry-options{grid-template-columns:1fr 1fr}
+}
+@media(max-width:390px){
+  .dashboard-priority-grid .v28-overview-card{grid-template-columns:auto minmax(0,1fr)}
+  .dashboard-priority-grid .v28-overview-card em{display:none}
+  .new-inquiry-options{grid-template-columns:1fr}
+}
+
 /* V30.1 – korrigierter Header und sichtbare angenommene Angebote */
 .v301-header{
   position:relative;
@@ -2484,7 +2520,7 @@ body.central-syncing{overflow:hidden}
 .measure-confirm-area small{font-weight:700;color:#59645b}
 .measure-confirm-area button{width:100%}
 
-/* V32.20.0 – KI-Grundriss und maßstabgetreues Aufmaß */
+/* V32.20.1 – KI-Grundriss und maßstabgetreues Aufmaß */
 .floor-plan-launch-card{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:12px 0 16px;padding:15px;border:2px solid #64ad44;border-radius:16px;background:#f3faef}
 .floor-plan-launch-card span,.floor-plan-launch-card strong,.floor-plan-launch-card small{display:block}.floor-plan-launch-card span{font-size:11px;font-weight:900;letter-spacing:.1em;color:#318b2d}.floor-plan-launch-card strong{margin:4px 0;font-size:17px}.floor-plan-launch-card small{color:#617064}.floor-plan-mini-summary{margin:0 0 14px;padding:11px 13px;border-radius:12px;background:#eef5eb;font-weight:800}
 .floor-plan-dialog{position:fixed;inset:0;z-index:10020;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));overflow:auto;background:rgba(16,26,19,.76)}

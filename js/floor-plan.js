@@ -64,14 +64,21 @@ function normalizedWall(raw, index) {
 async function analyze() {
   const current = plan();
   if (!current.sourceImage) return;
-  $("analyzeFloorPlan").disabled = true;
+  const button = $("analyzeFloorPlan");
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "KI analysiert …";
   $("floorPlanAnalyzeStatus").textContent = "Plan wird entzerrt, Maßketten werden gelesen und Wände werden abgeglichen …";
   try {
     const result = await api("/floor-plan/analyze", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({ image:current.sourceImage })
+      body:JSON.stringify({ image:current.sourceImage }),
+      timeoutMs:120000
     });
+    if (!result.plan || !Array.isArray(result.plan.walls) || !result.plan.walls.length) {
+      throw new Error("Die KI hat keine Wände zurückgegeben. Bitte den Plan erneut fotografieren oder ein schärferes Bild auswählen.");
+    }
     current.analysis = result.plan;
     current.walls = (result.plan?.walls || []).map(normalizedWall);
     current.updatedAt = new Date().toISOString();
@@ -79,8 +86,10 @@ async function analyze() {
     activeWallId = "";
     render();
   } catch (error) {
-    $("floorPlanAnalyzeStatus").textContent = error.message || "Der Grundriss konnte nicht analysiert werden.";
-    $("analyzeFloorPlan").disabled = false;
+    $("floorPlanAnalyzeStatus").textContent = `Analyse fehlgeschlagen: ${error.message || "Der Grundriss konnte nicht analysiert werden."}`;
+  } finally {
+    button.textContent = originalLabel;
+    button.disabled = false;
   }
 }
 

@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.20.0";
+const MAINABDICHTER_APP_VERSION = "32.20.1";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1608,7 +1608,7 @@ function initializeV28Dashboard() {
     document.body.classList.toggle("resource-modal-open", open);
   };
   if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>setNewInquiryModal(true);
-  if ($("v28SmartAppointment")) $("v28SmartAppointment").onclick=()=>{
+  const openSmartAppointment = () => {
     smartAppointmentDraft=null;
     smartAppointmentPerson=null;
     $("smartAppointmentText").value="";
@@ -1620,6 +1620,7 @@ function initializeV28Dashboard() {
     v287SetModal("smartAppointmentModal",true);
     window.setTimeout(()=>$("smartAppointmentText")?.focus(),50);
   };
+  if ($("v28SmartAppointment")) $("v28SmartAppointment").onclick=openSmartAppointment;
   if ($("closeSmartAppointment")) $("closeSmartAppointment").onclick=()=>v287SetModal("smartAppointmentModal",false);
   if ($("analyzeSmartAppointment")) $("analyzeSmartAppointment").onclick=analyzeSmartAppointment;
   if ($("smartSearchCustomer")) $("smartSearchCustomer").onclick=searchSmartAppointmentCustomer;
@@ -1633,6 +1634,15 @@ function initializeV28Dashboard() {
     setNewInquiryModal(false);
     openInquiryImport();
   };
+  if ($("newCustomerFromPlus")) $("newCustomerFromPlus").onclick=()=>{
+    setNewInquiryModal(false);
+    show("customers");
+    window.setTimeout(()=>$("customerCreateNew")?.click(),50);
+  };
+  if ($("newAppointmentFromPlus")) $("newAppointmentFromPlus").onclick=()=>{
+    setNewInquiryModal(false);
+    openSmartAppointment();
+  };
   if ($("newInquiryExisting")) $("newInquiryExisting").onclick=()=>{
     setNewInquiryModal(false);
     show("customers");
@@ -1644,6 +1654,10 @@ function initializeV28Dashboard() {
   if ($("newInquiryManual")) $("newInquiryManual").onclick=()=>{
     setNewInquiryModal(false);
     startNewVisit();
+  };
+  if ($("newWorksiteFromPlus")) $("newWorksiteFromPlus").onclick=()=>{
+    setNewInquiryModal(false);
+    openAcceptedOffers();
   };
   if ($("newWorkReportDirect")) $("newWorkReportDirect").onclick=()=>{
     setNewInquiryModal(false);

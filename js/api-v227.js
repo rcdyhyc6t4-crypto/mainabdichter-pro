@@ -57,14 +57,15 @@ export function hasConnectionConfig() {
 export async function api(path, options = {}) {
   const { url, secret } = config();
   if (!url || !secret) throw new Error("Zugangsdaten fehlen.");
+  const { timeoutMs = 15000, ...fetchOptions } = options;
 
   const response = await fetchWithTimeout(url + path, {
-    ...options,
+    ...fetchOptions,
     headers: {
-      ...(options.headers || {}),
+      ...(fetchOptions.headers || {}),
       "X-App-Secret": secret
     }
-  });
+  }, timeoutMs);
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

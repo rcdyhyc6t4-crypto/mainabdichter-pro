@@ -3,5 +3,6 @@
   "name": "mainabdichter-api",
   "main": "cloudflare-worker.js",
   "compatibility_date": "2026-07-24",
-  "workers_dev": true
+  "workers_dev": true,
+  "keep_vars": true
 }
