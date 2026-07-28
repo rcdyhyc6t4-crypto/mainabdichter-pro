@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.19.9</title>
-<link rel="stylesheet" href="css/app.css?v=32.19.9">
+<title>mainabdichter PRO V32.20.0</title>
+<link rel="stylesheet" href="css/app.css?v=32.20.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -570,6 +570,15 @@ main{width:100%;max-width:100%}
 
   <details id="visitStep4" class="card compact-step guided-step">
     <summary>4. Schadensbereiche und Maßnahmen <span class="step-state"></span></summary>
+    <section class="floor-plan-launch-card">
+      <div>
+        <span>KI-GRUNDRISS &amp; AUFMASS</span>
+        <strong>Grundriss fotografieren und Wände auswählen</strong>
+        <small>Der hochgeladene Originalplan wird entzerrt und maßstabgetreu nachgezeichnet.</small>
+      </div>
+      <button type="button" id="openFloorPlan" class="primary">Grundriss öffnen</button>
+    </section>
+    <div id="floorPlanMiniSummary" class="floor-plan-mini-summary hidden"></div>
     <div id="areas"></div>
     <button id="addArea" class="primary">+ Schadensbereich</button>
     <div class="assessment-suggestion">
@@ -1432,6 +1441,57 @@ main{width:100%;max-width:100%}
     </section>
   </div>
 </div>
+<div id="floorPlanDialog" class="floor-plan-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="floorPlanTitle">
+  <div class="floor-plan-shell">
+    <header class="floor-plan-header">
+      <div><small>KI-GRUNDRISS &amp; AUFMASS</small><h2 id="floorPlanTitle">Originalplan nachzeichnen</h2></div>
+      <button type="button" id="closeFloorPlan" class="floor-plan-close" aria-label="Schließen">×</button>
+    </header>
+    <section id="floorPlanUploadStep" class="floor-plan-step">
+      <div class="floor-plan-instruction"><b>1</b><div><strong>Grundriss fotografieren</strong><small>Falten, Knicke und Schräglage werden automatisch berücksichtigt.</small></div></div>
+      <label class="floor-plan-picker">📷 Grundriss fotografieren<input id="floorPlanCamera" type="file" accept="image/*" capture="environment"></label>
+      <label class="floor-plan-picker secondary">Bild auswählen<input id="floorPlanLibrary" type="file" accept="image/*"></label>
+      <img id="floorPlanPreview" class="floor-plan-preview hidden" alt="Hochgeladener Originalgrundriss">
+      <button type="button" id="analyzeFloorPlan" class="primary floor-plan-main-action" disabled>Originalplan analysieren</button>
+      <div id="floorPlanAnalyzeStatus" class="status"></div>
+    </section>
+    <section id="floorPlanEditorStep" class="floor-plan-step hidden">
+      <div class="floor-plan-editor-head">
+        <div><strong>Wände antippen</strong><small>Nicht ausgewählte Wände bleiben neutral.</small></div>
+        <label class="floor-plan-original-toggle"><input id="floorPlanShowOriginal" type="checkbox" checked> Original einblenden</label>
+      </div>
+      <div id="floorPlanQuality" class="floor-plan-quality"></div>
+      <div id="floorPlanStage" class="floor-plan-stage"></div>
+      <div id="floorPlanWallPanel" class="floor-plan-wall-panel hidden">
+        <div class="floor-plan-wall-panel-head"><strong id="floorPlanWallTitle">Wand</strong><button type="button" id="closeFloorPlanWall">×</button></div>
+        <div class="floor-plan-measure-grid">
+          <div><label>Länge</label><input id="floorPlanWallLength" inputmode="decimal"></div>
+          <div><label>Wandstärke cm</label><input id="floorPlanWallThickness" inputmode="decimal"></div>
+        </div>
+        <label>Was wird an dieser Wand ausgeführt?</label>
+        <div id="floorPlanMeasureChoices" class="floor-plan-measure-choices">
+          <label><input type="checkbox" value="Horizontalsperre"> Horizontalsperre</label>
+          <label><input type="checkbox" value="Flächensperre"> Flächensperre</label>
+          <label><input type="checkbox" value="Wand-Sohlen-Anschluss"> Wand-Sohlen-Anschluss</label>
+          <label><input type="checkbox" value="Harzverpressung"> Harzverpressung</label>
+          <label><input type="checkbox" value="Negativabdichtung"> Negativabdichtung</label>
+          <label><input type="checkbox" value="Sanierputz"> Sanierputz</label>
+        </div>
+        <div id="floorPlanSurfaceFields" class="floor-plan-surface-fields hidden">
+          <label>Höhe der Flächensperre in Meter</label>
+          <input id="floorPlanSurfaceHeight" inputmode="decimal" placeholder="z. B. 1,50">
+          <button type="button" id="floorPlanFlipSurface" class="secondary">Rechteck auf andere Wandseite</button>
+        </div>
+        <button type="button" id="saveFloorPlanWall" class="primary floor-plan-main-action">Wand übernehmen</button>
+      </div>
+      <div id="floorPlanMeasurementSummary" class="floor-plan-measurement-summary"></div>
+      <div class="floor-plan-editor-actions">
+        <button type="button" id="replaceFloorPlan" class="secondary">Anderen Plan verwenden</button>
+        <button type="button" id="saveFloorPlan" class="primary">Grundriss und Aufmaß speichern</button>
+      </div>
+    </section>
+  </div>
+</div>
 <nav class="bottom-nav redesign-bottom-nav">
   <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Übersicht</small></button>
   <button id="bottomCustomers" data-bottom-page="customers"><span>♙</span><small>Kunden</small></button>
@@ -1456,9 +1516,10 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.19.9"></script>
-<script type="module" src="js/cloud-migration.js?v=32.19.9"></script>
+<script type="module" src="js/app.js?v=32.20.0"></script>
+<script type="module" src="js/floor-plan.js?v=32.20.0"></script>
+<script type="module" src="js/cloud-migration.js?v=32.20.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.19.9"></script>
+<script type="module" src="js/customers.js?v=32.20.0"></script>
 </body>
 </html>

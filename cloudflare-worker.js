@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.19.9
+// mainabdichter PRO Cloudflare Worker V32.20.0
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -11,6 +11,163 @@ const MICROSOFT_GRAPH_API = "https://graph.microsoft.com/v1.0";
 let pipedrivePersonAddressFieldCache = null;
 let pipedriveDealFieldSchemaCache = null;
 let pipedrivePersonFieldSchemaCache = null;
+
+const FLOOR_PLAN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["canvas_width", "canvas_height", "rotation_degrees", "quality", "walls", "openings", "uncertain_items"],
+  properties: {
+    canvas_width: { type: "number" },
+    canvas_height: { type: "number" },
+    rotation_degrees: { type: "number" },
+    quality: {
+      type: "object",
+      additionalProperties: false,
+      required: ["score", "perspective_corrected", "folds_detected", "dimensions_cross_checked"],
+      properties: {
+        score: { type: "number" },
+        perspective_corrected: { type: "boolean" },
+        folds_detected: { type: "boolean" },
+        dimensions_cross_checked: { type: "boolean" }
+      }
+    },
+    walls: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label", "x1", "y1", "x2", "y2", "length_m", "thickness_cm", "confidence"],
+        properties: {
+          id: { type: "string" },
+          label: { type: "string" },
+          x1: { type: "number" },
+          y1: { type: "number" },
+          x2: { type: "number" },
+          y2: { type: "number" },
+          length_m: { type: "number" },
+          thickness_cm: { type: "number" },
+          confidence: { type: "number" }
+        }
+      }
+    },
+    openings: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "wall_id", "position", "width_m", "confidence"],
+        properties: {
+          type: { type: "string", enum: ["door", "window", "unknown"] },
+          wall_id: { type: "string" },
+          position: { type: "number" },
+          width_m: { type: "number" },
+          confidence: { type: "number" }
+        }
+      }
+    },
+    uncertain_items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["wall_id", "question", "suggested_value"],
+        properties: {
+          wall_id: { type: "string" },
+          question: { type: "string" },
+          suggested_value: { type: "number" }
+        }
+      }
+    }
+  }
+};
+
+function responseOutputText(data) {
+  if (typeof data?.output_text === "string") return data.output_text;
+  for (const item of data?.output || []) {
+    for (const content of item?.content || []) {
+      if (typeof content?.text === "string") return content.text;
+    }
+  }
+  return "";
+}
+
+async function analyzeFloorPlan(env, image) {
+  if (!env.OPENAI_API_KEY) {
+    const error = new Error("Die KI-Grundrisserkennung ist im Worker noch nicht freigeschaltet. OPENAI_API_KEY fehlt.");
+    error.status = 503;
+    throw error;
+  }
+  if (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(String(image || ""))) {
+    const error = new Error("Es wurde kein gültiges Grundrissfoto übertragen.");
+    error.status = 400;
+    throw error;
+  }
+  if (String(image).length > 14 * 1024 * 1024) {
+    const error = new Error("Das Grundrissfoto ist zu groß.");
+    error.status = 413;
+    throw error;
+  }
+  const prompt = [
+    "Analysiere ausschließlich den hochgeladenen Gebäudegrundriss.",
+    "Erfinde keine andere Raumaufteilung und ergänze keine nicht sichtbaren Räume.",
+    "Korrigiere gedanklich Drehung, Perspektive, lokale Verzerrung durch Falten, Knicke, Wellen und Kamerawinkel.",
+    "Rekonstruiere gerade und rechtwinklige Wände anhand der sichtbaren Linien, Maßketten, Wandstärken, Türen und Fenster.",
+    "Gedruckte oder handschriftlich eingetragene Maße sind verbindlicher als Pixellängen.",
+    "Gib jede zusammenhängende Wand als eigenes Segment zurück. Koordinaten x1,y1,x2,y2 liegen normiert zwischen 0 und 1 in der entzerrten Planfläche.",
+    "length_m ist die maßstäbliche Wandlänge. thickness_cm ist die erkennbare Wandstärke.",
+    "Wenn ein zwingendes Maß nicht zuverlässig lesbar ist, nicht raten: confidence reduzieren und uncertain_items ergänzen.",
+    "Der Score beschreibt die geometrische Gesamtzuverlässigkeit von 0 bis 1."
+  ].join(" ");
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: env.OPENAI_VISION_MODEL || "gpt-5.6-luna",
+      input: [{
+        role: "user",
+        content: [
+          { type: "input_text", text: prompt },
+          { type: "input_image", image_url: image }
+        ]
+      }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "mainabdichter_floor_plan",
+          strict: true,
+          schema: FLOOR_PLAN_SCHEMA
+        }
+      }
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "Die KI-Grundrissanalyse ist fehlgeschlagen.");
+    error.status = response.status || 502;
+    error.details = data?.error || data;
+    throw error;
+  }
+  let plan;
+  try {
+    plan = JSON.parse(responseOutputText(data));
+  } catch {
+    const error = new Error("Die KI hat keinen auswertbaren Grundriss geliefert.");
+    error.status = 502;
+    throw error;
+  }
+  plan.walls = (plan.walls || []).filter(wall =>
+    [wall.x1, wall.y1, wall.x2, wall.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
+  );
+  if (!plan.walls.length) {
+    const error = new Error("Auf dem Foto konnten keine ausreichend sicheren Wände erkannt werden.");
+    error.status = 422;
+    throw error;
+  }
+  return plan;
+}
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "*";
@@ -1614,7 +1771,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.19.9",
+          workerVersion: "32.20.0",
           time: new Date().toISOString()
         });
       }
@@ -1666,6 +1823,12 @@ export default {
           },
           401
         );
+      }
+
+      if (url.pathname === "/floor-plan/analyze" && request.method === "POST") {
+        const input = await request.json().catch(() => ({}));
+        const plan = await analyzeFloorPlan(env, input.image);
+        return jsonResponse(request, { ok: true, plan });
       }
 
       if (url.pathname === "/drive/test" && request.method === "GET") {
@@ -1985,7 +2148,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.19.9",
+          workerVersion: "32.20.0",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

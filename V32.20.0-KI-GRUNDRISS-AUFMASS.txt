@@ -1,0 +1,24 @@
+mainabdichter PRO V32.20.0
+
+Neu: KI-Grundriss und automatisches Aufmaß
+
+- Der hochgeladene Originalgrundriss bleibt verbindliche Grundlage.
+- KI-Analyse über geschützten Worker-Endpunkt /floor-plan/analyze.
+- Perspektive, Drehung, Falten/Knicke und Maßketten werden bei der Rekonstruktion berücksichtigt.
+- Erkannte Wände werden als einzelne anklickbare Segmente dargestellt.
+- Nicht ausgewählte Wände bleiben neutral.
+- Mehrfachauswahl je Wand: Horizontalsperre, Flächensperre, Wand-Sohlen-Anschluss,
+  Harzverpressung, Negativabdichtung und Sanierputz.
+- Flächensperre wird als maßstäbliches Rechteck mit Wandlänge × Ausführungshöhe angezeigt.
+- Rechteck kann auf die andere Wandseite gespiegelt werden.
+- Automatische Summen in lfm und m².
+- Originalplan kann zur Kontrolle unter der Nachzeichnung ein- und ausgeblendet werden.
+- Ergebnisse werden getrennt im aktuellen Besichtigungsvorgang gespeichert.
+
+Worker-Konfiguration:
+- Secret OPENAI_API_KEY ergänzen.
+- Optional OPENAI_VISION_MODEL setzen; Standard ist gpt-5.6-luna.
+- wrangler.jsonc legt cloudflare-worker.js eindeutig als Worker-Einstieg fest.
+
+Bestehende Daten-, Synchronisations-, Pipedrive-, Lexoffice- und Drive-Funktionen
+wurden nicht ersetzt.
