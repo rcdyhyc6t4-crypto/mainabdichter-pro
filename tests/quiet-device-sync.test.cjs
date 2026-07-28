@@ -18,7 +18,7 @@ assert.doesNotMatch(app, /createServerAuthoritativePayload\(response\.backup, lo
 assert.doesNotMatch(app, /synchronizeFromDrive\(\{\s*force:\s*true,\s*gate:\s*true/);
 
 assert.match(html, /Speichern & später fortsetzen/);
-assert.match(html, /Zusammenfassung ansehen/);
+assert.match(html, /Protokoll prüfen/);
 assert.match(html, /Abschließen & Angebot öffnen/);
 assert.match(html, /Weitere Möglichkeiten/);
 assert.match(css, /\.remote-update-notice/);

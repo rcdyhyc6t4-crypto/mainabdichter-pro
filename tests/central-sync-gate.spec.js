@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-test("App bleibt bis zum zentralen Abruf gesperrt und zeigt danach den Serverbestand", async ({ page }) => {
+test("App bleibt bis zum zentralen Abruf gesperrt und führt Server- und Gerätedaten sicher zusammen", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("mainabdichter_v10_settings", JSON.stringify({
       workerUrl: "https://mainabdichter-api.cmww7htry5.workers.dev",
@@ -16,7 +16,15 @@ test("App bleibt bis zum zentralen Abruf gesperrt und zeigt danach den Serverbes
 
   let releaseBackup;
   const backupMayRespond = new Promise(resolve => { releaseBackup = resolve; });
-  await page.route("**/drive/backup", async route => {
+  await page.route("**/mobile-sync", async route => {
+    const request = JSON.parse(route.request().postData() || "{}");
+    if (request.action !== "load") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, file: { modifiedTime: "2026-07-27T15:31:00.000Z" } })
+      });
+    }
     await backupMayRespond;
     await route.fulfill({
       status: 200,
@@ -52,6 +60,6 @@ test("App bleibt bis zum zentralen Abruf gesperrt und zeigt danach den Serverbes
     stock: JSON.parse(localStorage.getItem("mainabdichter_v10_settings")).inventory.products[0].stock,
     customers: JSON.parse(localStorage.getItem("mainabdichter_v30_customers"))
   }));
-  expect(saved.stock).toBe(48);
-  expect(saved.customers.map(customer => customer.id)).toEqual(["server-kunde"]);
+  expect(saved.stock).toBe(2);
+  expect(saved.customers.map(customer => customer.id).sort()).toEqual(["lokal-alt", "server-kunde"]);
 });

@@ -1,0 +1,19 @@
+mainabdichter PRO V32.19.7 – dreifacher Datenschutz
+
+1. Serverseitiger Sicherheitsstopp
+   Ein stark verkleinerter, leerer oder offensichtlich unvollständiger
+   Gerätestand wird vom Worker abgelehnt. Der Zentralstand bleibt unverändert.
+
+2. Unabhängige Sicherheitskopien
+   Vor zentralen Änderungen legt der Worker regelmäßig eine eigenständige,
+   datierte Kopie in:
+   mainabdichter PRO / Datensicherung / Sicherheitskopien
+   ab. Diese Kopien sind nicht dieselbe Datei wie der laufende Zentralstand.
+
+3. Dokumentenschutz
+   Fertige Arbeitsnachweise bleiben zusätzlich als PDF im Kundenordner unter
+   Baustelle / Arbeitsnachweise erhalten und sind nicht vom App-Datenstand
+   abhängig.
+
+Bei einem Sicherheitsstopp bleiben neue Eingaben lokal geschützt. Die App zeigt
+eine verständliche Meldung und überschreibt keine Daten.

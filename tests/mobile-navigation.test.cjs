@@ -12,7 +12,7 @@ assert.match(css, /\.bottom-nav,.redesign-bottom-nav\{[\s\S]*position:fixed!impo
 assert.match(css, /env\(safe-area-inset-bottom\)/);
 assert.match(css, /min-height:100dvh/);
 assert.match(css, /\.worksite-step-actions\{bottom:var\(--mobile-nav-height\)\}/);
-assert.match(app, /const MAIN_GUIDE_ROUTE = \[0, 2, 3, 4, 7, 9\]/);
+assert.match(app, /const MAIN_GUIDE_ROUTE = \[0, 2, 3, 4, 7, 8\]/);
 assert.match(app, /if \(activePage === "worksites" && activeWorksiteId\) saveActiveWorksite\(false\)/);
 assert.match(app, /setAutomaticSaveState\("✓ gespeichert"\)/);
 assert.match(app, /window\.visualViewport\?\.addEventListener\("resize", synchronizeVisibleViewport\)/);

@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.19.5
+// mainabdichter PRO Cloudflare Worker V32.19.7
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -464,6 +464,89 @@ async function uploadDriveDocument(env, file, metadata) {
   return data;
 }
 
+function backupProtectionStats(payload) {
+  const listLength = key => Array.isArray(payload?.[key]) ? payload[key].length : 0;
+  return {
+    bytes: new TextEncoder().encode(JSON.stringify(payload || {})).byteLength,
+    customers: listLength("customers"),
+    archive: listLength("archive"),
+    worksites: listLength("worksites"),
+    notes: listLength("communicationNotes")
+  };
+}
+
+function assertBackupCannotCollapse(currentPayload, incomingPayload) {
+  if (!currentPayload || typeof currentPayload !== "object") return;
+  const current = backupProtectionStats(currentPayload);
+  const incoming = backupProtectionStats(incomingPayload);
+  const losses = [];
+
+  // Ein Absturz, eine leere Geräteablage oder eine fehlerhafte Migration darf
+  // niemals den vollständigen Firmenbestand ersetzen.
+  if (current.bytes >= 100000 && incoming.bytes < current.bytes * 0.65) {
+    losses.push(`Dateigröße ${current.bytes} → ${incoming.bytes} Bytes`);
+  }
+  for (const key of ["customers", "archive", "worksites", "notes"]) {
+    const before = current[key];
+    const after = incoming[key];
+    const allowedLoss = Math.max(2, Math.ceil(before * 0.1));
+    if (before >= 5 && after < before - allowedLoss) {
+      losses.push(`${key} ${before} → ${after}`);
+    }
+  }
+
+  if (!losses.length) return;
+  const error = new Error(
+    "Sicherheitsstopp: Ein unvollständiger Gerätestand darf die zentrale Datensicherung nicht überschreiben."
+  );
+  error.status = 422;
+  error.details = {
+    protection: "backup-collapse-blocked",
+    losses,
+    current,
+    incoming
+  };
+  throw error;
+}
+
+async function createDriveSafetySnapshot(env, currentFile, backupsFolderId) {
+  if (!currentFile?.id) return null;
+  const snapshots = await ensureDriveFolder(env, "Sicherheitskopien", backupsFolderId);
+  const q = [
+    "appProperties has { key='backupType' and value='mainabdichter-pro-safety' }",
+    `'${driveQueryText(snapshots.id)}' in parents`,
+    "trashed=false"
+  ].join(" and ");
+  const existing = await googleDriveRequest(
+    env,
+    `/files?q=${encodeURIComponent(q)}&orderBy=createdTime desc&fields=files(id,createdTime)&pageSize=1`
+  );
+  const latest = existing.files?.[0];
+  const latestAge = latest?.createdTime
+    ? Date.now() - new Date(latest.createdTime).getTime()
+    : Number.POSITIVE_INFINITY;
+  if (latestAge < 60 * 60 * 1000) return latest;
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return googleDriveRequest(
+    env,
+    `/files/${encodeURIComponent(currentFile.id)}/copy?fields=id,name,createdTime,webViewLink`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({
+        name: `mainabdichter-PRO-Sicherheitskopie-${stamp}.json`,
+        parents: [snapshots.id],
+        appProperties: {
+          backupType: "mainabdichter-pro-safety",
+          sourceFileId: currentFile.id,
+          source: "mainabdichter-pro"
+        }
+      })
+    }
+  );
+}
+
 async function saveDriveBackup(env, payload, expectedRemoteModifiedTime = "") {
   const parent = await ensureDriveFolder(env, "mainabdichter PRO");
   const backups = await ensureDriveFolder(env, "Datensicherung", parent.id);
@@ -490,6 +573,16 @@ async function saveDriveBackup(env, payload, expectedRemoteModifiedTime = "") {
       currentRemoteModifiedTime: currentFile.modifiedTime
     };
     throw error;
+  }
+  if (fileId) {
+    const currentResponse = await googleDriveRequest(
+      env,
+      `/files/${encodeURIComponent(fileId)}?alt=media`,
+      { raw: true }
+    );
+    const currentPayload = await currentResponse.json().catch(() => null);
+    assertBackupCannotCollapse(currentPayload, payload);
+    await createDriveSafetySnapshot(env, currentFile, backups.id);
   }
   const token = await googleAccessToken(env);
   const boundary = `mainabdichter_backup_${crypto.randomUUID()}`;
@@ -1494,7 +1587,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.19.5",
+          workerVersion: "32.19.7",
           time: new Date().toISOString()
         });
       }
@@ -1865,7 +1958,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.19.5",
+          workerVersion: "32.19.7",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

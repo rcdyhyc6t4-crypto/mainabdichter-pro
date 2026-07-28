@@ -1,36 +1,43 @@
-mainabdichter PRO V32.19.5 – Datenverlustschutz
+mainabdichter PRO V32.19.7 – Sicherer Gesamtablauf
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
-Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.
+Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
 
-NEU:
-- Sichere Synchronisation beim Wechsel zwischen iPhone und iPad:
-  Beim Start, Wiederöffnen und Fokus wird immer zuerst der zentrale
-  Google-Drive-Datenstand geladen.
-- Zentrale Daten haben Vorrang vor veralteten Gerätedaten.
-- Kunden, Lagerbestand, Baustellen, Arbeitsnachweise, Besichtigungen,
-  Notizen, Einstellungen, Entwürfe und Erinnerungen werden gemeinsam gesichert.
-- Die Bedienung bleibt gesperrt, bis der zentrale Stand geprüft ist.
-- Gleichzeitige Änderungen können sich nicht unbemerkt überschreiben.
-- Automatische Adresshilfe bei Kundendaten und Besichtigung:
-  PLZ ergänzt Ort, Ort ergänzt bei Eindeutigkeit die PLZ,
-  Straßen werden passend zu PLZ und Ort vorgeschlagen.
-- Manuelle Adressen bleiben immer möglich.
-- Unterlagen aus Besichtigung/Vorbereitung werden in die Ausführung übernommen.
-- Aufmaß, Grundriss, Pläne und andere Drive-Unterlagen sind in der Ausführung
-  und unter „Dokumente“ direkt sichtbar und antippbar.
-- Das BKM.MANNESMANN-Video zur Horizontalsperre ist in der Kundenerklärung
-  für Horizontalsperre und Flächensperre direkt in der App abspielbar.
+DATENSCHUTZ:
+- Server- und Gerätedaten werden beim Start zusammengeführt, nicht blind ersetzt.
+- Ungespeicherte Eingaben bleiben lokal geschützt.
+- Ein auffällig kleiner oder unvollständiger Datenstand wird serverseitig abgewiesen.
+- Vor dem Überschreiben der zentralen Datei wird regelmäßig eine unabhängige
+  Sicherheitskopie in „Datensicherung / Sicherheitskopien“ angelegt.
+- Bei gleichzeitiger Bearbeitung auf zwei Geräten wird nichts automatisch überschrieben.
+- Während einer Eingabe oder eines Foto-Uploads gibt es keinen störenden Neuaufbau.
 
-GESCHÜTZT UND UNVERÄNDERT:
-- Pipedrive-Postanschrift `postal_adress`
-- kein unzulässiges `postal_address` an Pipedrive API v2
-- vorhandene Person-/Deal-IDs und Dublettenschutz
-- bestehende Termin-, Kalkulations-, Lager- und Arbeitsnachweisfunktionen
+BESICHTIGUNG:
+- Neue Anfrage öffnet sofort die Anfrage- und Terminangaben.
+- Geführter Ablauf über Kunde, Gebäude, Beschreibung, Maßnahmen und Prüfung.
+- Zwischenspeichern legt eine wieder aufrufbare Version unter „Vorgänge“ an.
+- „Neu“ und „Abbrechen“ löschen keine Besichtigung unbemerkt.
+- Der vollständige Abschluss speichert die Besichtigung vor dem Öffnen des Angebots.
+- Aufmaß und Wandmessung bleiben separat lösch- und speicherbar.
+
+BAUSTELLE UND ARBEITSNACHWEIS:
+- Vier klare Bereiche: Übersicht, Ausführung, Fotos & Unterlagen, Abschluss.
+- Jeder Arbeitsnachweis ist nach Baustellen-ID getrennt; alte Kundendaten werden nicht übernommen.
+- Ist-Verbrauch wird aus den tatsächlich eingetragenen Bohrlöchern und ml je Bohrloch berechnet.
+- Ein fertiggestellter Nachweis verschwindet aus aktiven Baustellen und bleibt in der Kundenakte.
+- Der Abschluss gilt erst als sicher, wenn das PDF in Google Drive gespeichert wurde.
+- Pipedrive- oder Foto-Nachläufe blockieren danach nicht den gesicherten Abschluss.
+- Offene Rechnungen bleiben als Erinnerung auf dem Dashboard sichtbar.
+
+WEITERHIN ENTHALTEN:
+- Automatische PLZ-/Ort-Hilfe und Straßenprüfung bei manueller Korrekturmöglichkeit.
+- Vorbereitungsunterlagen wie Aufmaß und Grundriss direkt in der Ausführung.
+- BKM-MANNESMANN-Erklärvideo in der Kundenansicht.
+- Pipedrive-Postanschrift `postal_adress`, IDs und Dublettenschutz.
 
 PRÜFUNGEN:
-- JavaScript- und Worker-Syntax bestanden
-- Zeitzonentests bestanden
-- echte OpenPLZ-Abfragen für PLZ, Ort und Straße bestanden
-- Dokumentübernahme mit Google-Drive-Link bestanden
-- neue Browsertests für Adresshilfe und Vorbereitungsunterlagen bestanden
+- JavaScript- und Worker-Syntax bestanden.
+- Datenverlustschutz, Konfliktschutz und Rettungs-Zusammenführung bestanden.
+- Besichtigungsablauf, Zwischenspeichern und sicherer Abschluss bestanden.
+- Baustellenführung, getrennte Arbeitsnachweise, Verbrauch und Abschluss bestanden.
+- Mobile Navigation, Safe Areas und Wandmessung bestanden.

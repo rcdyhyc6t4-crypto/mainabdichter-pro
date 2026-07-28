@@ -10,8 +10,9 @@ test.beforeEach(async ({ page }) => {
       appSecret: "browser-test"
     }));
   });
-  await page.route("**/drive/backup", async route => {
-    if (route.request().method() === "POST") {
+  await page.route("**/mobile-sync", async route => {
+    const request = JSON.parse(route.request().postData() || "{}");
+    if (request.action === "save") {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -80,7 +81,10 @@ test("Baustellenführung kann beendet werden und öffnet keine alte Baustelle er
 test("Ist-Verbrauch wird vor dem Speichern aus Bohrlöchern und ml neu berechnet", () => {
   const app = readFileSync("js/app.js", "utf8");
   const construction = readFileSync("js/construction.js", "utf8");
-  expect(app).toContain('recalculateWorksiteTask(state.settings, task, "actualHoles")');
+  expect(app).toContain('field === "actualMlPerHole"');
+  expect(app).toContain("task.actualLitersPerHole = parseDecimal(input.value) / 1000");
+  expect(app).toContain("recalculateWorksiteTask(state.settings, task);");
+  expect(app).not.toContain('recalculateWorksiteTask(state.settings, task, "actualHoles")');
   expect(construction).toContain("Math.round(Number(task.actualLiters || 0) * 1000) / 1000");
   expect(construction).toContain("plannedLiters: result.rawLiters");
 });

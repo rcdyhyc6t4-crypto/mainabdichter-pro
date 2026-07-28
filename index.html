@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.19.5</title>
-<link rel="stylesheet" href="css/app.css?v=32.19.5">
+<title>mainabdichter PRO V32.19.7</title>
+<link rel="stylesheet" href="css/app.css?v=32.19.7">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -32,7 +32,7 @@ main{width:100%;max-width:100%}
     <strong id="centralSyncTitle">Zentralen Datenstand laden …</strong>
     <small id="centralSyncHint">Kunden, Lager, Baustellen und Arbeitsnachweise werden abgeglichen.</small>
     <div class="central-sync-actions">
-      <button type="button" id="centralSyncRecovery" class="primary hidden">Lokalen iPhone-Stand retten</button>
+      <button type="button" id="centralSyncRecovery" class="primary hidden">Sicher zusammenführen</button>
       <button type="button" id="centralSyncRetry" class="primary hidden">Erneut versuchen</button>
       <button type="button" id="centralSyncSetup" class="secondary hidden">Verbindung einrichten</button>
     </div>
@@ -358,7 +358,7 @@ main{width:100%;max-width:100%}
       <button type="button" data-open-step="2">Gebäude</button>
       <button type="button" data-open-step="3">Beschreibung</button>
       <button type="button" data-open-step="4">Maßnahmen</button>
-      <button type="button" data-open-step="5">Extras</button>
+      <button type="button" data-open-step="5">Prüfen</button>
     </div>
     <div id="guidedAssistant" class="guided-assistant">
       <div><span id="guidedStepLabel">Hauptschritt 1 von 6</span><strong id="guidedInstruction">Kunde und Termin prüfen</strong></div>
@@ -385,9 +385,8 @@ main{width:100%;max-width:100%}
       <option value="visitStep4">4 · Messen und Maßnahmen</option>
       <option value="visitStep5">Fotos und Dokumente</option>
       <option value="visitStep6">Zusatzleistungen</option>
-      <option value="visitSummary">7 · Zusammenfassung</option>
-      <option value="visitCompletion">8 · Vollständigkeit</option>
-      <option value="visitOfferBasis">9 · Abschluss</option>
+      <option value="visitSummary">Prüfen und Besichtigung beenden</option>
+      <option value="visitOfferBasis">Abschluss</option>
     </select>
     <span data-autosave-state>✓ gespeichert</span>
   </nav>
@@ -592,11 +591,11 @@ main{width:100%;max-width:100%}
     <div id="extras"></div>
   </details>
   <details id="visitSummary" class="card compact-step guided-step">
-    <summary>7. Zusammenfassung <span class="step-state"></span></summary>
+    <summary>Prüfen und abschließen <span class="step-state"></span></summary>
     <p class="hint">Hier siehst du alle Befunde, Messwerte, Fotos und Dokumente auf einen Blick.</p>
     <div id="inspectionSummary" class="inspection-summary"></div>
   </details>
-  <section id="visitCompletion" class="card visit-completion">
+  <section id="visitCompletion" class="card visit-completion" data-guide-group="visitSummary">
     <span class="dashboard-eyebrow">VOLLSTÄNDIGKEIT</span>
     <h2>Sind alle Angaben vollständig?</h2>
     <button id="endVisitWork" type="button" class="secondary workday-main-button">Endzeit jetzt erfassen</button>
@@ -606,7 +605,7 @@ main{width:100%;max-width:100%}
     <div class="offer-actions"><button id="goToMissingStep" class="secondary">Erste fehlende Information öffnen</button></div>
   </section>
   <details id="visitOfferBasis" class="card compact-step guided-step">
-    <summary>9. Abschluss <span class="step-state"></span></summary>
+    <summary>Abschluss <span class="step-state"></span></summary>
     <p class="hint">Optionaler interner Hinweis und deine abschließende Freigabe.</p>
     <label>Interne Hinweise für das Angebot</label>
     <textarea id="offerBasisNote" placeholder="z. B. besondere Ausführung, Zugänglichkeit oder noch zu klärende Punkte"></textarea>
@@ -615,7 +614,7 @@ main{width:100%;max-width:100%}
   </details>
   <div class="sticky-actions visit-sticky-actions">
     <button id="saveVisit" class="primary">Speichern & später fortsetzen</button>
-    <button id="toOffer" class="secondary">Zusammenfassung ansehen</button>
+    <button id="toOffer" class="secondary">Protokoll prüfen</button>
     <button id="finishVisitGuide" class="primary visit-finish-primary">Abschließen & Angebot öffnen</button>
     <div id="finishVisitReason" class="finish-visit-reason"></div>
     <details class="visit-more-actions">
@@ -929,21 +928,15 @@ main{width:100%;max-width:100%}
     <nav class="worksite-section-nav" aria-label="Baustellenbereiche">
       <button type="button" class="active" data-worksite-section="wsSectionOverview">Übersicht</button>
       <button type="button" data-worksite-section="wsSectionExecution">Ausführung</button>
-      <button type="button" data-worksite-section="wsSectionPhotos">Fotos</button>
-      <button type="button" data-worksite-section="wsSectionDocuments">Dokumente</button>
-      <button type="button" data-worksite-section="wsSectionMaterial">Material</button>
-      <button type="button" data-worksite-section="wsSectionNotes">Bemerkungen</button>
-      <button type="button" data-worksite-section="wsSectionReport">Arbeitsnachweis</button>
+      <button type="button" data-worksite-section="wsSectionMedia">Fotos &amp; Unterlagen</button>
+      <button type="button" data-worksite-section="wsSectionReport">Abschluss</button>
     </nav>
     <nav class="mobile-workflow-jump worksite-workflow-jump" aria-label="Baustelle schnell wechseln">
       <label for="worksiteJumpSelect">Direkt zu</label>
       <select id="worksiteJumpSelect">
         <option value="wsSectionOverview">Übersicht und Arbeitsbeginn</option>
         <option value="wsSectionExecution">Ausführung</option>
-        <option value="wsSectionPhotos">Fotos</option>
-        <option value="wsSectionDocuments">Dokumente</option>
-        <option value="wsSectionMaterial">Materialverbrauch</option>
-        <option value="wsSectionNotes">Bemerkungen</option>
+        <option value="wsSectionMedia">Fotos und Unterlagen</option>
         <option value="wsSectionReport">Arbeitsnachweis und Abschluss</option>
       </select>
       <span data-autosave-state>✓ gespeichert</span>
@@ -1000,7 +993,7 @@ main{width:100%;max-width:100%}
       <div id="worksiteTasks"></div>
     </section>
 
-    <section id="wsSectionPhotos" class="worksite-section">
+    <section id="wsSectionPhotos" class="worksite-section" data-worksite-group="wsSectionMedia">
       <div class="card">
         <div class="card-title-row">
           <div><span class="dashboard-eyebrow">FOTODOKUMENTATION</span><h2>Fotos</h2><p class="hint">Vorher-, Während- und Nachher-Fotos getrennt nach Maßnahme.</p></div>
@@ -1009,7 +1002,7 @@ main{width:100%;max-width:100%}
       </div>
     </section>
 
-    <section id="wsSectionDocuments" class="worksite-section">
+    <section id="wsSectionDocuments" class="worksite-section" data-worksite-group="wsSectionMedia">
       <div class="card worksite-files-card">
         <div class="card-title-row">
           <div><span class="dashboard-eyebrow">BAUAKTE</span><h2>Dokumente und Pläne</h2><p class="hint">Angebot, Aufmaß, Grundrisse, PDFs, Gutachten und Skizzen.</p></div>
@@ -1030,7 +1023,7 @@ main{width:100%;max-width:100%}
       </div>
     </section>
 
-    <section id="wsSectionMaterial" class="worksite-section">
+    <section id="wsSectionMaterial" class="worksite-section" data-worksite-group="wsSectionExecution">
       <div class="card">
         <span class="dashboard-eyebrow">IST-VERBRAUCH</span>
         <h2>Tatsächlich verwendetes Material</h2>
@@ -1043,7 +1036,7 @@ main{width:100%;max-width:100%}
       <div class="card"><p>Die Arbeitszeit wird in Schritt 1 gestartet und beim Abschluss beendet.</p></div>
     </section>
 
-    <section id="wsSectionNotes" class="worksite-section">
+    <section id="wsSectionNotes" class="worksite-section" data-worksite-group="wsSectionExecution">
       <div class="card">
         <span class="dashboard-eyebrow">DOKUMENTATION</span>
         <h2>Absprachen und Besonderheiten</h2>
@@ -1125,7 +1118,7 @@ main{width:100%;max-width:100%}
     </section>
     <nav class="worksite-step-actions" aria-label="Schrittweise Navigation">
       <button id="worksiteStepBack" type="button" class="secondary">← Zurück</button>
-      <span id="worksiteStepStatus">Schritt 1 von 7</span>
+      <span id="worksiteStepStatus">Schritt 1 von 4</span>
       <button id="worksiteStepNext" type="button" class="primary">Weiter →</button>
     </nav>
   </div>
@@ -1458,9 +1451,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.19.5"></script>
-<script type="module" src="js/cloud-migration.js?v=32.19.5"></script>
+<script type="module" src="js/app.js?v=32.19.7"></script>
+<script type="module" src="js/cloud-migration.js?v=32.19.7"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.19.5"></script>
+<script type="module" src="js/customers.js?v=32.19.7"></script>
 </body>
 </html>

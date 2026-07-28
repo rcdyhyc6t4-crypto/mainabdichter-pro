@@ -1,0 +1,8 @@
+mainabdichter PRO V32.19.6 – sichere Zusammenführung
+
+- Ein lokaler iPhone-Rettungsstand überschreibt den Zentralstand nicht mehr.
+- Zentralstand und lokale Sicherung werden datensatzweise zusammengeführt.
+- Bei einer gleichzeitigen Serveränderung wird der neueste Stand erneut geladen
+  und ebenfalls einbezogen.
+- Die lokale Rettung wird erst nach erfolgreicher zentraler Speicherung gelöscht.
+- Der Knopf heißt eindeutig „Sicher zusammenführen“.

@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.5";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.7";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.5";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.7";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.5";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.7";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.19.5";
+const MAINABDICHTER_APP_VERSION = "32.19.7";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1787,6 +1787,11 @@ function startNewVisit() {
   saveVisitExplicitSavepoint();
   renderVisit();
   show("visit");
+  const inquiryCard = $("inquiryPlanningCard");
+  if (inquiryCard) {
+    inquiryCard.open = true;
+    requestAnimationFrame(() => inquiryCard.scrollIntoView({ block: "start" }));
+  }
 }
 
 const VISIT_EXPLICIT_SAVEPOINT_KEY = "mainabdichter_visit_explicit_savepoint_v1";
@@ -1851,7 +1856,7 @@ function buildArchiveRecord() {
 function saveCurrentToArchive(showMessage = true) {
   const saved = archiveCurrentOffer(buildArchiveRecord());
   activeArchiveId = saved.id;
-  if (showMessage) showStatus("offerStatus", "Angebot wurde im lokalen Archiv gespeichert.", true);
+  if (showMessage) showStatus("offerStatus", "Besichtigung und Angebot wurden unter Vorgänge gespeichert.", true);
   renderArchive();
   return saved;
 }
@@ -2165,14 +2170,29 @@ $('guidedNext').onclick=()=>{
   const routePosition=MAIN_GUIDE_ROUTE.indexOf(current);
   const nextPosition=routePosition>=0?routePosition+1:MAIN_GUIDE_ROUTE.findIndex(index=>index>current);
   if(nextPosition<0||nextPosition>=MAIN_GUIDE_ROUTE.length){
-    if(stepComplete(GUIDE_STEPS.length-1)){renderOffer();show('offer');}
+    if(stepComplete(GUIDE_STEPS.length-1))finishVisitAndOpenOffer();
     else openGuideStep(firstMissingGuideStep());
     return;
   }
   openGuideStep(MAIN_GUIDE_ROUTE[nextPosition]);
 };
 $('goToMissingStep').onclick=()=>{const missing=guideChecks().find(x=>!x.ok);if(missing)jumpToVisitCheck(missing);else openGuideStep(7);};
-$('finishVisitGuide').onclick=()=>{const last=GUIDE_STEPS.length-1;if(!stepComplete(last))return openGuideStep(firstMissingGuideStep());renderOffer();show('offer');};
+function finishVisitAndOpenOffer(){
+  collectVisit();
+  const last=GUIDE_STEPS.length-1;
+  if(!stepComplete(last)){
+    openGuideStep(firstMissingGuideStep());
+    return false;
+  }
+  const saved=saveCurrentToArchive(false);
+  saveVisitExplicitSavepoint();
+  renderArchive();
+  renderOffer();
+  show('offer');
+  showStatus("offerStatus",`Besichtigung ${saved.visitNumber||""} wurde sicher unter Vorgänge gespeichert.`,true);
+  return true;
+}
+$('finishVisitGuide').onclick=finishVisitAndOpenOffer;
 $("visitOfferBasis")?.querySelector("summary")?.addEventListener("click",event=>{
   const missing=guideChecks().find(check=>!check.ok);
   if(!missing)return;
@@ -2186,7 +2206,7 @@ $('advicePrev').onclick=()=>{adviceState.stage=Math.max(1,adviceState.stage-1);r
 $('adviceNext').onclick=()=>{const max=(ADVICE_CONTENT[adviceState.type]?.steps||[]).length||1;adviceState.stage=Math.min(max,adviceState.stage+1);renderAdvice();};
 document.querySelectorAll('[data-advice-type]').forEach(b=>b.onclick=()=>{adviceState.type=b.dataset.adviceType;adviceState.stage=1;renderAdvice();});
 document.querySelectorAll('[data-open-step]').forEach(button=>button.onclick=()=>{
-  const guideIndex={1:0,2:2,3:3,4:4,5:6}[Number(button.dataset.openStep)];
+  const guideIndex={1:0,2:2,3:3,4:4,5:7}[Number(button.dataset.openStep)];
   if(Number.isInteger(guideIndex))openGuideStep(guideIndex);
 });
 
@@ -2469,7 +2489,16 @@ if ($("newVisit")) $("newVisit").onclick = () => { startNewVisit(); };
 if ($("continueVisit")) $("continueVisit").onclick = () => { renderVisit(); show("visit"); };
 if ($("openOffer")) $("openOffer").onclick = () => show("offer");
 if ($("openSettings")) $("openSettings").onclick = () => show("settings");
-$("resetVisit").onclick = () => { if (confirm("Aktuelle Besichtigung löschen?")) { resetVisit(); renderVisit(); } };
+$("resetVisit").onclick = () => {
+  if (!confirm("Die aktuelle Besichtigung wird zuerst sicher unter Vorgänge gespeichert. Danach eine neue Besichtigung beginnen?")) return;
+  try {
+    saveCurrentToArchive(false);
+  } catch (error) {
+    showStatus("visitStatus", `Neue Besichtigung nicht gestartet: Der aktuelle Stand konnte nicht gesichert werden (${error.message}).`, false);
+    return;
+  }
+  startNewVisit();
+};
 $("saveVisit").onclick = () => {
   collectVisit();
   saveState();
@@ -2521,14 +2550,6 @@ $("toOffer").onclick = () => {
   showStatus("visitStatus","Alle Pflichtangaben sind vollständig. Prüfe kurz die Zusammenfassung und gib anschließend den Abschluss frei.",true);
 };
 
-const VISIT_TOOLBAR_TARGETS = {
-  1: "visitStep1",
-  2: "visitStep2",
-  3: "visitStep3",
-  4: "visitStep4",
-  5: "visitStep5"
-};
-
 function openVisitSection(target, smooth = true) {
   if (!target) return;
   document.querySelectorAll("#visit details.compact-step").forEach(detail => {
@@ -2541,9 +2562,6 @@ function openVisitSection(target, smooth = true) {
   });
 }
 
-document.querySelectorAll("[data-open-step]").forEach(button => {
-  button.onclick = () => openVisitSection($(VISIT_TOOLBAR_TARGETS[Number(button.dataset.openStep)]));
-});
 if ($("visitJumpSelect")) $("visitJumpSelect").onchange = () => {
   const target = $($("visitJumpSelect").value);
   if (!target) return;
@@ -2600,11 +2618,10 @@ const GUIDE_STEPS = [
   {id:"visitStep4", label:"Messungen und Maßnahmen", instruction:"Schadensbereiche, Messungen und Maßnahmen erfassen"},
   {id:"visitStep5", label:"Dokumente", instruction:"Fotos, Pläne und Dokumente prüfen", optional:true},
   {id:"visitStep6", label:"Zusatzleistungen", instruction:"Zusatzleistungen prüfen", optional:true},
-  {id:"visitSummary", label:"Besichtigungsprotokoll", instruction:"Das vollständige Protokoll prüfen"},
-  {id:"visitCompletion", label:"Vollständigkeit", instruction:"Fehlende Informationen direkt ergänzen"},
+  {id:"visitSummary", label:"Besichtigungsprotokoll", instruction:"Protokoll prüfen und Besichtigung beenden"},
   {id:"visitOfferBasis", label:"Angebotsgrundlage", instruction:"Ganz zum Schluss die Angebotsgrundlage freigeben"}
 ];
-const MAIN_GUIDE_ROUTE = [0, 2, 3, 4, 7, 9];
+const MAIN_GUIDE_ROUTE = [0, 2, 3, 4, 7, 8];
 const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Kunde und Termin",key:"visitEmployee",label:"Mitarbeiter"},
   {group:"Kunde und Termin",key:"visitStartTime",label:"Besichtigung begonnen"},
@@ -2651,7 +2668,7 @@ function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.
 function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]);return[
  {key:"visitEmployee",label:"Mitarbeiter auswählen",valid:Boolean(String(state.visit.visitEmployee||"").trim()),step:0,selector:"#visitEmployee"},
  {key:"visitStartTime",label:"Besichtigung beginnen",valid:Boolean(state.visit.visitStartTime),step:0,selector:"#startVisitWork"},
- {key:"visitEndTime",label:"Besichtigung beenden",valid:Boolean(state.visit.visitEndTime),step:6,selector:"#endVisitWork"},
+ {key:"visitEndTime",label:"Besichtigung beenden",valid:Boolean(state.visit.visitEndTime),step:7,selector:"#endVisitWork"},
  {key:"customerName",label:"Kundenname oder Firma",valid:Boolean(c.firstName||c.lastName||c.company),step:0,selector:"#firstName, #lastName, #company"},
  {key:"customerContact",label:"Telefonnummer oder E-Mail",valid:Boolean(c.phone||c.email),step:0,selector:"#phone, #email"},
  {key:"address",label:"Objektanschrift",valid:Boolean(c.objectAddress||(c.street&&c.zip&&c.city)),step:0,selector:"#objectAddress"},
@@ -2708,18 +2725,24 @@ function moisturePatternLabel(value){
     unclear:"Noch nicht eindeutig"
   }[value]||value||"–";
 }
-function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7)return checks.every(x=>x.ok);if(index===8)return checks.every(x=>x.ok)&&visitProtocolReviewed();if(index===9)return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();}
+function stepComplete(index){const checks=guideChecks();if(index===1||index===5||index===6)return true;if(index===0)return checks.filter(x=>x.step===0).every(x=>x.ok);if(index===2)return checks.filter(x=>x.step===2).every(x=>x.ok);if(index===3)return checks.filter(x=>x.step===3).every(x=>x.ok);if(index===4)return checks.filter(x=>x.step===4).every(x=>x.ok);if(index===7)return checks.every(x=>x.ok)&&visitProtocolReviewed();if(index===8)return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();return checks.every(x=>x.ok)&&visitProtocolReviewed()&&offerBasisApproved();}
 function currentGuideStep(){const stored=Number(state.visit.guideStep||0);return Math.max(0,Math.min(GUIDE_STEPS.length-1,stored));}
 function applyGuideVisibility(index){
+  const targetId=GUIDE_STEPS[index]?.id||GUIDE_STEPS[0].id;
   GUIDE_STEPS.forEach((step,i)=>{
     const el=$(step.id);
     if(!el)return;
-    const current=i===index;
+    const current=(el.dataset.guideGroup||step.id)===targetId;
     if(el.tagName==='DETAILS')el.open=current;
     el.classList.toggle('guide-hidden',!current);
     el.classList.toggle('is-current',current);
     el.classList.toggle('is-complete',stepComplete(i));
     el.classList.toggle('is-incomplete',!stepComplete(i));
+  });
+  document.querySelectorAll("[data-guide-group]").forEach(el=>{
+    const current=el.dataset.guideGroup===targetId;
+    el.classList.toggle("guide-hidden",!current);
+    el.classList.toggle("is-current",current);
   });
 }
 function openGuideStep(index){index=Math.max(0,Math.min(GUIDE_STEPS.length-1,index));state.visit.guideStep=index;saveState();applyGuideVisibility(index);const item=GUIDE_STEPS[index];const routePosition=MAIN_GUIDE_ROUTE.indexOf(index);if($('guidedStepLabel'))$('guidedStepLabel').textContent=routePosition>=0?`Hauptschritt ${routePosition+1} von ${MAIN_GUIDE_ROUTE.length}`:"Zusatzbereich";if($('guidedInstruction'))$('guidedInstruction').textContent=item.instruction;if($('guidedProgress'))$('guidedProgress').max=MAIN_GUIDE_ROUTE.length;if($('guidedProgress'))$('guidedProgress').value=routePosition>=0?routePosition+1:Math.max(1,MAIN_GUIDE_ROUTE.filter(routeIndex=>routeIndex<index).length);if($('guidedNext'))$('guidedNext').textContent=index===GUIDE_STEPS.length-1?'Angebot öffnen':'Speichern und weiter';if(index===7)renderInspectionSummary();const target=$(item.id);if(target&&index>0){if(target.tagName==='DETAILS')openVisitSection(target);else requestAnimationFrame(()=>target.scrollIntoView({behavior:'smooth',block:'start'}));}if($("visitJumpSelect"))$("visitJumpSelect").value=item.id;renderVisitChecklist();}
@@ -2765,6 +2788,7 @@ function scheduleVisitAutoAdvance() {
   visitAutoAdvanceTimer = setTimeout(() => {
     if (!$("visit")?.classList.contains("active")) return;
     const current = currentGuideStep();
+    if (current === 7) return;
     const routePosition = MAIN_GUIDE_ROUTE.indexOf(current);
     if (routePosition < 0 || routePosition >= MAIN_GUIDE_ROUTE.length - 1 || !stepComplete(current)) return;
     openGuideStep(MAIN_GUIDE_ROUTE[routePosition + 1]);
@@ -2772,7 +2796,7 @@ function scheduleVisitAutoAdvance() {
 }
 $("visit")?.addEventListener("input", scheduleVisitAutoAdvance);
 $("visit")?.addEventListener("change", scheduleVisitAutoAdvance);
-function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;if(!visitProtocolReviewed())return 7;return 9;}
+function firstMissingGuideStep(){const missing=guideChecks().find(x=>!x.ok);if(missing)return missing.step;if(!visitProtocolReviewed())return 7;return 8;}
 
 function renderInspectionSummary(){
   const box=$("inspectionSummary");if(!box)return;
@@ -3946,6 +3970,7 @@ function renderAreas() {
   state.visit.areas.forEach((area, ai) => {
     const card = document.createElement("div");
     card.className = "area-card";
+    card.dataset.areaCard = area.id;
     card.innerHTML = `
       <div class="area-head"><h3>${ai + 1}. ${esc(area.name)}</h3><button class="danger" data-delete-area="${area.id}">Löschen</button></div>
       <div class="grid">
@@ -4005,6 +4030,8 @@ function renderAreas() {
       || "";
     area.measurements.push({ id: crypto.randomUUID(), device:previousDevice,value:"",unit:"Digits",height:"",location:"" });
     saveState(); renderAreas();
+    const manualList = box.querySelector(`[data-area-card="${CSS.escape(area.id)}"] .manual-measurements`);
+    if (manualList) manualList.open = true;
   });
 
   box.querySelectorAll("[data-add-measure]").forEach(button => button.onclick = () => {
@@ -5100,8 +5127,7 @@ function updateLexofficeTextCounts() {
 let activeWorksiteId = null;
 let worksiteViewFilter = "all";
 const WORKSITE_SECTION_ORDER = [
-  "wsSectionOverview", "wsSectionExecution", "wsSectionPhotos", "wsSectionDocuments",
-  "wsSectionMaterial", "wsSectionNotes", "wsSectionReport"
+  "wsSectionOverview", "wsSectionExecution", "wsSectionMedia", "wsSectionReport"
 ];
 
 function isWorksiteSetupTask(task = {}) {
@@ -5183,11 +5209,14 @@ function collectWorksite() {
     if (!task) return;
     const field = input.dataset.wsField;
     if (input.type === "checkbox") task[field] = input.checked;
+    else if (field === "actualMlPerHole") task.actualLitersPerHole = parseDecimal(input.value) / 1000;
     else if (["wall","actualQuantity","actualHoles","actualWidth","actualHeight","surfaceFirstRowHoles","surfaceFollowingRowHoles","actualLiters","actualHsKg","packers","resinKg","spacing","bottlesHanging","bottlesRetrieved"].includes(field)) task[field] = parseDecimal(input.value);
     else task[field] = input.value;
   });
   worksite.tasks.forEach(task => {
-    if (taskIsTechnical(task)) recalculateWorksiteTask(state.settings, task, "actualHoles");
+    // Beim allgemeinen Speichern bleibt der zuletzt eingegebene Ist-Wert
+    // führend. Nur das konkrete geänderte Feld darf die Gegenwerte umrechnen.
+    if (taskIsTechnical(task)) recalculateWorksiteTask(state.settings, task);
   });
   worksite.draftOwnerKey = `${worksite.id}:${worksite.pipedriveDealId || worksite.customer?.pipedriveId || "lokal"}`;
   worksite.draftUpdatedAt = new Date().toISOString();
@@ -5342,7 +5371,8 @@ function plannedScopeHtml(task) {
 function activateWorksiteSection(sectionId) {
   if (!WORKSITE_SECTION_ORDER.includes(sectionId)) sectionId = WORKSITE_SECTION_ORDER[0];
   document.querySelectorAll(".worksite-section").forEach(section => {
-    section.classList.toggle("active", section.id === sectionId);
+    const group = section.dataset.worksiteGroup || section.id;
+    section.classList.toggle("active", group === sectionId);
   });
   document.querySelectorAll("[data-worksite-section]").forEach(button => {
     button.classList.toggle("active", button.dataset.worksiteSection === sectionId);
@@ -5353,7 +5383,7 @@ function activateWorksiteSection(sectionId) {
   if ($("worksiteStepBack")) $("worksiteStepBack").disabled = index <= 0;
   if ($("worksiteStepNext")) {
     $("worksiteStepNext").disabled = false;
-    $("worksiteStepNext").textContent = index >= WORKSITE_SECTION_ORDER.length - 1 ? "Fertig" : "Weiter →";
+    $("worksiteStepNext").textContent = index >= WORKSITE_SECTION_ORDER.length - 1 ? "Abschluss prüfen" : "Weiter →";
   }
   if ($("worksiteStepStatus")) $("worksiteStepStatus").textContent = `Schritt ${index + 1} von ${WORKSITE_SECTION_ORDER.length}`;
   document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -5440,11 +5470,19 @@ function bindWorksiteSectionNavigation() {
 }
 
 function finishWorksiteGuide() {
-  if (activeWorksiteId) saveActiveWorksite(false);
-  activeWorksiteId = null;
-  sessionStorage.setItem("mainabdichter_active_worksite_section", WORKSITE_SECTION_ORDER[0]);
-  renderWorksites();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const ws = activeWorksiteId ? saveActiveWorksite(false) : null;
+  if (!ws) return;
+  activateWorksiteSection("wsSectionReport");
+  renderWorksiteReportChecklist(ws);
+  const firstMissing = $("wsReportChecklist")?.querySelector(".missing");
+  (firstMissing || $("completeWorksite"))?.scrollIntoView({ behavior: "smooth", block: "center" });
+  showStatus(
+    "worksiteStatus",
+    firstMissing
+      ? "Bitte die orange markierten Angaben erledigen. Deine bisherigen Daten sind gespeichert."
+      : "Alles vollständig. Du kannst den Arbeitsnachweis jetzt abschließen.",
+    !firstMissing
+  );
 }
 
 function renderWorksiteOverview(ws) {
@@ -5466,7 +5504,7 @@ function renderWorksiteOverview(ws) {
   if (next) {
     const firstOpen = reportableWorksiteTasks(ws).find(task => !task.completed);
     next.innerHTML = `<div class="worksite-overview-actions">
-      <button type="button" class="secondary" data-jump-worksite="wsSectionDocuments">Aufmaß und Pläne öffnen</button>
+      <button type="button" class="secondary" data-jump-worksite="wsSectionMedia">Aufmaß und Pläne öffnen</button>
       ${firstOpen
         ? `<button type="button" class="primary" data-jump-worksite="wsSectionExecution">Nächster Schritt: ${esc(firstOpen.areaName)} – ${esc(firstOpen.type)}</button>`
         : `<button type="button" class="primary" data-jump-worksite="wsSectionReport">Arbeitsnachweis abschließen</button>`}
@@ -5573,7 +5611,7 @@ function renderWorksiteReportChecklist(ws) {
     ["Alle Maßnahmen geprüft", !firstOpenTask, "wsSectionExecution", firstOpenTask?.id || ""],
     ["Arbeitszeit erfasst", Boolean(ws.startTime && ws.endTime), ws.startTime ? "wsSectionReport" : "wsSectionOverview", ws.startTime ? "wsEnd" : "wsStart"],
     ["Mitarbeiter erfasst", Boolean(String(ws.employees || "").trim()), "wsSectionOverview", "wsEmployees"],
-    ["Bemerkungen geprüft", true, "wsSectionNotes", "wsGeneralNotes"],
+    ["Bemerkungen geprüft", true, "wsSectionExecution", "wsGeneralNotes"],
     ["Kundenbestätigung", Boolean(String(ws.customerSignature || "").trim() && ws.customerSignatureData), "wsSectionReport", "wsCustomerSignature"]
   ];
   box.innerHTML = checks.map(([label, ok, section, target]) => `
@@ -5857,7 +5895,7 @@ function renderWorksiteEditor() {
   }
   bindWorksiteSectionNavigation();
   const storedSection = sessionStorage.getItem("mainabdichter_active_worksite_section") || "wsSectionOverview";
-  activateWorksiteSection(document.getElementById(storedSection) ? storedSection : "wsSectionOverview");
+  activateWorksiteSection(WORKSITE_SECTION_ORDER.includes(storedSection) ? storedSection : "wsSectionOverview");
   ws.tasks.forEach(task => {
     if (task.offerDescription === undefined) task.offerDescription = task.note || "";
     if (task.actualNote === undefined) task.actualNote = "";
@@ -5972,7 +6010,7 @@ function renderWorksiteEditor() {
       for (const file of [...event.target.files]) task.photos.push(await stageWorksitePhoto(file, ws, task, category));
       persistWorksite(ws);
       event.target.value = "";
-      sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos");
+      sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionMedia");
       renderWorksiteEditor();
     } catch (error) {
       event.target.value = "";
@@ -5986,7 +6024,7 @@ function renderWorksiteEditor() {
     task.photos=task.photos.filter(photo=>photo.id!==button.dataset.deleteWsPhoto);
     await deleteWorksitePhoto(button.dataset.deleteWsPhoto);
     persistWorksite(ws);
-    sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionPhotos");
+    sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionMedia");
     renderWorksiteEditor();
   });
   document.querySelectorAll('[data-ws-field="spacing"], [data-ws-field="wall"], [data-ws-field="actualHoles"], [data-ws-field="actualQuantity"], [data-ws-field="actualWidth"], [data-ws-field="actualHeight"], [data-ws-field="surfaceFirstRowHoles"], [data-ws-field="surfaceFollowingRowHoles"], [data-ws-field="actualMlPerHole"]').forEach(input => {
@@ -6029,6 +6067,19 @@ function renderWorksiteEditor() {
       const view = captureWorksiteView(input);
       renderWorksiteEditor();
       restoreWorksiteView(view);
+    };
+  });
+  document.querySelectorAll('[data-ws-field="completed"]').forEach(input => {
+    input.onchange = () => {
+      const task = ws.tasks.find(item => item.id === input.dataset.wsTask);
+      if (!task) return;
+      task.completed = input.checked;
+      persistWorksite(ws);
+      if (reportableWorksiteTasks(ws).length && reportableWorksiteTasks(ws).every(item => item.completed)) {
+        sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionMedia");
+        activateWorksiteSection("wsSectionMedia");
+        showStatus("worksiteStatus", "Alle Maßnahmen erledigt und gespeichert. Jetzt nur noch Fotos oder Unterlagen prüfen.", true);
+      }
     };
   });
   document.querySelectorAll("[data-confirm-bottle-pickup]").forEach(button => button.onclick = () => {
@@ -6460,6 +6511,7 @@ if ($("startWorkday")) $("startWorkday").onclick = () => {
   ws.startTime = localTimeValue(now);
   ws.status = "active";
   persistWorksite(ws);
+  sessionStorage.setItem("mainabdichter_active_worksite_section", "wsSectionExecution");
   renderWorksiteEditor();
 };
 if ($("endWorkday")) $("endWorkday").onclick = () => {
@@ -6520,6 +6572,8 @@ async function uploadWorksitePdfToDrive(worksite, pdf) {
 
 $("completeWorksite").onclick = async () => {
   noteBackgroundUpload(180000);
+  const completeButton = $("completeWorksite");
+  completeButton.disabled = true;
   try {
     const ws=saveActiveWorksite(false);
     if (ws.materialBooked || ws.status === "completed") throw new Error("Diese Baustelle wurde bereits abgeschlossen und das Material bereits abgebucht.");
@@ -6540,26 +6594,51 @@ $("completeWorksite").onclick = async () => {
     ws.invoicePendingAt = new Date().toISOString();
     ws.reportLockedAt = new Date().toISOString();
     const pdf=await createWorksitePdf(ws, state.settings);
+    const completionWarnings = [];
     try {
-      showStatus("worksiteStatus", "PDF und Baustellenfotos werden in Google Drive gespeichert …", true);
+      showStatus("worksiteStatus", "Arbeitsnachweis wird sicher in Google Drive gespeichert …", true);
       await uploadWorksitePdfToDrive(ws, pdf);
-      const photoUpload = await syncWorksitePhotos(ws);
-      if (photoUpload.errors.length) {
-        throw new Error(`Google-Drive-Fotoupload fehlgeschlagen: ${photoUpload.errors[0]}`);
-      }
       persistWorksite(ws);
-      showStatus("worksiteStatus", "Google Drive ✓ – Pipedrive wird aktualisiert …", true);
-      await syncWorksiteDeal(ws,"executionCompleted",pdf);
     }
     catch(error) { ws.status=oldStatus; persistWorksite(ws); throw error; }
-    deductWorksiteInventory(ws);
+
+    // Fotos und Pipedrive sind nachgelagerte Synchronisationen. Ein kurzer
+    // Ausfall darf den bereits sicher gespeicherten Arbeitsnachweis nicht
+    // wieder auf "offen" setzen.
+    try {
+      const photoUpload = await syncWorksitePhotos(ws);
+      if (photoUpload.errors.length) completionWarnings.push(`Fotos noch offen: ${photoUpload.errors[0]}`);
+    } catch (error) {
+      completionWarnings.push(`Fotos noch offen: ${error.message}`);
+    }
+    try {
+      showStatus("worksiteStatus", "Google Drive ✓ – Pipedrive wird aktualisiert …", true);
+      await syncWorksiteDeal(ws,"executionCompleted",pdf);
+      ws.pipedrivePendingSync = false;
+      ws.pipedriveSyncError = "";
+    } catch (error) {
+      ws.pipedrivePendingSync = true;
+      ws.pipedriveSyncError = error.message;
+      completionWarnings.push(`Pipedrive wird später nachgeholt: ${error.message}`);
+    }
+
+    if (!ws.materialBooked) deductWorksiteInventory(ws);
+    ws.completionWarnings = completionWarnings;
     persistWorksite(ws); saveState(); renderInventorySettings();
     activeWorksiteId = null;
     delete $("worksiteEditor").dataset.worksiteId;
     renderWorksites();
-    showStatus("worksiteStatus","Abgeschlossen: Der Arbeitsnachweis liegt jetzt in der Kundenakte.",true);
+    renderV28Dashboard();
+    window.alert(
+      completionWarnings.length
+        ? `Arbeitsnachweis sicher abgeschlossen und in Google Drive gespeichert.\n\n${completionWarnings.join("\n")}`
+        : "Arbeitsnachweis sicher abgeschlossen. PDF, Kundenakte und Materialbestand sind gespeichert."
+    );
   } catch(error){ addSyncLog("Baustellenabschluss",false,error.message); showStatus("worksiteStatus",`Abschluss abgebrochen: ${error.message}`,false); }
-  finally { backgroundUploadUntil = Date.now() + 5000; }
+  finally {
+    completeButton.disabled = false;
+    backgroundUploadUntil = Date.now() + 5000;
+  }
 };
 
 window.addEventListener("mainabdichter:open-worksite-record", event => {
@@ -6864,9 +6943,12 @@ function recoverySummary(recovery) {
 function offerUnsyncedLocalRecovery(recovery) {
   setCentralSyncGate(
     "recovery",
-    "Lokale iPhone-Rettung gefunden",
-    `${recoverySummary(recovery)} Noch wurde davon nichts überschrieben.`
+    "Zusätzliche lokale Daten gefunden",
+    `${recoverySummary(recovery)} Der Zentralstand und diese Sicherung werden sicher zusammengeführt. Nichts wird gelöscht.`
   );
+  if ($("centralSyncRecovery")) {
+    $("centralSyncRecovery").textContent = "Sicher zusammenführen";
+  }
 }
 
 async function restoreUnsyncedLocalCopy() {
@@ -6880,15 +6962,38 @@ async function restoreUnsyncedLocalCopy() {
     return false;
   }
   if (!window.confirm(
-    `Diesen lokalen iPhone-Stand wiederherstellen?\n\n${recoverySummary(recovery)}`
+    `Zentralstand und lokale iPhone-Sicherung sicher zusammenführen?\n\n${recoverySummary(recovery)}\n\nVorhandene Daten bleiben erhalten.`
   )) return false;
 
-  setCentralSyncGate("loading", "Lokalen iPhone-Stand wiederherstellen …");
+  setCentralSyncGate(
+    "loading",
+    "Daten sicher zusammenführen …",
+    "Zentralstand und iPhone-Sicherung werden kombiniert. Bitte die App geöffnet lassen."
+  );
   try {
-    const response = await loadDriveBackup();
-    const expectedRemoteModifiedTime = response?.file?.modifiedTime || "";
-    restoreFullBackupPayload(recovery.payload);
-    const saved = await saveDriveBackup(recovery.payload, expectedRemoteModifiedTime);
+    let response = await loadDriveBackup();
+    let expectedRemoteModifiedTime = response?.file?.modifiedTime || "";
+    let safePayload = response?.exists && response?.backup
+      ? mergeFullBackupPayload(response.backup, recovery.payload)
+      : recovery.payload;
+
+    let saved;
+    try {
+      saved = await saveDriveBackup(safePayload, expectedRemoteModifiedTime);
+    } catch (error) {
+      // Falls währenddessen ein anderes Gerät gespeichert hat, wird dessen
+      // neuester Stand ebenfalls einbezogen und genau einmal erneut versucht.
+      if (!/409|conflict|geändert|modified/i.test(String(error?.message || error))) throw error;
+      response = await loadDriveBackup();
+      expectedRemoteModifiedTime = response?.file?.modifiedTime || "";
+      safePayload = response?.exists && response?.backup
+        ? mergeFullBackupPayload(response.backup, safePayload)
+        : safePayload;
+      saved = await saveDriveBackup(safePayload, expectedRemoteModifiedTime);
+    }
+
+    // Erst nach der erfolgreichen zentralen Speicherung lokal übernehmen.
+    restoreFullBackupPayload(safePayload);
     const synchronizedAt = saved?.file?.modifiedTime || new Date().toISOString();
     rememberRemoteRevision(saved?.file?.modifiedTime || synchronizedAt);
     localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
@@ -6905,7 +7010,7 @@ async function restoreUnsyncedLocalCopy() {
     setCentralSyncGate(
       "error",
       "Lokale Daten bleiben gesichert",
-      "Die Rettungskopie wurde nicht gelöscht. Bitte erneut versuchen und bis dahin keine Daten neu eingeben."
+      "Die Sicherung wurde nicht gelöscht und der vorhandene Stand nicht verändert. Bitte erneut versuchen."
     );
     return false;
   }
@@ -6965,6 +7070,15 @@ async function runAutomaticDriveBackup() {
     setAutomaticSaveState("✓ zentral gespeichert");
   } catch (error) {
     console.warn("Automatische Drive-Sicherung fehlgeschlagen:", error);
+    if (error?.status === 422 || error?.details?.protection === "backup-collapse-blocked") {
+      preserveUnsyncedLocalCopy(addDeviceMetadata(createFullBackupPayload()), lastKnownRemoteModifiedTime);
+      setAutomaticSaveState("✓ lokal geschützt · Sicherheitsstopp", true);
+      showRemoteUpdateNotice({
+        title: "Sicherheitsstopp – nichts wurde gelöscht",
+        hint: "Der gesendete Stand war unvollständig. Die App hat ihn lokal gesichert, der vollständige Zentralstand blieb unverändert."
+      });
+      return;
+    }
     if (error?.status === 409) {
       preserveUnsyncedLocalCopy(addDeviceMetadata(createFullBackupPayload()), lastKnownRemoteModifiedTime);
       showRemoteUpdateNotice({
