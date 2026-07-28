@@ -2402,3 +2402,74 @@ button.danger{
 .central-sync-actions button{min-height:46px;padding:10px 16px}
 body.central-syncing{overflow:hidden}
 @keyframes central-sync-spin{to{transform:rotate(360deg)}}
+
+/* V32.19.4 – ruhige Synchronisierung und eindeutiger Besichtigungsabschluss */
+.remote-update-notice{
+  position:fixed;
+  z-index:2200;
+  top:calc(12px + env(safe-area-inset-top));
+  left:50%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:9px;
+  align-items:center;
+  width:min(720px,calc(100% - 24px));
+  box-sizing:border-box;
+  padding:12px;
+  transform:translateX(-50%);
+  border:1px solid #cfe0cf;
+  border-radius:16px;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 12px 34px rgba(25,53,31,.18);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.remote-update-notice.hidden{display:none}
+.remote-update-notice div{display:grid;gap:2px;min-width:0}
+.remote-update-notice strong{font-size:13px;line-height:1.25}
+.remote-update-notice small{font-size:10px;line-height:1.35;color:#667169}
+.remote-update-notice button{min-height:42px;padding:9px 13px;font-size:11px}
+.visit-sticky-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  align-items:stretch;
+  padding:12px;
+}
+.visit-sticky-actions>button{min-height:54px}
+.visit-finish-primary,.finish-visit-reason,.visit-more-actions{grid-column:1/-1}
+.visit-finish-primary{font-size:15px}
+.visit-more-actions{
+  border:1px solid #dbe4dc;
+  border-radius:13px;
+  background:#f7f9f6;
+}
+.visit-more-actions>summary{
+  padding:13px 14px;
+  cursor:pointer;
+  color:#4d5a50;
+  font-size:12px;
+  font-weight:900;
+  text-align:center;
+  list-style:none;
+}
+.visit-more-actions>summary::-webkit-details-marker{display:none}
+.visit-more-actions>summary::after{content:"  ▾"}
+.visit-more-actions[open]>summary::after{content:"  ▴"}
+.visit-persist-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  width:100%;
+  box-sizing:border-box;
+  padding:0 10px 10px;
+}
+.visit-persist-actions button{min-height:52px;white-space:normal}
+@media(max-width:620px){
+  .remote-update-notice{top:calc(8px + env(safe-area-inset-top));grid-template-columns:1fr 1fr}
+  .remote-update-notice div{grid-column:1/-1}
+  .visit-sticky-actions{grid-template-columns:1fr;padding:10px}
+  .visit-sticky-actions>*{grid-column:1}
+  .visit-persist-actions{grid-template-columns:1fr}
+  .mobile-workflow-jump{top:calc(76px + env(safe-area-inset-top))}
+}

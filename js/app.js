@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.3";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.4";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.3";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.4";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.3";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.4";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.19.3";
+const MAINABDICHTER_APP_VERSION = "32.19.4";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2397,7 +2397,7 @@ function renderVisitTimeStatus() {
       : "";
   }
   if ($("startVisitWork")) $("startVisitWork").textContent = state.visit.visitStartTime ? "Beginn erfasst" : "Besichtigung beginnen";
-  if ($("endVisitWork")) $("endVisitWork").textContent = state.visit.visitEndTime ? "Besichtigung beendet" : "Besichtigung beenden";
+  if ($("endVisitWork")) $("endVisitWork").textContent = state.visit.visitEndTime ? `Endzeit erfasst: ${state.visit.visitEndTime} Uhr` : "Endzeit jetzt erfassen";
 }
 
 $("visitStartTime").oninput = () => {
@@ -2518,7 +2518,7 @@ $("toOffer").onclick = () => {
   saveState();
   renderInspectionSummary();
   openGuideStep(7);
-  showStatus("visitStatus","Protokoll vollständig. Bitte die Zusammenfassung prüfen und anschließend die Angebotsgrundlage bestätigen.",true);
+  showStatus("visitStatus","Alle Pflichtangaben sind vollständig. Prüfe kurz die Zusammenfassung und gib anschließend den Abschluss frei.",true);
 };
 
 const VISIT_TOOLBAR_TARGETS = {
@@ -3299,7 +3299,14 @@ function renderVisitDocuments() {
         <button type="button" class="danger" data-delete-visit-document="${document.id}">Entfernen</button>
       </div>
     </article>`).join("") : `<div class="empty-mini">Noch keine Pläne oder Dokumente hinterlegt.</div>`;
-  box.querySelectorAll("[data-retry-visit-document]").forEach(button => button.onclick = syncPendingVisitDocuments);
+  box.querySelectorAll("[data-retry-visit-document]").forEach(button => button.onclick = async () => {
+    noteBackgroundUpload(120000);
+    try {
+      await syncPendingVisitDocuments();
+    } finally {
+      backgroundUploadUntil = Date.now() + 5000;
+    }
+  });
   box.querySelectorAll("[data-delete-visit-document]").forEach(button => button.onclick = async () => {
     state.visit.documents = state.visit.documents.filter(document => document.id !== button.dataset.deleteVisitDocument);
     await deleteQueuedVisitDocument(button.dataset.deleteVisitDocument);
@@ -3312,11 +3319,16 @@ if ($("addVisitDocuments")) $("addVisitDocuments").onclick = () => $("visitDocum
 if ($("visitDocumentInput")) $("visitDocumentInput").onchange = async event => {
   const category = $("visitDocumentCategory").value || "Sonstiges";
   const note = $("visitDocumentNote").value.trim();
-  for (const file of [...event.target.files]) await stageVisitDocument(file, category, note);
-  event.target.value = "";
-  $("visitDocumentNote").value = "";
-  renderVisitDocuments();
-  syncPendingVisitDocuments();
+  noteBackgroundUpload(120000);
+  try {
+    for (const file of [...event.target.files]) await stageVisitDocument(file, category, note);
+    event.target.value = "";
+    $("visitDocumentNote").value = "";
+    renderVisitDocuments();
+    await syncPendingVisitDocuments();
+  } finally {
+    backgroundUploadUntil = Date.now() + 5000;
+  }
 };
 window.addEventListener("drive-document-updated", renderVisitDocuments);
 
@@ -3919,7 +3931,12 @@ if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
   closeWallSurvey();
   renderAreas();
   showStatus("visitStatus", "Aufmaß und Besichtigung wurden gespeichert und sind unter Vorgänge wieder abrufbar.", true);
-  syncPendingVisitPhotos();
+  noteBackgroundUpload(120000);
+  try {
+    await syncPendingVisitPhotos();
+  } finally {
+    backgroundUploadUntil = Date.now() + 5000;
+  }
 };
 
 function renderAreas() {
@@ -4010,10 +4027,15 @@ function renderAreas() {
 
   box.querySelectorAll("[data-photo-area]").forEach(input => input.onchange = async event => {
     const area = state.visit.areas.find(item => item.id === input.dataset.photoArea);
-    for (const file of [...event.target.files]) await stageVisitPhoto(file, area);
-    renderAreas();
-    syncPendingVisitPhotos();
-    event.target.value = "";
+    noteBackgroundUpload(120000);
+    try {
+      for (const file of [...event.target.files]) await stageVisitPhoto(file, area);
+      renderAreas();
+      await syncPendingVisitPhotos();
+      event.target.value = "";
+    } finally {
+      backgroundUploadUntil = Date.now() + 5000;
+    }
   });
 
   bindSpeechButtons();
@@ -6497,6 +6519,7 @@ async function uploadWorksitePdfToDrive(worksite, pdf) {
 }
 
 $("completeWorksite").onclick = async () => {
+  noteBackgroundUpload(180000);
   try {
     const ws=saveActiveWorksite(false);
     if (ws.materialBooked || ws.status === "completed") throw new Error("Diese Baustelle wurde bereits abgeschlossen und das Material bereits abgebucht.");
@@ -6536,6 +6559,7 @@ $("completeWorksite").onclick = async () => {
     renderWorksites();
     showStatus("worksiteStatus","Abgeschlossen: Der Arbeitsnachweis liegt jetzt in der Kundenakte.",true);
   } catch(error){ addSyncLog("Baustellenabschluss",false,error.message); showStatus("worksiteStatus",`Abschluss abgebrochen: ${error.message}`,false); }
+  finally { backgroundUploadUntil = Date.now() + 5000; }
 };
 
 window.addEventListener("mainabdichter:open-worksite-record", event => {
@@ -6725,6 +6749,50 @@ const LOCAL_CHANGE_TIME_KEY = "mainabdichter_local_change_time";
 const LOCAL_DIRTY_KEY = "mainabdichter_v32_local_changes_pending";
 const REMOTE_BASE_TIME_KEY = "mainabdichter_v32_remote_base_modified";
 const LOCAL_CONFLICT_BACKUP_KEY = "mainabdichter_v32_unsynced_recovery";
+const CENTRAL_BOOTSTRAP_OK_KEY = "mainabdichter_v32_central_bootstrap_ok";
+const DEVICE_ID_KEY = "mainabdichter_v32_device_id";
+const DEVICE_ID = localStorage.getItem(DEVICE_ID_KEY) || crypto.randomUUID();
+localStorage.setItem(DEVICE_ID_KEY, DEVICE_ID);
+let lastUserActivityAt = Date.now();
+let backgroundUploadUntil = 0;
+let deferredRemoteResponse = null;
+
+function markUserActivity() {
+  lastUserActivityAt = Date.now();
+}
+
+function noteBackgroundUpload(durationMs = 60000) {
+  backgroundUploadUntil = Math.max(backgroundUploadUntil, Date.now() + durationMs);
+}
+
+function isUserActivelyWorking() {
+  const field = document.activeElement;
+  return (
+    Date.now() - lastUserActivityAt < 20000 ||
+    Date.now() < backgroundUploadUntil ||
+    Boolean(field?.matches?.("input, textarea, select, [contenteditable='true']"))
+  );
+}
+
+function showRemoteUpdateNotice({
+  title = "Neuer Stand auf einem anderen Gerät",
+  hint = "Deine aktuelle Eingabe bleibt unverändert."
+} = {}) {
+  if ($("remoteUpdateTitle")) $("remoteUpdateTitle").textContent = title;
+  if ($("remoteUpdateHint")) $("remoteUpdateHint").textContent = hint;
+  $("remoteUpdateNotice")?.classList.remove("hidden");
+}
+
+function hideRemoteUpdateNotice() {
+  $("remoteUpdateNotice")?.classList.add("hidden");
+}
+
+function addDeviceMetadata(payload) {
+  payload.metadata ||= {};
+  payload.metadata.deviceId = DEVICE_ID;
+  payload.metadata.deviceActiveAt = new Date().toISOString();
+  return payload;
+}
 
 function setCentralSyncGate(mode = "loading", title = "", hint = "") {
   const gate = $("centralSyncGate");
@@ -6881,7 +6949,7 @@ async function runAutomaticDriveBackup() {
     const ready = await ensureDriveBootstrap();
     if (!ready) throw new Error("Zentraler Datenstand konnte noch nicht sicher geprüft werden.");
     collectVisibleAutomaticData();
-    const payload = createFullBackupPayload();
+    const payload = addDeviceMetadata(createFullBackupPayload());
     payload.metadata ||= {};
     payload.metadata.lastChangedAt =
       localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || payload.exportedAt;
@@ -6894,14 +6962,15 @@ async function runAutomaticDriveBackup() {
     localStorage.removeItem(LOCAL_DIRTY_KEY);
     automaticDriveRetry = false;
     updateBackupTime();
+    setAutomaticSaveState("✓ zentral gespeichert");
   } catch (error) {
     console.warn("Automatische Drive-Sicherung fehlgeschlagen:", error);
     if (error?.status === 409) {
-      setCentralSyncGate(
-        "error",
-        "Änderung auf einem anderen Gerät erkannt",
-        "Deine Eingaben bleiben auf diesem Gerät erhalten und wurden nicht überschrieben. Tippe auf „Erneut versuchen“, nachdem das andere Gerät fertig synchronisiert hat."
-      );
+      preserveUnsyncedLocalCopy(addDeviceMetadata(createFullBackupPayload()), lastKnownRemoteModifiedTime);
+      showRemoteUpdateNotice({
+        title: "Anderes Gerät hat neuere Daten",
+        hint: "Deine Eingaben bleiben gespeichert. Aktualisiere erst, wenn du mit diesem Schritt fertig bist."
+      });
       return;
     }
     if (!automaticDriveRetry) {
@@ -6945,12 +7014,18 @@ async function ensureDriveBootstrap() {
     );
     return false;
   }
+  if (!navigator.onLine && localStorage.getItem(CENTRAL_BOOTSTRAP_OK_KEY) === "1") {
+    driveBootstrapComplete = true;
+    setCentralSyncGate("ready");
+    setAutomaticSaveState("offline · lokal gespeichert", true);
+    return true;
+  }
   if (automaticDriveLoading) return false;
   automaticDriveLoading = true;
   setCentralSyncGate("loading");
   try {
     let response = await loadDriveBackup();
-    const localPayload = createFullBackupPayload();
+    const localPayload = addDeviceMetadata(createFullBackupPayload());
     if (response?.exists && response.backup) {
       const knownBase = localStorage.getItem(REMOTE_BASE_TIME_KEY) || "";
       response = await uploadPendingLocalChangesIfSafe(response, localPayload, knownBase) || response;
@@ -6973,10 +7048,17 @@ async function ensureDriveBootstrap() {
       renderAfterDriveRestore();
     }
     driveBootstrapComplete = true;
+    localStorage.setItem(CENTRAL_BOOTSTRAP_OK_KEY, "1");
     setCentralSyncGate("ready");
     return true;
   } catch (error) {
     console.warn("Erstsynchronisierung wurde aus Sicherheitsgründen nicht freigegeben:", error);
+    if (localStorage.getItem(CENTRAL_BOOTSTRAP_OK_KEY) === "1") {
+      driveBootstrapComplete = true;
+      setCentralSyncGate("ready");
+      setAutomaticSaveState("offline · lokal gespeichert", true);
+      return true;
+    }
     const reason = error?.status === 401
       ? "APP_SECRET stimmt nicht mit dem Cloudflare Worker überein."
       : error?.status === 503
@@ -6993,63 +7075,83 @@ async function ensureDriveBootstrap() {
   }
 }
 
-async function synchronizeFromDrive({ force = false, gate = false } = {}) {
+async function synchronizeFromDrive({ force = false, userRequested = false } = {}) {
   if (automaticDriveLoading || !hasConnectionConfig()) return false;
   if (!driveBootstrapComplete) return ensureDriveBootstrap();
   automaticDriveLoading = true;
-  if (gate) setCentralSyncGate("loading", "Aktuellen Datenstand abrufen …");
   try {
     let response = await loadDriveBackup();
     if (!response?.exists || !response.backup) {
-      if (gate) setCentralSyncGate("ready");
       return false;
     }
-    const localPayload = createFullBackupPayload();
-    response = await uploadPendingLocalChangesIfSafe(
-      response,
-      localPayload,
-      lastKnownRemoteModifiedTime || localStorage.getItem(REMOTE_BASE_TIME_KEY) || ""
-    ) || response;
+    const localPayload = addDeviceMetadata(createFullBackupPayload());
     const fetchedRemoteModifiedTime = response.file?.modifiedTime || "";
+    const knownBase =
+      lastKnownRemoteModifiedTime ||
+      localStorage.getItem(REMOTE_BASE_TIME_KEY) ||
+      "";
     const remoteRevisionChanged = Boolean(
       fetchedRemoteModifiedTime &&
-      lastKnownRemoteModifiedTime &&
-      fetchedRemoteModifiedTime !== lastKnownRemoteModifiedTime
+      knownBase &&
+      fetchedRemoteModifiedTime !== knownBase
     );
-    rememberRemoteRevision(fetchedRemoteModifiedTime);
+    const hasPendingChanges = localStorage.getItem(LOCAL_DIRTY_KEY) === "1";
+    const changedOnAnotherDevice = Boolean(
+      remoteRevisionChanged &&
+      response.backup?.metadata?.deviceId &&
+      response.backup.metadata.deviceId !== DEVICE_ID
+    );
+
+    if (hasPendingChanges && remoteRevisionChanged) {
+      preserveUnsyncedLocalCopy(localPayload, fetchedRemoteModifiedTime);
+      deferredRemoteResponse = response;
+      showRemoteUpdateNotice({
+        title: "Änderungen auf zwei Geräten",
+        hint: "Deine aktuelle Eingabe wurde nicht überschrieben. Beende oder speichere zuerst diesen Arbeitsschritt."
+      });
+      return false;
+    }
+
+    if (hasPendingChanges && !remoteRevisionChanged) {
+      const saved = await saveDriveBackup(localPayload, fetchedRemoteModifiedTime || knownBase);
+      const synchronizedAt = saved?.file?.modifiedTime || new Date().toISOString();
+      rememberRemoteRevision(saved?.file?.modifiedTime || synchronizedAt);
+      localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
+      localStorage.removeItem(LOCAL_DIRTY_KEY);
+      setAutomaticSaveState("✓ zentral gespeichert");
+      return true;
+    }
+
+    if (
+      changedOnAnotherDevice &&
+      !userRequested &&
+      (isUserActivelyWorking() || document.querySelector(".page.active")?.id !== "dashboard")
+    ) {
+      deferredRemoteResponse = response;
+      showRemoteUpdateNotice();
+      return false;
+    }
+
+    if (!remoteRevisionChanged && !force) return false;
     const remoteTime = backupTimestamp(response.backup, response.file);
-    const localChangeTime = Date.parse(
-      localStorage.getItem(LOCAL_CHANGE_TIME_KEY) || ""
-    ) || 0;
     const lastSyncTime = Date.parse(
       localStorage.getItem(DRIVE_SYNC_TIME_KEY) || ""
     ) || 0;
-    if (
-      !force &&
-      !remoteRevisionChanged &&
-      remoteTime <= Math.max(localChangeTime, lastSyncTime)
-    ) {
-      if (gate) setCentralSyncGate("ready");
-      return false;
-    }
+    if (!force && remoteTime <= lastSyncTime) return false;
     const centralPayload = createServerAuthoritativePayload(response.backup, localPayload);
     restoreFullBackupPayload(centralPayload);
+    rememberRemoteRevision(fetchedRemoteModifiedTime);
     const synchronizedAt = new Date(remoteTime || Date.now()).toISOString();
     localStorage.setItem(DRIVE_SYNC_TIME_KEY, synchronizedAt);
     localStorage.setItem("mainabdichter_v14_last_backup", synchronizedAt);
     localStorage.removeItem(LOCAL_DIRTY_KEY);
     renderAfterDriveRestore();
-    if (gate) setCentralSyncGate("ready");
+    deferredRemoteResponse = null;
+    hideRemoteUpdateNotice();
     return true;
   } catch (error) {
     console.warn("Drive-Synchronisierung konnte nicht geladen werden:", error);
-    if (gate) {
-      setCentralSyncGate(
-        "error",
-        "Aktualisierung fehlgeschlagen",
-        "Die bisherigen Gerätedaten bleiben gesperrt, bis der zentrale Stand sicher geladen wurde."
-      );
-    }
+    setAutomaticSaveState("offline · lokal gespeichert", true);
     return false;
   } finally {
     automaticDriveLoading = false;
@@ -7057,6 +7159,7 @@ async function synchronizeFromDrive({ force = false, gate = false } = {}) {
 }
 
 function scheduleAutomaticSave() {
+  markUserActivity();
   localStorage.setItem(LOCAL_CHANGE_TIME_KEY, new Date().toISOString());
   localStorage.setItem(LOCAL_DIRTY_KEY, "1");
   setAutomaticSaveState("speichert …", true);
@@ -7072,14 +7175,25 @@ function scheduleAutomaticSave() {
   }, 350);
   window.clearTimeout(automaticDriveSaveTimer);
   automaticDriveSaveTimer = window.setTimeout(async () => {
-    if (await ensureDriveBootstrap()) await runAutomaticDriveBackup();
-  }, 4000);
+    if (!isUserActivelyWorking() && await ensureDriveBootstrap()) {
+      await runAutomaticDriveBackup();
+    } else {
+      automaticDriveSaveTimer = window.setTimeout(runAutomaticDriveBackup, 20000);
+    }
+  }, 20000);
 }
 
 document.addEventListener("input", scheduleAutomaticSave, true);
 document.addEventListener("change", scheduleAutomaticSave, true);
+["pointerdown", "touchstart", "keydown"].forEach(eventName => {
+  document.addEventListener(eventName, markUserActivity, { capture: true, passive: true });
+});
 document.addEventListener("click", event => {
-  if (event.target.closest("button") && !event.target.closest("#centralSyncGate")) {
+  if (
+    event.target.closest("button") &&
+    !event.target.closest("#centralSyncGate") &&
+    !event.target.closest("#remoteUpdateNotice")
+  ) {
     scheduleAutomaticSave();
   }
 }, true);
@@ -7087,18 +7201,39 @@ window.addEventListener("pagehide", () => {
   collectVisibleAutomaticData();
   void runAutomaticDriveBackup();
 });
-window.addEventListener("focus", () => void synchronizeFromDrive({ force: true, gate: true }));
+function scheduleQuietRemoteCheck(delay = 2500) {
+  window.setTimeout(() => {
+    if (document.visibilityState === "visible" && !isUserActivelyWorking()) {
+      void synchronizeFromDrive();
+    }
+  }, delay);
+}
+window.addEventListener("focus", () => scheduleQuietRemoteCheck());
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    void synchronizeFromDrive({ force: true, gate: true });
+    scheduleQuietRemoteCheck();
   }
 });
-window.setInterval(runAutomaticDriveBackup, 5 * 60 * 1000);
+window.addEventListener("online", () => {
+  setAutomaticSaveState("Verbindung wieder da · synchronisiert gleich", true);
+  window.setTimeout(async () => {
+    await runAutomaticDriveBackup();
+    await synchronizeFromDrive();
+  }, 3000);
+});
+window.addEventListener("offline", () => {
+  setAutomaticSaveState("offline · lokal gespeichert", true);
+});
 window.setInterval(() => {
-  if (document.visibilityState === "visible") {
-    void synchronizeFromDrive({ force: true });
+  if (localStorage.getItem(LOCAL_DIRTY_KEY) === "1" && !isUserActivelyWorking()) {
+    void runAutomaticDriveBackup();
   }
 }, 60 * 1000);
+window.setInterval(() => {
+  if (document.visibilityState === "visible" && !isUserActivelyWorking()) {
+    void synchronizeFromDrive();
+  }
+}, 2 * 60 * 1000);
 window.setInterval(() => {
   if (document.visibilityState === "visible" && hasConnectionConfig()) void loadAndMatchEmailInbox();
 }, 5 * 60 * 1000);
@@ -7132,6 +7267,17 @@ $("centralSyncSetup")?.addEventListener("click", () => {
   $("workerUrl")?.focus();
 });
 $("centralSyncRecovery")?.addEventListener("click", restoreUnsyncedLocalCopy);
+$("applyRemoteUpdate")?.addEventListener("click", async () => {
+  if (localStorage.getItem(LOCAL_DIRTY_KEY) === "1") {
+    showRemoteUpdateNotice({
+      title: "Aktuelle Eingabe zuerst speichern",
+      hint: "Tippe in der Besichtigung auf „Speichern & später fortsetzen“. Danach kann der andere Gerätestand geladen werden."
+    });
+    return;
+  }
+  await synchronizeFromDrive({ force: true, userRequested: true });
+});
+$("dismissRemoteUpdate")?.addEventListener("click", hideRemoteUpdateNotice);
 
 const localEmergencyRecovery = readUnsyncedLocalCopy();
 let centralDataReady = false;

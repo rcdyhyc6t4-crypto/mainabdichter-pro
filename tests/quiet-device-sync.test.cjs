@@ -1,0 +1,24 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const app = fs.readFileSync(path.join(root, "js/app.js"), "utf8");
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const css = fs.readFileSync(path.join(root, "css/app.css"), "utf8");
+
+assert.match(app, /const DEVICE_ID_KEY/);
+assert.match(app, /offline · lokal gespeichert/);
+assert.match(app, /isUserActivelyWorking\(\)/);
+assert.match(app, /noteBackgroundUpload\(120000\)/);
+assert.match(app, /deferredRemoteResponse/);
+assert.doesNotMatch(app, /synchronizeFromDrive\(\{\s*force:\s*true,\s*gate:\s*true/);
+
+assert.match(html, /Speichern & später fortsetzen/);
+assert.match(html, /Zusammenfassung ansehen/);
+assert.match(html, /Abschließen & Angebot öffnen/);
+assert.match(html, /Weitere Möglichkeiten/);
+assert.match(css, /\.remote-update-notice/);
+assert.match(css, /\.visit-more-actions/);
+
+console.log("Ruhige Gerätesynchronisierung und Besichtigungsabschluss: OK");

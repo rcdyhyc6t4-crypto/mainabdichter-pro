@@ -1,0 +1,9 @@
+mainabdichter PRO V32.19.4
+
+- Ruhige Synchronisierung: keine Vollbild-Aktualisierung während der Arbeit.
+- Lokale Eingaben bleiben offline möglich und werden später übertragen.
+- Änderungen anderer Geräte erscheinen als unaufdringlicher Hinweis.
+- Foto- und Dokumentuploads werden nicht durch Hintergrundabgleiche gestört.
+- Besichtigungsabschluss auf iPhone und iPad übersichtlich neu geordnet.
+- Speichern, Zusammenfassung und Abschluss sind eindeutig getrennt.
+- Verwerfen und endgültiges Löschen liegen geschützt unter „Weitere Möglichkeiten“.

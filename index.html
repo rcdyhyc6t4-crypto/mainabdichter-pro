@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.19.3</title>
-<link rel="stylesheet" href="css/app.css?v=32.19.3">
+<title>mainabdichter PRO V32.19.4</title>
+<link rel="stylesheet" href="css/app.css?v=32.19.4">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -37,6 +37,14 @@ main{width:100%;max-width:100%}
       <button type="button" id="centralSyncSetup" class="secondary hidden">Verbindung einrichten</button>
     </div>
   </div>
+</div>
+<div id="remoteUpdateNotice" class="remote-update-notice hidden" role="status" aria-live="polite">
+  <div>
+    <strong id="remoteUpdateTitle">Neuer Stand auf einem anderen Gerät</strong>
+    <small id="remoteUpdateHint">Deine aktuelle Eingabe bleibt unverändert.</small>
+  </div>
+  <button type="button" id="applyRemoteUpdate" class="primary">Jetzt aktualisieren</button>
+  <button type="button" id="dismissRemoteUpdate" class="secondary">Später</button>
 </div>
 <main>
 <section id="dashboard" class="page active v28-dashboard">
@@ -377,9 +385,9 @@ main{width:100%;max-width:100%}
       <option value="visitStep4">4 · Messen und Maßnahmen</option>
       <option value="visitStep5">Fotos und Dokumente</option>
       <option value="visitStep6">Zusatzleistungen</option>
-      <option value="visitSummary">Protokoll prüfen</option>
-      <option value="visitCompletion">Fehlende Angaben</option>
-      <option value="visitOfferBasis">Angebot freigeben</option>
+      <option value="visitSummary">7 · Zusammenfassung</option>
+      <option value="visitCompletion">8 · Vollständigkeit</option>
+      <option value="visitOfferBasis">9 · Abschluss</option>
     </select>
     <span data-autosave-state>✓ gespeichert</span>
   </nav>
@@ -584,36 +592,39 @@ main{width:100%;max-width:100%}
     <div id="extras"></div>
   </details>
   <details id="visitSummary" class="card compact-step guided-step">
-    <summary>7. Besichtigungsprotokoll prüfen <span class="step-state"></span></summary>
-    <p class="hint">Prüfe hier zuerst das vollständige Besichtigungsprotokoll mit Befunden, Messwerten, Fotos und Dokumenten.</p>
+    <summary>7. Zusammenfassung <span class="step-state"></span></summary>
+    <p class="hint">Hier siehst du alle Befunde, Messwerte, Fotos und Dokumente auf einen Blick.</p>
     <div id="inspectionSummary" class="inspection-summary"></div>
   </details>
   <section id="visitCompletion" class="card visit-completion">
-    <span class="dashboard-eyebrow">ABSCHLUSSPRÜFUNG</span>
-    <h2>Besichtigung vollständig?</h2>
-    <button id="endVisitWork" type="button" class="primary workday-main-button">Besichtigung beenden</button>
+    <span class="dashboard-eyebrow">VOLLSTÄNDIGKEIT</span>
+    <h2>Sind alle Angaben vollständig?</h2>
+    <button id="endVisitWork" type="button" class="secondary workday-main-button">Endzeit jetzt erfassen</button>
     <div id="visitEndStatus" class="workday-status"></div>
     <p class="hint">Fehlende Informationen antippen, um direkt zum richtigen Eingabefeld zu springen.</p>
     <div id="visitChecklist" class="visit-checklist"></div>
     <div class="offer-actions"><button id="goToMissingStep" class="secondary">Erste fehlende Information öffnen</button></div>
   </section>
   <details id="visitOfferBasis" class="card compact-step guided-step">
-    <summary>8. Angebotsgrundlage <span class="step-state"></span></summary>
-    <p class="hint">Dieser letzte Schritt wird erst freigegeben, wenn das Besichtigungsprotokoll vollständig ist.</p>
+    <summary>9. Abschluss <span class="step-state"></span></summary>
+    <p class="hint">Optionaler interner Hinweis und deine abschließende Freigabe.</p>
     <label>Interne Hinweise für das Angebot</label>
     <textarea id="offerBasisNote" placeholder="z. B. besondere Ausführung, Zugänglichkeit oder noch zu klärende Punkte"></textarea>
-    <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox" disabled> Ich habe das vollständige Besichtigungsprotokoll geprüft. Die Angaben dürfen als Angebotsgrundlage verwendet werden.</label>
+    <label class="offer-basis-confirm"><input id="offerBasisApproved" type="checkbox" disabled> Angaben geprüft und für das Angebot freigeben</label>
     <div id="offerBasisStatus" class="status"></div>
   </details>
   <div class="sticky-actions visit-sticky-actions">
-    <div class="visit-persist-actions">
-      <button id="cancelVisitChanges" class="secondary">Besichtigung abbrechen</button>
-      <button id="deleteCompleteVisit" class="danger">Komplette Besichtigung löschen</button>
-      <button id="saveVisit" class="primary">Zwischenspeichern</button>
-    </div>
-    <button id="toOffer" class="primary">Protokoll prüfen</button>
-    <button id="finishVisitGuide" class="primary">Besichtigung abschließen und Angebot öffnen</button>
+    <button id="saveVisit" class="primary">Speichern & später fortsetzen</button>
+    <button id="toOffer" class="secondary">Zusammenfassung ansehen</button>
+    <button id="finishVisitGuide" class="primary visit-finish-primary">Abschließen & Angebot öffnen</button>
     <div id="finishVisitReason" class="finish-visit-reason"></div>
+    <details class="visit-more-actions">
+      <summary>Weitere Möglichkeiten</summary>
+      <div class="visit-persist-actions">
+        <button id="cancelVisitChanges" class="secondary">Änderungen verwerfen & verlassen</button>
+        <button id="deleteCompleteVisit" class="danger">Besichtigung endgültig löschen</button>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -1447,9 +1458,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.19.3"></script>
-<script type="module" src="js/cloud-migration.js?v=32.19.3"></script>
+<script type="module" src="js/app.js?v=32.19.4"></script>
+<script type="module" src="js/cloud-migration.js?v=32.19.4"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.19.3"></script>
+<script type="module" src="js/customers.js?v=32.19.4"></script>
 </body>
 </html>
