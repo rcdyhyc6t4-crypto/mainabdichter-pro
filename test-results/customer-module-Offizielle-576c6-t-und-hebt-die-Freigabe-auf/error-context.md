@@ -1,0 +1,99 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - text: Hallo, › ▾ ▾ › › › › › › › ▾
+    - generic [ref=e3]:
+      - group [ref=e4]:
+        - option "kein Skonto" [selected]
+        - option "2 %"
+        - option "3 %"
+        - option "5 %"
+        - option "frei"
+        - option "keine" [selected]
+        - option "Prozent"
+        - option "Betrag €"
+      - group [ref=e6]
+      - group [ref=e8]:
+        - paragraph [ref=e10]: Hier wird nur die Auswirkung der oben einmalig gewählten Preisoption angezeigt.
+        - generic [ref=e11]:
+          - generic [ref=e12]:
+            - generic [ref=e13]: Regulärer Bruttopreis
+            - strong [ref=e14]: 0,00 €
+          - generic [ref=e15]:
+            - generic [ref=e16]: Enthaltene Umsatzsteuer
+            - strong [ref=e17]: 0,00 €
+          - generic [ref=e18]:
+            - generic [ref=e19]: Nettopreis
+            - strong [ref=e20]: 0,00 €
+        - generic [ref=e22]:
+          - generic [ref=e23]: Preis nach gewählter Option
+          - strong [ref=e24]: 0,00 €
+      - generic [ref=e26]:
+        - heading "Interne Kalkulation" [level=2] [ref=e27]
+        - button "ein-/ausblenden" [ref=e28]
+      - group [ref=e29]
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: Kunde
+          - strong [ref=e34]: –
+        - generic [ref=e35]:
+          - generic [ref=e36]: Objekt
+          - strong [ref=e37]: –
+        - generic [ref=e38]:
+          - generic [ref=e39]: Angebotssumme
+          - strong [ref=e40]: 0,00 €
+        - paragraph [ref=e41]: Die Kundenansicht wird separat geöffnet. Interne Daten sind dort nicht erreichbar.
+      - generic [ref=e42]:
+        - button "← Zurück zur Dateneingabe" [ref=e43]
+        - button "Im Archiv speichern" [ref=e44]
+        - button "Kundenansicht öffnen" [ref=e45]
+        - button "Besichtigungsprotokoll als PDF" [ref=e46]
+      - generic [ref=e47]:
+        - heading "Freigabe für Lexoffice" [level=2] [ref=e48]
+        - generic [ref=e49]:
+          - checkbox "Ich habe Positionen, Mengen und Preise geprüft. optional" [checked] [ref=e50]
+          - text: Ich habe Positionen, Mengen und Preise geprüft.
+          - generic [ref=e51]: optional
+        - generic [ref=e52]: Angebotspositionen sind geprüft und freigegeben.
+        - button "Geprüften Entwurf an Lexoffice übertragen" [disabled] [ref=e53]
+        - paragraph [ref=e54]: Freigabe vollständig – der Entwurf kann jetzt übertragen werden.
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - text: Status
+            - generic [ref=e59]: optional
+          - combobox [ref=e60]:
+            - option "Entwurf" [selected]
+            - option "Entwurf an Lexoffice übertragen"
+            - option "Offen"
+            - option "Angenommen"
+            - option "Abgeschlossen"
+            - option "Nachkontrolle"
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - text: Nachkontrolle am
+            - generic [ref=e63]: optional
+          - textbox [ref=e64]
+      - generic [ref=e65]:
+        - heading "Auftrag zur Baustelle machen" [level=2] [ref=e66]
+        - paragraph [ref=e67]: Die Baustelle kann erst angelegt werden, wenn das Angebot den Status „Angenommen“ hat.
+        - button "Baustelle aus angenommenem Angebot anlegen" [disabled] [ref=e68]
+  - navigation [ref=e69]:
+    - button "⌂ Übersicht" [ref=e70]:
+      - generic [ref=e71]: ⌂
+      - generic [ref=e72]: Übersicht
+    - button "♙ Kunden" [ref=e73]:
+      - generic [ref=e74]: ♙
+      - generic [ref=e75]: Kunden
+    - button "☷ Vorgänge" [ref=e76]:
+      - generic [ref=e77]: ☷
+      - generic [ref=e78]: Vorgänge
+    - button "⚒ Baustellen" [ref=e79]:
+      - generic [ref=e80]: ⚒
+      - generic [ref=e81]: Baustellen
+    - button "••• Mehr" [ref=e82]:
+      - generic [ref=e83]: •••
+      - generic [ref=e84]: Mehr
+```

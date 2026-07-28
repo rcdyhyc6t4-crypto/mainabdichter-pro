@@ -1,0 +1,295 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - text: Hallo,
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]: AKTIVER VORGANG
+          - heading "Neue Besichtigung" [level=1] [ref=e7]
+          - paragraph [ref=e8]: Kunde und Objekt noch nicht ausgewählt
+        - generic [ref=e9]:
+          - button "☎ Anrufen" [disabled] [ref=e10]
+          - button "⌖ Navigation" [disabled] [ref=e11]
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - generic [ref=e14]: Besichtigungs-Nr.
+            - strong [ref=e15]: 20260728-4967
+          - generic [ref=e16]:
+            - generic [ref=e17]: Datum
+            - strong [ref=e18]: 2026-07-28
+          - generic [ref=e19]:
+            - generic [ref=e20]: Beginn
+            - strong [ref=e21]: –
+          - generic [ref=e22]:
+            - generic [ref=e23]: Standort
+            - strong [ref=e24]: –
+          - generic [ref=e25]:
+            - generic [ref=e26]: Wetter
+            - strong [ref=e27]: –
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - generic [ref=e30]: BESICHTIGUNG
+          - heading "Schritt für Schritt erfassen" [level=2] [ref=e31]
+        - generic [ref=e32]:
+          - button "Kunde" [ref=e33]
+          - button "Gebäude" [ref=e34]
+          - button "Beschreibung" [ref=e35]
+          - button "Maßnahmen" [ref=e36]
+          - button "Prüfen" [ref=e37]
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: Hauptschritt 1 von 6
+            - strong [ref=e41]: Kundendaten prüfen und bestätigen
+          - progressbar [ref=e42]
+          - button "Speichern und weiter" [ref=e43]
+        - generic [ref=e44]:
+          - button "Pipedrive" [ref=e45]
+          - button "Lexoffice" [ref=e46]
+          - button "Neu" [ref=e47]
+        - button "▶ Maßnahme dem Kunden zeigen" [ref=e48] [cursor=pointer]
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - strong [ref=e51]: 0% vollständig
+          - generic [ref=e52]: Noch nicht automatisch gespeichert
+        - paragraph [ref=e54]: "Noch Pflicht: Vorname oder Firma, Nachname oder Firma, Straße, PLZ, Ort"
+        - button "Jetzt zwischenspeichern" [ref=e55]
+      - navigation "Besichtigung schnell wechseln" [ref=e56]:
+        - combobox "Direkt zu optional" [ref=e57]:
+          - option "1 · Kunde und Termin" [selected]
+          - option "2 · Gebäude und Raum"
+          - option "3 · Schadensbild"
+          - option "4 · Messen und Maßnahmen"
+          - option "Fotos und Dokumente"
+          - option "Zusatzleistungen"
+          - option "Prüfen und Besichtigung beenden"
+          - option "Abschluss"
+        - generic [ref=e58]: ✓ gespeichert
+      - group [ref=e59]:
+        - generic "0. Anfrage und Termin Bitte ergänzen ▾" [ref=e60] [cursor=pointer]:
+          - text: 0. Anfrage und Termin
+          - generic [ref=e61] [cursor=pointer]: Bitte ergänzen
+          - text: ▾
+        - paragraph [ref=e62]: Hier wird festgehalten, was der Kunde gemeldet hat. Die fachliche Feststellung erfolgt später bei der Besichtigung.
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - text: Anfragequelle
+              - generic [ref=e66]: optional
+            - combobox [ref=e67]:
+              - option "– bitte auswählen –" [selected]
+              - option "Screenshot"
+              - option "Telefon"
+              - option "WhatsApp"
+              - option "E-Mail"
+              - option "Website / Kontaktformular"
+              - option "Google"
+              - option "Empfehlung"
+              - option "Pipedrive"
+              - option "Lexoffice"
+              - option "Sonstiges"
+          - generic [ref=e68]:
+            - generic [ref=e69]:
+              - text: Anliegen
+              - generic [ref=e70]: optional
+            - combobox [ref=e71]:
+              - option "– bitte auswählen –" [selected]
+              - option "Feuchter Keller / feuchte Wand"
+              - option "Wassereintritt"
+              - option "Schimmel / Geruch"
+              - option "Horizontalsperre"
+              - option "Flächensperre"
+              - option "Wand-Sohlen-Anschluss"
+              - option "Nachkontrolle"
+              - option "Reklamation"
+              - option "Sonstiges"
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - text: Vom Kunden gemeldet – Mehrfachauswahl möglich
+              - generic [ref=e74]: optional
+            - generic [ref=e75]:
+              - generic [ref=e76] [cursor=pointer]:
+                - checkbox "Muffiger Geruch optional" [ref=e77]
+                - generic [ref=e78] [cursor=pointer]: Muffiger Geruch
+                - generic [ref=e79] [cursor=pointer]: optional
+              - generic [ref=e80] [cursor=pointer]:
+                - checkbox "Abplatzender Putz optional" [ref=e81]
+                - generic [ref=e82] [cursor=pointer]: Abplatzender Putz
+                - generic [ref=e83] [cursor=pointer]: optional
+              - generic [ref=e84] [cursor=pointer]:
+                - checkbox "Feuchte Flecken optional" [ref=e85]
+                - generic [ref=e86] [cursor=pointer]: Feuchte Flecken
+                - generic [ref=e87] [cursor=pointer]: optional
+              - generic [ref=e88] [cursor=pointer]:
+                - checkbox "Salzausblühungen optional" [ref=e89]
+                - generic [ref=e90] [cursor=pointer]: Salzausblühungen
+                - generic [ref=e91] [cursor=pointer]: optional
+              - generic [ref=e92] [cursor=pointer]:
+                - checkbox "Schimmel optional" [ref=e93]
+                - generic [ref=e94] [cursor=pointer]: Schimmel
+                - generic [ref=e95] [cursor=pointer]: optional
+              - generic [ref=e96] [cursor=pointer]:
+                - checkbox "Wasser auf dem Boden optional" [ref=e97]
+                - generic [ref=e98] [cursor=pointer]: Wasser auf dem Boden
+                - generic [ref=e99] [cursor=pointer]: optional
+              - generic [ref=e100] [cursor=pointer]:
+                - checkbox "Sichtbarer Wassereintritt optional" [ref=e101]
+                - generic [ref=e102] [cursor=pointer]: Sichtbarer Wassereintritt
+                - generic [ref=e103] [cursor=pointer]: optional
+              - generic [ref=e104] [cursor=pointer]:
+                - checkbox "Nasse Wand optional" [ref=e105]
+                - generic [ref=e106] [cursor=pointer]: Nasse Wand
+                - generic [ref=e107] [cursor=pointer]: optional
+              - generic [ref=e108] [cursor=pointer]:
+                - checkbox "Risse optional" [ref=e109]
+                - generic [ref=e110] [cursor=pointer]: Risse
+                - generic [ref=e111] [cursor=pointer]: optional
+              - generic [ref=e112] [cursor=pointer]:
+                - checkbox "Feuchtigkeit nach Starkregen optional" [ref=e113]
+                - generic [ref=e114] [cursor=pointer]: Feuchtigkeit nach Starkregen
+                - generic [ref=e115] [cursor=pointer]: optional
+              - generic [ref=e116] [cursor=pointer]:
+                - checkbox "Sonstiges optional" [ref=e117]
+                - generic [ref=e118] [cursor=pointer]: Sonstiges
+                - generic [ref=e119] [cursor=pointer]: optional
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - text: Kurze Kundenangabe optional
+              - generic [ref=e122]: optional
+            - textbox "z. B. Kellerwand seit dem Starkregen nass" [ref=e123]
+          - generic [ref=e124]:
+            - generic [ref=e125]:
+              - text: Dringlichkeit
+              - generic [ref=e126]: optional
+            - generic [ref=e127]:
+              - button "Normal" [ref=e128]
+              - button "Zeitnah" [ref=e129]
+              - button "Akut" [ref=e130]
+          - generic [ref=e131]:
+            - generic [ref=e132]:
+              - text: Terminstatus
+              - generic [ref=e133]: optional
+            - combobox [ref=e134]:
+              - option "Noch zu vereinbaren" [selected]
+              - option "Termin vereinbart"
+              - option "Rückruf erforderlich"
+          - generic [ref=e135]:
+            - generic [ref=e136]:
+              - text: Besichtigung am
+              - generic [ref=e137]: optional
+            - textbox [disabled] [ref=e138]
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - text: Uhrzeit
+              - generic [ref=e141]: optional
+            - textbox [disabled] [ref=e142]
+        - generic [ref=e143]:
+          - strong [ref=e144]: "Nächster Schritt: Besichtigungstermin vereinbaren"
+          - generic [ref=e145]: Quelle, Anliegen und gemeldete Symptome bleiben bereits gespeichert.
+        - generic [ref=e146]:
+          - button "Anfrage speichern" [ref=e147]
+          - button "Vor-Ort-Besichtigung starten" [ref=e148]
+      - group [ref=e149]:
+        - generic "1. Kunde und Termin noch offen ▾" [ref=e150] [cursor=pointer]:
+          - text: 1. Kunde und Termin
+          - generic [ref=e151] [cursor=pointer]: noch offen
+          - text: ▾
+        - generic [ref=e152]:
+          - generic [ref=e153]:
+            - text: Mitarbeiter auswählen
+            - generic [ref=e154]: optional
+          - combobox "Mitarbeiter auswählen optional" [ref=e155]:
+            - option "Mike Sprager" [selected]
+          - button "Besichtigung beginnen" [active] [ref=e156]
+        - generic [ref=e157]:
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - text: Besichtigungsnummer
+              - generic [ref=e160]: optional
+            - textbox [ref=e161]: 20260728-4967
+          - group [ref=e162]
+          - group [ref=e164]
+          - generic [ref=e166]:
+            - generic [ref=e167]:
+              - text: Anrede
+              - generic [ref=e168]: optional
+            - combobox [ref=e169]:
+              - option "–" [selected]
+              - option "Herr"
+              - option "Frau"
+          - generic [ref=e170]:
+            - generic [ref=e171]:
+              - text: Vorname
+              - generic [ref=e172]: optional
+            - textbox [ref=e173]
+          - generic [ref=e174]:
+            - generic [ref=e175]:
+              - text: Nachname
+              - generic [ref=e176]: optional
+            - textbox [ref=e177]
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - text: Firma
+              - generic [ref=e180]: optional
+            - textbox [ref=e181]
+          - generic [ref=e182]:
+            - generic [ref=e183]:
+              - text: Telefon
+              - generic [ref=e184]: optional
+            - textbox [ref=e185]
+          - generic [ref=e186]:
+            - generic [ref=e187]:
+              - text: E-Mail
+              - generic [ref=e188]: optional
+            - textbox [ref=e189]
+          - generic [ref=e190]:
+            - generic [ref=e191]:
+              - text: Straße und Hausnummer
+              - generic [ref=e192]: Pflicht
+            - combobox [ref=e193]
+          - generic [ref=e194]:
+            - generic [ref=e195]:
+              - text: PLZ
+              - generic [ref=e196]: Pflicht
+            - textbox [ref=e197]
+          - generic [ref=e198]:
+            - generic [ref=e199]:
+              - text: Ort
+              - generic [ref=e200]: Pflicht
+            - combobox [ref=e201]
+          - generic [ref=e202]:
+            - generic [ref=e203] [cursor=pointer]:
+              - checkbox "Objektadresse weicht von der Postanschrift ab optional" [ref=e204]
+              - text: Objektadresse weicht von der Postanschrift ab
+              - generic [ref=e205] [cursor=pointer]: optional
+            - generic [ref=e206]:
+              - text: Objektadresse
+              - generic [ref=e207]: optional
+            - textbox "Objektadresse optional" [ref=e208]
+            - generic [ref=e209]: Wird automatisch aus Straße, PLZ und Ort übernommen.
+      - text: › noch offen › noch offen › noch offen › ✓ erledigt › ✓ erledigt › noch offen › noch offen · erst nach vollständiger Besichtigung
+      - generic [ref=e210]:
+        - button "Speichern & später fortsetzen" [ref=e211]
+        - button "Protokoll prüfen" [ref=e212]
+        - button "Abschließen & Angebot öffnen" [disabled] [ref=e213]
+        - generic [ref=e214]: "Noch nicht möglich: Pflichtangaben fehlen."
+        - group [ref=e215]
+  - navigation [ref=e217]:
+    - button "⌂ Übersicht" [ref=e218]:
+      - generic [ref=e219]: ⌂
+      - generic [ref=e220]: Übersicht
+    - button "♙ Kunden" [ref=e221]:
+      - generic [ref=e222]: ♙
+      - generic [ref=e223]: Kunden
+    - button "☷ Vorgänge" [ref=e224]:
+      - generic [ref=e225]: ☷
+      - generic [ref=e226]: Vorgänge
+    - button "⚒ Baustellen" [ref=e227]:
+      - generic [ref=e228]: ⚒
+      - generic [ref=e229]: Baustellen
+    - button "••• Mehr" [ref=e230]:
+      - generic [ref=e231]: •••
+      - generic [ref=e232]: Mehr
+```

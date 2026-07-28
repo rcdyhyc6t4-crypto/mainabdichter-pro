@@ -1,0 +1,201 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - text: Hallo,
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]: AKTIVER VORGANG
+          - heading "Neue Besichtigung" [level=1] [ref=e7]
+          - paragraph [ref=e8]: Musterstraße 1, 35794 Mengerskirchen
+        - generic [ref=e9]:
+          - button "☎ Anrufen" [disabled] [ref=e10]
+          - button "⌖ Navigation" [ref=e11]
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - generic [ref=e14]: Besichtigungs-Nr.
+            - strong [ref=e15]: 20260728-2144
+          - generic [ref=e16]:
+            - generic [ref=e17]: Datum
+            - strong [ref=e18]: 2026-07-28
+          - generic [ref=e19]:
+            - generic [ref=e20]: Beginn
+            - strong [ref=e21]: –
+          - generic [ref=e22]:
+            - generic [ref=e23]: Standort
+            - strong [ref=e24]: –
+          - generic [ref=e25]:
+            - generic [ref=e26]: Wetter
+            - strong [ref=e27]: –
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - generic [ref=e30]: BESICHTIGUNG
+          - heading "Schritt für Schritt erfassen" [level=2] [ref=e31]
+        - generic [ref=e32]:
+          - button "Kunde" [ref=e33]
+          - button "Gebäude" [ref=e34]
+          - button "Beschreibung" [ref=e35]
+          - button "Maßnahmen" [ref=e36]
+          - button "Prüfen" [ref=e37]
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: Hauptschritt 4 von 6
+            - strong [ref=e41]: Schadensbereiche, Messungen und Maßnahmen erfassen
+          - progressbar [ref=e42]
+          - button "Speichern und weiter" [ref=e43]
+        - generic [ref=e44]:
+          - button "Pipedrive" [ref=e45]
+          - button "Lexoffice" [ref=e46]
+          - button "Neu" [ref=e47]
+        - button "▶ Maßnahme dem Kunden zeigen" [ref=e48] [cursor=pointer]
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - strong [ref=e51]: 80% vollständig
+          - generic [ref=e52]: "Automatisch gespeichert: 08:26"
+        - paragraph [ref=e55]: "Noch Pflicht: Nachname oder Firma"
+        - button "Jetzt zwischenspeichern" [ref=e56]
+      - navigation "Besichtigung schnell wechseln" [ref=e57]:
+        - combobox "Direkt zu optional" [ref=e58]:
+          - option "1 · Kunde und Termin"
+          - option "2 · Gebäude und Raum"
+          - option "3 · Schadensbild"
+          - option "4 · Messen und Maßnahmen" [selected]
+          - option "Fotos und Dokumente"
+          - option "Zusatzleistungen"
+          - option "Prüfen und Besichtigung beenden"
+          - option "Abschluss"
+        - generic [ref=e59]: speichert …
+      - group [ref=e60]:
+        - generic "0. Anfrage und Termin Bitte ergänzen ›" [ref=e61] [cursor=pointer]:
+          - text: 0. Anfrage und Termin
+          - generic [ref=e62] [cursor=pointer]: Bitte ergänzen
+          - text: ›
+        - option "– bitte auswählen –" [selected]
+        - option "Screenshot"
+        - option "Telefon"
+        - option "WhatsApp"
+        - option "E-Mail"
+        - option "Website / Kontaktformular"
+        - option "Google"
+        - option "Empfehlung"
+        - option "Pipedrive"
+        - option "Lexoffice"
+        - option "Sonstiges"
+        - option "– bitte auswählen –" [selected]
+        - option "Feuchter Keller / feuchte Wand"
+        - option "Wassereintritt"
+        - option "Schimmel / Geruch"
+        - option "Horizontalsperre"
+        - option "Flächensperre"
+        - option "Wand-Sohlen-Anschluss"
+        - option "Nachkontrolle"
+        - option "Reklamation"
+        - option "Sonstiges"
+        - option "Noch zu vereinbaren" [selected]
+        - option "Termin vereinbart"
+        - option "Rückruf erforderlich"
+      - text: noch offen › › ✓ erledigt › ✓ erledigt ›
+      - group [ref=e63]:
+        - generic "4. Schadensbereiche und Maßnahmen noch offen ▾" [ref=e64] [cursor=pointer]:
+          - text: 4. Schadensbereiche und Maßnahmen
+          - generic [ref=e65] [cursor=pointer]: noch offen
+          - text: ▾
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - heading "1." [level=3] [ref=e69]
+            - button "Löschen" [ref=e70]
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - generic [ref=e73]: Bezeichnung
+              - textbox [active] [ref=e74]: Keller Außenwand
+            - generic [ref=e75]:
+              - generic [ref=e76]: Wandmaterial
+              - combobox [ref=e77]:
+                - option
+                - option "HBL / Hohlblockstein" [selected]
+                - option "Ziegel"
+                - option "Kalksandstein"
+                - option "Beton"
+                - option "Naturstein"
+                - option "Mischmauerwerk"
+                - option "Sonstiges"
+                - option "Unbekannt"
+            - generic [ref=e78]:
+              - generic [ref=e79]: Abweichendes Material
+              - textbox [ref=e80]
+            - generic [ref=e81]:
+              - generic [ref=e82]: Wandstärke cm
+              - textbox [ref=e83]
+            - generic [ref=e84]:
+              - generic [ref=e85]: Wandart
+              - combobox [ref=e86]:
+                - option "– bitte auswählen –" [selected]
+                - option "Außenwand"
+                - option "Innenwand"
+            - generic [ref=e87]:
+              - generic [ref=e88]: Erdkontakt
+              - combobox [ref=e89]:
+                - option "– bitte auswählen –" [selected]
+                - option "erdberührt"
+                - option "nicht erdberührt"
+            - generic [ref=e90]:
+              - generic [ref=e91]: Wandbelag
+              - combobox [ref=e92]:
+                - option [selected]
+                - option "Putz"
+                - option "Farbe"
+                - option "Tapete"
+                - option "Fliesen"
+                - option "Unbekannt"
+                - option "Sonstiges"
+          - generic [ref=e93]: Notizen
+          - generic [ref=e94]:
+            - textbox [ref=e95]
+            - button "🎤" [ref=e96]
+          - heading "Feuchtemessung" [level=3] [ref=e97]
+          - generic [ref=e99]:
+            - generic [ref=e100]: Referenzwert „trocken“
+            - textbox [ref=e101]
+          - button "▦ Geführte Wandmessung starten Foto → Wand markieren → Maße → Messpunkte → Aufmaß ›" [ref=e102]:
+            - generic [ref=e103]: ▦
+            - generic [ref=e104]:
+              - strong [ref=e105]: Geführte Wandmessung starten
+              - generic [ref=e106]: Foto → Wand markieren → Maße → Messpunkte → Aufmaß
+            - generic [ref=e107]: ›
+          - group [ref=e108]
+          - heading "Maßnahmen" [level=3] [ref=e110]
+          - button "+ Maßnahme" [ref=e111]
+          - heading "Fotos" [level=3] [ref=e112]
+          - generic [ref=e113]:
+            - generic [ref=e114] [cursor=pointer]: Foto aufnehmen
+            - generic [ref=e115] [cursor=pointer]: Bilder auswählen
+        - button "+ Schadensbereich" [ref=e116]
+        - generic [ref=e117]:
+          - button "Passende Maßnahme prüfen" [ref=e118]
+          - generic [ref=e119]: Bitte zuerst mindestens einen Schadensbereich anlegen.
+      - text: ✓ erledigt › ✓ erledigt › noch offen › noch offen · erst nach vollständiger Besichtigung
+      - generic [ref=e120]:
+        - button "Speichern & später fortsetzen" [ref=e121]
+        - button "Protokoll prüfen" [ref=e122]
+        - button "Abschließen & Angebot öffnen" [disabled] [ref=e123]
+        - generic [ref=e124]: "Noch nicht möglich: Pflichtangaben fehlen."
+        - group [ref=e125]
+  - navigation [ref=e127]:
+    - button "⌂ Übersicht" [ref=e128]:
+      - generic [ref=e129]: ⌂
+      - generic [ref=e130]: Übersicht
+    - button "♙ Kunden" [ref=e131]:
+      - generic [ref=e132]: ♙
+      - generic [ref=e133]: Kunden
+    - button "☷ Vorgänge" [ref=e134]:
+      - generic [ref=e135]: ☷
+      - generic [ref=e136]: Vorgänge
+    - button "⚒ Baustellen" [ref=e137]:
+      - generic [ref=e138]: ⚒
+      - generic [ref=e139]: Baustellen
+    - button "••• Mehr" [ref=e140]:
+      - generic [ref=e141]: •••
+      - generic [ref=e142]: Mehr
+```

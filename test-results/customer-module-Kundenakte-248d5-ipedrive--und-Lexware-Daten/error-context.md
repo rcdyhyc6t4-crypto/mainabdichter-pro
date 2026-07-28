@@ -1,0 +1,174 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - status [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: "!"
+      - strong [ref=e5]: Zentraler Datenstand nicht erreichbar
+      - generic [ref=e6]: "Technischer Grund: Test-Endpunkt fehlt Die Gerätedaten bleiben geschützt."
+      - generic [ref=e7]:
+        - button "Erneut versuchen" [ref=e8]
+        - button "Verbindung prüfen" [ref=e9]
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - img "mainabdichter" [ref=e13]
+        - generic [ref=e14]:
+          - button "Benachrichtigungen" [ref=e15]:
+            - generic [ref=e16]: ♧
+          - button "Profil" [ref=e18]:
+            - generic [ref=e19]: ◎
+      - main [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]:
+            - generic [ref=e23]: Hallo, Guten Morgen,
+            - strong [ref=e24]:
+              - text: Mike
+              - emphasis [ref=e25]: 👋
+          - button "✎ Notizen 0 offen" [ref=e26]:
+            - generic [ref=e27]: ✎
+            - generic [ref=e28]:
+              - strong [ref=e29]: Notizen
+              - generic [ref=e30]:
+                - generic [ref=e31]: "0"
+                - text: offen
+        - generic [ref=e32]:
+          - heading "HEUTE" [level=2] [ref=e33]
+          - button "Kommende Termine öffnen" [ref=e34] [cursor=pointer]:
+            - generic [ref=e35] [cursor=pointer]:
+              - strong [ref=e36] [cursor=pointer]: –
+              - generic [ref=e37] [cursor=pointer]: ●
+            - generic [ref=e38] [cursor=pointer]:
+              - generic [ref=e39] [cursor=pointer]: Nächster Termin
+              - heading "Heute nichts geplant" [level=3] [ref=e40] [cursor=pointer]
+              - paragraph [ref=e41] [cursor=pointer]: Keine weiteren Termine vorhanden.
+            - button "➤" [ref=e42]
+            - generic [ref=e43] [cursor=pointer]: ›
+          - button "✦ Termin intelligent planen Kunde und Anliegen einfach sagen oder schreiben ›" [ref=e44]:
+            - generic [ref=e45]: ✦
+            - generic [ref=e46]:
+              - strong [ref=e47]: Termin intelligent planen
+              - generic [ref=e48]: Kunde und Anliegen einfach sagen oder schreiben
+            - emphasis [ref=e49]: ›
+          - generic [ref=e50]:
+            - button "✎ Gesprächsnotiz Sprechen oder schreiben" [ref=e51]:
+              - generic [ref=e52]: ✎
+              - strong [ref=e53]: Gesprächsnotiz
+              - generic [ref=e54]: Sprechen oder schreiben
+            - button "✉ Neue E-Mails 0 ungeprüft" [ref=e55]:
+              - generic [ref=e56]: ✉
+              - strong [ref=e57]: Neue E-Mails
+              - generic [ref=e58]:
+                - generic [ref=e59]: "0"
+                - text: ungeprüft
+            - button "◉ WhatsApp Business Kunde auswählen" [ref=e60]:
+              - generic [ref=e61]: ◉
+              - strong [ref=e62]: WhatsApp Business
+              - generic [ref=e63]: Kunde auswählen
+        - button "✓ NEUE AUFTRÄGE 0 angenommene Angebote Abrufzeitraum gemäß Admin-Einstellung ›" [ref=e65]:
+          - generic [ref=e66]: ✓
+          - generic [ref=e67]:
+            - generic [ref=e68]: NEUE AUFTRÄGE
+            - strong [ref=e69]:
+              - generic [ref=e70]: "0"
+              - text: angenommene Angebote
+            - emphasis [ref=e71]: Abrufzeitraum gemäß Admin-Einstellung
+          - generic [ref=e72]: ›
+        - generic [ref=e73]:
+          - heading "AUF EINEN BLICK" [level=2] [ref=e74]
+          - generic [ref=e75]:
+            - button "▤ 0 Offene Angebote Warten auf Rückmeldung" [ref=e76]:
+              - generic [ref=e77]: ▤
+              - generic [ref=e78]:
+                - strong [ref=e79]: "0"
+                - generic [ref=e80]: Offene Angebote
+                - generic [ref=e81]: Warten auf Rückmeldung
+            - button "⌑ 0 Offene Ausführungen Termin und Material planen" [ref=e82]:
+              - generic [ref=e83]: ⌑
+              - generic [ref=e84]:
+                - strong [ref=e85]: "0"
+                - generic [ref=e86]: Offene Ausführungen
+                - generic [ref=e87]: Termin und Material planen
+            - button "✓ 0 Ausführung geplant Termin verbindlich bestätigt" [ref=e88]:
+              - generic [ref=e89]: ✓
+              - generic [ref=e90]:
+                - strong [ref=e91]: "0"
+                - generic [ref=e92]: Ausführung geplant
+                - generic [ref=e93]: Termin verbindlich bestätigt
+            - button "€ 0 Rechnung schreiben Keine Rechnung offen" [ref=e94]:
+              - generic [ref=e95]: €
+              - generic [ref=e96]:
+                - strong [ref=e97]: "0"
+                - generic [ref=e98]: Rechnung schreiben
+                - generic [ref=e99]: Keine Rechnung offen
+            - button "↻ 0 Nachkontrolle Keine fällig" [ref=e100]:
+              - generic [ref=e101]: ↻
+              - generic [ref=e102]:
+                - strong [ref=e103]: "0"
+                - generic [ref=e104]: Nachkontrolle
+                - generic [ref=e105]: Keine fällig
+            - button "♙ 0 Flaschen abholen Auf 0 Baustellen" [ref=e106]:
+              - generic [ref=e107]: ♙
+              - generic [ref=e108]:
+                - strong [ref=e109]: "0"
+                - generic [ref=e110]: Flaschen abholen
+                - generic [ref=e111]: Auf 0 Baustellen
+            - button "▦ 0 Weiterer Termin Heute nichts mehr" [ref=e112]:
+              - generic [ref=e113]: ▦
+              - generic [ref=e114]:
+                - strong [ref=e115]: "0"
+                - generic [ref=e116]: Weiterer Termin
+                - generic [ref=e117]: Heute nichts mehr
+        - generic [ref=e118]:
+          - heading "AKTIVE BAUSTELLEN" [level=2] [ref=e119]
+          - button "▥ 0 Baustelle aktiv Keine aktive Baustelle ›" [ref=e120]:
+            - generic [ref=e121]: ▥
+            - generic [ref=e122]:
+              - strong [ref=e123]: "0"
+              - generic [ref=e124]: Baustelle aktiv
+              - generic [ref=e125]: Keine aktive Baustelle
+            - emphasis [ref=e126]: ›
+        - generic [ref=e127]:
+          - heading "LAGERBESTAND" [level=2] [ref=e128]
+          - generic [ref=e129]:
+            - button "BKM HZ 250 Pro 0 Liter Nachbestellen" [ref=e130]:
+              - generic [ref=e133]:
+                - generic [ref=e134]: BKM HZ 250 Pro
+                - strong [ref=e135]: 0 Liter
+                - emphasis [ref=e136]: Nachbestellen
+            - button "BKM HS Sperrmörtel 0 kg Nachbestellen" [ref=e139]:
+              - generic [ref=e142]:
+                - generic [ref=e143]: BKM HS Sperrmörtel
+                - strong [ref=e144]: 0 kg
+                - emphasis [ref=e145]: Nachbestellen
+            - button "BKM SEF-2K / Harz 0 kg Nachbestellen" [ref=e148]:
+              - generic [ref=e151]:
+                - generic [ref=e152]: BKM SEF-2K / Harz
+                - strong [ref=e153]: 0 kg
+                - emphasis [ref=e154]: Nachbestellen
+        - button "☑ Neues Angebot erstellen Schnell und einfach ein Angebot anlegen ›" [ref=e157]:
+          - generic [ref=e158]: ☑
+          - generic [ref=e159]:
+            - strong [ref=e160]: Neues Angebot erstellen
+            - generic [ref=e161]: Schnell und einfach ein Angebot anlegen
+          - emphasis [ref=e162]: ›
+      - button "Neue Anfrage" [ref=e163]: +
+    - text: › ▾ ▾ › › › › › › › ▾
+  - navigation [ref=e164]:
+    - button "⌂ Übersicht" [ref=e165]:
+      - generic [ref=e166]: ⌂
+      - generic [ref=e167]: Übersicht
+    - button "♙ Kunden" [ref=e168]:
+      - generic [ref=e169]: ♙
+      - generic [ref=e170]: Kunden
+    - button "☷ Vorgänge" [ref=e171]:
+      - generic [ref=e172]: ☷
+      - generic [ref=e173]: Vorgänge
+    - button "⚒ Baustellen" [ref=e174]:
+      - generic [ref=e175]: ⚒
+      - generic [ref=e176]: Baustellen
+    - button "••• Mehr" [ref=e177]:
+      - generic [ref=e178]: •••
+      - generic [ref=e179]: Mehr
+```
