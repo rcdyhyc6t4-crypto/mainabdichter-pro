@@ -35,7 +35,11 @@ async function imageData(file) {
   canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
   if (typeof source.close === "function") source.close();
   if (objectUrl) URL.revokeObjectURL(objectUrl);
-  return canvas.toDataURL("image/jpeg", .82);
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", .9),
+    width: canvas.width,
+    height: canvas.height
+  };
 }
 
 function openDialog() {
@@ -53,7 +57,10 @@ async function useFile(file) {
   $("floorPlanAnalyzeStatus").textContent = "Foto wird für die Analyse vorbereitet …";
   try {
     const current = plan();
-    current.sourceImage = await imageData(file);
+    const prepared = await imageData(file);
+    current.sourceImage = prepared.dataUrl;
+    current.sourceWidth = prepared.width;
+    current.sourceHeight = prepared.height;
     current.analysis = null;
     current.walls = [];
     current.updatedAt = new Date().toISOString();
@@ -61,7 +68,7 @@ async function useFile(file) {
     $("floorPlanPreview").src = current.sourceImage;
     $("floorPlanPreview").classList.remove("hidden");
     $("analyzeFloorPlan").disabled = false;
-    $("floorPlanAnalyzeStatus").textContent = "Originalplan geladen. Die KI kann ihn jetzt entzerren und auswerten.";
+    $("floorPlanAnalyzeStatus").textContent = "Originalplan geladen. Die KI fährt die sichtbaren Wände direkt auf diesem Bild nach.";
   } catch (error) {
     $("analyzeFloorPlan").disabled = true;
     $("floorPlanAnalyzeStatus").textContent = `Bild konnte nicht vorbereitet werden: ${error.message}`;
@@ -83,6 +90,18 @@ function normalizedWall(raw, index) {
   };
 }
 
+async function ensureSourceDimensions(current) {
+  if (current.sourceWidth > 0 && current.sourceHeight > 0) return;
+  const image = await new Promise((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("Die Abmessungen des Originalplans konnten nicht gelesen werden. Bitte den Plan erneut auswählen."));
+    element.src = current.sourceImage;
+  });
+  current.sourceWidth = image.naturalWidth;
+  current.sourceHeight = image.naturalHeight;
+}
+
 async function analyze() {
   const current = plan();
   if (!current.sourceImage) return;
@@ -90,7 +109,7 @@ async function analyze() {
   const originalLabel = button.textContent;
   button.disabled = true;
   button.textContent = "KI analysiert …";
-  $("floorPlanAnalyzeStatus").textContent = "Plan wird entzerrt, Maßketten werden gelesen und Wände werden abgeglichen …";
+  $("floorPlanAnalyzeStatus").textContent = "Sichtbare Wände werden direkt auf dem Originalplan gesucht und auf Deckung geprüft …";
   const startedAt = Date.now();
   const progressTimer = window.setInterval(() => {
     const seconds = Math.round((Date.now() - startedAt) / 1000);
@@ -101,14 +120,23 @@ async function analyze() {
         : `Zweite Erkennungsstufe läuft … ${seconds} Sekunden`;
   }, 5000);
   try {
+    await ensureSourceDimensions(current);
     const result = await api("/floor-plan/analyze", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({ image:current.sourceImage }),
+      body:JSON.stringify({
+        image:current.sourceImage,
+        image_width:current.sourceWidth,
+        image_height:current.sourceHeight
+      }),
       timeoutMs:240000
     });
     if (!result.plan || !Array.isArray(result.plan.walls) || !result.plan.walls.length) {
       throw new Error("Die KI hat keine Wände zurückgegeben. Bitte den Plan erneut fotografieren oder ein schärferes Bild auswählen.");
+    }
+    const alignmentScore = Number(result.plan?.quality?.alignment_score || 0);
+    if (alignmentScore < .82 || result.plan.source_coordinate_system !== true) {
+      throw new Error("Die erkannten Linien liegen nicht sicher genug auf dem Originalplan. Das falsche Ergebnis wurde verworfen – bitte das Foto möglichst gerade und vollständig aufnehmen.");
     }
     current.analysis = result.plan;
     current.walls = (result.plan?.walls || []).map(normalizedWall);
@@ -137,19 +165,20 @@ function surfacePolygon(wall, width, height) {
 
 function renderSvg() {
   const current=plan(), analysis=current.analysis || {};
-  const width=Number(analysis.canvas_width || 1000), height=Number(analysis.canvas_height || 700);
+  const width=Number(current.sourceWidth || analysis.canvas_width || 1000);
+  const height=Number(current.sourceHeight || analysis.canvas_height || 700);
   const surfaces=current.walls.map(w=>surfacePolygon(w,width,height)).filter(Boolean)
     .map(points=>`<polygon class="floor-plan-surface" points="${points}"/>`).join("");
   const walls=current.walls.map(w=>{
     const x1=w.x1*width,y1=w.y1*height,x2=w.x2*width,y2=w.y2*height, selected=w.measures.length?" selected":"";
     return `<g data-plan-wall="${w.id}"><line class="floor-plan-wall${selected}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line class="floor-plan-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><circle class="floor-plan-wall-dot${selected}" cx="${(x1+x2)/2}" cy="${(y1+y2)/2}" r="8"/></g>`;
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" aria-label="Entzerrter und nachgezeichneter Grundriss"><image class="plan-original" href="${current.sourceImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none"/>${surfaces}${walls}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" aria-label="Auf dem Originalbild deckungsgleich nachgezeichneter Grundriss"><image class="plan-original" href="${current.sourceImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none"/>${surfaces}${walls}</svg>`;
 }
 
 function renderQuality() {
   const quality=plan().analysis?.quality || {};
-  const score=Number(quality.score || 0);
+  const score=Math.min(Number(quality.score || 0),Number(quality.alignment_score || 0));
   const level=score>=.85?"high":score>=.65?"medium":"low";
   const label=level==="high"?"Geometrie und Maßketten eindeutig":level==="medium"?"Einzelne Maße bitte kontrollieren":"Unklare Stellen müssen bestätigt werden";
   $("floorPlanQuality").className=`floor-plan-quality ${level}`;

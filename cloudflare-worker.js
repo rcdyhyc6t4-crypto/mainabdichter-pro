@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.20.5
+// mainabdichter PRO Cloudflare Worker V32.20.6
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -15,17 +15,19 @@ let pipedrivePersonFieldSchemaCache = null;
 const FLOOR_PLAN_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["canvas_width", "canvas_height", "rotation_degrees", "quality", "walls", "openings", "uncertain_items"],
+  required: ["canvas_width", "canvas_height", "rotation_degrees", "source_coordinate_system", "quality", "walls", "openings", "uncertain_items"],
   properties: {
     canvas_width: { type: "number" },
     canvas_height: { type: "number" },
     rotation_degrees: { type: "number" },
+    source_coordinate_system: { type: "boolean" },
     quality: {
       type: "object",
       additionalProperties: false,
-      required: ["score", "perspective_corrected", "folds_detected", "dimensions_cross_checked"],
+      required: ["score", "alignment_score", "perspective_corrected", "folds_detected", "dimensions_cross_checked"],
       properties: {
         score: { type: "number" },
+        alignment_score: { type: "number" },
         perspective_corrected: { type: "boolean" },
         folds_detected: { type: "boolean" },
         dimensions_cross_checked: { type: "boolean" }
@@ -150,7 +152,7 @@ async function requestFloorPlanAnalysis(env, image, model, strict, prompt) {
   return parseFloorPlanOutput(data);
 }
 
-async function analyzeFloorPlan(env, image) {
+async function analyzeFloorPlan(env, image, imageWidth, imageHeight) {
   if (!env.OPENAI_API_KEY) {
     const error = new Error("Die KI-Grundrisserkennung ist im Worker noch nicht freigeschaltet. OPENAI_API_KEY fehlt.");
     error.status = 503;
@@ -166,16 +168,28 @@ async function analyzeFloorPlan(env, image) {
     error.status = 413;
     throw error;
   }
+  imageWidth = Math.round(Number(imageWidth));
+  imageHeight = Math.round(Number(imageHeight));
+  if (!(imageWidth > 0 && imageHeight > 0 && imageWidth <= 5000 && imageHeight <= 5000)) {
+    const error = new Error("Die Bildabmessungen des Grundrissfotos fehlen oder sind ungültig.");
+    error.status = 400;
+    throw error;
+  }
   const prompt = [
     "Analysiere ausschließlich den hochgeladenen Gebäudegrundriss.",
-    "Erfinde keine andere Raumaufteilung und ergänze keine nicht sichtbaren Räume.",
-    "Korrigiere gedanklich Drehung, Perspektive, lokale Verzerrung durch Falten, Knicke, Wellen und Kamerawinkel.",
-    "Rekonstruiere gerade und rechtwinklige Wände anhand der sichtbaren Linien, Maßketten, Wandstärken, Türen und Fenster.",
+    `Das übertragene Originalbild ist exakt ${imageWidth} Pixel breit und ${imageHeight} Pixel hoch.`,
+    "Erfinde keine Raumaufteilung, ergänze keine nicht sichtbaren Wände und vereinfache den Plan nicht zu einem allgemeinen Rechteck.",
+    "WICHTIG: Für die Koordinaten darfst du das Bild weder drehen noch entzerren noch perspektivisch begradigen.",
+    "Verfolge stattdessen die Mittellinie jeder tatsächlich sichtbaren massiven Wand direkt an ihrer Position im hochgeladenen Originalbild, auch wenn das Blatt gedreht, gefaltet, geknickt oder perspektivisch fotografiert ist.",
+    "x1,y1,x2,y2 müssen deshalb beim unveränderten Einblenden des Originalfotos genau auf der jeweiligen sichtbaren Wand liegen.",
+    "Nutze Wandstärken, Türen und Fenster zur Erkennung, aber rekonstruiere keine idealisierte Ersatzgeometrie.",
     "Gedruckte oder handschriftlich eingetragene Maße sind verbindlicher als Pixellängen.",
-    "Gib jede zusammenhängende Wand als eigenes Segment zurück. Koordinaten x1,y1,x2,y2 liegen normiert zwischen 0 und 1 in der entzerrten Planfläche.",
+    "Gib jede gerade sichtbare Wandstrecke als eigenes Segment zurück. Koordinaten x1,y1,x2,y2 liegen normiert zwischen 0 und 1 bezogen auf das unveränderte Originalbild: links=0, rechts=1, oben=0, unten=1.",
+    `Setze canvas_width exakt auf ${imageWidth}, canvas_height exakt auf ${imageHeight} und source_coordinate_system zwingend auf true.`,
     "length_m ist die maßstäbliche Wandlänge. thickness_cm ist die erkennbare Wandstärke.",
     "Wenn ein zwingendes Maß nicht zuverlässig lesbar ist, nicht raten: confidence reduzieren und uncertain_items ergänzen.",
-    "Der Score beschreibt die geometrische Gesamtzuverlässigkeit von 0 bis 1."
+    "quality.alignment_score beschreibt ausschließlich, wie sicher sämtliche zurückgegebenen Segmente pixelgenau über den sichtbaren Originalwänden liegen. Bei auch nur einer erfundenen oder deutlich versetzten Wand muss der Wert unter 0.82 liegen.",
+    "quality.score beschreibt die geometrische Gesamtzuverlässigkeit von 0 bis 1. perspective_corrected muss false sein, weil die Koordinaten ausdrücklich im Originalbild bleiben."
   ].join(" ");
   const configuredModel = String(env.OPENAI_VISION_MODEL || "gpt-5.6-luna").trim();
   const attempts = [
@@ -203,10 +217,11 @@ async function analyzeFloorPlan(env, image) {
     error.details = { code: "FLOOR_PLAN_ANALYSIS_FAILED", attempts: failures };
     throw error;
   }
-  plan.canvas_width = Number(plan.canvas_width) > 0 ? Number(plan.canvas_width) : 1000;
-  plan.canvas_height = Number(plan.canvas_height) > 0 ? Number(plan.canvas_height) : 700;
+  plan.canvas_width = imageWidth;
+  plan.canvas_height = imageHeight;
   plan.quality ||= {
     score: 0.5,
+    alignment_score: 0,
     perspective_corrected: false,
     folds_detected: false,
     dimensions_cross_checked: false
@@ -214,6 +229,13 @@ async function analyzeFloorPlan(env, image) {
   plan.walls = (plan.walls || []).filter(wall =>
     [wall.x1, wall.y1, wall.x2, wall.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
   );
+  const alignmentScore = Number(plan.quality?.alignment_score || 0);
+  if (plan.source_coordinate_system !== true || alignmentScore < 0.82) {
+    const error = new Error("Die erkannten Linien sind nicht ausreichend deckungsgleich mit dem Originalfoto. Das Ergebnis wurde aus Sicherheitsgründen verworfen.");
+    error.status = 422;
+    error.details = { code: "FLOOR_PLAN_ALIGNMENT_REJECTED", alignmentScore };
+    throw error;
+  }
   if (!plan.walls.length) {
     const error = new Error("Auf dem Foto konnten keine ausreichend sicheren Wände erkannt werden.");
     error.status = 422;
@@ -1824,7 +1846,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.20.5",
+          workerVersion: "32.20.6",
           time: new Date().toISOString()
         });
       }
@@ -1880,7 +1902,7 @@ export default {
 
       if (url.pathname === "/floor-plan/analyze" && request.method === "POST") {
         const input = await request.json().catch(() => ({}));
-        const plan = await analyzeFloorPlan(env, input.image);
+        const plan = await analyzeFloorPlan(env, input.image, input.image_width, input.image_height);
         return jsonResponse(request, { ok: true, plan });
       }
 
@@ -2201,7 +2223,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.20.5",
+          workerVersion: "32.20.6",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
