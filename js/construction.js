@@ -282,6 +282,7 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       const hasHoleCounts = Number(task.surfaceFirstRowHoles || 0) > 0
         || Number(task.surfaceFollowingRowHoles || 0) > 0;
       const geometryChanged = ["actualWidth", "actualHeight", "spacing"].includes(changedField);
+      const holeCountsChanged = ["actualHoles", "surfaceFirstRowHoles", "surfaceFollowingRowHoles"].includes(changedField);
       if (!hasHoleCounts || geometryChanged) {
         const rowCount = Number(measure.height || 0) < 0.125
           ? 0
@@ -289,15 +290,28 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
         const holesPerRow = Math.ceil(Number(measure.width || 0) / spacing);
         task.surfaceFirstRowHoles = rowCount > 0 ? holesPerRow : 0;
         task.surfaceFollowingRowHoles = Math.max(0, rowCount - 1) * holesPerRow;
+      } else if (changedField === "actualHoles") {
+        const totalHoles = Math.max(0, Math.round(Number(task.actualHoles || 0)));
+        const previousRows = Math.max(1, Math.round(Number(task.surfaceRowCount || 0)));
+        const holesPerRow = Math.max(1, Math.ceil(totalHoles / previousRows));
+        task.surfaceFirstRowHoles = Math.min(totalHoles, holesPerRow);
+        task.surfaceFollowingRowHoles = Math.max(0, totalHoles - task.surfaceFirstRowHoles);
       }
 
       const firstHoles = Math.max(0, Number(task.surfaceFirstRowHoles || 0));
       const followingHoles = Math.max(0, Number(task.surfaceFollowingRowHoles || 0));
       task.actualHoles = firstHoles + followingHoles;
-      task.surfaceRowCount = Number(measure.height || 0) < 0.125
-        ? 0
-        : Math.floor((Number(measure.height || 0) - 0.125) / 0.25) + 1;
-      task.actualQuantity = Number(task.actualWidth || 0) * Number(task.actualHeight || 0);
+      if (holeCountsChanged && firstHoles > 0) {
+        task.surfaceRowCount = Math.max(1, Math.ceil(task.actualHoles / firstHoles));
+        task.actualWidth = firstHoles * spacing;
+        task.actualQuantity = task.actualHoles * spacing * 0.25;
+        task.actualHeight = task.actualWidth > 0 ? task.actualQuantity / task.actualWidth : 0;
+      } else {
+        task.surfaceRowCount = Number(measure.height || 0) < 0.125
+          ? 0
+          : Math.floor((Number(measure.height || 0) - 0.125) / 0.25) + 1;
+        task.actualQuantity = Number(task.actualWidth || 0) * Number(task.actualHeight || 0);
+      }
       task.surfaceFirstRowHeight = 0.125;
       task.surfaceVerticalSpacing = 0.25;
 

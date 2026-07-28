@@ -1,0 +1,33 @@
+mainabdichter PRO V32.20.9
+
+Kinderleichte Bedienung
+
+- Hauptaktionen bestehen aus einem eindeutigen Symbol und wenigen kurzen Wörtern.
+- Lange Schaltflächentexte wurden bei Besichtigung und Angebot gekürzt.
+- Ausführliche Beschreibungen bleiben als barrierefreie Bezeichnung erhalten,
+  belasten aber nicht mehr die Darstellung auf iPhone und iPad.
+- „Speichern“, „Prüfen“, „Angebot“, „PDF“, „Lexoffice“ und „Baustelle“ sind
+  als klare Hauptaktionen sofort erkennbar.
+
+Direkt lösbare Hinweise
+
+- „Neue Daten verfügbar“ ist kurz und bildgestützt.
+- Muss vorher eine Besichtigung gespeichert werden, öffnet ein Klick direkt
+  die Besichtigung, scrollt zu „Speichern“ und markiert die Schaltfläche.
+- Der Besichtigungsabschluss bleibt immer anklickbar. Fehlt etwas, springt die
+  App zum ersten fehlenden Eingabefeld.
+- Lexoffice bleibt anklickbar. Fehlt die Prüfung, öffnet und markiert die App
+  direkt den erforderlichen Haken.
+- „Baustelle anlegen“ bleibt anklickbar und zeigt verständlich, falls das
+  Angebot zuerst als angenommen markiert werden muss.
+
+Weitere enthaltene Korrekturen
+
+- Ausführungstermine öffnen vorhandene Baustellen statt neuer Besichtigungen.
+- iPhone-Terminzeilen brechen Uhrzeit und Datum nicht mehr zeichenweise um.
+- Ist-Bohrlöcher berechnen Fläche, Abmessungen, Reihen und Materialverbrauch
+  einer Flächensperre automatisch neu.
+- Die unfertige KI-Grundrissfunktion wurde entfernt; das manuelle Wandaufmaß bleibt.
+
+Alle automatisierten Prüfungen für iPhone, iPad, Besichtigung, Angebot,
+Baustelle, Datensicherung, Pipedrive, Lexoffice und Arbeitsnachweis sind bestanden.

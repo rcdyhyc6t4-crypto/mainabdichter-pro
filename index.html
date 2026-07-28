@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.20.7</title>
-<link rel="stylesheet" href="css/app.css?v=32.20.7">
+<title>mainabdichter PRO V32.20.9</title>
+<link rel="stylesheet" href="css/app.css?v=32.20.9">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -39,11 +39,12 @@ main{width:100%;max-width:100%}
   </div>
 </div>
 <div id="remoteUpdateNotice" class="remote-update-notice hidden" role="status" aria-live="polite">
+  <span class="remote-update-icon" aria-hidden="true">↻</span>
   <div>
-    <strong id="remoteUpdateTitle">Neuer Stand auf einem anderen Gerät</strong>
-    <small id="remoteUpdateHint">Deine aktuelle Eingabe bleibt unverändert.</small>
+    <strong id="remoteUpdateTitle">Neue Daten verfügbar</strong>
+    <small id="remoteUpdateHint">Deine Eingabe bleibt erhalten.</small>
   </div>
-  <button type="button" id="applyRemoteUpdate" class="primary">Jetzt aktualisieren</button>
+  <button type="button" id="applyRemoteUpdate" class="primary">Neu laden</button>
   <button type="button" id="dismissRemoteUpdate" class="secondary">Später</button>
 </div>
 <main>
@@ -566,15 +567,6 @@ main{width:100%;max-width:100%}
 
   <details id="visitStep4" class="card compact-step guided-step">
     <summary>4. Schadensbereiche und Maßnahmen <span class="step-state"></span></summary>
-    <section class="floor-plan-launch-card">
-      <div>
-        <span>KI-GRUNDRISS &amp; AUFMASS</span>
-        <strong>Grundriss fotografieren und Wände auswählen</strong>
-        <small>Der hochgeladene Originalplan wird entzerrt und maßstabgetreu nachgezeichnet.</small>
-      </div>
-      <button type="button" id="openFloorPlan" class="primary">Grundriss öffnen</button>
-    </section>
-    <div id="floorPlanMiniSummary" class="floor-plan-mini-summary hidden"></div>
     <div id="areas"></div>
     <button id="addArea" class="primary">+ Schadensbereich</button>
     <div class="assessment-suggestion">
@@ -623,9 +615,9 @@ main{width:100%;max-width:100%}
     <div id="offerBasisStatus" class="status"></div>
   </details>
   <div class="sticky-actions visit-sticky-actions">
-    <button id="saveVisit" class="primary">Speichern & später fortsetzen</button>
-    <button id="toOffer" class="secondary">Protokoll prüfen</button>
-    <button id="finishVisitGuide" class="primary visit-finish-primary">Abschließen & Angebot öffnen</button>
+    <button id="saveVisit" class="primary" aria-label="Besichtigung speichern und später fortsetzen">▣ Speichern</button>
+    <button id="toOffer" class="secondary" aria-label="Besichtigungsprotokoll prüfen">✓ Prüfen</button>
+    <button id="finishVisitGuide" class="primary visit-finish-primary" aria-label="Besichtigung abschließen und Angebot öffnen">→ Angebot</button>
     <div id="finishVisitReason" class="finish-visit-reason"></div>
     <details class="visit-more-actions">
       <summary>Weitere Möglichkeiten</summary>
@@ -858,16 +850,16 @@ main{width:100%;max-width:100%}
     <p class="hint">Die Kundenansicht wird separat geöffnet. Interne Daten sind dort nicht erreichbar.</p>
   </div>
   <div class="offer-actions">
-    <button id="backToVisitInput" class="secondary">← Zurück zur Dateneingabe</button>
-    <button id="saveToArchive" class="primary">Im Archiv speichern</button>
-    <button id="openCustomerView" class="secondary">Kundenansicht öffnen</button>
-    <button id="reportPdf" class="secondary">Besichtigungsprotokoll als PDF</button>
+    <button id="backToVisitInput" class="secondary" aria-label="Zurück zur Dateneingabe">← Eingabe</button>
+    <button id="saveToArchive" class="primary" aria-label="Vorgang im Archiv speichern">▣ Speichern</button>
+    <button id="openCustomerView" class="secondary" aria-label="Kundenansicht öffnen">👁 Kundenansicht</button>
+    <button id="reportPdf" class="secondary" aria-label="Besichtigungsprotokoll als PDF öffnen">▤ PDF</button>
   </div>
   <div class="card offer-approval-card">
     <h2>Freigabe für Lexoffice</h2>
-    <label class="offer-basis-confirm"><input id="offerPositionsApproved" type="checkbox"> Ich habe Positionen, Mengen und Preise geprüft.</label>
+    <label class="offer-basis-confirm"><input id="offerPositionsApproved" type="checkbox"> ✓ Angebot geprüft</label>
     <div id="offerReviewStatus" class="status">Bitte zuerst die Angebotspositionen prüfen und bestätigen.</div>
-    <button id="sendLexware" class="primary offer-primary-action">Geprüften Entwurf an Lexoffice übertragen</button>
+    <button id="sendLexware" class="primary offer-primary-action" aria-label="Geprüften Angebotsentwurf an Lexoffice übertragen">↗ An Lexoffice</button>
     <p id="lexofficeRequirementHint" class="hint">Die Übertragung wird aktiv, sobald die Prüfung bestätigt wurde.</p>
   </div>
   <div class="card compact-status-card">
@@ -886,7 +878,7 @@ main{width:100%;max-width:100%}
   <div class="card worksite-create-card">
     <h2>Auftrag zur Baustelle machen</h2>
     <p id="worksiteCreateHint" class="hint">Die Baustelle kann erst angelegt werden, wenn das Angebot angenommen wurde.</p>
-    <button id="createWorksite" class="primary offer-primary-action">Baustelle aus angenommenem Angebot anlegen</button>
+    <button id="createWorksite" class="primary offer-primary-action" aria-label="Baustelle aus dem angenommenen Angebot anlegen">⚒ Baustelle anlegen</button>
   </div>
   <div id="offerStatus" class="status"></div>
 </section>
@@ -1437,57 +1429,6 @@ main{width:100%;max-width:100%}
     </section>
   </div>
 </div>
-<div id="floorPlanDialog" class="floor-plan-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="floorPlanTitle">
-  <div class="floor-plan-shell">
-    <header class="floor-plan-header">
-      <div><small>KI-GRUNDRISS &amp; AUFMASS</small><h2 id="floorPlanTitle">Originalplan nachzeichnen</h2></div>
-      <button type="button" id="closeFloorPlan" class="floor-plan-close" aria-label="Schließen">×</button>
-    </header>
-    <section id="floorPlanUploadStep" class="floor-plan-step">
-      <div class="floor-plan-instruction"><b>1</b><div><strong>Grundriss fotografieren</strong><small>Falten, Knicke und Schräglage werden automatisch berücksichtigt.</small></div></div>
-      <label class="floor-plan-picker">📷 Grundriss fotografieren<input id="floorPlanCamera" type="file" accept="image/*" capture="environment"></label>
-      <label class="floor-plan-picker secondary">Bild auswählen<input id="floorPlanLibrary" type="file" accept="image/*"></label>
-      <img id="floorPlanPreview" class="floor-plan-preview hidden" alt="Hochgeladener Originalgrundriss">
-      <button type="button" id="analyzeFloorPlan" class="primary floor-plan-main-action" disabled>Originalplan analysieren</button>
-      <div id="floorPlanAnalyzeStatus" class="status"></div>
-    </section>
-    <section id="floorPlanEditorStep" class="floor-plan-step hidden">
-      <div class="floor-plan-editor-head">
-        <div><strong>Wände antippen</strong><small>Nicht ausgewählte Wände bleiben neutral.</small></div>
-        <label class="floor-plan-original-toggle"><input id="floorPlanShowOriginal" type="checkbox" checked> Original einblenden</label>
-      </div>
-      <div id="floorPlanQuality" class="floor-plan-quality"></div>
-      <div id="floorPlanStage" class="floor-plan-stage"></div>
-      <div id="floorPlanWallPanel" class="floor-plan-wall-panel hidden">
-        <div class="floor-plan-wall-panel-head"><strong id="floorPlanWallTitle">Wand</strong><button type="button" id="closeFloorPlanWall">×</button></div>
-        <div class="floor-plan-measure-grid">
-          <div><label>Länge</label><input id="floorPlanWallLength" inputmode="decimal"></div>
-          <div><label>Wandstärke cm</label><input id="floorPlanWallThickness" inputmode="decimal"></div>
-        </div>
-        <label>Was wird an dieser Wand ausgeführt?</label>
-        <div id="floorPlanMeasureChoices" class="floor-plan-measure-choices">
-          <label><input type="checkbox" value="Horizontalsperre"> Horizontalsperre</label>
-          <label><input type="checkbox" value="Flächensperre"> Flächensperre</label>
-          <label><input type="checkbox" value="Wand-Sohlen-Anschluss"> Wand-Sohlen-Anschluss</label>
-          <label><input type="checkbox" value="Harzverpressung"> Harzverpressung</label>
-          <label><input type="checkbox" value="Negativabdichtung"> Negativabdichtung</label>
-          <label><input type="checkbox" value="Sanierputz"> Sanierputz</label>
-        </div>
-        <div id="floorPlanSurfaceFields" class="floor-plan-surface-fields hidden">
-          <label>Höhe der Flächensperre in Meter</label>
-          <input id="floorPlanSurfaceHeight" inputmode="decimal" placeholder="z. B. 1,50">
-          <button type="button" id="floorPlanFlipSurface" class="secondary">Rechteck auf andere Wandseite</button>
-        </div>
-        <button type="button" id="saveFloorPlanWall" class="primary floor-plan-main-action">Wand übernehmen</button>
-      </div>
-      <div id="floorPlanMeasurementSummary" class="floor-plan-measurement-summary"></div>
-      <div class="floor-plan-editor-actions">
-        <button type="button" id="replaceFloorPlan" class="secondary">Anderen Plan verwenden</button>
-        <button type="button" id="saveFloorPlan" class="primary">Grundriss und Aufmaß speichern</button>
-      </div>
-    </section>
-  </div>
-</div>
 <nav class="bottom-nav redesign-bottom-nav">
   <button data-bottom-page="dashboard" class="active"><span>⌂</span><small>Übersicht</small></button>
   <button id="bottomCustomers" data-bottom-page="customers"><span>♙</span><small>Kunden</small></button>
@@ -1512,10 +1453,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.20.7"></script>
-<script type="module" src="js/floor-plan.js?v=32.20.7"></script>
-<script type="module" src="js/cloud-migration.js?v=32.20.7"></script>
+<script type="module" src="js/app.js?v=32.20.9"></script>
+<script type="module" src="js/cloud-migration.js?v=32.20.9"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.20.7"></script>
+<script type="module" src="js/customers.js?v=32.20.9"></script>
 </body>
 </html>

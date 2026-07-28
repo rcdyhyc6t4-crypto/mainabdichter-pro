@@ -1,4 +1,4 @@
-mainabdichter PRO V32.19.9 – Geführte Maßnahmen, Arbeitsnachweis-Schnellstart und sicherer Gesamtablauf
+mainabdichter PRO V32.20.9 – Stabilität, richtige Terminziele und Flächenberechnung
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.

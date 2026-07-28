@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.9";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.20.9";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.9";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.20.9";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.9";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.20.9";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.20.7";
+const MAINABDICHTER_APP_VERSION = "32.20.9";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1127,6 +1127,72 @@ async function openPipedriveAppointment(item) {
   } catch(error) { alert(error.message); }
 }
 
+function appointmentCategory(item) {
+  const text=`${item?.subject||""} ${item?.type||""} ${item?.note||""}`.toLowerCase();
+  if(/ausführung|ausfuehrung|baustelle|montage|abdichtungsarbeiten|arbeitsbeginn/.test(text)) return "worksite";
+  if(/nachkontrolle|kontrolle|überprüf/.test(text)) return "followup";
+  if(/reklamation|mangel|nachbesser|wieder feucht/.test(text)) return "complaint";
+  if(/abhol|flasche|material/.test(text)) return "pickup";
+  return "visit";
+}
+
+function normalizedAppointmentText(value) {
+  return String(value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+}
+
+function findAppointmentWorksite(item) {
+  const dealId=String(item?.dealId||"");
+  const personId=String(item?.personId||"");
+  const person=normalizedAppointmentText(item?.personName);
+  const location=normalizedAppointmentText(item?.location);
+  return loadWorksites()
+    .filter(worksite=>worksite.status!=="completed")
+    .map(worksite=>{
+      let score=0;
+      if(dealId && dealId===String(worksite.pipedriveDealId||worksite.customer?.pipedriveDealId||"")) score+=100;
+      if(personId && personId===String(worksite.pipedrivePersonId||worksite.customer?.pipedriveId||"")) score+=60;
+      const worksiteName=normalizedAppointmentText(worksiteCustomerName(worksite));
+      const worksiteAddress=normalizedAppointmentText(worksite.objectAddress);
+      if(person && worksiteName && (person.includes(worksiteName)||worksiteName.includes(person))) score+=35;
+      if(location && worksiteAddress && (location.includes(worksiteAddress)||worksiteAddress.includes(location))) score+=45;
+      if(item?.dueDate && worksite.date===item.dueDate) score+=15;
+      return {worksite,score};
+    })
+    .filter(match=>match.score>=35)
+    .sort((a,b)=>b.score-a.score)[0]?.worksite||null;
+}
+
+async function openAppointmentTarget(item) {
+  if(!item) return;
+  const category=appointmentCategory(item);
+  if(category==="worksite" || category==="pickup"){
+    const worksite=findAppointmentWorksite(item);
+    v287SetModal("v287AppointmentsModal",false);
+    v287SetModal("appointmentCompleteModal",false);
+    worksiteViewFilter="all";
+    if(worksite){
+      activeWorksiteId=worksite.id;
+      sessionStorage.setItem("mainabdichter_active_worksite_section",WORKSITE_SECTION_ORDER[0]);
+      show("worksites");
+      renderWorksites();
+      return;
+    }
+    activeWorksiteId=null;
+    show("worksites");
+    renderWorksites();
+    alert(`Der Termin „${item.subject||"Ausführung"}“ ist als ${category==="pickup"?"Abholung":"Ausführung"} erkannt, konnte aber keiner vorhandenen Baustelle eindeutig zugeordnet werden. Die Baustellenübersicht wurde geöffnet.`);
+    return;
+  }
+  await openPipedriveAppointment(item);
+  if(category==="followup"||category==="complaint"){
+    state.visit.recordContext||={};
+    state.visit.recordContext.caseType=category==="followup"?"Nachkontrolle":"Reklamation";
+    state.visit.inquiry.source=state.visit.recordContext.caseType;
+    saveState();
+    renderVisit();
+  }
+}
+
 function renderUpcomingAppointments() {
   const items=cachedUpcomingPipedriveActivities;
   const next=items[0];
@@ -1142,11 +1208,15 @@ function renderUpcomingAppointments() {
   }
   const list=$("v287AppointmentsList");
   if (!list) return;
-  list.innerHTML=items.length?items.map(item=>`<button type="button" class="v287-appointment-row" data-v287-appointment="${esc(String(item.id||""))}">
-    <span class="v287-appointment-date"><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(formatPipedriveAppointmentDate(item.dueDate))}</small></span>
-    <span><strong>${esc(item.personName||item.subject||"Termin")}</strong><small>${esc(item.subject||item.type||"Pipedrive-Termin")}${item.location?` · ${esc(item.location)}`:""}</small></span><em>›</em>
-  </button>`).join(""):'<div class="empty-mini">Keine kommenden offenen Pipedrive-Termine vorhanden.</div>';
-  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
+  list.innerHTML=items.length?items.map(item=>`<article class="v287-appointment-item">
+    <button type="button" class="v287-appointment-row" data-v287-appointment="${esc(String(item.id||""))}">
+      <span class="v287-appointment-date"><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(formatPipedriveAppointmentDate(item.dueDate))}</small></span>
+      <span><strong>${esc(item.personName||item.subject||"Termin")}</strong><small>${esc(item.subject||item.type||"Pipedrive-Termin")}${item.location?` · ${esc(item.location)}`:""}</small></span><em>›</em>
+    </button>
+    <button type="button" class="secondary v287-appointment-complete" data-complete-appointment="${esc(String(item.id||""))}">Termin erledigen</button>
+  </article>`).join(""):'<div class="empty-mini">Keine kommenden offenen Pipedrive-Termine vorhanden.</div>';
+  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openAppointmentTarget(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
+  list.querySelectorAll("[data-complete-appointment]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.completeAppointment)));
   const todayBox=$("pipedriveTodayList");
   if (todayBox) todayBox.querySelectorAll("[data-activity-id]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.activityId)));
 }
@@ -1564,7 +1634,7 @@ function initializeV28Dashboard() {
   if ($("openAppointmentRecord")) $("openAppointmentRecord").onclick = () => {
     const item = selectedAppointmentItem;
     v287SetModal("appointmentCompleteModal", false);
-    openPipedriveAppointment(item);
+    openAppointmentTarget(item);
   };
   if ($("closeAppointmentComplete")) $("closeAppointmentComplete").onclick = () => v287SetModal("appointmentCompleteModal", false);
   if ($("appointmentCompleteModal")) $("appointmentCompleteModal").onclick = event => {
@@ -2883,8 +2953,9 @@ function renderVisitChecklist(){
   const complete=checks.every(x=>x.ok),reviewed=complete&&visitProtocolReviewed(),approved=reviewed&&offerBasisApproved();
   box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>`<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';
   box.querySelectorAll("[data-missing-check]").forEach(button=>button.onclick=()=>jumpToVisitCheck(requiredChecks[Number(button.dataset.missingCheck)]));
-  $('finishVisitGuide').disabled=!approved;
-  if($("finishVisitReason"))$("finishVisitReason").textContent=!complete?"Noch nicht möglich: Pflichtangaben fehlen.":!reviewed?"Noch nicht möglich: Bitte zuerst „Protokoll prüfen“.":!approved?"Noch nicht möglich: Bitte die Angebotsgrundlage bestätigen.":"Alles vollständig – das Angebot kann geöffnet werden.";
+  $('finishVisitGuide').disabled=false;
+  $('finishVisitGuide').classList.toggle("needs-action",!approved);
+  if($("finishVisitReason"))$("finishVisitReason").textContent=!complete?"Noch Angaben offen – tippe auf „→ Angebot“.":!reviewed?"Tippe zuerst auf „✓ Prüfen“.":!approved?"Setze noch den grünen Haken bei der Freigabe.":"Fertig – Angebot kann geöffnet werden.";
   if($("offerBasisApproved"))$("offerBasisApproved").disabled=!reviewed;
   const basis=$("visitOfferBasis");
   if(basis){basis.classList.toggle("is-locked",!reviewed);if(!reviewed)basis.removeAttribute("open");}
@@ -4505,7 +4576,10 @@ function renderOfferPositionReview(result) {
     saveState(); setTimeout(renderOffer,0);
   });
   if ($("offerPositionsApproved")) $("offerPositionsApproved").checked=Boolean(state.visit.offerDraft.approved);
-  if ($("sendLexware")) $("sendLexware").disabled=!state.visit.offerDraft.approved || !review.items.some(item=>item.included);
+  if ($("sendLexware")) {
+    $("sendLexware").disabled=false;
+    $("sendLexware").classList.toggle("needs-action",!state.visit.offerDraft.approved || !review.items.some(item=>item.included));
+  }
   if ($("lexofficeRequirementHint")) {
     $("lexofficeRequirementHint").textContent = state.visit.lexwareQuotationId
       ? "Der Entwurf wurde bereits an Lexoffice übertragen."
@@ -4573,7 +4647,10 @@ function renderOffer() {
   renderOfferPositionReview(result);
   const archiveStatus = $("offerArchiveStatus")?.value || currentRecord?.status || "draft";
   const accepted = ["accepted","completed"].includes(archiveStatus);
-  if ($("createWorksite")) $("createWorksite").disabled = !accepted;
+  if ($("createWorksite")) {
+    $("createWorksite").disabled = false;
+    $("createWorksite").classList.toggle("needs-action",!accepted);
+  }
   if ($("worksiteCreateHint")) {
     $("worksiteCreateHint").textContent = accepted
       ? "Das Angebot ist angenommen. Die Baustelle kann jetzt angelegt werden."
@@ -4817,6 +4894,10 @@ function buildQuotationPayload() {
 }
 $("sendLexware").onclick = async () => {
   try {
+    if (!state.visit.offerDraft?.approved) {
+      revealActionTarget("offer", "#offerPositionsApproved", "Bitte erst den Haken bei „Angebot geprüft“ setzen.");
+      return;
+    }
     const payload = buildQuotationPayload();
 
     const preview = payload.quotation.lineItems.map((item, index) =>
@@ -6109,7 +6190,7 @@ function renderWorksiteEditor() {
         ${task.type === "Flächensperre" ? surfaceFields : `<div><label>${quantityLabel}</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>`}
         <div><label>Bohrlochabstand</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>12,5 cm</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>25 cm</option></select></div>
         <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
-        ${task.type === "Flächensperre" ? `<div><label>Ist-Bohrlöcher gesamt</label><input value="${num(task.actualHoles)}" readonly></div>` : `<div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>`}
+        ${task.type === "Flächensperre" ? `<div><label>Ist-Bohrlöcher gesamt</label><input inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div><div><label>Daraus berechnete Fläche</label><input value="${num(task.actualQuantity)} m²" readonly></div>` : `<div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>`}
         ${task.type === "Flächensperre" ? "" : `<div><label>Sollmenge je Bohrloch</label><input value="${Math.round(Number(task.targetLitersPerHole || 0) * 1000)} ml" readonly></div>
         <div><label>Istmenge je Bohrloch</label><input type="number" inputmode="numeric" min="0" step="10" data-ws-task="${task.id}" data-ws-field="actualMlPerHole" value="${Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)}"></div>`}
         <div><label>Sollverbrauch ohne Reserve</label><input value="${num(task.plannedLiters)} l" readonly></div>
@@ -7018,16 +7099,34 @@ function isUserActivelyWorking() {
 }
 
 function showRemoteUpdateNotice({
-  title = "Neuer Stand auf einem anderen Gerät",
-  hint = "Deine aktuelle Eingabe bleibt unverändert."
+  title = "Neue Daten verfügbar",
+  hint = "Deine Eingabe bleibt erhalten.",
+  actionLabel = "Neu laden"
 } = {}) {
   if ($("remoteUpdateTitle")) $("remoteUpdateTitle").textContent = title;
   if ($("remoteUpdateHint")) $("remoteUpdateHint").textContent = hint;
+  if ($("applyRemoteUpdate")) $("applyRemoteUpdate").textContent = actionLabel;
   $("remoteUpdateNotice")?.classList.remove("hidden");
 }
 
 function hideRemoteUpdateNotice() {
   $("remoteUpdateNotice")?.classList.add("hidden");
+}
+
+function revealActionTarget(pageId, selector, message = "") {
+  hideRemoteUpdateNotice();
+  if (pageId === "visit") renderVisit();
+  if (pageId === "offer") renderOffer();
+  show(pageId);
+  window.setTimeout(() => {
+    const target = document.querySelector(selector);
+    if (!target) return;
+    target.scrollIntoView({ behavior:"smooth", block:"center" });
+    target.classList.add("action-target-highlight");
+    if (typeof target.focus === "function") target.focus({ preventScroll:true });
+    window.setTimeout(() => target.classList.remove("action-target-highlight"), 2400);
+  }, 180);
+  if (message) showStatus(pageId === "visit" ? "visitStatus" : "offerStatus", message, false);
 }
 
 function addDeviceMetadata(payload) {
@@ -7555,10 +7654,11 @@ $("centralSyncSetup")?.addEventListener("click", () => {
 $("centralSyncRecovery")?.addEventListener("click", restoreUnsyncedLocalCopy);
 $("applyRemoteUpdate")?.addEventListener("click", async () => {
   if (localStorage.getItem(LOCAL_DIRTY_KEY) === "1") {
-    showRemoteUpdateNotice({
-      title: "Aktuelle Eingabe zuerst speichern",
-      hint: "Tippe in der Besichtigung auf „Speichern & später fortsetzen“. Danach kann der andere Gerätestand geladen werden."
-    });
+    revealActionTarget(
+      "visit",
+      "#saveVisit",
+      "Diese Besichtigung zuerst speichern. Die passende Schaltfläche ist markiert."
+    );
     return;
   }
   await synchronizeFromDrive({ force: true, userRequested: true });
