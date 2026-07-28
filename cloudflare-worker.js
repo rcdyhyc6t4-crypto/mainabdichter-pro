@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.19.7
+// mainabdichter PRO Cloudflare Worker V32.19.9
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1512,10 +1512,37 @@ async function findExistingPipedrivePerson(env, email, phone) {
 async function uploadPipedriveFile(env, file, dealId) {
   const domain = getPipedriveDomain(env);
   const url = `https://${domain}.pipedrive.com/api/v1/files?api_token=${encodeURIComponent(env.PIPEDRIVE_API_TOKEN)}`;
-  const form = new FormData();
-  form.append("file", file, file.name || "Dokument.pdf");
-  form.append("deal_id", String(dealId));
-  const response = await fetch(url, { method: "POST", body: form });
+  // Ein weitergereichtes FormData verliert bei einzelnen Cloudflare-
+  // Laufzeiten gelegentlich den automatisch erzeugten boundary-Parameter.
+  // Pipedrive verwirft den Upload dann mit "No initial boundary string".
+  // Deshalb wird der Multipart-Body hier bewusst und eindeutig aufgebaut.
+  const boundary = `----mainabdichter-${crypto.randomUUID()}`;
+  const encoder = new TextEncoder();
+  const safeFilename = String(file.name || "Dokument.pdf")
+    .replace(/[\r\n"]/g, "_");
+  const mimeType = String(file.type || "application/octet-stream")
+    .replace(/[\r\n]/g, "");
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const prefix = encoder.encode(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="deal_id"\r\n\r\n` +
+    `${String(dealId)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="file"; filename="${safeFilename}"\r\n` +
+    `Content-Type: ${mimeType}\r\n\r\n`
+  );
+  const suffix = encoder.encode(`\r\n--${boundary}--\r\n`);
+  const body = new Uint8Array(prefix.length + fileBytes.length + suffix.length);
+  body.set(prefix, 0);
+  body.set(fileBytes, prefix.length);
+  body.set(suffix, prefix.length + fileBytes.length);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": `multipart/form-data; boundary=${boundary}`
+    },
+    body
+  });
   const text = await response.text();
   let data;
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
@@ -1587,7 +1614,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.19.7",
+          workerVersion: "32.19.9",
           time: new Date().toISOString()
         });
       }
@@ -1958,7 +1985,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.19.7",
+          workerVersion: "32.19.9",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,

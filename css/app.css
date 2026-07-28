@@ -2473,3 +2473,18 @@ body.central-syncing{overflow:hidden}
   .visit-persist-actions{grid-template-columns:1fr}
   .mobile-workflow-jump{top:calc(76px + env(safe-area-inset-top))}
 }
+/* V32.19.9 – geführte Maßnahmenprüfung */
+.measure-guided-card{border:2px solid #dfe7df}
+.measure-guided-card.measure-open{border-color:#efc36f}
+.measure-guided-card.measure-confirmed{border-color:#42ad35;background:#f3fbf1}
+.measure-step-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #e2e8e2}
+.measure-step-head span{font-size:.78rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#287225}
+.measure-step-head strong{font-size:.9rem;text-align:right}
+.measure-confirm-area{display:grid;gap:10px;padding:14px;border-radius:14px;background:#f4f6f2}
+.measure-confirm-area small{font-weight:700;color:#59645b}
+.measure-confirm-area button{width:100%}
+.direct-work-report-start{max-width:680px}
+@media(max-width:600px){
+  .measure-step-head{align-items:flex-start;flex-direction:column}
+  .measure-step-head strong{text-align:left}
+}

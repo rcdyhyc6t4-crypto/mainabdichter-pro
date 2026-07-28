@@ -1,11 +1,11 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, mergeFullBackupPayload, backupHasBusinessData, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, mergeFullBackupPayload, backupHasBusinessData, loadCustomers, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.7";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.19.9";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.7";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.9";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.7";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.9";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.19.7";
+const MAINABDICHTER_APP_VERSION = "32.19.9";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1645,6 +1645,10 @@ function initializeV28Dashboard() {
     setNewInquiryModal(false);
     startNewVisit();
   };
+  if ($("newWorkReportDirect")) $("newWorkReportDirect").onclick=()=>{
+    setNewInquiryModal(false);
+    openDirectWorkReportStart();
+  };
   if ($("v28CreateOffer")) $("v28CreateOffer").onclick=()=>show("offer");
   if ($("v28OpenFullInventory")) $("v28OpenFullInventory").onclick=()=>show("settings");
   if ($("v28ActiveWorksite")) $("v28ActiveWorksite").onclick=()=>show("worksites");
@@ -1792,6 +1796,83 @@ function startNewVisit() {
     inquiryCard.open = true;
     requestAnimationFrame(() => inquiryCard.scrollIntoView({ block: "start" }));
   }
+}
+
+function openDirectWorkReportStart(){
+  const customers=loadCustomers().slice().sort((a,b)=>{
+    const name=item=>[item.company,item.lastName,item.firstName].filter(Boolean).join(" ");
+    return name(a).localeCompare(name(b),"de");
+  });
+  const overlay=document.createElement("div");
+  overlay.className="adhs-modal-overlay";
+  overlay.innerHTML=`<section class="adhs-modal direct-work-report-start">
+    <span class="dashboard-eyebrow">SCHNELLSTART</span>
+    <h2>Neuer Arbeitsnachweis</h2>
+    <p class="hint">Nur Kunde und Baustelle festlegen. Danach führt dich die App direkt durch die ausgeführte Maßnahme.</p>
+    <label>Vorhandenen Kunden auswählen (optional)</label>
+    <select id="directWorkCustomer">
+      <option value="">Neuer oder noch nicht angelegter Kunde</option>
+      ${customers.map(customer=>`<option value="${esc(customer.id)}">${esc([customer.company,customer.firstName,customer.lastName].filter(Boolean).join(" ")||"Unbenannter Kunde")} · ${esc(customer.objectAddress||[customer.street,customer.zip,customer.city].filter(Boolean).join(" "))}</option>`).join("")}
+    </select>
+    <div class="grid">
+      <div><label>Vorname</label><input id="directWorkFirstName"></div>
+      <div><label>Nachname</label><input id="directWorkLastName"></div>
+      <div class="full"><label>Firma (falls vorhanden)</label><input id="directWorkCompany"></div>
+      <div class="full"><label>Objektadresse</label><input id="directWorkAddress" placeholder="Straße, PLZ Ort"></div>
+    </div>
+    <div id="directWorkStatus" class="status"></div>
+    <div class="modal-actions"><button type="button" class="secondary" data-close-direct-work>Abbrechen</button><button type="button" class="primary" id="createDirectWorkReport">Arbeitsnachweis starten</button></div>
+  </section>`;
+  document.body.appendChild(overlay);
+  const select=overlay.querySelector("#directWorkCustomer");
+  const fill=()=>{
+    const customer=customers.find(item=>String(item.id)===select.value);
+    if(!customer)return;
+    overlay.querySelector("#directWorkFirstName").value=customer.firstName||"";
+    overlay.querySelector("#directWorkLastName").value=customer.lastName||"";
+    overlay.querySelector("#directWorkCompany").value=customer.company||"";
+    overlay.querySelector("#directWorkAddress").value=customer.objectAddress||[customer.street,[customer.zip,customer.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  };
+  select.onchange=fill;
+  overlay.querySelector("[data-close-direct-work]").onclick=()=>overlay.remove();
+  overlay.querySelector("#createDirectWorkReport").onclick=()=>{
+    const selected=customers.find(item=>String(item.id)===select.value)||{};
+    const customer={
+      ...selected,
+      firstName:overlay.querySelector("#directWorkFirstName").value.trim(),
+      lastName:overlay.querySelector("#directWorkLastName").value.trim(),
+      company:overlay.querySelector("#directWorkCompany").value.trim(),
+      objectAddress:overlay.querySelector("#directWorkAddress").value.trim()
+    };
+    if(!customer.firstName&&!customer.lastName&&!customer.company){
+      showStatus("directWorkStatus","Bitte wenigstens Kundenname oder Firma eingeben.",false);
+      return;
+    }
+    if(!customer.objectAddress){
+      showStatus("directWorkStatus","Bitte die Baustellenadresse eingeben.",false);
+      return;
+    }
+    const worksite=createWorksiteFromVisit(state.settings,{
+      customer,
+      building:{},
+      areas:[],
+      documents:[],
+      visitEmployee:defaultEmployeeName(),
+      visitDate:todayLocal(),
+      visitNumber:`AN-${Date.now().toString().slice(-8)}`
+    });
+    worksite.status="active";
+    worksite.quickCreated=true;
+    worksite.date=todayLocal();
+    worksite.employees=defaultEmployeeName();
+    persistWorksite(worksite);
+    activeWorksiteId=worksite.id;
+    sessionStorage.setItem("mainabdichter_active_worksite_section","wsSectionExecution");
+    overlay.remove();
+    show("worksites");
+    renderWorksites();
+    openAdditionalWorkPicker(worksite,{primary:true});
+  };
 }
 
 const VISIT_EXPLICIT_SAVEPOINT_KEY = "mainabdichter_visit_explicit_savepoint_v1";
@@ -2665,7 +2746,29 @@ function visitRequirementEnabled(key){
   return definition?.defaultRequired!==false;
 }
 function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
-function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]);return[
+function measureCompletion(measure={}){
+  const type=String(measure.type||"");
+  if(!type)return{details:false,confirmed:false,missing:"Maßnahme auswählen"};
+  const wall=parseDecimal(measure.wall);
+  const length=parseDecimal(measure.length);
+  const width=parseDecimal(measure.width);
+  const height=parseDecimal(measure.height);
+  if(type==="Flächensperre"){
+    if(width<=0)return{details:false,confirmed:false,missing:"Laufmeter der Wand eingeben"};
+    if(height<=0)return{details:false,confirmed:false,missing:"Höhe der Fläche eingeben"};
+  }else if(length<=0){
+    return{details:false,confirmed:false,missing:"Laufmeter eingeben"};
+  }
+  if(type!=="Harzverpressung"&&wall<=0)return{details:false,confirmed:false,missing:"Wandstärke eingeben"};
+  if(["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(type)&&![.125,.25].includes(parseDecimal(measure.spacing))){
+    return{details:false,confirmed:false,missing:"Bohrlochabstand auswählen"};
+  }
+  if(type==="Harzverpressung"&&(parseDecimal(measure.resinHolesPerMeter)<10||parseDecimal(measure.resinHolesPerMeter)>20)){
+    return{details:false,confirmed:false,missing:"Bohrlöcher je Laufmeter prüfen"};
+  }
+  return{details:true,confirmed:Boolean(measure.confirmed),missing:measure.confirmed?"":"Maßnahme bestätigen"};
+}
+function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]),measures=areas.flatMap(x=>x.measures||[]);return[
  {key:"visitEmployee",label:"Mitarbeiter auswählen",valid:Boolean(String(state.visit.visitEmployee||"").trim()),step:0,selector:"#visitEmployee"},
  {key:"visitStartTime",label:"Besichtigung beginnen",valid:Boolean(state.visit.visitStartTime),step:0,selector:"#startVisitWork"},
  {key:"visitEndTime",label:"Besichtigung beenden",valid:Boolean(state.visit.visitEndTime),step:7,selector:"#endVisitWork"},
@@ -2698,7 +2801,9 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"measurementValue",label:"Messwert in Digits je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.value).trim()),step:4,selector:'[data-mf="value"]'},
  {key:"measurementHeight",label:"Messhöhe je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.height||"").trim()),step:4,selector:'[data-mf="height"]'},
  {key:"measurementLocation",label:"Messposition je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.location||"").trim()),step:4,selector:'[data-mf="location"]'},
- {key:"measure",label:"Mindestens eine Maßnahme",valid:areas.some(x=>(x.measures||[]).some(m=>m.type)),step:4,selector:'[data-add-measure], [data-mfield="type"]'}
+ {key:"measure",label:"Mindestens eine Maßnahme",valid:measures.some(m=>m.type),step:4,selector:'[data-add-measure], [data-mfield="type"]'},
+ {key:"measureDetails",label:"Menge und Ausführung je Maßnahme",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).details),step:4,selector:'[data-measure-missing]'},
+ {key:"measureConfirmed",label:"Alle Maßnahmen geprüft",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).confirmed),step:4,selector:'[data-confirm-measure]'}
 ].map(check=>({...check,required:visitRequirementEnabled(check.key),ok:!visitRequirementEnabled(check.key)||check.valid}));}
 function offerBasisApproved(){return Boolean(state.visit.offerBasis?.approved);}
 function visitReviewFingerprint(){
@@ -4047,6 +4152,7 @@ function renderAreas() {
       resinHolesPerMeter:15,
       resinIncludedKgPerMeter:4,
       resinTotalKg:"",
+      confirmed:false,
       note:""
     });
     saveState(); updateGeneratedRecommendation(); renderAreas();
@@ -4117,32 +4223,70 @@ function renderMeasurements(area) {
 
 function renderMeasures(area) {
   const box = $(`measures-${area.id}`);
-  box.innerHTML = area.measures.map(m => `
-    <div class="sub-card item-grid">
+  box.innerHTML = area.measures.map((m,index) => {
+    const completion=measureCompletion(m);
+    return `
+    <div class="sub-card item-grid measure-guided-card ${completion.confirmed?"measure-confirmed":"measure-open"}">
+      <div class="wide measure-step-head"><span>Maßnahme ${index+1}</span><strong>${completion.confirmed?"✓ vollständig geprüft":completion.details?"Noch bestätigen":completion.missing}</strong></div>
       <div class="wide"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
-      <div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>
-      ${m.type==="Flächensperre" ? `<div><label>Breite m</label><input data-measure="${m.id}" data-mfield="width" value="${m.width}"></div><div><label>Höhe m</label><input data-measure="${m.id}" data-mfield="height" value="${m.height}"></div>` : `<div><label>Länge lfm</label><input data-measure="${m.id}" data-mfield="length" value="${m.length}"></div>`}
+      ${m.type&&m.type!=="Harzverpressung"?`<div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>`:""}
+      ${m.type==="Flächensperre"
+        ? `<div><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div><label>Höhe der Fläche m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}"></div>`
+        : m.type?`<div><label>Laufmeter</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="length" value="${esc(m.length||"")}"></div>`:""}
+      ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type)?`<div><label>Bohrlochabstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
       ${m.type==="Harzverpressung" ? `
         <div><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
         <div><label>Enthaltenes Harz je lfm (3–5 kg)</label><select data-measure="${m.id}" data-mfield="resinIncludedKgPerMeter"><option value="3" ${Number(m.resinIncludedKgPerMeter||4)===3?"selected":""}>3 kg</option><option value="4" ${Number(m.resinIncludedKgPerMeter||4)===4?"selected":""}>4 kg</option><option value="5" ${Number(m.resinIncludedKgPerMeter||4)===5?"selected":""}>5 kg</option></select></div>
         <div><label>Tatsächlicher Harzverbrauch gesamt kg</label><input type="number" min="0" step=".1" data-measure="${m.id}" data-mfield="resinTotalKg" value="${m.resinTotalKg||""}"></div>` : ""}
       ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>
+      <div class="wide measure-confirm-area" data-measure-missing="${m.id}">
+        <small>${completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${esc(completion.missing)}`}</small>
+        <button type="button" class="${completion.confirmed?"secondary":"primary"}" data-confirm-measure="${m.id}" ${completion.details?"":"disabled"}>${completion.confirmed?"✓ Maßnahme geprüft":"Maßnahme prüfen und übernehmen"}</button>
+      </div>
       <button class="danger" data-delete-measure="${m.id}">Löschen</button>
-    </div>`).join("");
+    </div>`;}).join("");
 
-  box.querySelectorAll("[data-mfield]").forEach(input => input.oninput = () => {
+  box.querySelectorAll("[data-mfield]").forEach(input => {
+    const eventName=input.tagName==="SELECT"?"onchange":"oninput";
+    input[eventName] = () => {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mfield] = input.value;
+    measure.confirmed=false;
     saveState();
     updateGeneratedRecommendation();
     if (input.dataset.mfield === "type") renderAreas();
-  });
+    else {
+      const card=input.closest(".measure-guided-card");
+      const completion=measureCompletion(measure);
+      const status=card?.querySelector(".measure-step-head strong");
+      const hint=card?.querySelector(".measure-confirm-area small");
+      const confirmButton=card?.querySelector("[data-confirm-measure]");
+      if(status)status.textContent=completion.details?"Noch bestätigen":completion.missing;
+      if(hint)hint.textContent=completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${completion.missing}`;
+      if(confirmButton)confirmButton.disabled=!completion.details;
+      updateVisitGuide();
+    }
+  };});
   box.querySelectorAll("[data-mcheck]").forEach(input => input.onchange = () => {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mcheck] = input.checked;
+    measure.confirmed=false;
     saveState();
     updateGeneratedRecommendation();
+    updateVisitGuide();
+  });
+  box.querySelectorAll("[data-confirm-measure]").forEach(button=>button.onclick=()=>{
+    const measure=area.measures.find(item=>item.id===button.dataset.confirmMeasure);
+    if(!measure)return;
+    const completion=measureCompletion(measure);
+    if(!completion.details)return;
+    measure.confirmed=true;
+    saveState();
+    renderMeasures(area);
+    updateGeneratedRecommendation();
+    updateVisitGuide();
+    scheduleVisitAutoAdvance();
   });
   box.querySelectorAll("[data-delete-measure]").forEach(button => button.onclick = () => {
     area.measures = area.measures.filter(item => item.id !== button.dataset.deleteMeasure);
@@ -5812,6 +5956,11 @@ function initializeWorksiteSignatures(ws) {
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
+  if ($("wsAddExtraWork")) {
+    $("wsAddExtraWork").textContent = ws.quickCreated && reportableWorksiteTasks(ws).length === 0
+      ? "＋ Erste Maßnahme erfassen"
+      : "＋ Zusätzliche Arbeit erfassen";
+  }
   $("worksiteEditor").dataset.worksiteId = ws.id;
   $("wsCustomer").textContent = worksiteCustomerName(ws);
   $("wsAddress").textContent = ws.objectAddress || "–";
@@ -6106,7 +6255,7 @@ function renderWorksiteEditor() {
 function addAdditionalWorkToActiveWorksite() {
   const ws = saveActiveWorksite(false) || getWorksite(activeWorksiteId);
   if (!ws) return;
-  openAdditionalWorkPicker(ws);
+  openAdditionalWorkPicker(ws,{primary:Boolean(ws.quickCreated&&reportableWorksiteTasks(ws).length===0)});
 }
 
 function additionalWorkCatalog() {
@@ -6132,13 +6281,14 @@ function additionalWorkCatalog() {
   });
 }
 
-function openAdditionalWorkPicker(ws) {
+function openAdditionalWorkPicker(ws, options={}) {
+  const primaryMode=Boolean(options.primary);
   const catalog = additionalWorkCatalog();
   const overlay = document.createElement("div");
   overlay.className = "adhs-modal-overlay";
   overlay.innerHTML = `<section class="adhs-modal">
-    <span class="dashboard-eyebrow">KUNDENWUNSCH</span>
-    <h2>Welche Arbeit kommt hinzu?</h2>
+    <span class="dashboard-eyebrow">${primaryMode?"ARBEITSNACHWEIS":"KUNDENWUNSCH"}</span>
+    <h2>${primaryMode?"Welche Maßnahme wird ausgeführt?":"Welche Arbeit kommt hinzu?"}</h2>
     <label>Leistung aus dem Katalog</label>
     <select id="extraCatalogItem">${catalog.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join("")}</select>
     <div class="grid">
@@ -6148,8 +6298,8 @@ function openAdditionalWorkPicker(ws) {
       <div id="extraSurfaceHeightField" hidden><label>Höhe der zusätzlichen Wand m</label><input id="extraSurfaceHeight" type="number" inputmode="decimal" min="0" step=".25" value="1"></div>
     </div>
     <label>Besonderheit (optional)</label><input id="extraNote" placeholder="Nur wenn wirklich nötig">
-    <label class="switch-row"><input id="extraApproved" type="checkbox" checked> Vom Kunden vor Ort beauftragt</label>
-    <div class="modal-actions"><button type="button" class="secondary" data-close-modal>Abbrechen</button><button type="button" class="primary" id="addCatalogWork">Übernehmen</button></div>
+    ${primaryMode?"":'<label class="switch-row"><input id="extraApproved" type="checkbox" checked> Vom Kunden vor Ort beauftragt</label>'}
+    <div class="modal-actions"><button type="button" class="secondary" data-close-modal>${primaryMode?"Später auswählen":"Abbrechen"}</button><button type="button" class="primary" id="addCatalogWork">${primaryMode?"Maßnahme übernehmen":"Übernehmen"}</button></div>
   </section>`;
   document.body.appendChild(overlay);
   const updateExtraFields = () => {
@@ -6172,15 +6322,15 @@ function openAdditionalWorkPicker(ws) {
       ? surfaceWidth * surfaceHeight
       : parseDecimal(overlay.querySelector("#extraQuantity").value);
     if (!item || quantity <= 0) return;
-    const linked = reportableWorksiteTasks(ws).find(task => !task.additionalWork && task.type === item.type);
+    const linked = primaryMode ? null : reportableWorksiteTasks(ws).find(task => !task.additionalWork && task.type === item.type);
     ws.tasks.push({
       id:crypto.randomUUID(), areaId:"", areaName:area, workArea:area,
       type:item.type, scope:`${num(quantity)} ${item.unit}`, offerDescription:"",
       actualNote:overlay.querySelector("#extraNote").value.trim(),
-      plannedQuantity:0, actualQuantity:quantity, unitName:item.unit,
+      plannedQuantity:primaryMode?quantity:0, actualQuantity:quantity, unitName:item.unit,
       sourceArticleId:item.articleId || "", sourceUnitPrice:Number(item.grossPrice || 0),
-      completed:false, additionalWork:true, linkedTaskId:linked?.id || "",
-      customerApproved:overlay.querySelector("#extraApproved").checked, photos:[],
+      completed:false, additionalWork:!primaryMode, linkedTaskId:linked?.id || "",
+      customerApproved:primaryMode?true:Boolean(overlay.querySelector("#extraApproved")?.checked), photos:[],
       wall:30, originalWall:30, spacing:.25, actualHoles:0, plannedHoles:0,
       plannedWidth:isSurface ? surfaceWidth : 0, plannedHeight:isSurface ? surfaceHeight : 0,
       actualWidth:isSurface ? surfaceWidth : 0, actualHeight:isSurface ? surfaceHeight : 0,

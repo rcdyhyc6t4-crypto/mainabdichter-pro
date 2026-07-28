@@ -1,0 +1,10 @@
+------WebKitFormBoundaryO11ZIPUczkl6gWg8
+Content-Disposition: form-data; name="file"; filename="kellergrundriss.pdf"
+Content-Type: application/pdf
+
+%PDF-1.4 Test
+------WebKitFormBoundaryO11ZIPUczkl6gWg8
+Content-Disposition: form-data; name="metadata"
+
+{"documentId":"52d7a795-596b-45d8-8b86-b009d61ea51f","customerFolder":"Unbekannter Kunde","visitFolder":"20260728-5235","category":"Grundriss","categoryFolder":"Pläne und Grundrisse","filename":"kellergrundriss.pdf","mimeType":"application/pdf","note":"Keller mit markierter Nordwand"}
+------WebKitFormBoundaryO11ZIPUczkl6gWg8--

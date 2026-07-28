@@ -1,9 +1,9 @@
 {
   "name": "mainabdichter-pro",
-  "version": "32.19.7",
+  "version": "32.19.9",
   "private": true,
   "scripts": {
-    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pipedrive-sync-v227.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js && node tests/timezone-worker.test.cjs && node tests/wall-survey.test.cjs && node tests/wall-survey-controls.test.cjs && node tests/mobile-navigation.test.cjs && node tests/pipedrive-short-text.test.cjs && node tests/worksite-draft-isolation.test.cjs && node tests/completed-worksite-archive.test.cjs && node tests/invoice-reminder.test.cjs && node tests/employees-and-guided-flow.test.cjs && node tests/lexware-invoice-draft.test.cjs && node tests/server-authoritative-sync.test.cjs && node tests/quiet-device-sync.test.cjs && node tests/safe-local-recovery.test.cjs && node tests/backup-collapse-protection.test.cjs && node tests/visit-workflow-safety.test.cjs && node tests/worksite-guided-completion.test.cjs",
+    "build": "node --check js/customers.js && node --check js/app.js && node --check js/pipedrive-sync-v227.js && node --check js/pdf.js && node --check js/drive-photos.js && node --check js/drive-documents.js && node --check cloudflare-worker.js && node tests/timezone-worker.test.cjs && node tests/wall-survey.test.cjs && node tests/wall-survey-controls.test.cjs && node tests/mobile-navigation.test.cjs && node tests/pipedrive-short-text.test.cjs && node tests/worksite-draft-isolation.test.cjs && node tests/completed-worksite-archive.test.cjs && node tests/invoice-reminder.test.cjs && node tests/employees-and-guided-flow.test.cjs && node tests/lexware-invoice-draft.test.cjs && node tests/server-authoritative-sync.test.cjs && node tests/quiet-device-sync.test.cjs && node tests/safe-local-recovery.test.cjs && node tests/backup-collapse-protection.test.cjs && node tests/visit-workflow-safety.test.cjs && node tests/worksite-guided-completion.test.cjs && node tests/guided-measures-and-direct-report.test.cjs",
     "test:timezone": "node tests/timezone-worker.test.cjs",
     "test": "playwright test"
   },
