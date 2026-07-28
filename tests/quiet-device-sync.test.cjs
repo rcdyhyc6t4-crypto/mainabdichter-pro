@@ -12,6 +12,9 @@ assert.match(app, /offline · lokal gespeichert/);
 assert.match(app, /isUserActivelyWorking\(\)/);
 assert.match(app, /noteBackgroundUpload\(120000\)/);
 assert.match(app, /deferredRemoteResponse/);
+assert.match(app, /mergeFullBackupPayload\(response\.backup, localPayload\)/);
+assert.match(app, /preserveUnsyncedLocalCopy\(localPayload/);
+assert.doesNotMatch(app, /createServerAuthoritativePayload\(response\.backup, localPayload\)/);
 assert.doesNotMatch(app, /synchronizeFromDrive\(\{\s*force:\s*true,\s*gate:\s*true/);
 
 assert.match(html, /Speichern & später fortsetzen/);

@@ -1,4 +1,4 @@
-mainabdichter PRO V32.19.4 – ruhige Synchronisierung
+mainabdichter PRO V32.19.5 – Datenverlustschutz
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner dabei ersetzen. Die Ordnerstruktur muss erhalten bleiben.

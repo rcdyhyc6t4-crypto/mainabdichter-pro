@@ -1,0 +1,7 @@
+mainabdichter PRO V32.19.5 – Datenverlustschutz
+
+- Lokale Gerätedaten werden beim Start niemals mehr blind durch Drive ersetzt.
+- Kunden, Vorgänge, Baustellen, Arbeitsnachweise und Erinnerungen werden verlustfrei vereinigt.
+- Vor jedem Abgleich wird zusätzlich eine lokale Rettungskopie angelegt.
+- Ein leeres oder älteres Gerät kann keinen vollständigen zentralen Stand mehr löschen.
+- Die ruhige Synchronisierung aus V32.19.4 bleibt erhalten.
