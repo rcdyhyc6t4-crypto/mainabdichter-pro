@@ -102,6 +102,76 @@ async function ensureSourceDimensions(current) {
   current.sourceHeight = image.naturalHeight;
 }
 
+async function detectLineCandidates(current) {
+  const image = await new Promise((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("Der Originalplan konnte für die Linienerkennung nicht geöffnet werden."));
+    element.src = current.sourceImage;
+  });
+  const maxSide = 1000;
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d", { willReadFrequently:true });
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+  const dark = (x,y) => {
+    const index=(y*canvas.width+x)*4;
+    return data[index]*.299+data[index+1]*.587+data[index+2]*.114 < 118;
+  };
+  const raw=[];
+  const collect=(orientation,fixed,limit,minLength)=>{
+    let start=-1,lastDark=-1,gap=0;
+    for(let moving=0;moving<limit;moving++){
+      const isDark=orientation==="h"?dark(moving,fixed):dark(fixed,moving);
+      if(isDark){
+        if(start<0) start=moving;
+        lastDark=moving;
+        gap=0;
+      }else if(start>=0 && ++gap>3){
+        if(lastDark-start+1>=minLength) raw.push({orientation,fixed,start,end:lastDark});
+        start=-1;lastDark=-1;gap=0;
+      }
+    }
+    if(start>=0 && lastDark-start+1>=minLength) raw.push({orientation,fixed,start,end:lastDark});
+  };
+  for(let y=2;y<canvas.height-2;y+=2) collect("h",y,canvas.width,Math.max(55,canvas.width*.075));
+  for(let x=2;x<canvas.width-2;x+=2) collect("v",x,canvas.height,Math.max(55,canvas.height*.075));
+  const clusters=[];
+  raw.sort((a,b)=>(b.end-b.start)-(a.end-a.start)).forEach(line=>{
+    const match=clusters.find(cluster=>{
+      if(cluster.orientation!==line.orientation || Math.abs(cluster.fixed-line.fixed)>7) return false;
+      const overlap=Math.max(0,Math.min(cluster.end,line.end)-Math.max(cluster.start,line.start));
+      return overlap/Math.max(1,Math.min(cluster.end-cluster.start,line.end-line.start))>.62;
+    });
+    if(match){
+      match.fixed=(match.fixed*match.support+line.fixed)/(match.support+1);
+      match.start=Math.min(match.start,line.start);
+      match.end=Math.max(match.end,line.end);
+      match.support++;
+    }else clusters.push({...line,support:1});
+  });
+  return clusters
+    .filter(line=>line.support>=2)
+    .sort((a,b)=>(b.end-b.start)*b.support-(a.end-a.start)*a.support)
+    .slice(0,180)
+    .map((line,index)=>{
+      const x1=line.orientation==="h"?line.start:line.fixed;
+      const y1=line.orientation==="h"?line.fixed:line.start;
+      const x2=line.orientation==="h"?line.end:line.fixed;
+      const y2=line.orientation==="h"?line.fixed:line.end;
+      return {
+        id:`linie-${index+1}`,
+        x1:Number((x1/canvas.width).toFixed(5)),
+        y1:Number((y1/canvas.height).toFixed(5)),
+        x2:Number((x2/canvas.width).toFixed(5)),
+        y2:Number((y2/canvas.height).toFixed(5))
+      };
+    });
+}
+
 async function analyze() {
   const current = plan();
   if (!current.sourceImage) return;
@@ -121,13 +191,16 @@ async function analyze() {
   }, 5000);
   try {
     await ensureSourceDimensions(current);
+    const lineCandidates=await detectLineCandidates(current);
+    if(lineCandidates.length<4) throw new Error("Auf dem Foto wurden zu wenige eindeutige technische Linien gefunden. Bitte den Plan näher, gerade und ohne dunklen Rand fotografieren.");
     const result = await api("/floor-plan/analyze", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         image:current.sourceImage,
         image_width:current.sourceWidth,
-        image_height:current.sourceHeight
+        image_height:current.sourceHeight,
+        line_candidates:lineCandidates
       }),
       timeoutMs:240000
     });
@@ -145,7 +218,9 @@ async function analyze() {
     activeWallId = "";
     render();
   } catch (error) {
-    $("floorPlanAnalyzeStatus").textContent = `Analyse fehlgeschlagen: ${error.message || "Der Grundriss konnte nicht analysiert werden."}`;
+    const message=`Analyse fehlgeschlagen: ${error.message || "Der Grundriss konnte nicht analysiert werden."}`;
+    $("floorPlanAnalyzeStatus").textContent = message;
+    window.alert(message);
   } finally {
     window.clearInterval(progressTimer);
     button.textContent = originalLabel;

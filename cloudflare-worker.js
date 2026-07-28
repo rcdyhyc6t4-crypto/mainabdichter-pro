@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.20.6
+// mainabdichter PRO Cloudflare Worker V32.20.7
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -38,9 +38,10 @@ const FLOOR_PLAN_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "label", "x1", "y1", "x2", "y2", "length_m", "thickness_cm", "confidence"],
+        required: ["id", "source_line_id", "label", "x1", "y1", "x2", "y2", "length_m", "thickness_cm", "confidence"],
         properties: {
           id: { type: "string" },
+          source_line_id: { type: "string" },
           label: { type: "string" },
           x1: { type: "number" },
           y1: { type: "number" },
@@ -152,7 +153,7 @@ async function requestFloorPlanAnalysis(env, image, model, strict, prompt) {
   return parseFloorPlanOutput(data);
 }
 
-async function analyzeFloorPlan(env, image, imageWidth, imageHeight) {
+async function analyzeFloorPlan(env, image, imageWidth, imageHeight, lineCandidates) {
   if (!env.OPENAI_API_KEY) {
     const error = new Error("Die KI-Grundrisserkennung ist im Worker noch nicht freigeschaltet. OPENAI_API_KEY fehlt.");
     error.status = 503;
@@ -175,13 +176,24 @@ async function analyzeFloorPlan(env, image, imageWidth, imageHeight) {
     error.status = 400;
     throw error;
   }
+  lineCandidates = Array.isArray(lineCandidates) ? lineCandidates.filter(candidate =>
+    typeof candidate?.id === "string" &&
+    [candidate.x1,candidate.y1,candidate.x2,candidate.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
+  ).slice(0,180) : [];
+  if (lineCandidates.length < 4) {
+    const error = new Error("Die technische Linienerkennung hat zu wenige Kandidaten geliefert.");
+    error.status = 422;
+    throw error;
+  }
+  const candidateText = JSON.stringify(lineCandidates);
   const prompt = [
     "Analysiere ausschließlich den hochgeladenen Gebäudegrundriss.",
     `Das übertragene Originalbild ist exakt ${imageWidth} Pixel breit und ${imageHeight} Pixel hoch.`,
     "Erfinde keine Raumaufteilung, ergänze keine nicht sichtbaren Wände und vereinfache den Plan nicht zu einem allgemeinen Rechteck.",
-    "WICHTIG: Für die Koordinaten darfst du das Bild weder drehen noch entzerren noch perspektivisch begradigen.",
-    "Verfolge stattdessen die Mittellinie jeder tatsächlich sichtbaren massiven Wand direkt an ihrer Position im hochgeladenen Originalbild, auch wenn das Blatt gedreht, gefaltet, geknickt oder perspektivisch fotografiert ist.",
-    "x1,y1,x2,y2 müssen deshalb beim unveränderten Einblenden des Originalfotos genau auf der jeweiligen sichtbaren Wand liegen.",
+    "WICHTIG: Die App hat aus den Bildpixeln bereits echte dunkle Linien ermittelt. Du darfst ausschließlich Einträge aus dieser Kandidatenliste als Wände auswählen.",
+    `Linienkandidaten: ${candidateText}`,
+    "source_line_id muss exakt die id eines Kandidaten enthalten. Übernimm dessen x1,y1,x2,y2 unverändert. Erfinde, verschiebe, verlängere oder begradige keine Linie.",
+    "Wähle aus den Kandidaten nur tatsächliche massive Wände aus, keine Maßlinien, Schriftlinien, Blattränder, Möbel oder Treppenstufen.",
     "Nutze Wandstärken, Türen und Fenster zur Erkennung, aber rekonstruiere keine idealisierte Ersatzgeometrie.",
     "Gedruckte oder handschriftlich eingetragene Maße sind verbindlicher als Pixellängen.",
     "Gib jede gerade sichtbare Wandstrecke als eigenes Segment zurück. Koordinaten x1,y1,x2,y2 liegen normiert zwischen 0 und 1 bezogen auf das unveränderte Originalbild: links=0, rechts=1, oben=0, unten=1.",
@@ -229,13 +241,20 @@ async function analyzeFloorPlan(env, image, imageWidth, imageHeight) {
   plan.walls = (plan.walls || []).filter(wall =>
     [wall.x1, wall.y1, wall.x2, wall.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
   );
-  const alignmentScore = Number(plan.quality?.alignment_score || 0);
-  if (plan.source_coordinate_system !== true || alignmentScore < 0.82) {
+  const candidateMap = new Map(lineCandidates.map(candidate => [candidate.id,candidate]));
+  let invalidCandidate=false;
+  plan.walls = plan.walls.map(wall => {
+    const candidate=candidateMap.get(wall.source_line_id);
+    if(!candidate){ invalidCandidate=true; return null; }
+    return {...wall,x1:candidate.x1,y1:candidate.y1,x2:candidate.x2,y2:candidate.y2};
+  }).filter(Boolean);
+  if (plan.source_coordinate_system !== true || invalidCandidate) {
     const error = new Error("Die erkannten Linien sind nicht ausreichend deckungsgleich mit dem Originalfoto. Das Ergebnis wurde aus Sicherheitsgründen verworfen.");
     error.status = 422;
-    error.details = { code: "FLOOR_PLAN_ALIGNMENT_REJECTED", alignmentScore };
+    error.details = { code: "FLOOR_PLAN_ALIGNMENT_REJECTED" };
     throw error;
   }
+  plan.quality.alignment_score = 1;
   if (!plan.walls.length) {
     const error = new Error("Auf dem Foto konnten keine ausreichend sicheren Wände erkannt werden.");
     error.status = 422;
@@ -1846,7 +1865,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.20.6",
+          workerVersion: "32.20.7",
           time: new Date().toISOString()
         });
       }
@@ -1902,7 +1921,7 @@ export default {
 
       if (url.pathname === "/floor-plan/analyze" && request.method === "POST") {
         const input = await request.json().catch(() => ({}));
-        const plan = await analyzeFloorPlan(env, input.image, input.image_width, input.image_height);
+        const plan = await analyzeFloorPlan(env, input.image, input.image_width, input.image_height, input.line_candidates);
         return jsonResponse(request, { ok: true, plan });
       }
 
@@ -2223,7 +2242,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.20.6",
+          workerVersion: "32.20.7",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
