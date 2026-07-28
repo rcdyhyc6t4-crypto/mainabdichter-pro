@@ -11,7 +11,7 @@ assert.match(html, /id="floorPlanStage"/);
 assert.match(html, /value="Horizontalsperre"/);
 assert.match(html, /value="Flächensperre"/);
 assert.match(html, /id="floorPlanSurfaceHeight"/);
-assert.match(html, /js\/floor-plan\.js\?v=32\.20\.1/);
+assert.match(html, /js\/floor-plan\.js\?v=32\.20\.3/);
 
 assert.match(js, /state\.visit\.floorPlan/);
 assert.match(js, /surfacePolygon/);
