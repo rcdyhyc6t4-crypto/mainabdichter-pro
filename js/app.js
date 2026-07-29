@@ -2,10 +2,10 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.20.9";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.21.0";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.20.9";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.21.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -13,7 +13,7 @@ import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachmen
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.20.9";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.21.0";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.20.9";
+const MAINABDICHTER_APP_VERSION = "32.21.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -6443,6 +6443,21 @@ function openAdditionalWorkPicker(ws, options={}) {
   };
 }
 
+function injectionPlanHtml(task, currentHole) {
+  if (task.type !== "Flächensperre") return "";
+  const records = new Map((task.holeRecords || []).map(record => [Number(record.hole),record]));
+  return `<div class="injection-pattern" aria-label="Schachbrettartig versetzte Bohrreihen">
+    ${surfaceInjectionPlan(task).map(row => `<div class="injection-pattern-row ${row.offset?"offset":""}">
+      <b>${row.row}</b>
+      <div>${row.holes.map(item => {
+        const record = records.get(item.hole);
+        const stateClass = item.hole === currentHole ? "current" : record ? (record.status === "completed" ? "done" : "exception") : "";
+        return `<i class="${stateClass}" title="${row.label}, Loch ${item.column}"></i>`;
+      }).join("")}</div>
+    </div>`).join("")}
+  </div>`;
+}
+
 function openInjectionAssistant(ws, taskId) {
   const task = ws.tasks.find(item => item.id === taskId);
   if (!task || !task.injectionLowPressure) return;
@@ -6450,7 +6465,10 @@ function openInjectionAssistant(ws, taskId) {
   const derivedHoles = task.type === "Horizontalsperre"
     ? Math.ceil(Number(task.actualQuantity || 0) / Number(task.spacing || .25))
     : Math.ceil(Number(task.actualQuantity || 0) / (Number(task.spacing || .25) * .25));
-  const totalHoles = Math.max(1, Number(task.actualHoles || 0), Number(task.plannedHoles || 0), derivedHoles);
+  const surfaceHoles = surfaceInjectionPlan(task).reduce((sum,row) => sum + row.holes.length, 0);
+  const totalHoles = task.type === "Flächensperre"
+    ? Math.max(1, surfaceHoles || Number(task.actualHoles || 0) || derivedHoles)
+    : Math.max(1, Number(task.actualHoles || 0) || derivedHoles || Number(task.plannedHoles || 0));
   task.actualHoles = totalHoles;
   let current = Math.min(task.holeRecords.length + 1, totalHoles);
   const overlay = document.createElement("div");
@@ -6460,26 +6478,27 @@ function openInjectionAssistant(ws, taskId) {
       .filter(row => row.hole < current)
       .reduce((sum,row) => sum + Number(row.actualLiters || 0), 0);
     const record = task.holeRecords.find(row => row.hole === current);
-    const defaultMl = Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000);
+    const holeInfo = injectionHoleInfo(task,current);
+    const defaultMl = holeInfo.targetMl;
     const currentMl = Math.round(Number(record?.actualLiters ?? defaultMl / 1000) * 1000);
     const stopAt = completedTotal + currentMl / 1000;
     const finished = current >= totalHoles &&
       task.holeRecords.filter(row => row.hole <= totalHoles).length >= totalHoles;
     overlay.innerHTML = `<section class="adhs-modal injection-assistant">
-      <span class="dashboard-eyebrow">NIEDERDRUCKINJEKTION</span>
-      <h2>${finished ? "Injektion vollständig erfasst" : `Bohrloch ${current} von ${totalHoles}`}</h2>
-      ${finished ? `<div class="injection-stop-target"><span>Gesamtmenge</span><strong>${num(task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0))} l</strong></div>`
-      : `<div class="injection-stop-target"><span>Durchlaufzähler stoppen bei</span><strong id="counterStopValue">${num(stopAt)} l</strong></div>
-      <div class="injection-total"><span>Stand vor diesem Bohrloch</span><strong>${num(completedTotal)} Liter</strong></div>
-      <label>Istmenge dieses Bohrlochs (ml)</label>
+      <div class="injection-head"><span>💧</span><div><small>${finished?"FERTIG":esc(holeInfo.label)}</small><h2>${finished ? `${totalHoles} Löcher` : `${current} / ${totalHoles}`}</h2></div></div>
+      ${injectionPlanHtml(task,current)}
+      ${finished ? `<div class="injection-stop-target"><span>Σ</span><strong>${num(task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0))} l</strong></div>`
+      : `<div class="injection-stop-target"><span>⏱ STOPP</span><strong id="counterStopValue">${num(stopAt)} l</strong><small>${currentMl} ml</small></div>
+      <div class="injection-total"><span>Σ vorher</span><strong>${num(completedTotal)} l</strong></div>
+      <label class="visual-input-label">ml</label>
       <input id="holeMl" type="number" inputmode="numeric" step="10" min="0" value="${currentMl}">`}
       <div class="hole-status-grid">
-        ${finished ? "" : `<button type="button" data-hole-status="completed" class="primary">Fertig + nächstes</button>
-          <button type="button" data-hole-status="not-absorbing" class="secondary">Nicht aufnahmefähig</button>
-          <button type="button" data-hole-status="skipped" class="secondary">Übersprungen</button>
-          <button type="button" data-hole-status="pressureless" class="secondary">Dieses Loch drucklos</button>`}
+        ${finished ? "" : `<button type="button" data-hole-status="completed" class="primary" aria-label="Fertig und nächstes Bohrloch">✓ Weiter</button>
+          <button type="button" data-hole-status="not-absorbing" class="secondary" aria-label="Bohrloch nicht aufnahmefähig">⊘ Dicht</button>
+          <button type="button" data-hole-status="skipped" class="secondary" aria-label="Bohrloch überspringen">↷ Überspringen</button>
+          <button type="button" data-hole-status="pressureless" class="secondary" aria-label="Dieses Bohrloch drucklos injizieren">▽ Drucklos</button>`}
       </div>
-      <div class="modal-actions"><button type="button" id="holeBack" class="secondary">← Zurück</button><button type="button" data-close-modal class="secondary">Schließen</button></div>
+      <div class="modal-actions"><button type="button" id="holeBack" class="secondary" aria-label="Vorheriges Bohrloch">←</button><button type="button" data-close-modal class="secondary" aria-label="Injektionsassistent schließen">×</button></div>
     </section>`;
     const mlInput = overlay.querySelector("#holeMl");
     if (mlInput) mlInput.oninput = () => {
@@ -6492,7 +6511,15 @@ function openInjectionAssistant(ws, taskId) {
     overlay.querySelectorAll("[data-hole-status]").forEach(button => button.onclick = () => {
       const status = button.dataset.holeStatus;
       const ml = ["skipped","not-absorbing"].includes(status) ? 0 : parseDecimal(overlay.querySelector("#holeMl").value);
-      const next = {hole:current,status,method:status === "pressureless" ? "Drucklos" : "Niederdruck",actualLiters:ml / 1000};
+      const next = {
+        hole:current,
+        row:holeInfo.row,
+        column:holeInfo.column,
+        rowLabel:holeInfo.label,
+        status,
+        method:status === "pressureless" ? "Drucklos" : "Niederdruck",
+        actualLiters:ml / 1000
+      };
       const index = task.holeRecords.findIndex(row => row.hole === current);
       if (index >= 0) task.holeRecords[index] = next; else task.holeRecords.push(next);
       task.holeRecords.sort((a,b) => a.hole - b.hole);
@@ -6500,7 +6527,7 @@ function openInjectionAssistant(ws, taskId) {
       const exceptions = task.holeRecords.filter(row => row.status !== "completed").map(row => {
         const label = row.status === "not-absorbing" ? "nicht aufnahmefähig"
           : row.status === "skipped" ? "übersprungen" : "drucklos injiziert";
-        return `Bohrloch ${row.hole} ${label} (${Math.round(Number(row.actualLiters || 0) * 1000)} ml)`;
+        return `${row.rowLabel || `Bohrloch ${row.hole}`} · Loch ${row.column || row.hole} ${label} (${Math.round(Number(row.actualLiters || 0) * 1000)} ml)`;
       });
       if (exceptions.length) task.note = `Bohrlochdokumentation: ${exceptions.join("; ")}.`;
       persistWorksite(ws);
@@ -7570,6 +7597,22 @@ function scheduleAutomaticSave() {
 
 document.addEventListener("input", scheduleAutomaticSave, true);
 document.addEventListener("change", scheduleAutomaticSave, true);
+document.addEventListener("focusin", event => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement)) return;
+  const numeric = input.type === "number" || ["numeric","decimal"].includes(input.inputMode);
+  if (!numeric || input.readOnly || input.disabled) return;
+  if (String(input.value).trim() === "0" || String(input.value).trim() === "0,0" || String(input.value).trim() === "0.0") {
+    input.dataset.zeroClearedOnFocus = "1";
+    input.value = "";
+  }
+});
+document.addEventListener("focusout", event => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || input.dataset.zeroClearedOnFocus !== "1") return;
+  delete input.dataset.zeroClearedOnFocus;
+  if (String(input.value).trim() === "") input.value = "0";
+});
 ["pointerdown", "touchstart", "keydown"].forEach(eventName => {
   document.addEventListener(eventName, markUserActivity, { capture: true, passive: true });
 });

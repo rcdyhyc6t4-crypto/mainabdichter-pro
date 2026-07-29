@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#43ae38">
-<title>mainabdichter PRO V32.20.9</title>
-<link rel="stylesheet" href="css/app.css?v=32.20.9">
+<title>mainabdichter PRO V32.21.0</title>
+<link rel="stylesheet" href="css/app.css?v=32.21.0">
 <link rel="stylesheet" href="css/phase1-v26.css?build=20260725-v32-7-7">
 <link rel="manifest" href="manifest.json">
 
@@ -124,41 +124,40 @@ main{width:100%;max-width:100%}
     <div class="v28-modal-dialog new-inquiry-dialog" role="dialog" aria-modal="true" aria-labelledby="newInquiryTitle">
       <header>
         <div>
-          <small>ZENTRALES PLUS</small>
-          <h2 id="newInquiryTitle">Was möchtest du neu anlegen?</h2>
-          <p>Alle neuen Vorgänge beginnen ausschließlich hier.</p>
+          <small>NEU</small>
+          <h2 id="newInquiryTitle">Was brauchst du?</h2>
         </div>
         <button type="button" id="closeNewInquiryModal" aria-label="Schließen">×</button>
       </header>
       <div class="new-inquiry-options">
         <button type="button" id="newInquiryScreenshot" class="new-inquiry-option primary-option">
           <span>▣</span>
-          <strong>Neue Anfrage</strong>
+          <strong>Anfrage</strong>
           <small>Screenshot aus WhatsApp, E-Mail oder Kontaktformular übernehmen</small>
         </button>
         <button type="button" id="newCustomerFromPlus" class="new-inquiry-option">
           <span>♙</span>
-          <strong>Neuer Kunde</strong>
+          <strong>Kunde</strong>
           <small>Kundendaten neu erfassen</small>
         </button>
         <button type="button" id="newAppointmentFromPlus" class="new-inquiry-option">
           <span>◷</span>
-          <strong>Neuer Termin</strong>
+          <strong>Termin</strong>
           <small>Termin intelligent planen</small>
         </button>
         <button type="button" id="newInquiryManual" class="new-inquiry-option">
           <span>⌂</span>
-          <strong>Neue Besichtigung</strong>
+          <strong>Besichtigung</strong>
           <small>Geführte Besichtigung beginnen</small>
         </button>
         <button type="button" id="newWorksiteFromPlus" class="new-inquiry-option">
           <span>⚒</span>
-          <strong>Neue Baustelle</strong>
+          <strong>Baustelle</strong>
           <small>Angenommenes Angebot zur Ausführung übernehmen</small>
         </button>
         <button type="button" id="newWorkReportDirect" class="new-inquiry-option">
           <span>▤</span>
-          <strong>Neuer Arbeitsnachweis</strong>
+          <strong>Arbeitsnachweis</strong>
           <small>Kunde kurz auswählen oder eingeben und direkt mit der Ausführung beginnen</small>
         </button>
       </div>
@@ -1129,16 +1128,13 @@ main{width:100%;max-width:100%}
 
 <section id="more" class="page more-page">
   <section class="page-heading-card">
-    <div><span class="dashboard-eyebrow">WERKZEUGE</span><h1>Mehr</h1><p>Datensicherung, Synchronisation und weitere Bereiche.</p></div>
+    <div><span class="dashboard-eyebrow">WERKZEUGE</span><h1>Mehr</h1></div>
   </section>
 
   <section class="more-action-grid">
-    <button data-more-page="settings" class="more-action"><span>⚙</span><strong>Einstellungen</strong><small>Schnittstellen, Preise und Lager</small></button>
-    <button data-more-page="worksites" class="more-action"><span>⚒</span><strong>Baustellen</strong><small>Arbeitsnachweise öffnen</small></button>
-    <button data-more-page="offer" class="more-action"><span>☷</span><strong>Vorgänge</strong><small>Angebote und Kalkulation</small></button>
-    <button data-more-action="newInquiry" class="more-action"><span>＋</span><strong>Anfrage importieren</strong><small>WhatsApp oder E-Mail</small></button>
-    <button data-more-page="customerAdvice" class="more-action"><span>▶</span><strong>Kundenberatung</strong><small>Maßnahmen anschaulich erklären</small></button>
-    <button data-more-page="cloudMigration" class="more-action"><span>☁</span><strong>Cloud-Migration</strong><small>Dropbox und OneDrive nach Google Drive</small></button>
+    <button data-more-page="settings" class="more-action"><span>⚙</span><strong>Einstellungen</strong></button>
+    <button data-more-action="newInquiry" class="more-action"><span>＋</span><strong>Anfrage</strong></button>
+    <button data-more-page="customerAdvice" class="more-action"><span>▶</span><strong>Beratung</strong></button>
   </section>
 
   <section class="card backup-page-card">
@@ -1200,9 +1196,9 @@ main{width:100%;max-width:100%}
 </section>
 
 <section id="settings" class="page">
-  <div class="card"><h1>Einstellungen</h1><p class="hint">Diese Werte gelten dauerhaft für alle Kunden.</p></div>
-  <details class="card" open>
-    <summary>Dokumentdesign &amp; Firmendaten</summary>
+  <div class="card settings-title"><span>⚙</span><h1>Einstellungen</h1></div>
+  <details class="card">
+    <summary>▤ Dokumente &amp; Firma</summary>
     <p class="hint">Diese Angaben bilden den gemeinsamen Briefkopf und Footer für Angebote, Besichtigungsprotokolle, Arbeitsnachweise und das Lexoffice-Briefpapier.</p>
     <div class="document-logo-setting">
       <img id="documentLogoPreview" src="assets/mainabdichter-header-logo.png" alt="Aktuelles Dokumentlogo">
@@ -1242,23 +1238,23 @@ main{width:100%;max-width:100%}
     </div>
     <div id="documentDesignStatus" class="status"></div>
   </details>
-  <details class="card" open>
-    <summary>Angebotstext für Lexoffice</summary>
+  <details class="card">
+    <summary>✎ Angebotstext</summary>
     <p class="hint">Dieser Text wird automatisch in jedes aus mainabdichter PRO an Lexoffice übertragene Angebot eingesetzt. Die Platzhalter für Anrede und Objektanschrift werden aus den Kundendaten gefüllt. Der VOC-Vorteil erscheint nur, wenn BKM HZ 250 PRO angeboten wird.</p>
     <label for="offerIntroductionText">Einleitung und Vorteile</label>
     <textarea id="offerIntroductionText" rows="22"></textarea>
     <p id="offerIntroductionCount" class="hint"></p>
     <p class="hint">Verfügbare Platzhalter: {{ANREDE}}, {{OBJEKTANSCHRIFT}}, {{HZ_VOC_VORTEIL}}</p>
   </details>
-  <details class="card" open>
-    <summary>Lexoffice-Angebote abrufen</summary>
+  <details class="card">
+    <summary>↥ Angebote abrufen</summary>
     <p class="hint">Ab diesem Angebotsdatum werden offene Angebote sowie angenommene Angebote ohne bereits angelegte Baustelle aus Lexoffice geladen.</p>
     <div class="grid">
       <div><label for="lexofficeOfferImportFrom">Angebote abrufen ab</label><input id="lexofficeOfferImportFrom" type="date"></div>
     </div>
   </details>
-  <details class="card" open>
-    <summary>Mitarbeiter</summary>
+  <details class="card">
+    <summary>♙ Mitarbeiter</summary>
     <p class="hint">Es stehen genau drei feste Plätze zur Verfügung. Mitarbeiter 1 wird bei neuen Besichtigungen und Arbeitsnachweisen automatisch vorausgewählt.</p>
     <div class="grid">
       <div><label for="employeeName1">Mitarbeiter 1 · Standard</label><input id="employeeName1" autocomplete="name"></div>
@@ -1266,12 +1262,12 @@ main{width:100%;max-width:100%}
       <div><label for="employeeName3">Mitarbeiter 3</label><input id="employeeName3" autocomplete="name" placeholder="Noch nicht belegt"></div>
     </div>
   </details>
-  <details class="card" open>
-    <summary>Pflichtfelder der Besichtigung</summary>
+  <details class="card">
+    <summary>✓ Pflichtfelder</summary>
     <p class="hint">Lege für jedes Haupt- und Unterfeld selbst fest, ob es vor dem Abschluss ausgefüllt sein muss. Ausgeschaltete Angaben sind optional und erzeugen keine Fehlermeldung.</p>
     <div id="visitRequirementSettings" class="mapping-grid"></div>
   </details>
-  <details class="card" open><summary>Kalkulation</summary>
+  <details class="card"><summary>€ Kalkulation</summary>
     <div class="grid">
       <div><label>Preisbasis</label><input id="priceListName"></div>
       <div><label>Gültig ab</label><input id="priceListDate" type="date"></div>
@@ -1305,7 +1301,7 @@ main{width:100%;max-width:100%}
     </div>
   </details>
 
-  <details class="card" open><summary>Warenbestand</summary>
+  <details class="card"><summary>▦ Lager</summary>
     <p class="hint">Bestände werden lokal gespeichert und mit der Komplettsicherung übertragen. Beim Abbuchen eines Auftrags werden BKM HZ 250 Pro und BKM HS Sperrmörtel automatisch reduziert.</p>
     <div id="inventoryProducts"></div>
     <button id="addInventoryProduct" class="secondary">+ Weiteres Material</button>
@@ -1313,7 +1309,7 @@ main{width:100%;max-width:100%}
     <div id="inventoryHistory" class="compact-list"></div>
   </details>
 
-  <details class="card"><summary>Lexoffice-Artikel</summary>
+  <details class="card"><summary>↗ Lexoffice-Artikel</summary>
     <button id="loadArticles" class="secondary">Lexoffice-Artikel laden</button>
     <div id="articleStatus" class="status"></div>
     <div class="grid">
@@ -1325,7 +1321,7 @@ main{width:100%;max-width:100%}
     <h3>Standard-Zusatzleistungen</h3><div id="settingsExtras"></div><button id="addExtra" class="primary">+ Zusatzleistung</button>
   </details>
 
-  <details class="card"><summary>Hinweistexte für Kundenansicht und PDF</summary>
+  <details class="card"><summary>☷ Kundentexte &amp; PDF</summary>
     <p class="hint">Die App fügt diese Texte automatisch passend zu den ausgewählten Maßnahmen ein. Änderungen gelten dauerhaft und werden mit der Komplettsicherung übertragen.</p>
     <label>Allgemeiner Hinweis bei Horizontal-, Flächensperre und Wand-Sohlen-Anschluss</label>
     <textarea id="noticeStandard" class="large-setting-text"></textarea>
@@ -1339,7 +1335,7 @@ main{width:100%;max-width:100%}
     <div id="lexofficeTextLimitStatus" class="status"></div>
   </details>
 
-  <details class="card" open><summary>Pipedrive-Synchronisation</summary>
+  <details class="card"><summary>↻ Pipedrive</summary>
     <p class="hint">Dealphasen und benutzerdefinierte Deal-Felder werden direkt aus deinem Pipedrive-Konto geladen. Die Zuordnung wird mit der Komplettsicherung übertragen.</p>
     <div class="connection-actions">
       <button id="loadPipedriveSchema" class="primary">Pipedrive-Felder aktualisieren</button>
@@ -1354,7 +1350,7 @@ main{width:100%;max-width:100%}
     <h3>Synchronisationsprotokoll</h3><div id="pipedriveSyncLog" class="sync-log"></div>
   </details>
 
-  <details class="card" open><summary>Schnittstellen</summary>
+  <details class="card"><summary>⚡ Verbindungen</summary>
     <label>Worker-URL</label><input id="workerUrl">
     <label>APP_SECRET</label><input id="appSecret" type="password">
     <div class="connection-actions"><button id="saveConnection" class="primary">Zugangsdaten speichern</button><button id="testConnection" class="secondary">Verbindungen testen</button></div>
@@ -1362,7 +1358,7 @@ main{width:100%;max-width:100%}
     <div id="connectionStatus" class="status"></div>
   </details>
 
-  <div class="sticky-actions"><button id="resetSettings" class="secondary">Standardwerte laden</button><button id="saveSettings" class="primary">Einstellungen speichern</button></div>
+  <div class="sticky-actions"><button id="resetSettings" class="secondary">↺ Standard</button><button id="saveSettings" class="primary">▣ Speichern</button></div>
   <div id="settingsStatus" class="status"></div>
 </section>
 </main>
@@ -1453,9 +1449,9 @@ window.addEventListener("error", function(event) {
   box.onclick = function() { box.remove(); };
 });
 </script>
-<script type="module" src="js/app.js?v=32.20.9"></script>
-<script type="module" src="js/cloud-migration.js?v=32.20.9"></script>
+<script type="module" src="js/app.js?v=32.21.0"></script>
+<script type="module" src="js/cloud-migration.js?v=32.21.0"></script>
 <script type="module" src="js/phase1-v26.js?build=20260725-v32-1"></script>
-<script type="module" src="js/customers.js?v=32.20.9"></script>
+<script type="module" src="js/customers.js?v=32.21.0"></script>
 </body>
 </html>

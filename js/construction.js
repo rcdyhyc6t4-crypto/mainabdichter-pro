@@ -61,6 +61,69 @@ export function taskIsTechnical(task) {
   return ["Horizontalsperre", "Flächensperre", "Wand-Sohlen-Anschluss", "Harzverpressung"].includes(task?.type);
 }
 
+export function surfaceInjectionPlan(task = {}) {
+  const firstCount = Math.max(0, Math.round(Number(task.surfaceFirstRowHoles || 0)));
+  const followingCount = Math.max(0, Math.round(Number(task.surfaceFollowingRowHoles || 0)));
+  const rows = [];
+  let nextHole = 1;
+  if (firstCount > 0) {
+    rows.push({
+      row: 1,
+      kind: "first",
+      label: "Reihe 1",
+      factor: 14,
+      offset: false,
+      holes: Array.from({ length:firstCount }, (_, column) => ({ hole:nextHole++, column:column + 1 }))
+    });
+  }
+  let remaining = followingCount;
+  let upperRow = 2;
+  const holesPerUpperRow = Math.max(1, firstCount || Math.ceil(Math.sqrt(followingCount || 1)));
+  while (remaining > 0) {
+    const count = Math.min(holesPerUpperRow, remaining);
+    rows.push({
+      row: upperRow,
+      kind: "upper",
+      label: `Reihe ${upperRow}`,
+      factor: 10,
+      offset: upperRow % 2 === 0,
+      holes: Array.from({ length:count }, (_, column) => ({ hole:nextHole++, column:column + 1 }))
+    });
+    remaining -= count;
+    upperRow++;
+  }
+  return rows;
+}
+
+export function injectionHoleInfo(task = {}, holeNumber = 1) {
+  if (task.type !== "Flächensperre") {
+    return {
+      hole:holeNumber,
+      row:1,
+      column:holeNumber,
+      label:"Bohrreihe",
+      kind:"standard",
+      offset:false,
+      targetMl:Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)
+    };
+  }
+  const rows = surfaceInjectionPlan(task);
+  const row = rows.find(item => item.holes.some(hole => hole.hole === holeNumber)) || rows.at(-1);
+  const position = row?.holes.find(hole => hole.hole === holeNumber);
+  const targetMl = row?.kind === "first"
+    ? Number(task.surfaceFirstRowMlPerHole || 0)
+    : Number(task.surfaceFollowingRowMlPerHole || 0);
+  return {
+    hole:holeNumber,
+    row:row?.row || 1,
+    column:position?.column || holeNumber,
+    label:row?.kind === "first" ? "Reihe 1 · unten" : `${row?.label || "Obere Reihe"} · oben`,
+    kind:row?.kind || "first",
+    offset:Boolean(row?.offset),
+    targetMl:Math.round(targetMl)
+  };
+}
+
 function baseTask(data = {}) {
   return {
     id: crypto.randomUUID(),

@@ -1,0 +1,34 @@
+mainabdichter PRO V32.21.0
+
+Niederdruckinjektion Flächensperre
+
+- Der Assistent verwendet die tatsächliche Lochzahl statt einer alten Soll-Lochzahl.
+- Reihe 1 und obere Reihen werden getrennt erkannt, angezeigt und gezählt.
+- Reihe 1 verwendet die Mannesmann-Vorgabe Faktor 14.
+- Obere Reihen verwenden die Mannesmann-Vorgabe Faktor 10.
+- Bei 30 cm Wand und 25 cm Raster sind das 420 ml unten und 300 ml oben.
+- Bei 12,5 cm Raster wird der Abstandsfaktor berücksichtigt; die Mindestmenge
+  von 200 ml je Bohrloch bleibt erhalten.
+- Die oberen Reihen werden schachbrettartig versetzt dargestellt:
+  Reihe 2 versetzt, Reihe 3 gerade, Reihe 4 versetzt usw.
+- Der aktuelle Punkt, erledigte Punkte und Ausnahmen sind grafisch unterscheidbar.
+- Gespeichert werden Reihe, Position, Verfahren, Zustand und tatsächliche Menge.
+
+Einfachere Oberfläche
+
+- Der Injektionsassistent verwendet große Zahlen, Symbole und kurze Wörter.
+- Das Plus-Menü zeigt sechs klare Symbolkacheln ohne Beschreibungstexte.
+- Einstellungen sind in geschlossene, bebilderte Bereiche aufgeteilt.
+- „Mehr“ enthält keine doppelten Wege zu Baustellen und Vorgängen mehr.
+- Die zurückgestellte Cloud-Migration ist nicht mehr im Menü sichtbar.
+- Numerische Felder mit Wert 0 leeren sich beim Antippen automatisch.
+  Bleibt das Feld unbenutzt, wird die 0 wiederhergestellt.
+
+Weiterhin enthalten
+
+- Direkte Sprünge von Hinweisen zur passenden Lösung.
+- Richtige Zuordnung von Ausführungsterminen zu Baustellen.
+- Automatische Flächenberechnung aus den Ist-Bohrlöchern.
+- iPhone- und iPad-Optimierungen.
+
+Alle automatisierten Ablauf-, Berechnungs-, Geräte- und Sicherheitstests sind bestanden.
