@@ -11,6 +11,8 @@ assert(app.includes('data-ws-site-field="bottlesHanging"'), "Hängende Flaschen 
 assert(!app.includes('data-ws-task="${task.id}" data-ws-field="chargeHz"'), "Die HZ-Charge darf nicht mehr pro Wand erscheinen.");
 assert(!app.includes('data-ws-task="${task.id}" data-ws-field="bottlesHanging"'), "Hängende Flaschen dürfen nicht mehr pro Wand erscheinen.");
 assert(app.includes("worksite-calculation-card"), "Berechnete Werte müssen als Infokarte erscheinen.");
+assert(app.includes("Ist-Bohrlöcher unten · Faktor 14"), "Die untere Ist-Bohrlochmenge muss editierbar bleiben.");
+assert(app.includes("Ist-Bohrlöcher obere Reihen · Faktor 10"), "Die obere Ist-Bohrlochmenge muss editierbar bleiben.");
 assert(pdf.includes("worksite.generalNotes"), "Allgemeine Bemerkungen müssen im PDF-Nachweis erscheinen.");
 assert(pdf.includes("angrenzende Baustoffe oder Bauteile"), "Der technische Injektionshinweis fehlt.");
 assert(pdf.includes("if (s.pressureMeters || s.resinScope || s.sefKg || s.hsKg)"), "Harz-/Druckwasserbereich darf nicht pauschal erscheinen.");

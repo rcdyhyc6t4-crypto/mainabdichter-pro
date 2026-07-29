@@ -1,0 +1,10 @@
+mainabdichter PRO V32.22.1
+
+Bei Flächensperren sind die tatsächlich ausgeführten Bohrlöcher getrennt
+editierbar:
+
+- Ist-Bohrlöcher unten, Faktor 14
+- Ist-Bohrlöcher der oberen Reihen, Faktor 10
+
+Gesamtzahl, Fläche und Verbrauch werden daraus automatisch neu berechnet und
+in der Ergebnis-Karte angezeigt.
