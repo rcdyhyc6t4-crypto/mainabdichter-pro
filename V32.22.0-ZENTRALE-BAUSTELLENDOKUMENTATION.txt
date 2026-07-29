@@ -1,0 +1,11 @@
+mainabdichter PRO V32.22.0
+
+- Chargennummern werden einmal je Baustelle erfasst.
+- Eine zweite Charge kann bei Bedarf eingeblendet werden.
+- Hängende Flaschen, Bereich und Abholung werden einmal je Baustelle erfasst.
+- Alte Werte aus einzelnen Wänden werden beim Öffnen verlustfrei übernommen.
+- Automatisch berechnete Werte erscheinen kompakt in einer Ergebnis-Karte.
+- Allgemeine Bemerkungen werden in den Arbeitsnachweis übernommen.
+- Bei Horizontal- und Flächensperren wird der technische Hinweis zur möglichen
+  Materialverteilung in angrenzende Baustoffe ergänzt.
+- Harzverpressung erscheint nur, wenn sie tatsächlich ausgeführt wurde.

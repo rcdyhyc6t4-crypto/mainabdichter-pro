@@ -68,7 +68,11 @@ function worksiteSummary(worksite) {
     pressureWalls: uniqueSortedNumbers(pressure.map(task => task.wall)),
     allWalls: uniqueSortedNumbers(wallTasks.map(task => task.wall)),
     hzLiters: hzTasks.reduce((sum, task) => sum + Number(task.actualLiters || 0), 0),
-    hzCharges: [...new Set(hzTasks.map(task => String(task.chargeHz || "").trim()).filter(Boolean))],
+    hzCharges: [...new Set([
+      worksite.chargeHz,
+      worksite.chargeHz2,
+      ...hzTasks.map(task => task.chargeHz)
+    ].map(value => String(value || "").trim()).filter(Boolean))],
     pressureless: hzTasks.some(task => Boolean(task.injectionPressureless)),
     lowPressure: hzTasks.some(task => Boolean(task.injectionLowPressure)),
     spacings: uniqueSortedNumbers(hzTasks.map(task => Number(task.spacing || 0) * 100)),
@@ -78,10 +82,12 @@ function worksiteSummary(worksite) {
     surfaceHoles: surface.reduce((sum, task) => sum + Number(task.actualHoles || 0), 0),
     pressureHoles: pressure.reduce((sum, task) => sum + Number(task.actualHoles || 0), 0),
     packers: resin.reduce((sum, task) => sum + Number(task.packers || 0), 0),
-    openBottles: tasks.reduce(
-      (sum, task) => sum + Math.max(0, Number(task.bottlesHanging || 0) - Number(task.bottlesRetrieved || 0)),
-      0
-    ),
+    openBottles: worksite.bottlesHanging !== undefined
+      ? Math.max(0, Number(worksite.bottlesHanging || 0) - Number(worksite.bottlesRetrieved || 0))
+      : tasks.reduce(
+          (sum, task) => sum + Math.max(0, Number(task.bottlesHanging || 0) - Number(task.bottlesRetrieved || 0)),
+          0
+        ),
     otherMaterials: [...new Set(
       tasks
         .filter(task => !["Horizontalsperre","Vertikalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss","Druckwassersperre","Druckwasserstabile Innenabdichtung"].includes(task.type))
@@ -312,31 +318,34 @@ export async function createWorksitePdf(worksite, settings = {}) {
   checkMark(doc, 181, y + 4.1, s.spacings.includes(25), "25 cm");
   y += 7;
 
-  // Pressure table
-  drawBox(doc, 13, y, 184, 7, green);
-  drawText(doc, "Druckwassersperren", 15, y + 4.6, { size: 7.4, bold: true });
-  drawText(doc, "Menge", 82, y + 4.6, { size: 6.7, bold: true });
-  drawText(doc, "Wandmaterial", 112, y + 4.6, { size: 6.7, bold: true });
-  drawText(doc, "Wandstärke cm", 181, y + 4.6, { size: 6.7, bold: true, align: "right" });
-  y += 7;
+  // Druckwasser-/Harzbereich nur drucken, wenn er wirklich ausgeführt wurde.
+  if (s.pressureMeters || s.resinScope || s.sefKg || s.hsKg) {
+    drawBox(doc, 13, y, 184, 7, green);
+    drawText(doc, "Druckwassersperren", 15, y + 4.6, { size: 7.4, bold: true });
+    drawText(doc, "Menge", 82, y + 4.6, { size: 6.7, bold: true });
+    drawText(doc, "Wandmaterial", 112, y + 4.6, { size: 6.7, bold: true });
+    drawText(doc, "Wandstärke cm", 181, y + 4.6, { size: 6.7, bold: true, align: "right" });
+    y += 7;
 
-  [
-    ["Druckwassersperre (lfm)", s.pressureMeters ? deNumber(s.pressureMeters) : "", s.pressureMaterials, formatWalls(s.pressureWalls)],
-    ["Harzverpressung (lfm/Stk.)", s.resinScope ? deNumber(s.resinScope) : "", "", ""]
-  ].forEach(row => {
-    drawBox(doc, 13, y, 184, 6.5);
-    drawText(doc, row[0], 15, y + 4.2, { size: 6.7 });
-    drawText(doc, row[1], 84, y + 4.2, { size: 6.7 });
-    drawText(doc, row[2], 112, y + 4.2, { size: 6.5, maxWidth: 42 });
-    drawText(doc, row[3], 195, y + 4.2, { size: 6.5, align: "right", maxWidth: 37 });
-    y += 6.5;
-  });
+    const pressureRows = [
+      s.pressureMeters ? ["Druckwassersperre (lfm)", deNumber(s.pressureMeters), s.pressureMaterials, formatWalls(s.pressureWalls)] : null,
+      s.resinScope ? ["Harzverpressung (lfm/Stk.)", deNumber(s.resinScope), "", ""] : null
+    ].filter(Boolean);
+    pressureRows.forEach(row => {
+      drawBox(doc, 13, y, 184, 6.5);
+      drawText(doc, row[0], 15, y + 4.2, { size: 6.7 });
+      drawText(doc, row[1], 84, y + 4.2, { size: 6.7 });
+      drawText(doc, row[2], 112, y + 4.2, { size: 6.5, maxWidth: 42 });
+      drawText(doc, row[3], 195, y + 4.2, { size: 6.5, align: "right", maxWidth: 37 });
+      y += 6.5;
+    });
 
-  drawBox(doc, 13, y, 92, 7, lightGreen);
-  drawBox(doc, 105, y, 92, 7, lightGreen);
-  drawText(doc, `Menge BKM SEF-2K in kg: ${s.sefKg ? deNumber(s.sefKg) : ""}`, 15, y + 4.5, { size: 6.5, bold: true });
-  drawText(doc, `Menge BKM HS in kg: ${s.hsKg ? deNumber(s.hsKg) : ""}`, 107, y + 4.5, { size: 6.5, bold: true });
-  y += 7;
+    drawBox(doc, 13, y, 92, 7, lightGreen);
+    drawBox(doc, 105, y, 92, 7, lightGreen);
+    drawText(doc, s.sefKg ? `Menge BKM SEF-2K in kg: ${deNumber(s.sefKg)}` : "", 15, y + 4.5, { size: 6.5, bold: true });
+    drawText(doc, s.hsKg ? `Menge BKM HS in kg: ${deNumber(s.hsKg)}` : "", 107, y + 4.5, { size: 6.5, bold: true });
+    y += 7;
+  }
 
   drawBox(doc, 13, y, 184, 8);
   drawText(doc, "sonst. eingesetztes Material:", 15, y + 4.8, { size: 6.4, bold: true });
@@ -345,7 +354,7 @@ export async function createWorksitePdf(worksite, settings = {}) {
 
   // Hours and holes
   drawBox(doc, 13, y, 184, 7, dark);
-  ["Handwerker","Arbeitsstunden","BL Horizontal","BL Fläche","BL Druckwasser","Harz/Packer"].forEach((label, index) => {
+  ["Handwerker","Arbeitsstunden","BL Horizontal","BL Fläche","BL Druckwasser",(s.resinScope || s.packers) ? "Harz/Packer" : ""].forEach((label, index) => {
     const xs = [15, 54, 88, 119, 150, 177];
     drawText(doc, label, xs[index], y + 4.5, { size: 6.2, bold: true, color: [255,255,255] });
   });
@@ -364,7 +373,7 @@ export async function createWorksitePdf(worksite, settings = {}) {
   drawText(doc, deNumber(s.horizontalHoles, 0), 94, y + 4.5, { size: 6.4 });
   drawText(doc, deNumber(s.surfaceHoles, 0), 125, y + 4.5, { size: 6.4 });
   drawText(doc, deNumber(s.pressureHoles, 0), 156, y + 4.5, { size: 6.4 });
-  drawText(doc, deNumber(s.packers, 0), 184, y + 4.5, { size: 6.4 });
+  drawText(doc, s.resinScope || s.packers ? deNumber(s.packers, 0) : "", 184, y + 4.5, { size: 6.4 });
   y += 7;
 
   drawBox(doc, 13, y, 92, 7);
@@ -396,7 +405,13 @@ export async function createWorksitePdf(worksite, settings = {}) {
         return `${task.areaName || task.type}: Bohrloch ${row.hole} ${status}, Istmenge ${Math.round(Number(row.actualLiters || 0) * 1000)} ml.`;
       })
   );
-  const notes = [workLine, ...additionalWorkLines, ...injectionExceptionLines, worksite.generalNotes, bottleNotice].filter(Boolean).join("\n");
+  const hasCapillaryInjection = (worksite.tasks || []).some(task =>
+    ["Horizontalsperre", "Flächensperre"].includes(task.type)
+  );
+  const injectionMaterialNotice = hasCapillaryInjection
+    ? "Technischer Hinweis: Das Injektionsmaterial kann sich im Mauerwerk verteilen und dabei auch in angrenzende Baustoffe oder Bauteile eindringen. Hierdurch können Verfärbungen oder Flecken entstehen. Soweit diese trotz fachgerechter Ausführung technisch unvermeidbar sind, stellen sie keinen Mangel dar und begründen keine Haftung des Auftragnehmers."
+    : "";
+  const notes = [workLine, ...additionalWorkLines, ...injectionExceptionLines, worksite.generalNotes, injectionMaterialNotice, bottleNotice].filter(Boolean).join("\n");
   drawBox(doc, 13, y, 184, 26);
   drawText(doc, "Absprachen bzw. Besonderheiten bei Arbeitsausführung:", 15, y + 4.5, { size: 6.4, bold: true });
   const noteLines = fitLines(doc, notes || "", 178, 4);
