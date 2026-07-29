@@ -1,0 +1,14 @@
+mainabdichter PRO V32.21.1
+
+Flächensperre – richtige Orientierung und Arbeitsfolge
+
+- Die grafische Darstellung zeigt die Wand räumlich korrekt von oben nach unten.
+- Die physische Reihe 1 liegt immer ganz unten.
+- Die Injektion beginnt in der obersten Reihe und läuft nach unten.
+- Loch 1 gehört deshalb zur obersten Reihe.
+- Obere Reihen werden mit Faktor 10 berechnet.
+- Die unterste Reihe 1 wird zuletzt mit Faktor 14 bearbeitet.
+- Der schachbrettartige Versatz der Bohrlöcher bleibt erhalten.
+
+Der Cache-Schlüssel wurde auf V32.21.1 erhöht, damit Geräte die korrigierte
+Darstellung und Reihenfolge laden.

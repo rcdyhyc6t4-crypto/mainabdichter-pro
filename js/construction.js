@@ -64,16 +64,15 @@ export function taskIsTechnical(task) {
 export function surfaceInjectionPlan(task = {}) {
   const firstCount = Math.max(0, Math.round(Number(task.surfaceFirstRowHoles || 0)));
   const followingCount = Math.max(0, Math.round(Number(task.surfaceFollowingRowHoles || 0)));
-  const rows = [];
-  let nextHole = 1;
+  const rowsBottomToTop = [];
   if (firstCount > 0) {
-    rows.push({
+    rowsBottomToTop.push({
       row: 1,
       kind: "first",
       label: "Reihe 1",
       factor: 14,
       offset: false,
-      holes: Array.from({ length:firstCount }, (_, column) => ({ hole:nextHole++, column:column + 1 }))
+      count:firstCount
     });
   }
   let remaining = followingCount;
@@ -81,18 +80,22 @@ export function surfaceInjectionPlan(task = {}) {
   const holesPerUpperRow = Math.max(1, firstCount || Math.ceil(Math.sqrt(followingCount || 1)));
   while (remaining > 0) {
     const count = Math.min(holesPerUpperRow, remaining);
-    rows.push({
+    rowsBottomToTop.push({
       row: upperRow,
       kind: "upper",
       label: `Reihe ${upperRow}`,
       factor: 10,
       offset: upperRow % 2 === 0,
-      holes: Array.from({ length:count }, (_, column) => ({ hole:nextHole++, column:column + 1 }))
+      count
     });
     remaining -= count;
     upperRow++;
   }
-  return rows;
+  let nextHole = 1;
+  return rowsBottomToTop.reverse().map(row => ({
+    ...row,
+    holes:Array.from({ length:row.count }, (_, column) => ({ hole:nextHole++, column:column + 1 }))
+  }));
 }
 
 export function injectionHoleInfo(task = {}, holeNumber = 1) {

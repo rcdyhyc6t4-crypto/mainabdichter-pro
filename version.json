@@ -1,6 +1,6 @@
 {
-  "version": "32.21.0",
-  "name": "mainabdichter PRO V32.21.0 Niederdruck und Symbolbedienung",
+  "version": "32.21.1",
+  "name": "mainabdichter PRO V32.21.1 Flächensperre oben nach unten",
   "build": "2026-07-29",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

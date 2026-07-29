@@ -1,4 +1,4 @@
-mainabdichter PRO V32.21.0 – Stabilität, richtige Terminziele und Flächenberechnung
+mainabdichter PRO V32.21.1 – Flächensperre oben nach unten
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
