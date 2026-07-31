@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.22.1
+// mainabdichter PRO Cloudflare Worker V32.22.3
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1749,14 +1749,88 @@ function idFromValue(value) {
   return Number(value || 0);
 }
 
-async function findExistingPipedrivePerson(env, email, phone) {
-  const term = String(email || phone || "").trim();
-  if (term.length < 2) return null;
-  const fields = email ? "email" : "phone";
+function normalizeIdentityText(value) {
+  return cleanText(value).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function normalizeIdentityPhone(value) {
+  const digits = cleanText(value).replace(/\D+/g, "").replace(/^00/, "");
+  // Landesvorwahl und lokale Schreibweise dürfen sich unterscheiden.
+  return digits.length > 9 ? digits.slice(-9) : digits;
+}
+
+function personConflict(message, candidates = []) {
+  const error = new Error(message);
+  error.status = 409;
+  error.details = {
+    candidatePersonIds: [...new Set(candidates.map(person => Number(person?.id || 0)).filter(Boolean))]
+  };
+  return error;
+}
+
+async function searchPipedrivePersonsExact(env, term, fields) {
+  const value = cleanText(term);
+  if (value.length < 2) return [];
   const result = await pipedriveRequest(env,
-    `/api/v2/persons/search?term=${encodeURIComponent(term)}&fields=${fields}&exact_match=true&limit=5`);
-  const items = result?.data?.items || [];
-  return items.length ? normalizePipedrivePerson(items[0].item || items[0]) : null;
+    `/api/v2/persons/search?term=${encodeURIComponent(value)}&fields=${fields}&exact_match=true&limit=20`);
+  const people = (result?.data?.items || [])
+    .map(item => normalizePipedrivePerson(item?.item || item))
+    .filter(person => person?.id);
+  return [...new Map(people.map(person => [String(person.id), person])).values()];
+}
+
+async function findExistingPipedrivePerson(env, input = {}) {
+  const email = cleanText(input.email).toLowerCase();
+  const phone = cleanText(input.phone || input.mobile);
+  const name = cleanText(input.name);
+  const address = cleanText(input.postalAddress) || formatAddress(input);
+  const identifierMatches = [];
+
+  // E-Mail und Telefon werden immer getrennt geprüft. Eine vorhandene E-Mail
+  // darf die Suche nach einer bereits bekannten Telefonnummer nicht verhindern.
+  if (email) {
+    const matches = (await searchPipedrivePersonsExact(env, email, "email"))
+      .filter(person => (person.emails || [{ value: person.email }]).some(entry =>
+        cleanText(entry?.value || entry).toLowerCase() === email));
+    if (matches.length > 1) throw personConflict(
+      "Mehrere Pipedrive-Kontakte verwenden diese E-Mail-Adresse. Es wurde kein neuer Kontakt angelegt.", matches);
+    identifierMatches.push(...matches);
+  }
+  if (phone) {
+    const wantedPhone = normalizeIdentityPhone(phone);
+    const matches = (await searchPipedrivePersonsExact(env, phone, "phone"))
+      .filter(person => (person.phones || [{ value: person.mobile || person.phone }]).some(entry =>
+        normalizeIdentityPhone(entry?.value || entry) === wantedPhone));
+    if (matches.length > 1) throw personConflict(
+      "Mehrere Pipedrive-Kontakte verwenden diese Telefonnummer. Es wurde kein neuer Kontakt angelegt.", matches);
+    identifierMatches.push(...matches);
+  }
+
+  const uniqueIdentifierMatches = [...new Map(identifierMatches.map(person => [String(person.id), person])).values()];
+  if (uniqueIdentifierMatches.length > 1) throw personConflict(
+    "E-Mail und Telefonnummer gehören in Pipedrive zu verschiedenen Kontakten. Bitte zuerst den richtigen Kontakt auswählen.",
+    uniqueIdentifierMatches);
+  if (uniqueIdentifierMatches.length === 1) return uniqueIdentifierMatches[0];
+
+  // Auch ohne verwertbare Kontaktdaten darf ein gleichnamiger Kunde nicht
+  // stillschweigend ein zweites Mal entstehen. Name + Anschrift ist eindeutig;
+  // bei unklaren Namensfunden wird sicher abgebrochen.
+  if (name) {
+    const wantedName = normalizeIdentityText(name);
+    const nameMatches = (await searchPipedrivePersonsExact(env, name, "name"))
+      .filter(person => normalizeIdentityText(person.name) === wantedName);
+    const wantedAddress = normalizeIdentityText(address);
+    const addressMatches = wantedAddress
+      ? nameMatches.filter(person => normalizeIdentityText(person.postalAddress) === wantedAddress)
+      : [];
+    if (addressMatches.length === 1) return addressMatches[0];
+    if (nameMatches.length) throw personConflict(
+      `Der Kontakt „${name}“ existiert bereits in Pipedrive. Bitte den vorhandenen Kontakt auswählen; es wurde keine Dublette angelegt.`,
+      addressMatches.length ? addressMatches : nameMatches);
+  }
+  return null;
 }
 
 
@@ -1865,7 +1939,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.22.1",
+          workerVersion: "32.22.3",
           time: new Date().toISOString()
         });
       }
@@ -2236,7 +2310,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.22.1",
+          workerVersion: "32.22.3",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -2257,7 +2331,12 @@ export default {
         const requestedPersonId = Number(input.pipedriveId || 0) || null;
         let person = requestedPersonId
           ? { id: requestedPersonId }
-          : await findExistingPipedrivePerson(env,email,phone);
+          : await findExistingPipedrivePerson(env, {
+              ...input,
+              name,
+              email,
+              phone
+            });
         let created = false;
         if (!person) {
           const payload = await createPipedrivePersonPayload(env, { ...input, name, email, phone });

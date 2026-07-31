@@ -1,4 +1,4 @@
-mainabdichter PRO V32.22.1 – Bohrlöcher editierbar
+mainabdichter PRO V32.22.3 – Kopf-Plus und Kompaktmenü
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
@@ -30,10 +30,15 @@ BAUSTELLE UND ARBEITSNACHWEIS:
 - Offene Rechnungen bleiben als Erinnerung auf dem Dashboard sichtbar.
 
 WEITERHIN ENTHALTEN:
+- Das Plus sitzt fest im Kopfbereich und verdeckt keine Dashboard-Inhalte.
+- Die Neuanlage zeigt sechs kurze, bildhafte Aktionen in einem 3-mal-2-Raster.
 - Automatische PLZ-/Ort-Hilfe und Straßenprüfung bei manueller Korrekturmöglichkeit.
 - Vorbereitungsunterlagen wie Aufmaß und Grundriss direkt in der Ausführung.
 - BKM-MANNESMANN-Erklärvideo in der Kundenansicht.
 - Pipedrive-Postanschrift `postal_adress`, IDs und Dublettenschutz.
+- Kontakte werden zuerst getrennt über E-Mail und Telefon sowie danach über
+  Name und Anschrift geprüft. Bei unklaren Treffern wird nichts neu angelegt.
+- Bereits vorhandene Pipedrive-Dubletten werden nicht automatisch verändert.
 
 PRÜFUNGEN:
 - JavaScript- und Worker-Syntax bestanden.

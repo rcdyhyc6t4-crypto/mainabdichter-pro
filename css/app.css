@@ -882,6 +882,103 @@ button{border-radius:10px}.primary{background:var(--brand-green)}
   .redesign-header{min-height:64px;padding:7px 10px}.header-logo-button img{height:45px;max-width:62vw}.redesign-header-actions .header-action{padding:9px}.redesign-header-actions .header-action>span:last-child{display:none}.dashboard-welcome{align-items:flex-start;padding-top:10px}.dashboard-welcome h1{font-size:24px}.dashboard-primary-action{padding:11px 13px;font-size:11px}.dashboard-primary-action span{font-size:18px}.dashboard-status-grid{gap:8px}.dashboard-status-card{padding:12px;column-gap:9px}.dashboard-status-card .status-icon{width:34px;height:34px;font-size:16px}.dashboard-status-card strong{font-size:20px}.dashboard-action-grid{gap:8px}.dashboard-action-card{min-height:105px;padding:13px}.record-header{grid-template-columns:1fr;padding:14px}.record-quick-actions{grid-row:2}.record-meta-grid{grid-row:3;grid-template-columns:repeat(2,1fr)}.record-meta-grid>div:last-child{grid-column:1/-1}.dashboard-stat-strip{grid-template-columns:repeat(2,1fr)}.dashboard-stat-strip .wide-stat{grid-column:1/-1}
 }
 
+/* V32.22.3 – Plus im Kopfbereich und kompakte, bildhafte Neuanlage */
+#dashboard .v301-header .v28-floating-add{
+  position:relative!important;
+  right:auto!important;
+  bottom:auto!important;
+  z-index:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  width:43px!important;
+  height:43px!important;
+  min-width:43px!important;
+  padding:0 0 3px!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:#3db435!important;
+  color:#fff!important;
+  box-shadow:none!important;
+  font-size:32px!important;
+  font-weight:400!important;
+  line-height:1!important;
+}
+#newInquiryModal{
+  display:grid;
+  place-items:center;
+}
+#newInquiryModal.hidden{display:none!important}
+#newInquiryModal .new-inquiry-dialog{
+  width:min(520px,calc(100% - 28px))!important;
+  max-height:calc(100dvh - 32px)!important;
+  margin:0 auto!important;
+  padding:18px!important;
+  overflow:auto!important;
+}
+#newInquiryModal .new-inquiry-dialog>header{
+  align-items:center;
+  padding-bottom:13px!important;
+}
+#newInquiryModal .new-inquiry-dialog>header h2{
+  margin:2px 0 0!important;
+  font-size:23px!important;
+}
+#newInquiryModal .new-inquiry-options{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:9px!important;
+  margin-top:14px!important;
+}
+#newInquiryModal .new-inquiry-option{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:50px auto!important;
+  place-items:center!important;
+  min-width:0!important;
+  min-height:105px!important;
+  padding:12px 5px 10px!important;
+  gap:8px!important;
+  border-radius:17px!important;
+  text-align:center!important;
+  overflow:hidden!important;
+}
+#newInquiryModal .new-inquiry-option>span{
+  grid-row:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  width:50px!important;
+  height:50px!important;
+  border-radius:15px!important;
+  font-size:24px!important;
+}
+#newInquiryModal .new-inquiry-option strong{
+  max-width:100%!important;
+  font-size:13px!important;
+  line-height:1.1!important;
+  white-space:normal!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+}
+#newInquiryModal .new-inquiry-option small{display:none!important}
+
+@media(max-width:620px){
+  #dashboard .v301-header-logo{max-width:46vw!important}
+  #dashboard .v301-header .v28-header-actions{gap:7px!important}
+  #dashboard .v301-header .v28-floating-add,
+  #dashboard .v301-header .v28-icon-button{
+    width:39px!important;
+    height:39px!important;
+    min-width:39px!important;
+  }
+  #dashboard .v301-header .v28-floating-add{font-size:29px!important}
+  #newInquiryModal{padding:max(12px,env(safe-area-inset-top)) 8px max(12px,env(safe-area-inset-bottom))!important}
+  #newInquiryModal .new-inquiry-dialog{width:100%!important;max-width:390px!important;padding:16px!important}
+  #newInquiryModal .new-inquiry-options{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
+  #newInquiryModal .new-inquiry-option{min-height:96px!important;padding:10px 3px 8px!important;gap:6px!important}
+  #newInquiryModal .new-inquiry-option>span{width:45px!important;height:45px!important;font-size:22px!important}
+  #newInquiryModal .new-inquiry-option strong{font-size:12px!important}
+}
+
 /* V32.18.0 – ADHS-freundliche visuelle Wandmessung */
 .wall-survey-launch{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:11px;align-items:center;width:100%;margin:12px 0;padding:13px;text-align:left;border:2px solid #64ad44;border-radius:16px;background:#f3faef;color:#223326}
 .wall-survey-launch>span:first-child{display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:#42ad35;color:#fff;font-size:21px}
@@ -2967,4 +3064,76 @@ body.central-syncing{overflow:hidden}
     padding: 12px;
     gap: 8px;
   }
+}
+
+/* V32.22.3 – abschließende Gerätepriorität für Kopf-Plus und Neuanlage */
+#dashboard .v301-header .v28-floating-add{
+  position:relative!important;
+  inset:auto!important;
+  z-index:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  width:43px!important;
+  height:43px!important;
+  min-width:43px!important;
+  padding:0 0 3px!important;
+  border-radius:50%!important;
+  background:#3db435!important;
+  color:#fff!important;
+  box-shadow:none!important;
+  font-size:32px!important;
+  line-height:1!important;
+}
+#newInquiryModal{display:grid!important;place-items:center!important}
+#newInquiryModal.hidden{display:none!important}
+#newInquiryModal .new-inquiry-dialog{
+  width:min(520px,calc(100% - 28px))!important;
+  max-height:calc(100dvh - 32px)!important;
+  margin:0 auto!important;
+  padding:18px!important;
+  overflow:auto!important;
+}
+#newInquiryModal .new-inquiry-options{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:9px!important;
+  margin-top:14px!important;
+}
+#newInquiryModal .new-inquiry-option{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:50px auto!important;
+  place-items:center!important;
+  min-height:105px!important;
+  padding:12px 5px 10px!important;
+  gap:8px!important;
+  text-align:center!important;
+}
+#newInquiryModal .new-inquiry-option>span{
+  grid-row:auto!important;
+  width:50px!important;
+  height:50px!important;
+  font-size:24px!important;
+}
+#newInquiryModal .new-inquiry-option strong{
+  max-width:100%!important;
+  font-size:13px!important;
+  line-height:1.1!important;
+  white-space:normal!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+}
+#newInquiryModal .new-inquiry-option small{display:none!important}
+@media(max-width:620px){
+  #dashboard .v301-header-logo{max-width:46vw!important}
+  #dashboard .v301-header .v28-header-actions{gap:7px!important}
+  #dashboard .v301-header .v28-floating-add,
+  #dashboard .v301-header .v28-icon-button{width:39px!important;height:39px!important;min-width:39px!important}
+  #dashboard .v301-header .v28-floating-add{font-size:29px!important}
+  #newInquiryModal{padding:max(12px,env(safe-area-inset-top)) 8px max(12px,env(safe-area-inset-bottom))!important}
+  #newInquiryModal .new-inquiry-dialog{width:100%!important;max-width:390px!important;padding:16px!important}
+  #newInquiryModal .new-inquiry-options{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
+  #newInquiryModal .new-inquiry-option{min-height:96px!important;padding:10px 3px 8px!important;gap:6px!important}
+  #newInquiryModal .new-inquiry-option>span{width:45px!important;height:45px!important;font-size:22px!important}
+  #newInquiryModal .new-inquiry-option strong{font-size:12px!important}
 }

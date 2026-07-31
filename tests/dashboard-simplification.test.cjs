@@ -23,10 +23,12 @@ assert(!html.includes('id="v28CreateOffer"'), "Separates Neues-Angebot-Feld darf
 
 assert(html.includes('id="v287OpenInventory"'), "Lager-Popup-Schalter fehlt");
 assert(html.includes('id="v287InventoryListModal"'), "Lager-Popup fehlt");
-assert(html.includes("V32.22.1"), "Korrekturversion des kompakten Dashboards fehlt");
+assert(html.includes("V32.22.3"), "Korrekturversion des kompakten Dashboards fehlt");
 
 const css = fs.readFileSync("css/app.css", "utf8");
 assert(css.includes("Dashboard und Plus-Menü wirklich kompakt"), "Finale mobile Kompaktregeln fehlen");
-assert(css.includes("#newInquiryModal .new-inquiry-options{grid-template-columns:1fr"), "Plus-Menü muss auf dem Smartphone einspaltig sein");
+assert(html.indexOf('id="v28FloatingAdd"') < html.indexOf('id="v28Notifications"'), "Plus muss im Kopfbereich vor Glocke und Profil stehen");
+assert(css.includes("grid-template-columns:repeat(3,minmax(0,1fr))!important"), "Plus-Menü muss als kompaktes 3-mal-2-Raster erscheinen");
+assert(css.includes("#dashboard .v301-header .v28-floating-add"), "Plus darf nicht mehr über der unteren Navigation schweben");
 
 console.log("Dashboard-Vereinfachung und Plus-Menü: OK");

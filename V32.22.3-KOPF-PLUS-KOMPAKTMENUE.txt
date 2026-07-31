@@ -1,0 +1,25 @@
+mainabdichter PRO V32.22.3
+
+PIPEDRIVE-DUBLETTENSCHUTZ
+
+- Bekannte Pipedrive-Personen-IDs werden wiederverwendet.
+- E-Mail und Telefonnummer werden unabhängig geprüft.
+- Bei gleichem Namen wird zusätzlich die Anschrift verglichen.
+- Mehrdeutige Treffer brechen sicher ab, statt einen Kontakt anzulegen.
+- Vorhandene Dubletten werden nicht automatisch gelöscht oder verbunden.
+
+KOPF-PLUS UND KOMPAKTMENÜ
+
+- Das Plus befindet sich im Kopfbereich neben Glocke und Profil.
+- Es überdeckt weder Dashboard-Karten noch die untere Navigation.
+- Das Menü besteht aus sechs kompakten Symbolfeldern ohne Erklärungstexte.
+- Alle Beschriftungen sind auf dem iPhone vollständig sichtbar.
+
+Bei Flächensperren sind die tatsächlich ausgeführten Bohrlöcher getrennt
+editierbar:
+
+- Ist-Bohrlöcher unten, Faktor 14
+- Ist-Bohrlöcher der oberen Reihen, Faktor 10
+
+Gesamtzahl, Fläche und Verbrauch werden daraus automatisch neu berechnet und
+in der Ergebnis-Karte angezeigt.

@@ -2,18 +2,18 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.1";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.3";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.22.1";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.22.3";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.1";
+import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.3";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.1";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.3";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.1";
+const MAINABDICHTER_APP_VERSION = "32.22.3";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -332,13 +332,18 @@ function customerName(customer) {
     .filter(Boolean).join(" ") || customer?.company || "Kunde";
 }
 
-async function ensurePipedrivePerson(customer) {
-  if (customer?.pipedriveId) return String(customer.pipedriveId);
+async function ensurePipedrivePerson(customer, knownPersonId = "") {
+  const pipedriveId = String(knownPersonId || customer?.pipedriveId || "").trim();
+  if (pipedriveId) {
+    customer.pipedriveId = pipedriveId;
+    return pipedriveId;
+  }
   const postalAddress = [
     customer?.street || "",
     [customer?.zip || "", customer?.city || ""].filter(Boolean).join(" ")
   ].filter(Boolean).join(", ");
   const response = await createPipedrivePerson({
+    pipedriveId,
     name: customerName(customer),
     email: customer?.email || "",
     phone: customer?.phone || "",
@@ -470,7 +475,7 @@ async function uploadWorksiteAttachments(worksite) {
 }
 
 async function syncWorksiteDeal(worksite, stageKey = null, pdf = null, uploadAttachments = true) {
-  const personId = worksite.pipedrivePersonId || await ensurePipedrivePerson(worksite.customer);
+  const personId = await ensurePipedrivePerson(worksite.customer, worksite.pipedrivePersonId);
   worksite.pipedrivePersonId = personId;
   const completeNotes = (worksite.tasks || [])
     .map(task => `<strong>${esc(task.areaName || "Bereich")} – ${esc(task.type || "Leistung")}</strong><br>${esc(task.actualNote || task.note || "ausgeführt").replace(/\n/g, "<br>")}`)
@@ -1263,7 +1268,7 @@ async function syncAcceptedQuotationDashboard() {
       try {
         const data=await loadAcceptedLexwareQuotation(button.dataset.createLexwareWorksite);
         const ws=createWorksiteFromLexwareQuotation(state.settings,data.quotation);
-        const personId=await ensurePipedrivePerson(ws.customer);
+        const personId=await ensurePipedrivePerson(ws.customer, ws.pipedrivePersonId);
         ws.pipedrivePersonId=personId;
         const deal=await syncPipedriveDeal({
           personId,
@@ -6706,7 +6711,7 @@ $("createWorksite").onclick = async () => {
 
     // Auch Lexoffice-Kunden, die noch nicht in Pipedrive vorhanden sind,
     // werden vor dem Anlegen der Baustelle automatisch erstellt.
-    const personId = await ensurePipedrivePerson(ws.customer);
+    const personId = await ensurePipedrivePerson(ws.customer, ws.pipedrivePersonId);
     if (!personId) throw new Error("Der Kunde konnte in Pipedrive nicht angelegt werden.");
 
     ws.pipedrivePersonId = String(personId);
