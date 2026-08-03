@@ -61,6 +61,15 @@ export function taskIsTechnical(task) {
   return ["Horizontalsperre", "Flächensperre", "Wand-Sohlen-Anschluss", "Harzverpressung"].includes(task?.type);
 }
 
+export function bottleInventoryTarget(worksite = {}, source = "hanging") {
+  const taken = Math.max(0, Math.round(Number(worksite.bottlesTaken || 0)));
+  const hanging = Math.max(0, Math.round(Number(worksite.bottlesHanging || 0)));
+  const retrieved = Math.max(0, Math.round(Number(worksite.bottlesRetrieved || 0)));
+  return source === "taken"
+    ? Math.max(0, taken - retrieved)
+    : Math.max(0, hanging - retrieved);
+}
+
 export function surfaceInjectionPlan(task = {}) {
   const firstCount = Math.max(0, Math.round(Number(task.surfaceFirstRowHoles || 0)));
   const followingCount = Math.max(0, Math.round(Number(task.surfaceFollowingRowHoles || 0)));
@@ -262,12 +271,15 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
     chargeHs2: "",
     chargeResin: "",
     chargeResin2: "",
+    bottlesTaken: 0,
     bottlesHanging: 0,
     bottlesArea: "",
     bottlesPickupDue: "",
     bottlesRetrieved: 0,
     bottlesRetrievedAt: "",
     bottlesPickupNote: "",
+    bottlesHangingConfirmed: false,
+    bottleInventoryOutstanding: 0,
     customerSignature: "",
     workerSignature: "",
     materialBooked: false,

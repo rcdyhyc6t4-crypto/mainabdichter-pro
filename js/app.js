@@ -2,18 +2,18 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.3";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.4";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.22.3";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo, bottleInventoryTarget } from "./construction.js?v=32.22.4";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.3";
+import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.4";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.3";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.4";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.3";
+const MAINABDICHTER_APP_VERSION = "32.22.4";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1328,6 +1328,7 @@ function ensureCentralWorksiteMaterialData(worksite) {
   if (worksite.chargeHs2 === undefined) worksite.chargeHs2 = "";
   if (worksite.chargeResin === undefined) worksite.chargeResin = firstValue("chargeResin");
   if (worksite.chargeResin2 === undefined) worksite.chargeResin2 = "";
+  if (worksite.bottlesTaken === undefined) worksite.bottlesTaken = 0;
   if (worksite.bottlesHanging === undefined) {
     worksite.bottlesHanging = tasks.reduce((sum, task) => sum + Number(task.bottlesHanging || 0), 0);
   }
@@ -1342,6 +1343,15 @@ function ensureCentralWorksiteMaterialData(worksite) {
   }
   if (worksite.bottlesRetrievedAt === undefined) worksite.bottlesRetrievedAt = "";
   if (worksite.bottlesPickupNote === undefined) worksite.bottlesPickupNote = "";
+  if (worksite.bottlesHangingConfirmed === undefined) worksite.bottlesHangingConfirmed = false;
+  if (worksite.bottleInventoryOutstanding === undefined) {
+    // Vorhandene Baustellen werden als bereits verbuchter Außenbestand
+    // übernommen. Dadurch erzeugt das Update keine rückwirkende Doppelbuchung.
+    worksite.bottleInventoryOutstanding = Math.max(
+      0,
+      Number(worksite.bottlesHanging || 0) - Number(worksite.bottlesRetrieved || 0)
+    );
+  }
   return worksite;
 }
 
@@ -1369,6 +1379,66 @@ function v28InventoryMovements() {
   if (!state.settings.inventory) state.settings.inventory = {};
   if (!Array.isArray(state.settings.inventory.movements)) state.settings.inventory.movements = [];
   return state.settings.inventory.movements;
+}
+
+function injectionBottleInventoryProduct() {
+  const products = state.settings?.inventory?.products || [];
+  const normalized = value => String(value || "").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "");
+  return products.find(product => /injektions?flasch/.test(normalized(product.name)))
+    || products.find(product => /^flaschen?$/.test(normalized(product.name)))
+    || null;
+}
+
+function recordBottleInventoryMovement(product, delta, note, worksite) {
+  if (!product || !delta) return;
+  const previous = Number(product.stock || 0);
+  const next = previous + Number(delta);
+  product.stock = next;
+  const now = new Date().toISOString();
+  v28InventoryMovements().push({
+    id: crypto.randomUUID(),
+    productId: product.id,
+    productName: product.name,
+    action: delta > 0 ? "increase" : "decrease",
+    actionLabel: delta > 0 ? "Flaschen zurück" : "Flaschen mitgenommen",
+    previousStock: previous,
+    newStock: next,
+    delta,
+    unit: product.unit || "Stück",
+    date: todayLocal(),
+    note: `${note} · ${worksiteCustomerName(worksite)}`,
+    worksiteId: worksite.id,
+    createdAt: now
+  });
+  inventoryTransaction(product, delta, delta > 0 ? "return" : "issue", `${note} · Baustelle ${worksiteCustomerName(worksite)}`);
+}
+
+function syncWorksiteBottleInventory(worksite, source = "save") {
+  ensureCentralWorksiteMaterialData(worksite);
+  const product = injectionBottleInventoryProduct();
+  if (!product) return { ok:false, reason:"missing-product" };
+
+  let previous = Number(worksite.bottleInventoryOutstanding);
+  if (!Number.isFinite(previous)) {
+    // Bestehende Baustellen werden ohne rückwirkende Doppelbuchung übernommen.
+    previous = worksiteOpenBottleCount(worksite);
+    worksite.bottleInventoryOutstanding = previous;
+  }
+
+  const desired = bottleInventoryTarget(worksite, source);
+  const inventoryDelta = previous - desired;
+
+  if (inventoryDelta) {
+    const note = desired > previous
+      ? (source === "taken" ? "Zur Baustelle mitgenommen" : "Beim Kunden hängen geblieben")
+      : "Ins Lager zurückgebracht";
+    recordBottleInventoryMovement(product, inventoryDelta, note, worksite);
+  }
+  worksite.bottleInventoryOutstanding = desired;
+  worksite.bottleInventoryProductId = product.id;
+  worksite.bottleInventorySyncedAt = new Date().toISOString();
+  saveState();
+  return { ok:true, product, previous, outstanding:desired, delta:inventoryDelta };
 }
 function reservedInventoryAmount(productId, excludedWorksiteId = "") {
   return loadWorksites().reduce((sum, worksite) => {
@@ -1557,10 +1627,13 @@ function v287RenderBottleList() {
       ensureCentralWorksiteMaterialData(ws);
       const total = worksiteOpenBottleCount(ws);
       if (!total) return;
-      if (!confirm(`${total} Flaschen bei ${worksiteCustomerName(ws)} als abgeholt bestätigen?`)) return;
-
-      ws.bottlesRetrieved = Number(ws.bottlesHanging || 0);
+      const raw = prompt(`Wie viele Flaschen wurden abgeholt? Noch offen: ${total}`, String(total));
+      if (raw === null) return;
+      const amount = Math.min(total, Math.max(0, Math.round(parseDecimal(raw))));
+      if (!(amount > 0)) return;
+      ws.bottlesRetrieved = Number(ws.bottlesRetrieved || 0) + amount;
       ws.bottlesRetrievedAt = new Date().toISOString();
+      syncWorksiteBottleInventory(ws, "pickup");
       persistWorksite(ws);
       renderV28Dashboard();
       v287RenderBottleList();
@@ -5485,7 +5558,7 @@ function collectWorksite() {
   document.querySelectorAll("[data-ws-site-field]").forEach(input => {
     const field = input.dataset.wsSiteField;
     if (input.type === "checkbox") worksite[field] = input.checked;
-    else if (["bottlesHanging","bottlesRetrieved"].includes(field)) worksite[field] = parseDecimal(input.value);
+    else if (["bottlesTaken","bottlesHanging","bottlesRetrieved"].includes(field)) worksite[field] = parseDecimal(input.value);
     else worksite[field] = input.value.trim();
   });
   document.querySelectorAll("[data-ws-task]").forEach(input => {
@@ -6311,7 +6384,9 @@ function renderWorksiteEditor() {
         ${totals.hsKg > 0 ? centralChargeHtml("bkm-hs-sperrmoertel", "chargeHs", "Charge BKM HS Sperrmörtel") : ""}
         ${totals.resinKg > 0 ? centralChargeHtml("bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K") : ""}
         ${hasHz ? `
+          <div><label>Flaschen mitgenommen</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-site-field="bottlesTaken" value="${formatDecimalInput(ws.bottlesTaken)}"></div>
           <div><label>Hängende Flaschen gesamt</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-site-field="bottlesHanging" value="${formatDecimalInput(ws.bottlesHanging)}"></div>
+          <div><label>Davon bereits abgeholt</label><input type="number" inputmode="numeric" min="0" max="${Math.max(0, Number(ws.bottlesHanging || 0))}" step="1" data-ws-site-field="bottlesRetrieved" value="${formatDecimalInput(ws.bottlesRetrieved)}"></div>
           <div><label>Bereich</label><input data-ws-site-field="bottlesArea" value="${esc(ws.bottlesArea || "")}" placeholder="z. B. Nähraum"></div>
           <div><label>Abholung</label><input type="date" data-ws-site-field="bottlesPickupDue" value="${esc(ws.bottlesPickupDue || "")}"></div>
           ${worksiteOpenBottleCount(ws) > 0 ? `<div class="full"><button type="button" class="secondary" data-confirm-site-bottle-pickup>✓ Flaschen abgeholt</button></div>` : ""}` : ""}
@@ -6382,16 +6457,34 @@ function renderWorksiteEditor() {
   document.querySelectorAll("[data-ws-site-field]").forEach(input => {
     input.onchange = () => {
       const field = input.dataset.wsSiteField;
-      ws[field] = ["bottlesHanging","bottlesRetrieved"].includes(field) ? parseDecimal(input.value) : input.value.trim();
+      ws[field] = ["bottlesTaken","bottlesHanging","bottlesRetrieved"].includes(field) ? parseDecimal(input.value) : input.value.trim();
+      if (field === "bottlesTaken") syncWorksiteBottleInventory(ws, "taken");
+      if (field === "bottlesHanging") {
+        ws.bottlesHangingConfirmed = true;
+        ws.bottlesRetrieved = Math.min(Number(ws.bottlesRetrieved || 0), Number(ws.bottlesHanging || 0));
+        syncWorksiteBottleInventory(ws, "hanging");
+      }
+      if (field === "bottlesRetrieved") {
+        ws.bottlesRetrieved = Math.min(Number(ws.bottlesHanging || 0), Math.max(0, Number(ws.bottlesRetrieved || 0)));
+        input.value = formatDecimalInput(ws.bottlesRetrieved);
+        ws.bottlesRetrievedAt = ws.bottlesRetrieved > 0 ? new Date().toISOString() : "";
+        syncWorksiteBottleInventory(ws, "pickup");
+      }
       persistWorksite(ws);
+      renderV28Dashboard();
     };
   });
   document.querySelectorAll("[data-confirm-site-bottle-pickup]").forEach(button => {
     button.onclick = () => {
       const open = worksiteOpenBottleCount(ws);
-      if (!open || !confirm(`${open} Flaschen als abgeholt bestätigen?`)) return;
-      ws.bottlesRetrieved = Number(ws.bottlesHanging || 0);
+      if (!open) return;
+      const raw = prompt(`Wie viele Flaschen wurden abgeholt? Noch offen: ${open}`, String(open));
+      if (raw === null) return;
+      const amount = Math.min(open, Math.max(0, Math.round(parseDecimal(raw))));
+      if (!(amount > 0)) return;
+      ws.bottlesRetrieved = Number(ws.bottlesRetrieved || 0) + amount;
       ws.bottlesRetrievedAt = new Date().toISOString();
+      syncWorksiteBottleInventory(ws, "pickup");
       persistWorksite(ws);
       renderWorksiteEditor();
       updateDashboardOverview();

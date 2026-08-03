@@ -1,4 +1,4 @@
-mainabdichter PRO V32.22.3 – Kopf-Plus und Kompaktmenü
+mainabdichter PRO V32.22.4 – Injektionsflaschen-Lager
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
@@ -21,6 +21,11 @@ BESICHTIGUNG:
 - Aufmaß und Wandmessung bleiben separat lösch- und speicherbar.
 
 BAUSTELLE UND ARBEITSNACHWEIS:
+- Injektionsflaschen werden beim Mitnehmen automatisch aus dem Lager gebucht.
+- Nicht hängende Flaschen werden bei der Baustellendokumentation zurückgebucht.
+- Abgeholte Flaschen erhöhen den Bestand; Teilabholungen bleiben möglich.
+- Jede Baustelle speichert ihren verbuchten Außenbestand, damit erneutes
+  Speichern keine Flasche doppelt bewegt.
 - Vier klare Bereiche: Übersicht, Ausführung, Fotos & Unterlagen, Abschluss.
 - Jeder Arbeitsnachweis ist nach Baustellen-ID getrennt; alte Kundendaten werden nicht übernommen.
 - Ist-Verbrauch wird aus den tatsächlich eingetragenen Bohrlöchern und ml je Bohrloch berechnet.
