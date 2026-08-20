@@ -1,0 +1,12 @@
+mainabdichter PRO V32.22.5
+
+MESSUNGEN BEI BESICHTIGUNGEN
+
+- Messungen sind optional und blockieren den Abschluss nicht mehr.
+- Die Besichtigung lässt sich mit 0, 1, 2 oder mehr Messwerten abschließen.
+- Drei Messwerte werden lediglich empfohlen.
+- Das geführte Wandaufmaß kann auch ohne Messwert beendet werden.
+- Automatisch vorgeschlagene Rasterpunkte sind keine Pflichtfelder.
+- Im Bericht erscheinen nur tatsächlich eingetragene Messwerte.
+
+Alle bisherigen Funktionen aus V32.22.4 bleiben enthalten.

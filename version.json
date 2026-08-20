@@ -1,6 +1,6 @@
 {
-  "version": "32.22.4",
-  "name": "mainabdichter PRO V32.22.4 Injektionsflaschen-Lager",
-  "build": "2026-08-03",
+  "version": "32.22.5",
+  "name": "mainabdichter PRO V32.22.5 Messungen optional",
+  "build": "2026-08-20",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }

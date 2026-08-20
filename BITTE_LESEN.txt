@@ -1,4 +1,4 @@
-mainabdichter PRO V32.22.4 – Injektionsflaschen-Lager
+mainabdichter PRO V32.22.5 – Messungen optional
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
@@ -13,6 +13,9 @@ DATENSCHUTZ:
 - Während einer Eingabe oder eines Foto-Uploads gibt es keinen störenden Neuaufbau.
 
 BESICHTIGUNG:
+- Messungen sind fachlich empfohlen, aber niemals Voraussetzung für den Abschluss.
+- Eine Besichtigung und das geführte Wandaufmaß lassen sich auch mit 0, 1 oder 2 Messwerten abschließen.
+- Drei Messwerte werden nur als Empfehlung angezeigt; leere Rasterpunkte erscheinen nicht als Messwerte im Bericht.
 - Neue Anfrage öffnet sofort die Anfrage- und Terminangaben.
 - Geführter Ablauf über Kunde, Gebäude, Beschreibung, Maßnahmen und Prüfung.
 - Zwischenspeichern legt eine wieder aufrufbare Version unter „Vorgänge“ an.
