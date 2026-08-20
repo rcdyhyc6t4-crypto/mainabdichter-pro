@@ -2,18 +2,18 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.4";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.5";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo, bottleInventoryTarget } from "./construction.js?v=32.22.4";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo, bottleInventoryTarget } from "./construction.js?v=32.22.5";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.4";
+import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.5";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.4";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.5";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.4";
+const MAINABDICHTER_APP_VERSION = "32.22.5";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2927,14 +2927,24 @@ const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Schadensbereiche",key:"earthContact",label:"Erdkontakt",defaultRequired:false},
   {group:"Schadensbereiche",key:"wallCover",label:"Wandbelag",defaultRequired:false},
   {group:"Feuchtemessung",key:"dryReference",label:"Referenzwert trocken",defaultRequired:false},
-  {group:"Feuchtemessung",key:"measurement",label:"Mindestens ein Messpunkt",legacy:"measurement"},
-  {group:"Feuchtemessung",key:"measurementDevice",label:"Messgerät je Messpunkt",legacy:"measurement"},
-  {group:"Feuchtemessung",key:"measurementValue",label:"Messwert in Digits je Messpunkt",legacy:"measurement"},
+  {group:"Feuchtemessung",key:"measurement",label:"Messpunkte (3 empfohlen)",defaultRequired:false},
+  {group:"Feuchtemessung",key:"measurementDevice",label:"Messgerät je erfasstem Messpunkt",defaultRequired:false},
+  {group:"Feuchtemessung",key:"measurementValue",label:"Messwert in Digits je erfasstem Messpunkt",defaultRequired:false},
   {group:"Feuchtemessung",key:"measurementHeight",label:"Messhöhe je Messpunkt",defaultRequired:false},
   {group:"Feuchtemessung",key:"measurementLocation",label:"Messposition je Messpunkt",defaultRequired:false},
   {group:"Maßnahmen",key:"measure",label:"Mindestens eine Maßnahme",legacy:"measure"}
 ];
+const ALWAYS_OPTIONAL_VISIT_REQUIREMENTS = new Set([
+  "measurement",
+  "measurementDevice",
+  "measurementValue",
+  "measurementHeight",
+  "measurementLocation"
+]);
 function visitRequirementEnabled(key){
+  // Der Fachmann entscheidet vor Ort, ob und wie viele Messungen sinnvoll sind.
+  // Auch ältere gespeicherte Einstellungen dürfen den Abschluss nicht blockieren.
+  if(ALWAYS_OPTIONAL_VISIT_REQUIREMENTS.has(key))return false;
   const definition=VISIT_REQUIREMENT_DEFINITIONS.find(item=>item.key===key);
   const stored=state.settings.visitRequirements||{};
   if(Object.prototype.hasOwnProperty.call(stored,key))return stored[key]!==false;
@@ -4066,10 +4076,12 @@ function renderWallSurveyPoints() {
     </button>`).join("");
   box.querySelectorAll("[data-wall-point]").forEach(button => button.onclick = () => openWallSurveyPoint(button.dataset.wallPoint));
   const progress = wallSurveyProgress(survey.points);
-  $("wallSurveyMeasurementStatus").textContent = progress.complete
-    ? `✓ Alle ${progress.total} Messpunkte erledigt`
-    : `${progress.done} von ${progress.total} Messpunkten erledigt`;
-  $("wallSurveyToResult").disabled = progress.done === 0;
+  $("wallSurveyMeasurementStatus").textContent = progress.done >= 3
+    ? `✓ ${progress.done} Messpunkte erfasst`
+    : progress.done > 0
+      ? `${progress.done} Messpunkt${progress.done === 1 ? "" : "e"} erfasst · 3 empfohlen, nicht erforderlich`
+      : "Noch keine Messung erfasst · Messungen sind optional";
+  $("wallSurveyToResult").disabled = false;
 }
 
 function openWallSurveyPoint(pointId) {
@@ -5045,10 +5057,11 @@ function wallSurveyReportHtml(area) {
   const survey = area.wallSurvey;
   if (!survey?.annotatedImageData) return "";
   const inaccessible = (survey.points || []).filter(point => point.status === "inaccessible").length;
+  const measured = (survey.points || []).filter(point => String(point.value ?? "").trim()).length;
   return `<h3>Bemaßtes Wandaufmaß</h3>
     <div class="photo-card wall-survey-report">
       <img src="${survey.annotatedImageData}" alt="Bemaßtes Wandaufmaß">
-      <p>${num(survey.width)} m Länge × ${num(survey.height)} m Höhe = ${num(Number(survey.width) * Number(survey.height))} m² Bruttofläche · ${(survey.points || []).length} Messpunkte${inaccessible ? ` · ${inaccessible} nicht zugänglich/nicht geprüft` : ""}</p>
+      <p>${num(survey.width)} m Länge × ${num(survey.height)} m Höhe = ${num(Number(survey.width) * Number(survey.height))} m² Bruttofläche · ${measured} Messwert${measured === 1 ? "" : "e"}${inaccessible ? ` · ${inaccessible} nicht zugänglich/nicht geprüft` : ""}</p>
     </div>`;
 }
 
@@ -5057,7 +5070,11 @@ function buildReport() {
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    const recordedMeasurements = (area.measurements || []).filter(m => String(m.value ?? "").trim());
+    const measurementRows = recordedMeasurements.length
+      ? recordedMeasurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")
+      : `<tr><td colspan="4">Keine Messung erforderlich oder erfasst.</td></tr>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${measurementRows}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,
