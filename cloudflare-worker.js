@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.22.5
+// mainabdichter PRO Cloudflare Worker V32.22.6
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -1939,7 +1939,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.22.5",
+          workerVersion: "32.22.6",
           time: new Date().toISOString()
         });
       }
@@ -2310,7 +2310,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.22.5",
+          workerVersion: "32.22.6",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -3383,14 +3383,43 @@ export default {
             `\n\nObjektanschrift: ${quotation.objectAddress}`;
         }
 
-        const createdQuotation = await lexwareRequest(
-          env,
-          "/quotations?finalize=false",
-          {
-            method: "POST",
-            body: JSON.stringify(quotationPayload),
+        let createdQuotation;
+        try {
+          createdQuotation = await lexwareRequest(
+            env,
+            "/quotations?finalize=false",
+            {
+              method: "POST",
+              body: JSON.stringify(quotationPayload),
+            }
+          );
+        } catch (error) {
+          // Lexware rejects a complete quotation with HTTP 406 if one of the
+          // referenced articles was archived, changed or no longer belongs to
+          // the account.  The visible offer data is still valid, so retry the
+          // draft once with independent custom positions.  Names, texts,
+          // quantities, prices and taxes remain unchanged.
+          if (error.status !== 406 || !quotationPayload.lineItems.some(item => item.id)) {
+            throw error;
           }
-        );
+
+          const retryPayload = {
+            ...quotationPayload,
+            lineItems: quotationPayload.lineItems.map(item => {
+              const { id, ...position } = item;
+              return { ...position, type: "custom" };
+            }),
+          };
+
+          createdQuotation = await lexwareRequest(
+            env,
+            "/quotations?finalize=false",
+            {
+              method: "POST",
+              body: JSON.stringify(retryPayload),
+            }
+          );
+        }
 
         return jsonResponse(
           request,

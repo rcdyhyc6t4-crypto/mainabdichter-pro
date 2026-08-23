@@ -1,0 +1,12 @@
+mainabdichter PRO V32.22.6
+
+Lexoffice-Korrektur:
+- Bei HTTP 406 wegen veralteter oder archivierter Lexware-Artikel wird das
+  Angebot automatisch erneut mit unabhängigen Angebotspositionen übertragen.
+- Bezeichnung, Beschreibung, Menge, Preis und Steuer bleiben unverändert.
+- Falls Lexware die Daten weiterhin ablehnt, zeigt die App den konkreten
+  Lexware-Fehler anstelle der allgemeinen Meldung.
+
+Die Änderungen aus V32.22.5 bleiben enthalten:
+- Messungen sind bei Besichtigungen optional.
+- Drei Messungen sind eine Empfehlung, keine Abschlussvoraussetzung.

@@ -1,4 +1,4 @@
-mainabdichter PRO V32.22.5 – Messungen optional
+mainabdichter PRO V32.22.6 – Lexoffice-Korrektur und Messungen optional
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
