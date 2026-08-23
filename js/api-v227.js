@@ -73,11 +73,18 @@ export async function api(path, options = {}) {
     const readableDetail = value => {
       if (!value) return "";
       if (typeof value === "string") return value;
+      if (Array.isArray(value)) return value.map(readableDetail).filter(Boolean).join("; ");
       if (typeof value.message === "string") return value.message;
       if (typeof value.error_description === "string") return value.error_description;
       if (typeof value.error === "string") return value.error;
       if (value.error && typeof value.error.message === "string") return value.error.message;
+      if (Array.isArray(value.violations)) return value.violations.map(readableDetail).filter(Boolean).join("; ");
+      if (Array.isArray(value.errors)) return value.errors.map(readableDetail).filter(Boolean).join("; ");
       if (Array.isArray(value.attempts)) return value.attempts.join(" | ");
+      for (const nested of Object.values(value)) {
+        const readable = readableDetail(nested);
+        if (readable) return readable;
+      }
       return "";
     };
 
