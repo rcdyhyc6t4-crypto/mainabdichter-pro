@@ -1,4 +1,4 @@
-import { state, saveState } from "./storage-v227.js?v=32.22.5";
+import { state, saveState } from "./storage-v227.js";
 import { uploadDriveVisitPhoto, loadDrivePhoto } from "./api-v227.js";
 
 const DB_NAME = "mainabdichter-photo-queue";

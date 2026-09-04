@@ -1,4 +1,4 @@
-import { state, loadArchive, loadCustomers, saveCustomer, loadCommunicationNotes } from "./storage-v227.js?v=32.22.5";
+import { state, loadArchive, loadCustomers, saveCustomer, loadCommunicationNotes } from "./storage-v227.js";
 import {
   hasConnectionConfig,
   searchPipedrive,
@@ -9,7 +9,7 @@ import {
   createPipedrivePerson,
   lookupGermanLocalities,
   lookupGermanStreets
-} from "./api-v227.js?v=32.19.0";
+} from "./api-v227.js";
 
 const $ = id => document.getElementById(id);
 let activeRecordCustomer = null;
