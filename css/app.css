@@ -2657,6 +2657,25 @@ body.central-syncing{overflow:hidden}
 .measure-confirm-area{display:grid;gap:10px;padding:14px;border-radius:14px;background:#f4f6f2}
 .measure-confirm-area small{font-weight:700;color:#59645b}
 .measure-confirm-area button{width:100%}
+.measure-missing-overview{display:grid;gap:9px;margin:12px 0 16px;padding:14px;border:2px solid #c9362b;border-radius:14px;background:#fff0ef;color:#8f2019}
+.measure-missing-overview>strong{font-size:1rem}
+.measure-missing-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}
+.measure-missing-overview button{display:grid;gap:3px;width:100%;padding:11px 12px;border:1px solid #e4a09b;border-radius:10px;background:#fff;text-align:left;color:#741b16}
+.measure-missing-overview button span{font-size:.78rem;color:#74514e}
+.measure-missing-overview button b{font-size:.95rem}
+.measure-missing-overview .measure-skip-button{width:auto;min-width:155px;display:flex;align-items:center;justify-content:center;background:#f4f1ee;color:#433b38;font-weight:800;text-align:center}
+.checklist-row.skipped{background:#f0f1ee;border:1px solid #c8ccc5;color:#596058}
+.checklist-row.skipped strong{color:#6c716a}
+.measure-skipped-title{margin-top:5px;color:#5f665d!important}
+.measure-missing-overview .measure-restore-button{background:#f0f1ee;border-color:#c8ccc5;color:#596058}
+.measure-guided-card.measure-open{background:#fffaf4}
+.measure-guided-card.measure-open .measure-step-head strong{color:#b3261e}
+.measure-guided-card.measure-skipped{border-color:#aeb5aa;background:#f3f4f2}
+.measure-guided-card.measure-skipped .measure-step-head strong{color:#666d64}
+.measure-field-missing{padding:9px;border:2px solid #d83b32;border-radius:10px;background:#fff0ef}
+.measure-field-missing label{color:#a51f18;font-weight:900}
+.measure-field-missing input,.measure-field-missing select{border-color:#d83b32!important;background:#fff!important}
+@media(max-width:620px){.measure-missing-row{grid-template-columns:1fr}.measure-missing-overview .measure-skip-button{width:100%;min-width:0}}
 
 /* V32.21.0 – KI-Grundriss und maßstabgetreues Aufmaß */
 .floor-plan-launch-card{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:12px 0 16px;padding:15px;border:2px solid #64ad44;border-radius:16px;background:#f3faef}
