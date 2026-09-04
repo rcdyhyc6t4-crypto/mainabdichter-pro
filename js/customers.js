@@ -510,15 +510,20 @@ function renderCustomerRecord(customer) {
   $("customerRecordOfferCount").textContent = String(offers.length);
   $("customerRecordOffers").innerHTML = offers.length
     ? offers.sort((a, b) => String(b.visitDate || "").localeCompare(String(a.visitDate || ""))).map(record => `
-      <article class="customer-record-row">
+      <button type="button" class="customer-record-row customer-visit-record" data-customer-visit-record="${esc(record.id)}">
         <div>
           <strong>${esc(record.visitNumber || "Besichtigung / Angebot")}</strong>
           <span>${esc(formatDate(record.visitDate))} · ${esc((record.measures || []).join(", ") || "Noch keine Maßnahme")}</span>
           <small>${esc(record.objectAddress || item.objectAddress || "")}${record.offerGross ? ` · ${esc(money(record.offerGross))}` : ""}</small>
         </div>
-        <em>${esc(recordStatus(record.status))}</em>
-      </article>`).join("")
+        <em>Öffnen und weiterbearbeiten ›</em>
+      </button>`).join("")
     : `<div class="customer-record-empty">Für diesen Kunden sind noch keine gespeicherten Besichtigungen oder Angebote vorhanden.</div>`;
+  $("customerRecordOffers").querySelectorAll("[data-customer-visit-record]").forEach(button => {
+    button.onclick = () => window.dispatchEvent(new CustomEvent("mainabdichter:open-visit-record", {
+      detail: { archiveId:button.dataset.customerVisitRecord }
+    }));
+  });
 
   $("customerRecordWorksiteCount").textContent = String(worksites.length);
   $("customerRecordWorksites").innerHTML = worksites.length

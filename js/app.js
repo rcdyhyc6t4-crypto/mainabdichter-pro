@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.2";
+const MAINABDICHTER_APP_VERSION = "32.22.4";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2439,6 +2439,12 @@ window.addEventListener("mainabdichter:use-customer", event => {
   renderCustomerSourceState();
   show("visit");
   showStatus("visitStatus", "Kunde wurde in die Besichtigung übernommen.", true);
+});
+window.addEventListener("mainabdichter:open-visit-record", event => {
+  const archiveId = String(event.detail?.archiveId || "");
+  if (!archiveId || !loadArchive().some(record => String(record.id) === archiveId)) return;
+  loadArchiveRecord(archiveId, false, "visit");
+  showStatus("visitStatus", "Gespeicherte Besichtigung geöffnet. Änderungen werden wieder in diesem Vorgang gespeichert.", true);
 });
 function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_last_backup"); if(!$("lastBackupTime")) return; $("lastBackupTime").textContent=raw?new Date(raw).toLocaleString("de-DE"):"Noch keine Sicherung"; }
 if ($("archiveSearch")) $("archiveSearch").oninput = renderArchive;
