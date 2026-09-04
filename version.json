@@ -1,6 +1,6 @@
 {
-  "version": "32.22.7",
-  "name": "mainabdichter PRO V32.22.7 Fehlende Maßnahmenangaben sichtbar",
+  "version": "32.23.0",
+  "name": "mainabdichter PRO V32.23.0 automatische Flächensperre mit Bohrhöhenbegrenzung",
   "build": "2026-09-04",
   "workerUrl": "https://mainabdichter-api.cmww7htry5.workers.dev"
 }
