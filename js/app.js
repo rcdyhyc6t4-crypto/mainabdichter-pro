@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.6";
+const MAINABDICHTER_APP_VERSION = "32.22.7";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2886,28 +2886,93 @@ function visitRequirementEnabled(key){
   if(definition?.legacy&&Object.prototype.hasOwnProperty.call(stored,definition.legacy))return stored[definition.legacy]!==false;
   return definition?.defaultRequired!==false;
 }
+function visitRequirementSkipped(key){
+  return Boolean(state.visit.notRelevantRequirements?.[key]);
+}
+function setVisitRequirementSkipped(key,skipped=true){
+  state.visit.notRelevantRequirements||={};
+  if(skipped)state.visit.notRelevantRequirements[key]={at:new Date().toISOString()};
+  else delete state.visit.notRelevantRequirements[key];
+  saveState();
+  updateVisitGuide();
+}
 function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
 function measureCompletion(measure={}){
   const type=String(measure.type||"");
-  if(!type)return{details:false,confirmed:false,missing:"Maßnahme auswählen"};
+  if(!type)return{details:false,confirmed:false,missing:"Maßnahme auswählen",missingField:"type"};
   const wall=parseDecimal(measure.wall);
   const length=parseDecimal(measure.length);
   const width=parseDecimal(measure.width);
   const height=parseDecimal(measure.height);
   if(type==="Flächensperre"){
-    if(width<=0)return{details:false,confirmed:false,missing:"Laufmeter der Wand eingeben"};
-    if(height<=0)return{details:false,confirmed:false,missing:"Höhe der Fläche eingeben"};
+    if(width<=0)return{details:false,confirmed:false,missing:"Laufmeter der Wand eingeben",missingField:"width"};
+    if(height<=0)return{details:false,confirmed:false,missing:"Höhe der Fläche eingeben",missingField:"height"};
   }else if(length<=0){
-    return{details:false,confirmed:false,missing:"Laufmeter eingeben"};
+    return{details:false,confirmed:false,missing:"Laufmeter eingeben",missingField:"length"};
   }
-  if(type!=="Harzverpressung"&&wall<=0)return{details:false,confirmed:false,missing:"Wandstärke eingeben"};
+  if(type!=="Harzverpressung"&&wall<=0)return{details:false,confirmed:false,missing:"Wandstärke eingeben",missingField:"wall"};
   if(["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(type)&&![.125,.25].includes(parseDecimal(measure.spacing))){
-    return{details:false,confirmed:false,missing:"Bohrlochabstand auswählen"};
+    return{details:false,confirmed:false,missing:"Bohrlochabstand auswählen",missingField:"spacing"};
   }
   if(type==="Harzverpressung"&&(parseDecimal(measure.resinHolesPerMeter)<10||parseDecimal(measure.resinHolesPerMeter)>20)){
-    return{details:false,confirmed:false,missing:"Bohrlöcher je Laufmeter prüfen"};
+    return{details:false,confirmed:false,missing:"Bohrlöcher je Laufmeter prüfen",missingField:"resinHolesPerMeter"};
   }
-  return{details:true,confirmed:Boolean(measure.confirmed),missing:measure.confirmed?"":"Maßnahme bestätigen"};
+  return{details:true,confirmed:Boolean(measure.confirmed),missing:measure.confirmed?"":"Maßnahme bestätigen",missingField:measure.confirmed?"":"confirmed"};
+}
+
+function measureFieldClass(completion, field, measure){
+  const groupKey=completion.details?'measureConfirmed':'measureDetails';
+  if(measure&&visitRequirementSkipped(`${groupKey}:${measure.id}`))return'';
+  return completion.missingField===field?' measure-field-missing':'';
+}
+
+function focusMissingMeasure(measureId, missingField){
+  const escapedId=CSS.escape(String(measureId||""));
+  const selector=missingField==="confirmed"
+    ? `[data-confirm-measure="${escapedId}"]`
+    : `[data-measure="${escapedId}"][data-mfield="${CSS.escape(String(missingField||"type"))}"]`;
+  const field=document.querySelector(selector)||document.querySelector(`[data-measure-missing="${escapedId}"]`);
+  if(!field)return;
+  field.scrollIntoView({behavior:"smooth",block:"center"});
+  field.classList.add("field-jump-highlight");
+  if(typeof field.focus==="function")field.focus({preventScroll:true});
+  window.setTimeout(()=>field.classList.remove("field-jump-highlight"),2200);
+}
+
+function renderMeasureMissingOverview(){
+  const box=$("measureMissingOverview");
+  if(!box)return;
+  const missing=[];
+  const skipped=[];
+  guideChecks().filter(check=>check.step===4&&check.required&&!check.valid&&!check.skipped&&!['measureDetails','measureConfirmed'].includes(check.key)).forEach(check=>missing.push({
+    area:"Prüfpunkt Maßnahmen",measure:check.label,key:check.key,selector:check.selector,text:"Angabe fehlt"
+  }));
+  (state.visit.areas||[]).forEach((area,areaIndex)=>(area.measures||[]).forEach((measure,measureIndex)=>{
+    const completion=measureCompletion(measure);
+    if(completion.confirmed)return;
+    const groupKey=completion.details?'measureConfirmed':'measureDetails';
+    const key=`${groupKey}:${measure.id}`;
+    const item={
+      area:area.name||`Schadensbereich ${areaIndex+1}`,
+      measure:`Maßnahme ${measureIndex+1}${measure.type?` – ${measure.type}`:""}`,
+      id:measure.id,
+      field:completion.missingField,
+      key,
+      text:completion.missing
+    };
+    if(visitRequirementSkipped(key))skipped.push(item);else missing.push(item);
+  }));
+  box.classList.toggle("hidden",missing.length===0&&skipped.length===0);
+  box.innerHTML=`${missing.length?`<strong>⛔ Hier fehlt noch etwas:</strong>${missing.map(item=>`<div class="measure-missing-row"><button type="button" data-open-missing-measure="${esc(item.id||"")}" data-missing-field="${esc(item.field||"")}" data-missing-selector="${esc(item.selector||"")}"><span>${esc(item.area)} · ${esc(item.measure)}</span><b>${esc(item.text)} →</b></button><button type="button" class="measure-skip-button" data-skip-visit-check="${esc(item.key)}">Nicht relevant / überspringen</button></div>`).join("")}`:""}${skipped.length?`<strong class="measure-skipped-title">Bewusst übersprungen:</strong>${skipped.map(item=>`<button type="button" class="measure-restore-button" data-restore-visit-check="${esc(item.key)}"><span>${esc(item.area)} · ${esc(item.measure)}</span><b>↩ wieder prüfen</b></button>`).join("")}`:""}`;
+  box.querySelectorAll("[data-open-missing-measure]").forEach(button=>button.onclick=()=>{
+    if(button.dataset.openMissingMeasure)focusMissingMeasure(button.dataset.openMissingMeasure,button.dataset.missingField);
+    else{const field=document.querySelector(button.dataset.missingSelector);if(field){field.scrollIntoView({behavior:"smooth",block:"center"});field.classList.add("field-jump-highlight");window.setTimeout(()=>field.classList.remove("field-jump-highlight"),2200);}}
+  });
+  box.querySelectorAll("[data-skip-visit-check]").forEach(button=>button.onclick=()=>{
+    setVisitRequirementSkipped(button.dataset.skipVisitCheck,true);
+    showStatus('visitStatus','Prüfpunkt wurde für diese Besichtigung als nicht relevant markiert.',true);
+  });
+  box.querySelectorAll("[data-restore-visit-check]").forEach(button=>button.onclick=()=>setVisitRequirementSkipped(button.dataset.restoreVisitCheck,false));
 }
 function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]),measures=areas.flatMap(x=>x.measures||[]);return[
  {key:"visitEmployee",label:"Mitarbeiter auswählen",valid:Boolean(String(state.visit.visitEmployee||"").trim()),step:0,selector:"#visitEmployee"},
@@ -2943,9 +3008,9 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"measurementHeight",label:"Messhöhe je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.height||"").trim()),step:4,selector:'[data-mf="height"]'},
  {key:"measurementLocation",label:"Messposition je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.location||"").trim()),step:4,selector:'[data-mf="location"]'},
  {key:"measure",label:"Mindestens eine Maßnahme",valid:measures.some(m=>m.type),step:4,selector:'[data-add-measure], [data-mfield="type"]'},
- {key:"measureDetails",label:"Menge und Ausführung je Maßnahme",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).details),step:4,selector:'[data-measure-missing]'},
- {key:"measureConfirmed",label:"Alle Maßnahmen geprüft",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).confirmed),step:4,selector:'[data-confirm-measure]'}
-].map(check=>({...check,required:visitRequirementEnabled(check.key),ok:!visitRequirementEnabled(check.key)||check.valid}));}
+ {key:"measureDetails",label:"Menge und Ausführung je Maßnahme",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).details||visitRequirementSkipped(`measureDetails:${m.id}`)),step:4,selector:'[data-measure-missing]'},
+ {key:"measureConfirmed",label:"Alle Maßnahmen geprüft",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).confirmed||visitRequirementSkipped(`measureConfirmed:${m.id}`)),step:4,selector:'[data-confirm-measure]'}
+].map(check=>{const required=visitRequirementEnabled(check.key),skipped=visitRequirementSkipped(check.key);return{...check,required,skipped,ok:!required||check.valid||skipped};});}
 function offerBasisApproved(){return Boolean(state.visit.offerBasis?.approved);}
 function visitReviewFingerprint(){
   const visit=state.visit||{};
@@ -3008,8 +3073,11 @@ function renderVisitChecklist(){
   const box=$('visitChecklist');if(!box)return;
   const checks=guideChecks(),requiredChecks=checks.filter(x=>x.required);
   const complete=checks.every(x=>x.ok),reviewed=complete&&visitProtocolReviewed(),approved=reviewed&&offerBasisApproved();
-  box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>`<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';
+  box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>x.skipped
+    ? `<button type="button" class="checklist-row skipped" data-restore-check="${esc(x.key)}"><span>${esc(x.label)}</span><strong>↩ nicht relevant · wieder aktivieren</strong></button>`
+    : `<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';
   box.querySelectorAll("[data-missing-check]").forEach(button=>button.onclick=()=>jumpToVisitCheck(requiredChecks[Number(button.dataset.missingCheck)]));
+  box.querySelectorAll("[data-restore-check]").forEach(button=>button.onclick=()=>setVisitRequirementSkipped(button.dataset.restoreCheck,false));
   $('finishVisitGuide').disabled=false;
   $('finishVisitGuide').classList.toggle("needs-action",!approved);
   if($("finishVisitReason"))$("finishVisitReason").textContent=!complete?"Noch Angaben offen – tippe auf „→ Angebot“.":!reviewed?"Tippe zuerst auf „✓ Prüfen“.":!approved?"Setze noch den grünen Haken bei der Freigabe.":"Fertig – Angebot kann geöffnet werden.";
@@ -3027,6 +3095,7 @@ function updateVisitGuide(){
     el.classList.toggle('is-incomplete',!stepComplete(i));
   });
   renderVisitChecklist();
+  renderMeasureMissingOverview();
 }
 
 function scheduleVisitAutoAdvance() {
@@ -4407,23 +4476,25 @@ function renderMeasures(area) {
   const box = $(`measures-${area.id}`);
   box.innerHTML = area.measures.map((m,index) => {
     const completion=measureCompletion(m);
+    const skipKey=`${completion.details?'measureConfirmed':'measureDetails'}:${m.id}`;
+    const pointSkipped=visitRequirementSkipped(skipKey);
     return `
-    <div class="sub-card item-grid measure-guided-card ${completion.confirmed?"measure-confirmed":"measure-open"}">
-      <div class="wide measure-step-head"><span>Maßnahme ${index+1}</span><strong>${completion.confirmed?"✓ vollständig geprüft":completion.details?"Noch bestätigen":completion.missing}</strong></div>
-      <div class="wide"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
-      ${m.type&&m.type!=="Harzverpressung"?`<div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>`:""}
+    <div class="sub-card item-grid measure-guided-card ${completion.confirmed?"measure-confirmed":pointSkipped?"measure-skipped":"measure-open"}">
+      <div class="wide measure-step-head"><span>Maßnahme ${index+1}</span><strong>${completion.confirmed?"✓ vollständig geprüft":pointSkipped?"↷ Punkt bewusst übersprungen":`FEHLT: ${esc(completion.missing)}`}</strong></div>
+      <div class="wide${measureFieldClass(completion,"type",m)}"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
+      ${m.type&&m.type!=="Harzverpressung"?`<div class="${measureFieldClass(completion,"wall",m).trim()}"><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>`:""}
       ${m.type==="Flächensperre"
-        ? `<div><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div><label>Höhe der Fläche m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}"></div>`
-        : m.type?`<div><label>Laufmeter</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="length" value="${esc(m.length||"")}"></div>`:""}
-      ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type)?`<div><label>Bohrlochabstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
+        ? `<div class="${measureFieldClass(completion,"width",m).trim()}"><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div class="${measureFieldClass(completion,"height",m).trim()}"><label>Höhe der Fläche m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}"></div>`
+        : m.type?`<div class="${measureFieldClass(completion,"length",m).trim()}"><label>Laufmeter</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="length" value="${esc(m.length||"")}"></div>`:""}
+      ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type)?`<div class="${measureFieldClass(completion,"spacing",m).trim()}"><label>Bohrlochabstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
       ${m.type==="Harzverpressung" ? `
-        <div><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
+        <div class="${measureFieldClass(completion,"resinHolesPerMeter",m).trim()}"><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
         <div><label>Enthaltenes Harz je lfm (3–5 kg)</label><select data-measure="${m.id}" data-mfield="resinIncludedKgPerMeter"><option value="3" ${Number(m.resinIncludedKgPerMeter||4)===3?"selected":""}>3 kg</option><option value="4" ${Number(m.resinIncludedKgPerMeter||4)===4?"selected":""}>4 kg</option><option value="5" ${Number(m.resinIncludedKgPerMeter||4)===5?"selected":""}>5 kg</option></select></div>
         <div><label>Tatsächlicher Harzverbrauch gesamt kg</label><input type="number" min="0" step=".1" data-measure="${m.id}" data-mfield="resinTotalKg" value="${m.resinTotalKg||""}"></div>` : ""}
       ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>
-      <div class="wide measure-confirm-area" data-measure-missing="${m.id}">
-        <small>${completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${esc(completion.missing)}`}</small>
+      <div class="wide measure-confirm-area${measureFieldClass(completion,"confirmed",m)}" data-measure-missing="${m.id}">
+        <small>${pointSkipped?"Dieser Punkt wurde bewusst als nicht relevant markiert.":completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${esc(completion.missing)}`}</small>
         <button type="button" class="${completion.confirmed?"secondary":"primary"}" data-confirm-measure="${m.id}" ${completion.details?"":"disabled"}>${completion.confirmed?"✓ Maßnahme geprüft":"Maßnahme prüfen und übernehmen"}</button>
       </div>
       <button class="danger" data-delete-measure="${m.id}">Löschen</button>
@@ -4435,6 +4506,10 @@ function renderMeasures(area) {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mfield] = input.value;
     measure.confirmed=false;
+    if(state.visit.notRelevantRequirements){
+      delete state.visit.notRelevantRequirements[`measureDetails:${measure.id}`];
+      delete state.visit.notRelevantRequirements[`measureConfirmed:${measure.id}`];
+    }
     saveState();
     updateGeneratedRecommendation();
     if (input.dataset.mfield === "type") renderAreas();
@@ -4444,7 +4519,7 @@ function renderMeasures(area) {
       const status=card?.querySelector(".measure-step-head strong");
       const hint=card?.querySelector(".measure-confirm-area small");
       const confirmButton=card?.querySelector("[data-confirm-measure]");
-      if(status)status.textContent=completion.details?"Noch bestätigen":completion.missing;
+      if(status)status.textContent=`FEHLT: ${completion.missing}`;
       if(hint)hint.textContent=completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${completion.missing}`;
       if(confirmButton)confirmButton.disabled=!completion.details;
       updateVisitGuide();
@@ -4454,6 +4529,10 @@ function renderMeasures(area) {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mcheck] = input.checked;
     measure.confirmed=false;
+    if(state.visit.notRelevantRequirements){
+      delete state.visit.notRelevantRequirements[`measureDetails:${measure.id}`];
+      delete state.visit.notRelevantRequirements[`measureConfirmed:${measure.id}`];
+    }
     saveState();
     updateGeneratedRecommendation();
     updateVisitGuide();
@@ -4463,6 +4542,10 @@ function renderMeasures(area) {
     if(!measure)return;
     const completion=measureCompletion(measure);
     if(!completion.details)return;
+    if(state.visit.notRelevantRequirements){
+      delete state.visit.notRelevantRequirements[`measureDetails:${measure.id}`];
+      delete state.visit.notRelevantRequirements[`measureConfirmed:${measure.id}`];
+    }
     measure.confirmed=true;
     saveState();
     renderMeasures(area);
