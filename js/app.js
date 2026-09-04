@@ -2,18 +2,18 @@ import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, 
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.6";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.22.2";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo, bottleInventoryTarget } from "./construction.js?v=32.22.6";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.22.2";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.6";
+import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.2";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
 import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.6";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.2";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.6";
+const MAINABDICHTER_APP_VERSION = "32.22.2";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -1328,7 +1328,6 @@ function ensureCentralWorksiteMaterialData(worksite) {
   if (worksite.chargeHs2 === undefined) worksite.chargeHs2 = "";
   if (worksite.chargeResin === undefined) worksite.chargeResin = firstValue("chargeResin");
   if (worksite.chargeResin2 === undefined) worksite.chargeResin2 = "";
-  if (worksite.bottlesTaken === undefined) worksite.bottlesTaken = 0;
   if (worksite.bottlesHanging === undefined) {
     worksite.bottlesHanging = tasks.reduce((sum, task) => sum + Number(task.bottlesHanging || 0), 0);
   }
@@ -1343,15 +1342,6 @@ function ensureCentralWorksiteMaterialData(worksite) {
   }
   if (worksite.bottlesRetrievedAt === undefined) worksite.bottlesRetrievedAt = "";
   if (worksite.bottlesPickupNote === undefined) worksite.bottlesPickupNote = "";
-  if (worksite.bottlesHangingConfirmed === undefined) worksite.bottlesHangingConfirmed = false;
-  if (worksite.bottleInventoryOutstanding === undefined) {
-    // Vorhandene Baustellen werden als bereits verbuchter Außenbestand
-    // übernommen. Dadurch erzeugt das Update keine rückwirkende Doppelbuchung.
-    worksite.bottleInventoryOutstanding = Math.max(
-      0,
-      Number(worksite.bottlesHanging || 0) - Number(worksite.bottlesRetrieved || 0)
-    );
-  }
   return worksite;
 }
 
@@ -1379,66 +1369,6 @@ function v28InventoryMovements() {
   if (!state.settings.inventory) state.settings.inventory = {};
   if (!Array.isArray(state.settings.inventory.movements)) state.settings.inventory.movements = [];
   return state.settings.inventory.movements;
-}
-
-function injectionBottleInventoryProduct() {
-  const products = state.settings?.inventory?.products || [];
-  const normalized = value => String(value || "").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "");
-  return products.find(product => /injektions?flasch/.test(normalized(product.name)))
-    || products.find(product => /^flaschen?$/.test(normalized(product.name)))
-    || null;
-}
-
-function recordBottleInventoryMovement(product, delta, note, worksite) {
-  if (!product || !delta) return;
-  const previous = Number(product.stock || 0);
-  const next = previous + Number(delta);
-  product.stock = next;
-  const now = new Date().toISOString();
-  v28InventoryMovements().push({
-    id: crypto.randomUUID(),
-    productId: product.id,
-    productName: product.name,
-    action: delta > 0 ? "increase" : "decrease",
-    actionLabel: delta > 0 ? "Flaschen zurück" : "Flaschen mitgenommen",
-    previousStock: previous,
-    newStock: next,
-    delta,
-    unit: product.unit || "Stück",
-    date: todayLocal(),
-    note: `${note} · ${worksiteCustomerName(worksite)}`,
-    worksiteId: worksite.id,
-    createdAt: now
-  });
-  inventoryTransaction(product, delta, delta > 0 ? "return" : "issue", `${note} · Baustelle ${worksiteCustomerName(worksite)}`);
-}
-
-function syncWorksiteBottleInventory(worksite, source = "save") {
-  ensureCentralWorksiteMaterialData(worksite);
-  const product = injectionBottleInventoryProduct();
-  if (!product) return { ok:false, reason:"missing-product" };
-
-  let previous = Number(worksite.bottleInventoryOutstanding);
-  if (!Number.isFinite(previous)) {
-    // Bestehende Baustellen werden ohne rückwirkende Doppelbuchung übernommen.
-    previous = worksiteOpenBottleCount(worksite);
-    worksite.bottleInventoryOutstanding = previous;
-  }
-
-  const desired = bottleInventoryTarget(worksite, source);
-  const inventoryDelta = previous - desired;
-
-  if (inventoryDelta) {
-    const note = desired > previous
-      ? (source === "taken" ? "Zur Baustelle mitgenommen" : "Beim Kunden hängen geblieben")
-      : "Ins Lager zurückgebracht";
-    recordBottleInventoryMovement(product, inventoryDelta, note, worksite);
-  }
-  worksite.bottleInventoryOutstanding = desired;
-  worksite.bottleInventoryProductId = product.id;
-  worksite.bottleInventorySyncedAt = new Date().toISOString();
-  saveState();
-  return { ok:true, product, previous, outstanding:desired, delta:inventoryDelta };
 }
 function reservedInventoryAmount(productId, excludedWorksiteId = "") {
   return loadWorksites().reduce((sum, worksite) => {
@@ -1627,13 +1557,10 @@ function v287RenderBottleList() {
       ensureCentralWorksiteMaterialData(ws);
       const total = worksiteOpenBottleCount(ws);
       if (!total) return;
-      const raw = prompt(`Wie viele Flaschen wurden abgeholt? Noch offen: ${total}`, String(total));
-      if (raw === null) return;
-      const amount = Math.min(total, Math.max(0, Math.round(parseDecimal(raw))));
-      if (!(amount > 0)) return;
-      ws.bottlesRetrieved = Number(ws.bottlesRetrieved || 0) + amount;
+      if (!confirm(`${total} Flaschen bei ${worksiteCustomerName(ws)} als abgeholt bestätigen?`)) return;
+
+      ws.bottlesRetrieved = Number(ws.bottlesHanging || 0);
       ws.bottlesRetrievedAt = new Date().toISOString();
-      syncWorksiteBottleInventory(ws, "pickup");
       persistWorksite(ws);
       renderV28Dashboard();
       v287RenderBottleList();
@@ -2927,24 +2854,14 @@ const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Schadensbereiche",key:"earthContact",label:"Erdkontakt",defaultRequired:false},
   {group:"Schadensbereiche",key:"wallCover",label:"Wandbelag",defaultRequired:false},
   {group:"Feuchtemessung",key:"dryReference",label:"Referenzwert trocken",defaultRequired:false},
-  {group:"Feuchtemessung",key:"measurement",label:"Messpunkte (3 empfohlen)",defaultRequired:false},
-  {group:"Feuchtemessung",key:"measurementDevice",label:"Messgerät je erfasstem Messpunkt",defaultRequired:false},
-  {group:"Feuchtemessung",key:"measurementValue",label:"Messwert in Digits je erfasstem Messpunkt",defaultRequired:false},
+  {group:"Feuchtemessung",key:"measurement",label:"Mindestens ein Messpunkt",legacy:"measurement"},
+  {group:"Feuchtemessung",key:"measurementDevice",label:"Messgerät je Messpunkt",legacy:"measurement"},
+  {group:"Feuchtemessung",key:"measurementValue",label:"Messwert in Digits je Messpunkt",legacy:"measurement"},
   {group:"Feuchtemessung",key:"measurementHeight",label:"Messhöhe je Messpunkt",defaultRequired:false},
   {group:"Feuchtemessung",key:"measurementLocation",label:"Messposition je Messpunkt",defaultRequired:false},
   {group:"Maßnahmen",key:"measure",label:"Mindestens eine Maßnahme",legacy:"measure"}
 ];
-const ALWAYS_OPTIONAL_VISIT_REQUIREMENTS = new Set([
-  "measurement",
-  "measurementDevice",
-  "measurementValue",
-  "measurementHeight",
-  "measurementLocation"
-]);
 function visitRequirementEnabled(key){
-  // Der Fachmann entscheidet vor Ort, ob und wie viele Messungen sinnvoll sind.
-  // Auch ältere gespeicherte Einstellungen dürfen den Abschluss nicht blockieren.
-  if(ALWAYS_OPTIONAL_VISIT_REQUIREMENTS.has(key))return false;
   const definition=VISIT_REQUIREMENT_DEFINITIONS.find(item=>item.key===key);
   const stored=state.settings.visitRequirements||{};
   if(Object.prototype.hasOwnProperty.call(stored,key))return stored[key]!==false;
@@ -3094,17 +3011,10 @@ function updateVisitGuide(){
   renderVisitChecklist();
 }
 
-let visitAutoAdvanceTimer = null;
 function scheduleVisitAutoAdvance() {
-  clearTimeout(visitAutoAdvanceTimer);
-  visitAutoAdvanceTimer = setTimeout(() => {
-    if (!$("visit")?.classList.contains("active")) return;
-    const current = currentGuideStep();
-    if (current === 7) return;
-    const routePosition = MAIN_GUIDE_ROUTE.indexOf(current);
-    if (routePosition < 0 || routePosition >= MAIN_GUIDE_ROUTE.length - 1 || !stepComplete(current)) return;
-    openGuideStep(MAIN_GUIDE_ROUTE[routePosition + 1]);
-  }, 850);
+  // Eingaben aktualisieren nur den aktuellen Abschnitt. Ein Wechsel erfolgt
+  // ausschließlich bewusst über „Speichern und weiter“ bzw. die Navigation.
+  updateVisitGuide();
 }
 $("visit")?.addEventListener("input", scheduleVisitAutoAdvance);
 $("visit")?.addEventListener("change", scheduleVisitAutoAdvance);
@@ -3921,6 +3831,10 @@ async function drawWallSurveyCornerCanvas() {
     context.textBaseline = "middle";
     context.fillText(String(index + 1), x, y);
   });
+  updateWallSurveyCornerControls();
+}
+
+function updateWallSurveyCornerControls() {
   const next = wallSurveyCornerDraft.length;
   $("wallSurveyCornerHint").textContent = next < 4
     ? `${next + 1}. Ecke ${WALL_CORNER_NAMES[next]} antippen${wallSurveyNextCornerEstimated ? " · verdeckt/geschätzt" : ""}`
@@ -3956,6 +3870,7 @@ function startWallSurveyCornerPointer(event) {
   } else return;
   wallSurveyNextCornerEstimated = false;
   event.currentTarget.setPointerCapture?.(event.pointerId);
+  updateWallSurveyCornerControls();
   drawWallSurveyCornerCanvas();
 }
 
@@ -4076,12 +3991,10 @@ function renderWallSurveyPoints() {
     </button>`).join("");
   box.querySelectorAll("[data-wall-point]").forEach(button => button.onclick = () => openWallSurveyPoint(button.dataset.wallPoint));
   const progress = wallSurveyProgress(survey.points);
-  $("wallSurveyMeasurementStatus").textContent = progress.done >= 3
-    ? `✓ ${progress.done} Messpunkte erfasst`
-    : progress.done > 0
-      ? `${progress.done} Messpunkt${progress.done === 1 ? "" : "e"} erfasst · 3 empfohlen, nicht erforderlich`
-      : "Noch keine Messung erfasst · Messungen sind optional";
-  $("wallSurveyToResult").disabled = false;
+  $("wallSurveyMeasurementStatus").textContent = progress.complete
+    ? `✓ Alle ${progress.total} Messpunkte erledigt`
+    : `${progress.done} von ${progress.total} Messpunkten erledigt`;
+  $("wallSurveyToResult").disabled = progress.done === 0;
 }
 
 function openWallSurveyPoint(pointId) {
@@ -4193,7 +4106,16 @@ if ($("wallSurveyCornerEstimated")) $("wallSurveyCornerEstimated").onclick = () 
 };
 if ($("wallSurveyCornersNext")) $("wallSurveyCornersNext").onclick = () => {
   const area = activeWallSurveyArea();
-  if (!area || wallSurveyCornerDraft.length !== 4) return;
+  if (!area) {
+    alert("Der Schadensbereich konnte nicht geladen werden. Bitte die Wandmessung erneut öffnen.");
+    return;
+  }
+  if (wallSurveyCornerDraft.length !== 4) {
+    alert(`Bitte alle vier Wandecken markieren. Aktuell sind ${wallSurveyCornerDraft.length} von 4 Ecken gesetzt.`);
+    updateWallSurveyCornerControls();
+    return;
+  }
+  area.wallSurvey ||= { photoData:"", width:"", height:"", corners:[], points:[], createdAt:new Date().toISOString() };
   area.wallSurvey.corners = wallSurveyCornerDraft.map(point => ({...point}));
   area.wallSurvey.cornersEstimated = wallSurveyCornerDraft.some(point => point.estimated);
   saveState();
@@ -5057,11 +4979,10 @@ function wallSurveyReportHtml(area) {
   const survey = area.wallSurvey;
   if (!survey?.annotatedImageData) return "";
   const inaccessible = (survey.points || []).filter(point => point.status === "inaccessible").length;
-  const measured = (survey.points || []).filter(point => String(point.value ?? "").trim()).length;
   return `<h3>Bemaßtes Wandaufmaß</h3>
     <div class="photo-card wall-survey-report">
       <img src="${survey.annotatedImageData}" alt="Bemaßtes Wandaufmaß">
-      <p>${num(survey.width)} m Länge × ${num(survey.height)} m Höhe = ${num(Number(survey.width) * Number(survey.height))} m² Bruttofläche · ${measured} Messwert${measured === 1 ? "" : "e"}${inaccessible ? ` · ${inaccessible} nicht zugänglich/nicht geprüft` : ""}</p>
+      <p>${num(survey.width)} m Länge × ${num(survey.height)} m Höhe = ${num(Number(survey.width) * Number(survey.height))} m² Bruttofläche · ${(survey.points || []).length} Messpunkte${inaccessible ? ` · ${inaccessible} nicht zugänglich/nicht geprüft` : ""}</p>
     </div>`;
 }
 
@@ -5070,11 +4991,7 @@ function buildReport() {
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    const recordedMeasurements = (area.measurements || []).filter(m => String(m.value ?? "").trim());
-    const measurementRows = recordedMeasurements.length
-      ? recordedMeasurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")
-      : `<tr><td colspan="4">Keine Messung erforderlich oder erfasst.</td></tr>`;
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${measurementRows}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,
@@ -5575,7 +5492,7 @@ function collectWorksite() {
   document.querySelectorAll("[data-ws-site-field]").forEach(input => {
     const field = input.dataset.wsSiteField;
     if (input.type === "checkbox") worksite[field] = input.checked;
-    else if (["bottlesTaken","bottlesHanging","bottlesRetrieved"].includes(field)) worksite[field] = parseDecimal(input.value);
+    else if (["bottlesHanging","bottlesRetrieved"].includes(field)) worksite[field] = parseDecimal(input.value);
     else worksite[field] = input.value.trim();
   });
   document.querySelectorAll("[data-ws-task]").forEach(input => {
@@ -6401,9 +6318,7 @@ function renderWorksiteEditor() {
         ${totals.hsKg > 0 ? centralChargeHtml("bkm-hs-sperrmoertel", "chargeHs", "Charge BKM HS Sperrmörtel") : ""}
         ${totals.resinKg > 0 ? centralChargeHtml("bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K") : ""}
         ${hasHz ? `
-          <div><label>Flaschen mitgenommen</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-site-field="bottlesTaken" value="${formatDecimalInput(ws.bottlesTaken)}"></div>
           <div><label>Hängende Flaschen gesamt</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-site-field="bottlesHanging" value="${formatDecimalInput(ws.bottlesHanging)}"></div>
-          <div><label>Davon bereits abgeholt</label><input type="number" inputmode="numeric" min="0" max="${Math.max(0, Number(ws.bottlesHanging || 0))}" step="1" data-ws-site-field="bottlesRetrieved" value="${formatDecimalInput(ws.bottlesRetrieved)}"></div>
           <div><label>Bereich</label><input data-ws-site-field="bottlesArea" value="${esc(ws.bottlesArea || "")}" placeholder="z. B. Nähraum"></div>
           <div><label>Abholung</label><input type="date" data-ws-site-field="bottlesPickupDue" value="${esc(ws.bottlesPickupDue || "")}"></div>
           ${worksiteOpenBottleCount(ws) > 0 ? `<div class="full"><button type="button" class="secondary" data-confirm-site-bottle-pickup>✓ Flaschen abgeholt</button></div>` : ""}` : ""}
@@ -6474,34 +6389,16 @@ function renderWorksiteEditor() {
   document.querySelectorAll("[data-ws-site-field]").forEach(input => {
     input.onchange = () => {
       const field = input.dataset.wsSiteField;
-      ws[field] = ["bottlesTaken","bottlesHanging","bottlesRetrieved"].includes(field) ? parseDecimal(input.value) : input.value.trim();
-      if (field === "bottlesTaken") syncWorksiteBottleInventory(ws, "taken");
-      if (field === "bottlesHanging") {
-        ws.bottlesHangingConfirmed = true;
-        ws.bottlesRetrieved = Math.min(Number(ws.bottlesRetrieved || 0), Number(ws.bottlesHanging || 0));
-        syncWorksiteBottleInventory(ws, "hanging");
-      }
-      if (field === "bottlesRetrieved") {
-        ws.bottlesRetrieved = Math.min(Number(ws.bottlesHanging || 0), Math.max(0, Number(ws.bottlesRetrieved || 0)));
-        input.value = formatDecimalInput(ws.bottlesRetrieved);
-        ws.bottlesRetrievedAt = ws.bottlesRetrieved > 0 ? new Date().toISOString() : "";
-        syncWorksiteBottleInventory(ws, "pickup");
-      }
+      ws[field] = ["bottlesHanging","bottlesRetrieved"].includes(field) ? parseDecimal(input.value) : input.value.trim();
       persistWorksite(ws);
-      renderV28Dashboard();
     };
   });
   document.querySelectorAll("[data-confirm-site-bottle-pickup]").forEach(button => {
     button.onclick = () => {
       const open = worksiteOpenBottleCount(ws);
-      if (!open) return;
-      const raw = prompt(`Wie viele Flaschen wurden abgeholt? Noch offen: ${open}`, String(open));
-      if (raw === null) return;
-      const amount = Math.min(open, Math.max(0, Math.round(parseDecimal(raw))));
-      if (!(amount > 0)) return;
-      ws.bottlesRetrieved = Number(ws.bottlesRetrieved || 0) + amount;
+      if (!open || !confirm(`${open} Flaschen als abgeholt bestätigen?`)) return;
+      ws.bottlesRetrieved = Number(ws.bottlesHanging || 0);
       ws.bottlesRetrievedAt = new Date().toISOString();
-      syncWorksiteBottleInventory(ws, "pickup");
       persistWorksite(ws);
       renderWorksiteEditor();
       updateDashboardOverview();
