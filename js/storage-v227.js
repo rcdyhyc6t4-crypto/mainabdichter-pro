@@ -38,10 +38,36 @@ export const state = {
   discount: loadJson(KEYS.discount, DEFAULTS.discount)
 };
 
+function compactLocalImages(value) {
+  const compact = clone(value);
+  for (const area of compact?.areas || []) {
+    const survey = area.wallSurvey;
+    if (!survey) continue;
+    // Das Original liegt als Foto in IndexedDB/Drive; das Ergebnisfoto ist
+    // ebenfalls separat abgelegt. Base64-Kopien würden localStorage mehrfach füllen.
+    if (survey.sourcePhotoId) delete survey.photoData;
+    if (survey.documentPhotoId) delete survey.annotatedImageData;
+  }
+  return compact;
+}
+
+function setJsonSafely(key, value) {
+  const serializable = key === KEYS.visit ? compactLocalImages(value) : value;
+  try {
+    localStorage.setItem(key, JSON.stringify(serializable));
+  } catch (error) {
+    if (error?.name !== "QuotaExceededError") throw error;
+    // Alte vollständige Sicherungskopien enthielten dieselben Bilder nochmals.
+    // Der laufende Vorgang und das Archiv bleiben erhalten.
+    localStorage.removeItem("mainabdichter_visit_explicit_savepoint_v1");
+    localStorage.setItem(key, JSON.stringify(serializable));
+  }
+}
+
 export function saveState() {
-  localStorage.setItem(KEYS.settings, JSON.stringify(state.settings));
-  localStorage.setItem(KEYS.visit, JSON.stringify(state.visit));
-  localStorage.setItem(KEYS.discount, JSON.stringify(state.discount));
+  setJsonSafely(KEYS.settings, state.settings);
+  setJsonSafely(KEYS.visit, state.visit);
+  setJsonSafely(KEYS.discount, state.discount);
 }
 
 export function resetVisit() {
@@ -161,7 +187,10 @@ export function loadArchive() {
 }
 
 export function saveArchive(archive) {
-  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive));
+  setJsonSafely(ARCHIVE_KEY, archive.map(record => ({
+    ...record,
+    visit: compactLocalImages(record.visit)
+  })));
 }
 
 export function archiveCurrentOffer(record) {

@@ -1,4 +1,4 @@
-import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, mergeFullBackupPayload, backupHasBusinessData, loadCustomers, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
+import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, mergeFullBackupPayload, backupHasBusinessData, loadCustomers, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js?v=32.22.5";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
 import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
@@ -10,7 +10,7 @@ import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, add
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.2";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
-import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
+import { stageVisitPhoto, localPhotoUrl, resolveVisitPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.22.5";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
 import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.2";
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.4";
+const MAINABDICHTER_APP_VERSION = "32.22.5";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2001,12 +2001,24 @@ function openDirectWorkReportStart(){
 const VISIT_EXPLICIT_SAVEPOINT_KEY = "mainabdichter_visit_explicit_savepoint_v1";
 
 function saveVisitExplicitSavepoint() {
-  localStorage.setItem(VISIT_EXPLICIT_SAVEPOINT_KEY, JSON.stringify({
-    visit: state.visit,
+  const compactVisit = JSON.parse(JSON.stringify(state.visit));
+  for (const area of compactVisit.areas || []) {
+    if (area.wallSurvey?.sourcePhotoId) delete area.wallSurvey.photoData;
+    if (area.wallSurvey?.documentPhotoId) delete area.wallSurvey.annotatedImageData;
+  }
+  try {
+    localStorage.setItem(VISIT_EXPLICIT_SAVEPOINT_KEY, JSON.stringify({
+    visit: compactVisit,
     discount: state.discount,
     activeArchiveId,
     savedAt: new Date().toISOString()
-  }));
+    }));
+  } catch (error) {
+    if (error?.name !== "QuotaExceededError") throw error;
+    // Der normale Vorgang ist bereits gespeichert; diese zusätzliche
+    // Wiederherstellungskopie darf die App nicht blockieren.
+    localStorage.removeItem(VISIT_EXPLICIT_SAVEPOINT_KEY);
+  }
 }
 
 function restoreVisitExplicitSavepoint() {
@@ -4050,6 +4062,10 @@ async function useWallSurveyPhoto(file) {
   if (!file) return;
   const area = activeWallSurveyArea();
   area.wallSurvey ||= { points:[] };
+  const sourcePhoto = await stageVisitPhoto(file, area);
+  sourcePhoto.caption = "Originalfoto der geführten Wandmessung";
+  sourcePhoto.show = false;
+  area.wallSurvey.sourcePhotoId = sourcePhoto.id;
   area.wallSurvey.photoData = await compressImage(file, 1200);
   area.wallSurvey.corners = [];
   area.wallSurvey.points = [];
@@ -4061,11 +4077,15 @@ async function useWallSurveyPhoto(file) {
   saveState();
 }
 
-function openWallSurvey(areaId) {
+async function openWallSurvey(areaId) {
   activeWallSurveyAreaId = areaId;
   activeWallSurveyPointId = "";
   const area = activeWallSurveyArea();
   area.wallSurvey ||= { photoData:"", width:"", height:"", points:[], createdAt:new Date().toISOString() };
+  if (!area.wallSurvey.photoData && area.wallSurvey.sourcePhotoId) {
+    const sourcePhoto = (area.photos || []).find(photo => photo.id === area.wallSurvey.sourcePhotoId);
+    area.wallSurvey.photoData = await resolveVisitPhotoUrl(sourcePhoto);
+  }
   wallSurveyCornerDraft = [...(area.wallSurvey.corners || [])].map(point => ({...point}));
   $("wallSurveyDialog").classList.remove("hidden");
   $("wallSurveyWidth").value = area.wallSurvey.width || "";
@@ -4110,6 +4130,19 @@ if ($("wallSurveyCornerEstimated")) $("wallSurveyCornerEstimated").onclick = () 
   wallSurveyNextCornerEstimated = !wallSurveyNextCornerEstimated;
   drawWallSurveyCornerCanvas();
 };
+function editWallSurveyCorners() {
+  const area = activeWallSurveyArea();
+  if (!area?.wallSurvey?.photoData) {
+    alert("Das Wandfoto konnte noch nicht geladen werden. Bitte die Wandmessung erneut öffnen.");
+    return;
+  }
+  closeWallSurveyPoint();
+  wallSurveyCornerDraft = [...(area.wallSurvey.corners || [])].map(point => ({...point}));
+  setWallSurveyStep(2);
+  updateWallSurveyCornerControls();
+}
+if ($("wallSurveyEditCorners")) $("wallSurveyEditCorners").onclick = editWallSurveyCorners;
+if ($("wallSurveyResultEditCorners")) $("wallSurveyResultEditCorners").onclick = editWallSurveyCorners;
 if ($("wallSurveyCornersNext")) $("wallSurveyCornersNext").onclick = () => {
   const area = activeWallSurveyArea();
   if (!area) {
@@ -4138,10 +4171,22 @@ if ($("wallSurveyCreateGrid")) $("wallSurveyCreateGrid").onclick = async () => {
     alert("Bitte Wandlänge und Wandhöhe eingeben.");
     return;
   }
-  const previousDevice = area.measurements?.find(item => item.device)?.device || "";
+  const previousPoints = [...(area.wallSurvey.points || [])];
+  const previousDevice = previousPoints.find(item => item.device)?.device || area.measurements?.find(item => item.device)?.device || "";
   area.wallSurvey.width = width;
   area.wallSurvey.height = height;
-  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice, area.wallSurvey.corners);
+  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice, area.wallSurvey.corners).map((point, index) => {
+    const previous = previousPoints[index];
+    if (!previous) return point;
+    return {
+      ...point,
+      id: previous.id || point.id,
+      device: previous.device || point.device,
+      value: previous.value ?? point.value,
+      status: previous.status || point.status
+    };
+  });
+  delete area.wallSurvey.annotatedImageData;
   area.wallSurvey.updatedAt = new Date().toISOString();
   area.measurements = area.wallSurvey.points;
   saveState();

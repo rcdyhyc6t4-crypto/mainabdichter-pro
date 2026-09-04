@@ -1,4 +1,4 @@
-import { state, loadArchive, loadCustomers, saveCustomer, loadCommunicationNotes } from "./storage-v227.js";
+import { state, loadArchive, loadCustomers, saveCustomer, loadCommunicationNotes } from "./storage-v227.js?v=32.22.5";
 import {
   hasConnectionConfig,
   searchPipedrive,
