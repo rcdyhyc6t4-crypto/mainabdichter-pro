@@ -219,5 +219,5 @@ Die Auswahl des Abdichtungssystems erfolgt passend zur festgestellten Schadenssi
 };
 
 export function createArea(name = "") {
-  return {id:crypto.randomUUID(),name,wallMaterial:"",wallMaterialOther:"",wallThickness:"",wallType:"",earthContact:"",wallCover:"",access:"",notes:"",dryReference:"",measurements:[],measures:[],photos:[],wallSurvey:null};
+  return {id:crypto.randomUUID(),name,wallMaterial:"",wallMaterialOther:"",wallThickness:"",wallType:"",earthContact:"",earthContactHeightCm:"",roomHeightCm:"",maxDrillHeightCm:"",surfaceHeightResolution:"",surfaceHeightLimitedAccepted:false,wallCover:"",access:"",notes:"",dryReference:"",measurements:[],measures:[],photos:[],wallSurvey:null};
 }

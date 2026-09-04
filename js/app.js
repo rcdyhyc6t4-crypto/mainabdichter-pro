@@ -1,11 +1,11 @@
 import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, mergeFullBackupPayload, backupHasBusinessData, loadCustomers, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
-import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
+import { calculateOffer, calculateMeasure, calculatePriceStrategies, expandMeasuresForArea, calculateSurfaceBarrierPlan } from "./calculator-v227.js?v=32.23.0";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
 import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.22.2";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.23.0";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
 import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.2";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.22.7";
+const MAINABDICHTER_APP_VERSION = "32.23.0";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -2870,6 +2870,9 @@ const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Schadensbereiche",key:"wallThickness",label:"Wandstärke",legacy:"wall"},
   {group:"Schadensbereiche",key:"wallType",label:"Wandart",defaultRequired:false},
   {group:"Schadensbereiche",key:"earthContact",label:"Erdkontakt",defaultRequired:false},
+  {group:"Flächensperre",key:"earthContactHeight",label:"Höhe des außen anliegenden Erdreichs",defaultRequired:false},
+  {group:"Flächensperre",key:"drillableHeight",label:"Raumhöhe oder maximal ausführbare Bohrhöhe",defaultRequired:false},
+  {group:"Flächensperre",key:"surfaceHeightLimit",label:"Baulich begrenzte Bohrhöhe bestätigen",defaultRequired:false},
   {group:"Schadensbereiche",key:"wallCover",label:"Wandbelag",defaultRequired:false},
   {group:"Feuchtemessung",key:"dryReference",label:"Referenzwert trocken",defaultRequired:false},
   {group:"Feuchtemessung",key:"measurement",label:"Mindestens ein Messpunkt",legacy:"measurement"},
@@ -2911,7 +2914,8 @@ function measureCompletion(measure={}){
     return{details:false,confirmed:false,missing:"Laufmeter eingeben",missingField:"length"};
   }
   if(type!=="Harzverpressung"&&wall<=0)return{details:false,confirmed:false,missing:"Wandstärke eingeben",missingField:"wall"};
-  if(["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(type)&&![.125,.25].includes(parseDecimal(measure.spacing))){
+  const needsHorizontalBarrier=type!=="Wand-Sohlen-Anschluss"||!measure.wallSoleHorizontalNotRequired;
+  if(["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(type)&&needsHorizontalBarrier&&![.125,.25].includes(parseDecimal(measure.spacing))){
     return{details:false,confirmed:false,missing:"Bohrlochabstand auswählen",missingField:"spacing"};
   }
   if(type==="Harzverpressung"&&(parseDecimal(measure.resinHolesPerMeter)<10||parseDecimal(measure.resinHolesPerMeter)>20)){
@@ -2974,7 +2978,7 @@ function renderMeasureMissingOverview(){
   });
   box.querySelectorAll("[data-restore-visit-check]").forEach(button=>button.onclick=()=>setVisitRequirementSkipped(button.dataset.restoreVisitCheck,false));
 }
-function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]),measures=areas.flatMap(x=>x.measures||[]);return[
+function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]),surfaceAreas=areas.filter(x=>x.earthContact==="erdberührt"&&!areaHasWuConcrete(x)&&(x.measures||[]).some(m=>m.type==="Flächensperre")),limitedSurfaceAreas=surfaceAreas.filter(x=>surfacePlanForArea(x)?.heightLimited),measures=areas.flatMap(x=>areaHasWuConcrete(x)?(x.measures||[]).filter(m=>!["Horizontalsperre","Flächensperre"].includes(m.type)):(x.measures||[]));return[
  {key:"visitEmployee",label:"Mitarbeiter auswählen",valid:Boolean(String(state.visit.visitEmployee||"").trim()),step:0,selector:"#visitEmployee"},
  {key:"visitStartTime",label:"Besichtigung beginnen",valid:Boolean(state.visit.visitStartTime),step:0,selector:"#startVisitWork"},
  {key:"visitEndTime",label:"Besichtigung beenden",valid:Boolean(state.visit.visitEndTime),step:7,selector:"#endVisitWork"},
@@ -3000,6 +3004,9 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"wallThickness",label:"Wandstärke",valid:areas.length>0&&areas.every(x=>x.wallThickness),step:4,selector:'[data-field="wallThickness"]'},
  {key:"wallType",label:"Wandart",valid:areas.length>0&&areas.every(x=>x.wallType),step:4,selector:'[data-field="wallType"]'},
  {key:"earthContact",label:"Erdkontakt",valid:areas.length>0&&areas.every(x=>x.earthContact),step:4,selector:'[data-field="earthContact"]'},
+ {key:"earthContactHeight",label:"Außen anliegendes Erdreich über OK Fußboden eingeben",valid:surfaceAreas.every(x=>parseDecimal(x.earthContactHeightCm)>0),step:4,selector:'[data-field="earthContactHeightCm"]',requiredOverride:surfaceAreas.length>0},
+ {key:"drillableHeight",label:"Raumhöhe oder maximal ausführbare Bohrhöhe eingeben",valid:surfaceAreas.every(x=>parseDecimal(x.maxDrillHeightCm)>0||parseDecimal(x.roomHeightCm)>0||parseDecimal(x.wallSurvey?.height)>0),step:4,selector:'[data-field="roomHeightCm"], [data-field="maxDrillHeightCm"]',requiredOverride:surfaceAreas.length>0},
+ {key:"surfaceHeightLimit",label:"Ausführung der nicht erreichbaren Reihen auswählen",valid:limitedSurfaceAreas.every(x=>surfacePlanForArea(x)?.confirmed),step:4,selector:'[data-area-resolution]',requiredOverride:limitedSurfaceAreas.length>0},
  {key:"wallCover",label:"Wandbelag",valid:areas.length>0&&areas.every(x=>x.wallCover),step:4,selector:'[data-field="wallCover"]'},
  {key:"dryReference",label:"Referenzwert trocken",valid:areas.length>0&&areas.every(x=>String(x.dryReference||"").trim()),step:4,selector:'[data-field="dryReference"]'},
  {key:"measurement",label:"Mindestens ein Messpunkt",valid:areas.length>0&&areas.every(x=>(x.measurements||[]).length>0),step:4,selector:'[data-add-measurement]'},
@@ -3010,7 +3017,7 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"measure",label:"Mindestens eine Maßnahme",valid:measures.some(m=>m.type),step:4,selector:'[data-add-measure], [data-mfield="type"]'},
  {key:"measureDetails",label:"Menge und Ausführung je Maßnahme",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).details||visitRequirementSkipped(`measureDetails:${m.id}`)),step:4,selector:'[data-measure-missing]'},
  {key:"measureConfirmed",label:"Alle Maßnahmen geprüft",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).confirmed||visitRequirementSkipped(`measureConfirmed:${m.id}`)),step:4,selector:'[data-confirm-measure]'}
-].map(check=>{const required=visitRequirementEnabled(check.key),skipped=visitRequirementSkipped(check.key);return{...check,required,skipped,ok:!required||check.valid||skipped};});}
+].map(check=>{const required=check.requiredOverride??visitRequirementEnabled(check.key),skipped=visitRequirementSkipped(check.key);return{...check,required,skipped,ok:!required||check.valid||skipped};});}
 function offerBasisApproved(){return Boolean(state.visit.offerBasis?.approved);}
 function visitReviewFingerprint(){
   const visit=state.visit||{};
@@ -3784,6 +3791,7 @@ function toggleClimateFields() {
 }
 
 function generateRecommendationText() {
+  const wallSoleMeasures=state.visit.areas.flatMap(area=>area.measures||[]).filter(measure=>measure.type==="Wand-Sohlen-Anschluss");
   const selected = new Set(
     state.visit.areas.flatMap(area => area.measures.map(measure => measure.type))
   );
@@ -3803,8 +3811,10 @@ function generateRecommendationText() {
   }
 
   if (selected.has("Wand-Sohlen-Anschluss")) {
+    const requiresHorizontal=wallSoleMeasures.some(measure=>!measure.wallSoleHorizontalNotRequired);
+    const hasWuException=wallSoleMeasures.some(measure=>measure.wallSoleHorizontalNotRequired);
     parts.push(
-      "Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht. Im Anschluss wird zusätzlich eine Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro eingebracht. Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet."
+      `Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht.${requiresHorizontal?" Die technisch notwendige Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro wird als separate Leistungsposition angeboten.":""}${hasWuException?" Im ausdrücklich als WU-Beton gekennzeichneten Bereich ist keine zusätzliche Horizontalsperre erforderlich.":""} Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet.`
     );
   }
 
@@ -4319,11 +4329,83 @@ if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
   }
 };
 
+function areaHasWuConcrete(area) {
+  return (area.measures || []).some(measure => measure.type === "Wand-Sohlen-Anschluss" && measure.wallSoleHorizontalNotRequired);
+}
+
+function surfacePlanForArea(area) {
+  const surveyedHeightCm = parseDecimal(area.wallSurvey?.height) * 100;
+  const roomHeightCm = parseDecimal(area.roomHeightCm) || surveyedHeightCm;
+  const enteredMaxDrillHeightCm = parseDecimal(area.maxDrillHeightCm);
+  const maxDrillHeightCm = enteredMaxDrillHeightCm
+    ? (roomHeightCm ? Math.min(enteredMaxDrillHeightCm, Math.max(0, roomHeightCm - 25)) : enteredMaxDrillHeightCm)
+    : Math.max(0, roomHeightCm - 35);
+  const resolution = area.surfaceHeightResolution || (area.surfaceHeightLimitedAccepted ? "inside-limited" : "");
+  const plan = calculateSurfaceBarrierPlan(area.earthContactHeightCm, maxDrillHeightCm, ["inside-limited","customer-declined"].includes(resolution));
+  if (!plan || !plan.heightLimited) return plan;
+  if (["outside","upper-floor"].includes(resolution)) return {
+    ...plan,
+    confirmed:true,
+    useLimitedHeight:false,
+    rowCount:plan.requiredRowCount,
+    topRowHeight:plan.requiredTopRowHeight,
+    calculationHeight:plan.requiredRowCount*.25,
+    shortfall:0,
+    supplementalAccess:resolution
+  };
+  return {...plan,resolution};
+}
+
+function syncAutomaticSurfaceHeight(area) {
+  if (area.earthContact !== "erdberührt" || areaHasWuConcrete(area)) return false;
+  const plan = surfacePlanForArea(area);
+  if (!plan || !plan.confirmed) return false;
+  let changed = false;
+  for (const measure of area.measures || []) {
+    if (measure.type !== "Flächensperre") continue;
+    const values = {
+      height:String(plan.calculationHeight),
+      autoSurfaceHeight:true,
+      surfaceRowCount:plan.rowCount,
+      surfaceTopRowHeight:plan.topRowHeight,
+      surfaceTargetHeight:plan.targetHeight,
+      surfaceHeightLimited:plan.useLimitedHeight,
+      surfaceShortfall:plan.shortfall,
+      maxDrillHeight:plan.availableHeight,
+      surfaceHeightResolution:area.surfaceHeightResolution||"",
+      surfaceSupplementalAccess:plan.supplementalAccess||""
+    };
+    for (const [key,value] of Object.entries(values)) {
+      if (measure[key] !== value) { measure[key] = value; changed = true; }
+    }
+    if (changed) measure.confirmed = false;
+  }
+  return changed;
+}
+
 function renderAreas() {
   const scrollY = captureVisitScroll();
   const box = $("areas");
   box.innerHTML = "";
+  let automaticHeightChanged = false;
+  state.visit.areas.forEach(area => { if (syncAutomaticSurfaceHeight(area)) automaticHeightChanged = true; });
+  if (automaticHeightChanged) saveState();
   state.visit.areas.forEach((area, ai) => {
+    const surfacePlan = surfacePlanForArea(area);
+    const wuConcrete = areaHasWuConcrete(area);
+    const hasSurfaceBarrier = (area.measures || []).some(measure => measure.type === "Flächensperre");
+    const surveyedHeightCm = parseDecimal(area.wallSurvey?.height) * 100;
+    const roomHeightCm = parseDecimal(area.roomHeightCm) || surveyedHeightCm;
+    const effectiveMaxDrillHeightCm = parseDecimal(area.maxDrillHeightCm) || Math.max(0, roomHeightCm - 35);
+    const ceilingClearanceCm = roomHeightCm > 0 && effectiveMaxDrillHeightCm > 0 ? roomHeightCm - effectiveMaxDrillHeightCm : 0;
+    const limitSource = parseDecimal(area.maxDrillHeightCm) > 0 ? "vor Ort manuell festgelegt" : roomHeightCm > 0 ? "automatisch: Raumhöhe minus 35 cm" : "";
+    const surfacePlanBox = area.earthContact === "erdberührt" ? `
+      <div class="wide"><label>Außen anliegendes Erdreich über OK Fußboden (cm)</label><input type="number" inputmode="decimal" min="0" step="1" data-area="${area.id}" data-field="earthContactHeightCm" value="${esc(area.earthContactHeightCm || "")}" placeholder="z. B. 80"></div>
+      <div><label>Raum-/Wandhöhe über OK Fußboden (cm)</label><input type="number" inputmode="decimal" min="0" step="1" data-area="${area.id}" data-field="roomHeightCm" value="${esc(area.roomHeightCm || "")}" placeholder="${surveyedHeightCm ? `Wandaufmaß: ${Math.round(surveyedHeightCm)} cm` : "z. B. 240"}"></div>
+      <div><label>Abweichende maximal ausführbare Bohrhöhe (cm)</label><input type="number" inputmode="decimal" min="0" step="1" data-area="${area.id}" data-field="maxDrillHeightCm" value="${esc(area.maxDrillHeightCm || "")}" placeholder="automatisch: Raumhöhe minus 35 cm"><small>Nur eintragen, wenn der vor Ort mögliche Bohrwinkel eine andere Grenze ergibt.${limitSource ? ` Aktuell ${limitSource}.` : ""}</small></div>
+      ${ceilingClearanceCm > 0 && ceilingClearanceCm < 35 ? `<div class="wide status ${ceilingClearanceCm < 25 ? "error" : "warning"}"><strong>${ceilingClearanceCm < 25 ? "Nicht automatisch ansetzen" : "Vorsicht beim Bohrwinkel"}:</strong> Die oberste mögliche Bohrhöhe liegt nur ${Math.round(ceilingClearanceCm)} cm unter der Decke. ${ceilingClearanceCm < 25 ? "Bitte eine niedrigere maximal ausführbare Bohrhöhe festlegen." : "Der Bereich von 25–35 cm ist vor Ort besonders zu prüfen."}</div>` : ""}
+      ${wuConcrete ? `<div class="wide status error"><strong>WU-Beton:</strong> Für diesen Bereich werden weder Horizontal- noch Flächensperre kalkuliert; es bleibt nur der Wand-Sohlen-Anschluss.</div>` : surfacePlan ? `<div class="wide status ${surfacePlan.heightLimited ? "error" : "success"}"><strong>${surfacePlan.heightLimited ? "Sollhöhe von innen nicht vollständig erreichbar" : "Bohrlochschema automatisch berechnet"}</strong><br>Außenerdreich ${Math.round(surfacePlan.earthHeight*100)} cm · Soll mindestens ${Math.round(surfacePlan.targetHeight*100)} cm · ${surfacePlan.requiredRowCount} Reihen · oberste Sollreihe ${Math.round(surfacePlan.requiredTopRowHeight*1000)/10} cm.${surfacePlan.useLimitedHeight ? `<br><strong>Begrenzte Ausführung:</strong> ${surfacePlan.rowCount} Reihen, oberste Reihe ${Math.round(surfacePlan.topRowHeight*1000)/10} cm; Unterschreitung ${Math.round(surfacePlan.shortfall*1000)/10} cm.` : surfacePlan.supplementalAccess ? `<br><strong>Vollständige Ausführung:</strong> fehlende Reihen ${surfacePlan.supplementalAccess==="outside"?"von außen":"aus dem darüberliegenden Geschoss"}.` : ""}</div>${surfacePlan.heightLimited ? `<div class="wide"><label>Ausführung der von innen nicht erreichbaren Reihen</label><select data-area-resolution="${area.id}"><option value="">Bitte auswählen</option><option value="outside" ${area.surfaceHeightResolution==="outside"?"selected":""}>Fehlende Reihen von außen herstellen</option><option value="upper-floor" ${area.surfaceHeightResolution==="upper-floor"?"selected":""}>Fehlende Reihen aus darüberliegendem Geschoss herstellen</option><option value="inside-limited" ${area.surfaceHeightResolution==="inside-limited"?"selected":""}>Nur höchstmögliche Innenreihe ausführen</option><option value="customer-declined" ${area.surfaceHeightResolution==="customer-declined"?"selected":""}>Kunde lehnt zusätzliche Erschließung ab</option></select>${surfacePlan.availableRowCount ? "" : "<small>Von innen ist keine vollständige Bohrlochreihe möglich; Außen- oder Geschosszugang auswählen.</small>"}</div>` : ""}` : hasSurfaceBarrier ? `<div class="wide status error">Für die automatische Flächensperre fehlt die Höhe des außen anliegenden Erdreichs.</div>` : ""}
+    ` : "";
     const card = document.createElement("div");
     card.className = "area-card";
     card.dataset.areaCard = area.id;
@@ -4337,6 +4419,7 @@ function renderAreas() {
         <div><label>Wandart</label><select data-area="${area.id}" data-field="wallType"><option value="">– bitte auswählen –</option><option ${area.wallType==="Außenwand"?"selected":""}>Außenwand</option><option ${area.wallType==="Innenwand"?"selected":""}>Innenwand</option></select></div>
         <div><label>Erdkontakt</label><select data-area="${area.id}" data-field="earthContact"><option value="">– bitte auswählen –</option><option ${area.earthContact==="erdberührt"?"selected":""}>erdberührt</option><option ${area.earthContact==="nicht erdberührt"?"selected":""}>nicht erdberührt</option></select></div>
         <div><label>Wandbelag</label><select data-area="${area.id}" data-field="wallCover">${["","Putz","Farbe","Tapete","Fliesen","Unbekannt","Sonstiges"].map(v => `<option ${area.wallCover===v?"selected":""}>${v}</option>`).join("")}</select></div>
+        ${surfacePlanBox}
       </div>
       <label>Notizen</label><div class="speech-row"><textarea id="area-note-${area.id}" data-area="${area.id}" data-field="notes">${esc(area.notes)}</textarea><button class="speech" data-speech-target="area-note-${area.id}">🎤</button></div>
       <h3>Feuchtemessung</h3>
@@ -4370,6 +4453,23 @@ function renderAreas() {
     area[input.dataset.field] = input.value;
     if (input.dataset.field === "wallThickness") area.measures.forEach(measure => measure.wall = Number(input.value));
     saveState();
+  });
+  box.querySelectorAll('[data-field="earthContact"], [data-field="earthContactHeightCm"], [data-field="roomHeightCm"], [data-field="maxDrillHeightCm"]').forEach(input => input.onchange = () => {
+    const area = state.visit.areas.find(item => item.id === input.dataset.area);
+    area[input.dataset.field] = input.value;
+    if (input.dataset.field !== "earthContactHeightCm") {
+      area.surfaceHeightLimitedAccepted = false;
+      area.surfaceHeightResolution = "";
+    }
+    syncAutomaticSurfaceHeight(area);
+    saveState(); updateGeneratedRecommendation(); renderAreas();
+  });
+  box.querySelectorAll("[data-area-resolution]").forEach(input => input.onchange = () => {
+    const area = state.visit.areas.find(item => item.id === input.dataset.areaResolution);
+    area.surfaceHeightResolution = input.value;
+    area.surfaceHeightLimitedAccepted = input.value === "inside-limited";
+    syncAutomaticSurfaceHeight(area);
+    saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 
   box.querySelectorAll("[data-delete-area]").forEach(button => button.onclick = () => {
@@ -4474,24 +4574,26 @@ function renderMeasurements(area) {
 
 function renderMeasures(area) {
   const box = $(`measures-${area.id}`);
+  const areaSurfacePlan = surfacePlanForArea(area);
   box.innerHTML = area.measures.map((m,index) => {
     const completion=measureCompletion(m);
     const skipKey=`${completion.details?'measureConfirmed':'measureDetails'}:${m.id}`;
     const pointSkipped=visitRequirementSkipped(skipKey);
+    const pairedSurface=m.type==="Wand-Sohlen-Anschluss"&&(area.measures||[]).some(item=>item.type==="Flächensperre");
     return `
     <div class="sub-card item-grid measure-guided-card ${completion.confirmed?"measure-confirmed":pointSkipped?"measure-skipped":"measure-open"}">
       <div class="wide measure-step-head"><span>Maßnahme ${index+1}</span><strong>${completion.confirmed?"✓ vollständig geprüft":pointSkipped?"↷ Punkt bewusst übersprungen":`FEHLT: ${esc(completion.missing)}`}</strong></div>
       <div class="wide${measureFieldClass(completion,"type",m)}"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
       ${m.type&&m.type!=="Harzverpressung"?`<div class="${measureFieldClass(completion,"wall",m).trim()}"><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>`:""}
       ${m.type==="Flächensperre"
-        ? `<div class="${measureFieldClass(completion,"width",m).trim()}"><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div class="${measureFieldClass(completion,"height",m).trim()}"><label>Höhe der Fläche m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}"></div>`
+        ? `<div class="${measureFieldClass(completion,"width",m).trim()}"><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div class="${measureFieldClass(completion,"height",m).trim()}"><label>${m.autoSurfaceHeight?"Automatisch berechnete Sperrhöhe":"Höhe der Fläche"} m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}" ${m.autoSurfaceHeight?"readonly":""}></div>${m.autoSurfaceHeight&&areaSurfacePlan?`<div class="wide status ${areaSurfacePlan.useLimitedHeight?"error":"success"}">${areaSurfacePlan.rowCount} Bohrlochreihen; oberste Reihe ${Math.round(areaSurfacePlan.topRowHeight*1000)/10} cm über OK Fußboden.${pairedSurface?` Die unterste Reihe wird als separate Horizontalsperre geführt; die Flächensperre enthält nur die ${Math.max(0,areaSurfacePlan.rowCount-1)} darüberliegenden Reihen.`:""}${areaSurfacePlan.useLimitedHeight?` <strong>Baulich begrenzt:</strong> Sollhöhe wird um ${Math.round(areaSurfacePlan.shortfall*1000)/10} cm unterschritten.`:""}</div>`:""}`
         : m.type?`<div class="${measureFieldClass(completion,"length",m).trim()}"><label>Laufmeter</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="length" value="${esc(m.length||"")}"></div>`:""}
-      ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type)?`<div class="${measureFieldClass(completion,"spacing",m).trim()}"><label>Bohrlochabstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
+      ${["Horizontalsperre","Flächensperre"].includes(m.type)||(m.type==="Wand-Sohlen-Anschluss"&&!m.wallSoleHorizontalNotRequired)?`<div class="${measureFieldClass(completion,"spacing",m).trim()}"><label>Bohrlochabstand der Horizontalsperre</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
       ${m.type==="Harzverpressung" ? `
         <div class="${measureFieldClass(completion,"resinHolesPerMeter",m).trim()}"><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
         <div><label>Enthaltenes Harz je lfm (3–5 kg)</label><select data-measure="${m.id}" data-mfield="resinIncludedKgPerMeter"><option value="3" ${Number(m.resinIncludedKgPerMeter||4)===3?"selected":""}>3 kg</option><option value="4" ${Number(m.resinIncludedKgPerMeter||4)===4?"selected":""}>4 kg</option><option value="5" ${Number(m.resinIncludedKgPerMeter||4)===5?"selected":""}>5 kg</option></select></div>
         <div><label>Tatsächlicher Harzverbrauch gesamt kg</label><input type="number" min="0" step=".1" data-measure="${m.id}" data-mfield="resinTotalKg" value="${m.resinTotalKg||""}"></div>` : ""}
-      ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
+      ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide wall-sole-required-note"><strong>${m.wallSoleHorizontalNotRequired?"WU-Beton – nur Wand-Sohlen-Anschluss":pairedSurface?"Drei getrennte Positionen ohne Doppelberechnung":"Es werden zwei getrennte Positionen erstellt"}</strong><span>${m.wallSoleHorizontalNotRequired?"Horizontal- und Flächensperre werden in diesem Bereich nicht kalkuliert.":pairedSurface?"Wand-Sohlen-Anschluss · Horizontalsperre · Flächensperre erst oberhalb der unteren Reihe":"Wand-Sohlen-Anschluss · notwendige Horizontalsperre mit denselben Laufmetern"}</span></div><div class="wide switch-row wall-sole-wu-option"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="wallSoleHorizontalNotRequired" ${m.wallSoleHorizontalNotRequired?"checked":""}> WU-Beton – Horizontal- und Flächensperre nicht erforderlich</label></div><div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>
       <div class="wide measure-confirm-area${measureFieldClass(completion,"confirmed",m)}" data-measure-missing="${m.id}">
         <small>${pointSkipped?"Dieser Punkt wurde bewusst als nicht relevant markiert.":completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${esc(completion.missing)}`}</small>
@@ -4535,7 +4637,7 @@ function renderMeasures(area) {
     }
     saveState();
     updateGeneratedRecommendation();
-    updateVisitGuide();
+    if(input.dataset.mcheck==="wallSoleHorizontalNotRequired")renderAreas();else updateVisitGuide();
   });
   box.querySelectorAll("[data-confirm-measure]").forEach(button=>button.onclick=()=>{
     const measure=area.measures.find(item=>item.id===button.dataset.confirmMeasure);
@@ -5125,7 +5227,7 @@ function buildReport() {
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${expandMeasuresForArea(area).map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,

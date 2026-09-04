@@ -1,4 +1,4 @@
-import { calculateMeasure } from "./calculator-v227.js";
+import { calculateMeasure, expandMeasuresForArea } from "./calculator-v227.js?v=32.23.0";
 import { parseDecimal } from "./utils-v227.js";
 
 const KEY = "mainabdichter_v18_worksites";
@@ -199,7 +199,7 @@ function baseTask(data = {}) {
 export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
   const tasks = [];
   for (const area of visit.areas || []) {
-    for (const measure of area.measures || []) {
+    for (const measure of expandMeasuresForArea(area)) {
       const result = calculateMeasure(settings, measure);
       if (result.quantity <= 0) continue;
       tasks.push(baseTask({

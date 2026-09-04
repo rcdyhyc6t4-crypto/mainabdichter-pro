@@ -13,6 +13,13 @@ function oneDecimal(value) {
   });
 }
 
+function upToTwoDecimals(value) {
+  return num(value).toLocaleString("de-DE", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2
+  });
+}
+
 function injectionLitersPerHole(wallCm, baseMlPerCm, spacing) {
   const baseAt25Cm = num(wallCm) * num(baseMlPerCm) / 1000;
   const spacingFactor = num(spacing) / 0.25;
@@ -43,6 +50,40 @@ function strategyFactor(settings, pricingTier = "standard") {
   if (pricingTier === "minimum") return Math.max(0, num(strategy.minimumFactor) || 0.9);
   if (pricingTier === "premium") return Math.max(0, num(strategy.premiumFactor) || 1.15);
   return Math.max(0, num(strategy.standardFactor) || 1);
+}
+
+export function calculateSurfaceBarrierPlan(earthContactHeightCm, availableWallHeightCm = 0, allowLimitedHeight = false) {
+  const earthHeight = Math.max(0, num(earthContactHeightCm) / 100);
+  if (earthHeight <= 0) return null;
+  const firstRowHeight = 0.125;
+  const rowSpacing = 0.25;
+  const minimumAboveEarth = 0.15;
+  const targetHeight = earthHeight + minimumAboveEarth;
+  const requiredRowCount = Math.max(1, Math.ceil((targetHeight - firstRowHeight) / rowSpacing - 1e-9) + 1);
+  const requiredTopRowHeight = firstRowHeight + (requiredRowCount - 1) * rowSpacing;
+  const availableHeight = Math.max(0, num(availableWallHeightCm) / 100);
+  const heightLimited = availableHeight > 0 && requiredTopRowHeight > availableHeight + 1e-9;
+  const availableRowCount = availableHeight >= firstRowHeight
+    ? Math.max(1, Math.floor((availableHeight - firstRowHeight) / rowSpacing + 1e-9) + 1)
+    : 0;
+  const useLimitedHeight = heightLimited && allowLimitedHeight && availableRowCount > 0;
+  const rowCount = useLimitedHeight ? availableRowCount : requiredRowCount;
+  const topRowHeight = firstRowHeight + (rowCount - 1) * rowSpacing;
+  return {
+    earthHeight,
+    targetHeight,
+    requiredRowCount,
+    requiredTopRowHeight,
+    availableHeight,
+    availableRowCount,
+    heightLimited,
+    useLimitedHeight,
+    confirmed: !heightLimited || useLimitedHeight,
+    rowCount,
+    topRowHeight,
+    calculationHeight: rowCount * rowSpacing,
+    shortfall: Math.max(0, targetHeight - topRowHeight)
+  };
 }
 
 export function calculateMeasure(settings, measure) {
@@ -87,35 +128,43 @@ export function calculateMeasure(settings, measure) {
   if (type === "Flächensperre") {
     const width = num(measure.width);
     const height = num(measure.height);
-    quantity = width * height;
+    const excludeHorizontalBaseRow = Boolean(measure.excludeHorizontalBaseRow);
+    const billableHeight = excludeHorizontalBaseRow ? Math.max(0, height - 0.25) : height;
+    quantity = width * billableHeight;
     unitName = "m²";
 
     const holesPerRowPerMeter = 1 / spacing;
-    const rowsPerMeterHeight = 1 / 0.25;
     const firstRowLitersPerHole = injectionLitersPerHole(wall, 14, spacing);
     const followingRowLitersPerHole = injectionLitersPerHole(wall, 10, spacing);
-    const rawLitersPerSquareMeter =
-      holesPerRowPerMeter * firstRowLitersPerHole
-      + (rowsPerMeterHeight - 1)
-        * holesPerRowPerMeter * followingRowLitersPerHole;
-    const saleLitersPerSquareMeter =
-      rawLitersPerSquareMeter * reserveFactor;
-
     const holesPerRow = ceil(width / spacing);
     const firstRowHeight = 0.125;
     const verticalRowSpacing = 0.25;
     const rowCount = height < firstRowHeight
       ? 0
       : Math.floor((height - firstRowHeight) / verticalRowSpacing) + 1;
-    holes = holesPerRow * rowCount;
-    rawLiters = holesPerRow * firstRowLitersPerHole
-      + Math.max(0, rowCount - 1) * holesPerRow * followingRowLitersPerHole;
+    const billedRowCount = excludeHorizontalBaseRow ? Math.max(0, rowCount - 1) : rowCount;
+    holes = holesPerRow * billedRowCount;
+    rawLiters = excludeHorizontalBaseRow
+      ? billedRowCount * holesPerRow * followingRowLitersPerHole
+      : holesPerRow * firstRowLitersPerHole
+        + Math.max(0, rowCount - 1) * holesPerRow * followingRowLitersPerHole;
     saleLiters = ceil(rawLiters * reserveFactor);
 
-    grossUnit = saleLitersPerSquareMeter * num(settings.hzSaleNet) * 1.19;
-    gross = quantity * grossUnit;
+    const rawLitersPerMeter = excludeHorizontalBaseRow
+      ? billedRowCount * holesPerRowPerMeter * followingRowLitersPerHole
+      : rowCount > 0
+        ? holesPerRowPerMeter * firstRowLitersPerHole
+          + Math.max(0, rowCount - 1) * holesPerRowPerMeter * followingRowLitersPerHole
+        : 0;
+    gross = width * rawLitersPerMeter * reserveFactor * num(settings.hzSaleNet) * 1.19;
+    grossUnit = quantity > 0 ? gross / quantity : 0;
     materialCostNet = saleLiters * num(settings.hzPurchaseNet);
-    scope = `${oneDecimal(width)} × ${oneDecimal(height)} m = ${oneDecimal(quantity)} m²`;
+    scope = excludeHorizontalBaseRow
+      ? `${oneDecimal(width)} × ${upToTwoDecimals(billableHeight)} m = ${upToTwoDecimals(quantity)} m² oberhalb der separaten Horizontalsperre (Gesamthöhe ${oneDecimal(height)} m)`
+      : `${oneDecimal(width)} × ${oneDecimal(height)} m = ${oneDecimal(quantity)} m²`;
+    if (measure.surfaceHeightLimited) {
+      scope += ` · Aus baulichen und ausführungstechnischen Gründen ist die vorgeschriebene Sollhöhe nicht erreichbar; Ausführung bis zur höchstmöglichen fachgerecht bohrbaren Reihe bei ${upToTwoDecimals(measure.surfaceTopRowHeight)} m über OK Fußboden (Unterschreitung der Sollhöhe: ${upToTwoDecimals(measure.surfaceShortfall)} m)`;
+    }
   }
 
   if (type === "Harzverpressung") {
@@ -146,28 +195,19 @@ export function calculateMeasure(settings, measure) {
 
   if (type === "Wand-Sohlen-Anschluss") {
     quantity = num(measure.length);
-    const holesPerMeter = 1 / spacing;
-    const rawLitersPerMeter = holesPerMeter * wall * 14 / 1000;
-    const saleLitersPerMeter = rawLitersPerMeter * reserveFactor;
-
-    holes = ceil(quantity / spacing);
-    rawLiters = quantity * rawLitersPerMeter;
-    saleLiters = ceil(rawLiters * reserveFactor);
     hsKg = quantity * num(settings.hsKgPerWallSoleMeter || 7);
 
-    grossUnit =
-      num(settings.wallSoleGrossPerMeter)
-      + saleLitersPerMeter * num(settings.hzSaleNet) * 1.19;
+    // Die erforderliche Horizontalsperre wird als eigene Maßnahme und eigene
+    // Angebotsposition ergänzt. Der Wand-Sohlen-Preis enthält nur diese Leistung.
+    grossUnit = num(settings.wallSoleGrossPerMeter);
     gross = quantity * grossUnit;
 
     const hsProduct = settings.inventory?.products?.find(
       product => product.id === "bkm-hs-sperrmoertel"
     );
-    materialCostNet =
-      saleLiters * num(settings.hzPurchaseNet)
-      + hsKg * num(hsProduct?.purchaseNet);
+    materialCostNet = hsKg * num(hsProduct?.purchaseNet);
 
-    scope = `${oneDecimal(quantity)} lfm inkl. Horizontalsperre`;
+    scope = `${oneDecimal(quantity)} lfm${measure.wallSoleHorizontalNotRequired ? " · WU-Beton, ohne Horizontalsperre" : ""}`;
   }
 
   return {
@@ -192,6 +232,62 @@ export function calculateMeasure(settings, measure) {
     grossUnit,
     pricingMode: quantity > 0 ? "unit" : "flat"
   };
+}
+
+export function expandMeasuresForArea(area) {
+  const expanded = [];
+  const measures = area.measures || [];
+  const wuConcrete = measures.some(measure => measure.type === "Wand-Sohlen-Anschluss" && measure.wallSoleHorizontalNotRequired);
+  if (wuConcrete) {
+    return measures.filter(measure => !["Horizontalsperre","Flächensperre"].includes(measure.type));
+  }
+  const requiredWallSole = measures.filter(measure => measure.type === "Wand-Sohlen-Anschluss" && !measure.wallSoleHorizontalNotRequired);
+  const surfaceMeasures = measures.filter(measure => measure.type === "Flächensperre");
+  const combinedWall = requiredWallSole.length > 0 && surfaceMeasures.length > 0;
+
+  const addMeasure = measure => {
+    expanded.push(measure);
+    if (measure.type !== "Wand-Sohlen-Anschluss" || measure.wallSoleHorizontalNotRequired) return;
+    expanded.push({
+      id: `${measure.id}-required-horizontal`,
+      type: "Horizontalsperre",
+      length: measure.length,
+      wall: measure.wall || area.wallThickness || 30,
+      spacing: measure.spacing || .25,
+      note: "Technisch erforderliche Horizontalsperre zum Wand-Sohlen-Anschluss",
+      confirmed: true,
+      generatedFromWallSole: true,
+      linkedToMeasure: measure.id
+    });
+  };
+
+  if (combinedWall) {
+    for (const measure of measures.filter(item => item.type === "Wand-Sohlen-Anschluss")) addMeasure(measure);
+    for (const measure of surfaceMeasures) expanded.push({
+      ...measure,
+      excludeHorizontalBaseRow: true,
+      linkedToWallSole: requiredWallSole[0]?.id || ""
+    });
+    for (const measure of measures.filter(item => !["Wand-Sohlen-Anschluss","Flächensperre"].includes(item.type))) addMeasure(measure);
+    return expanded;
+  }
+
+  for (const measure of measures) {
+    expanded.push(measure);
+    if (measure.type !== "Wand-Sohlen-Anschluss" || measure.wallSoleHorizontalNotRequired) continue;
+    expanded.push({
+      id: `${measure.id}-required-horizontal`,
+      type: "Horizontalsperre",
+      length: measure.length,
+      wall: measure.wall || area.wallThickness || 30,
+      spacing: measure.spacing || .25,
+      note: "Technisch erforderliche Horizontalsperre zum Wand-Sohlen-Anschluss",
+      confirmed: true,
+      generatedFromWallSole: true,
+      linkedToMeasure: measure.id
+    });
+  }
+  return expanded;
 }
 
 function determineSmallJob(settings, measureRows) {
@@ -256,13 +352,36 @@ function priceAdjustment(discount, normalGross) {
 export function calculateOffer(settings, visit, discount) {
   const measureRows = [];
   for (const area of visit.areas || []) {
-    for (const measure of area.measures || []) {
+    for (const measure of expandMeasuresForArea(area)) {
       measureRows.push({
         area,
         measure,
         result: calculateMeasure(settings, measure)
       });
     }
+  }
+
+  // Bei Wand-Sohle + Flächensperre derselben Wand wird die unterste Reihe nur
+  // einmal als Horizontalsperre geführt. Auch die Liter-Aufrundung erfolgt für
+  // die zusammengehörigen Injektionsreihen gemeinsam, damit der Materialbedarf
+  // gegenüber der bisherigen Flächensperrenlogik nicht künstlich steigt.
+  const reserveFactor = 1 + num(settings.reservePct) / 100;
+  for (const horizontalRow of measureRows.filter(row => row.measure.generatedFromWallSole)) {
+    const linkedId = horizontalRow.measure.linkedToMeasure;
+    const surfaceRows = measureRows.filter(row => row.measure.linkedToWallSole === linkedId);
+    if (!surfaceRows.length) continue;
+    const combinedRawLiters = horizontalRow.result.rawLiters
+      + surfaceRows.reduce((sum, row) => sum + row.result.rawLiters, 0);
+    let remainingSaleLiters = Math.max(0, ceil(combinedRawLiters * reserveFactor) - horizontalRow.result.saleLiters);
+    surfaceRows.forEach((row, index) => {
+      const previousSaleLiters = row.result.saleLiters;
+      const nextSaleLiters = index === surfaceRows.length - 1
+        ? remainingSaleLiters
+        : Math.min(remainingSaleLiters, Math.round(row.result.rawLiters * reserveFactor));
+      row.result.saleLiters = nextSaleLiters;
+      row.result.materialCostNet += (nextSaleLiters - previousSaleLiters) * num(settings.hzPurchaseNet);
+      remainingSaleLiters -= nextSaleLiters;
+    });
   }
 
   const smallJob = determineSmallJob(settings, measureRows);
@@ -309,7 +428,17 @@ export function calculateOffer(settings, visit, discount) {
       kind: "measure",
       areaName: area.name,
       name: measure.type,
-      description: measure.note || "",
+      description: [
+        measure.note || "",
+        measure.surfaceSupplementalAccess === "outside"
+          ? "Die von innen nicht erreichbaren Bohrlochreihen werden zur vollständigen Sollhöhe von außen hergestellt."
+          : measure.surfaceSupplementalAccess === "upper-floor"
+            ? "Die von innen nicht erreichbaren Bohrlochreihen werden zur vollständigen Sollhöhe aus dem darüberliegenden Geschoss hergestellt."
+            : "",
+        measure.surfaceHeightLimited
+          ? `Aus baulichen und ausführungstechnischen Gründen ist die vorgeschriebene Sollhöhe von innen nicht erreichbar. Ausführung bis zur höchstmöglichen fachgerecht bohrbaren Reihe bei ${upToTwoDecimals(measure.surfaceTopRowHeight)} m über OK Fußboden; Unterschreitung der Sollhöhe ${upToTwoDecimals(measure.surfaceShortfall)} m.${measure.surfaceHeightResolution === "customer-declined" ? " Der Kunde hat die zusätzliche Ausführung von außen beziehungsweise aus dem darüberliegenden Geschoss abgelehnt." : ""}`
+          : ""
+      ].filter(Boolean).join(" "),
       articleId: settings.articleMappings[measure.type] || "",
       quantity: result.quantity || 1,
       unitName: result.unitName,
@@ -326,7 +455,9 @@ export function calculateOffer(settings, visit, discount) {
       resinTotalKg: result.resinTotalKg,
       resinExtraKg: result.resinExtraKg,
       smallJobIntegrated: num(result.smallJobSurcharge) > 0,
-      smallJobSurchargePerUnit: num(result.smallJobSurchargePerUnit)
+      smallJobSurchargePerUnit: num(result.smallJobSurchargePerUnit),
+      linkedToMeasure: measure.linkedToMeasure || "",
+      generatedFromWallSole: Boolean(measure.generatedFromWallSole)
     });
 
     if (
