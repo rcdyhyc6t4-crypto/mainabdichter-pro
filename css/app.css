@@ -2672,6 +2672,9 @@ body.central-syncing{overflow:hidden}
 .measure-guided-card.measure-open .measure-step-head strong{color:#b3261e}
 .measure-guided-card.measure-skipped{border-color:#aeb5aa;background:#f3f4f2}
 .measure-guided-card.measure-skipped .measure-step-head strong{color:#666d64}
+.wall-sole-required-note{display:grid;gap:4px;padding:12px 14px;border:2px solid #4ead35;border-radius:12px;background:#eff9ec;color:#245d1d}
+.wall-sole-required-note span{font-size:.88rem}
+.wall-sole-wu-option{padding:12px;border:1px solid #b8c0b5;border-radius:11px;background:#f3f4f2}
 .measure-field-missing{padding:9px;border:2px solid #d83b32;border-radius:10px;background:#fff0ef}
 .measure-field-missing label{color:#a51f18;font-weight:900}
 .measure-field-missing input,.measure-field-missing select{border-color:#d83b32!important;background:#fff!important}
