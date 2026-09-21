@@ -12,6 +12,10 @@ assert.match(app, /Object\.assign\(wallSurveyCornerDraft\[wallSurveyDraggingCorn
 assert.match(app, /saveCurrentToArchive\(false\)/);
 assert.match(app, /data-open-visit-record/);
 assert.match(app, /saveVisitExplicitSavepoint/);
+assert.match(app, /ALWAYS_OPTIONAL_VISIT_REQUIREMENTS/);
+assert.match(app, /Messungen sind optional/);
+assert.match(app, /wallSurveyToResult"\)\.disabled = false/);
+assert.match(app, /Keine Messung erforderlich oder erfasst/);
 assert.match(html, /id="wallSurveyCancel"/);
 assert.match(html, /id="wallSurveyDelete"/);
 assert.match(html, /id="wallSurveyFinish"/);

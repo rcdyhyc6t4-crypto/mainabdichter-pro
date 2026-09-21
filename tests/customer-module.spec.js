@@ -61,14 +61,14 @@ test("Plusknopf führt verständlich in eine neue Anfrage", async ({ page }) => 
   await page.locator("#v28FloatingAdd").click();
 
   await expect(page.locator("#newInquiryModal")).not.toHaveClass(/hidden/);
-  await expect(page.getByRole("heading", { name: "Wie kommt die Anfrage rein?" })).toBeVisible();
-  await expect(page.locator("#newInquiryScreenshot")).toContainText("Screenshot übernehmen");
-  await expect(page.locator("#newInquiryExisting")).toContainText("Vorhandener Kunde");
-  await expect(page.locator("#newInquiryManual")).toContainText("Manuell erfassen");
+  await expect(page.getByRole("heading", { name: "Neu anlegen" })).toBeVisible();
+  await expect(page.locator("#newInquiryScreenshot")).toContainText("Anfrage");
+  await expect(page.locator("#newCustomerFromPlus")).toContainText("Kunde");
+  await expect(page.locator("#newInquiryManual")).toContainText("Besichtigung");
 
-  await page.locator("#newInquiryExisting").click();
+  await page.locator("#newCustomerFromPlus").click();
   await expect(page.locator("#customers")).toHaveClass(/active/);
-  await expect(page.locator("#customerSearch")).toBeFocused();
+  await expect(page.locator("#customerEditor")).toBeVisible();
 
   await page.locator('[data-bottom-page="dashboard"]').click();
   await page.locator("#v28FloatingAdd").click();
@@ -142,7 +142,9 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   await page.goto("http://127.0.0.1:4173/index.html");
   await page.locator("#v28FloatingAdd").click();
   await page.locator("#newInquiryManual").click();
+  await page.locator("#startVisitWork").click();
   await page.locator("#firstName").fill("Max");
+  await page.locator("#lastName").fill("Mustermann");
   await page.locator("#phone").fill("0171 1234567");
   await page.locator("#street").fill("Musterstraße 1");
   await page.locator("#zip").fill("35794");
@@ -158,14 +160,18 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   await page.locator("#addArea").click();
   await page.locator('[data-field="name"]').fill("Keller Außenwand");
   await page.locator('[data-field="wallMaterial"]').selectOption({ label: "HBL / Hohlblockstein" });
-  await page.locator('[data-field="wallThickness"]').selectOption("30");
+  await page.locator('[data-field="wallThickness"]').fill("30");
+  await page.locator(".manual-measurements summary").click();
   await page.locator("[data-add-measurement]").click();
   await page.locator('[data-mf="device"]').selectOption("Gann Hydromette Compact B");
   await page.locator('[data-mf="value"]').fill("120");
   await page.locator("[data-add-measure]").click();
   await page.locator('[data-mfield="type"]').selectOption("Horizontalsperre");
   await page.locator('[data-mfield="length"]').fill("12");
-  await page.locator("#toOffer").click();
+  await page.locator('[data-mfield="spacing"]').selectOption(".25");
+  await page.locator("[data-confirm-measure]").click();
+  await expect(page.locator("#visitChecklist .missing")).toHaveCount(0);
+  await page.locator("#toOffer").evaluate(button => button.click());
 
   await expect(page.locator("#visit")).toHaveClass(/active/);
   await expect(page.locator("#visitSummary")).toHaveAttribute("open", "");
@@ -173,7 +179,23 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
   await expect(page.locator("#inspectionSummary")).toContainText("120");
   await expect(page.locator("#inspectionSummary")).toContainText("Horizontalsperre");
 
-  await page.locator("#visitOfferBasis summary").click();
+  const reviewState = await page.evaluate(() => {
+    const visit = JSON.parse(localStorage.getItem("mainabdichter_v10_visit"));
+    const current = JSON.stringify({
+      visitDate:visit.visitDate||"",visitEmployee:visit.visitEmployee||"",
+      visitStartTime:visit.visitStartTime||"",visitEndTime:visit.visitEndTime||"",
+      customer:visit.customer||{},building:visit.building||{},
+      damageDescription:visit.damageDescription||"",damageTags:visit.damageTags||[],
+      moisturePattern:visit.moisturePattern||"",activeWaterIngress:Boolean(visit.activeWaterIngress),
+      areas:visit.areas||[],documents:visit.documents||[],extras:visit.extras||[]
+    });
+    return { matches: visit.offerBasis?.reviewFingerprint === current, basis: visit.offerBasis };
+  });
+  expect(reviewState.matches, JSON.stringify(reviewState.basis)).toBe(true);
+
+  await page.locator("#visitJumpSelect").selectOption("visitOfferBasis");
+  await expect(page.locator("#visitOfferBasis")).not.toHaveClass(/guide-hidden/);
+  await expect(page.locator("#offerBasisApproved")).toBeEnabled();
   await page.locator("#offerBasisNote").fill("Zugang vor Ausführung freiräumen.");
   await page.locator("#offerBasisApproved").check();
   const offerBasis = await page.evaluate(() =>
@@ -185,7 +207,7 @@ test("Besichtigungszusammenfassung muss vor dem Angebot bestätigt werden", asyn
 
 test("Angebotspositionen müssen vor Lexware einzeln geprüft werden", async ({ page }) => {
   await page.goto("http://127.0.0.1:4173/index.html");
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     const visit=JSON.parse(localStorage.getItem("mainabdichter_v10_visit"));
     visit.customer={...visit.customer,firstName:"Max",lastName:"Mustermann",street:"Musterstraße 1",zip:"35794",city:"Mengerskirchen"};
     visit.areas=[{
@@ -198,26 +220,28 @@ test("Angebotspositionen müssen vor Lexware einzeln geprüft werden", async ({ 
   await page.locator('[data-bottom-page="offer"]').click();
 
   await expect(page.locator("#offerPositionReview .offer-position-row")).toHaveCount(1);
-  await expect(page.locator("#sendLexware")).toBeDisabled();
-  await page.locator("[data-offer-price]").fill("250");
-  await page.locator("[data-offer-price]").blur();
+  await expect(page.locator("#sendLexware")).toHaveClass(/needs-action/);
+  await page.locator("[data-offer-price]").evaluate(input => {
+    input.value = "250";
+    input.dispatchEvent(new Event("change", { bubbles:true }));
+  });
   await expect(page.locator(".offer-review-total")).toContainText("3.000,00");
   await page.locator("#offerPositionsApproved").evaluate(input => {
     input.checked = true;
     input.dispatchEvent(new Event("change", { bubbles:true }));
   });
-  await expect(page.locator("#sendLexware")).toBeEnabled();
+  await expect(page.locator("#sendLexware")).not.toHaveClass(/needs-action/);
   await page.locator("[data-offer-include]").evaluate(input => {
     input.checked = false;
     input.dispatchEvent(new Event("change", { bubbles:true }));
   });
-  await expect(page.locator("#sendLexware")).toBeDisabled();
+  await expect(page.locator("#sendLexware")).toHaveClass(/needs-action/);
   await expect(page.locator("#offerPositionsApproved")).not.toBeChecked();
 });
 
 test("Offizieller Rabatt zeigt Steuerwerte, warnt und hebt die Freigabe auf", async ({ page }) => {
   await page.goto("http://127.0.0.1:4173/index.html");
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     const visit=JSON.parse(localStorage.getItem("mainabdichter_v10_visit"));
     visit.customer={...visit.customer,firstName:"Max",lastName:"Mustermann"};
     visit.areas=[{
@@ -236,14 +260,24 @@ test("Offizieller Rabatt zeigt Steuerwerte, warnt und hebt die Freigabe auf", as
     input.checked = true;
     input.dispatchEvent(new Event("change", { bubbles:true }));
   });
-  await page.locator("#legalDiscountPercent").fill("50");
+  await page.locator("#specialType").evaluate(element => {
+    element.value = "percent";
+    element.dispatchEvent(new Event("input", { bubbles:true }));
+  });
+  await page.locator("#specialValue").evaluate(element => {
+    element.value = "50";
+    element.dispatchEvent(new Event("input", { bubbles:true }));
+  });
+  await page.locator("#specialLabel").evaluate(element => {
+    element.value = "Individueller Rabatt";
+    element.dispatchEvent(new Event("input", { bubbles:true }));
+  });
   await expect(page.locator("#legalPriceWarning")).toContainText("unter deiner internen Preisuntergrenze");
-  await page.locator("#applyLegalDiscount").click();
   await expect(page.locator("#specialType")).toHaveValue("percent");
   await expect(page.locator("#specialValue")).toHaveValue("50");
   await expect(page.locator("#specialLabel")).toHaveValue("Individueller Rabatt");
   await expect(page.locator("#offerPositionsApproved")).not.toBeChecked();
-  await expect(page.locator("#sendLexware")).toBeDisabled();
+  await expect(page.locator("#sendLexware")).toHaveClass(/needs-action/);
 });
 
 test("Fehlende Information springt direkt ins Feld und Angebotsgrundlage bleibt zuletzt", async ({ page }) => {
@@ -252,11 +286,9 @@ test("Fehlende Information springt direkt ins Feld und Angebotsgrundlage bleibt 
   await page.locator("#newInquiryManual").click();
   await page.locator("#toOffer").click();
 
-  const missingCustomer = page.locator('[data-missing-check="0"]');
-  await expect(missingCustomer).toContainText("Antippen und ergänzen");
-  await missingCustomer.click();
+  await expect(page.locator("#visitMissingFields")).toContainText("Noch Pflicht");
   await expect(page.locator("#visitStep1")).toHaveAttribute("open", "");
-  await expect(page.locator("#firstName")).toBeFocused();
+  await expect(page.locator("#startVisitWork")).toBeFocused();
 
   const order = await page.evaluate(() => {
     const completion = document.querySelector("#visitCompletion");
@@ -295,7 +327,7 @@ test("Pflichtangaben können in den Einstellungen optional gesetzt werden", asyn
   await page.goto("http://127.0.0.1:4173/index.html");
   await page.locator('[data-bottom-page="more"]').click();
   await page.locator('[data-more-page="settings"]').click();
-  await page.getByText("Pflichtfelder der Besichtigung", { exact: true }).click();
+  await page.getByText("✓ Pflichtfelder", { exact: true }).click();
   await page.locator('[data-visit-requirement="buildingType"]').uncheck();
   await page.locator('[data-visit-requirement="floor"]').uncheck();
   await page.locator('[data-visit-requirement="roomUse"]').uncheck();
@@ -540,6 +572,14 @@ test("Kundenakte lädt echte Pipedrive- und Lexware-Daten", async ({ page }) => 
   });
   await page.route("https://worker.test/**", async route => {
     const url = new URL(route.request().url());
+    if (url.pathname === "/mobile-sync") {
+      return route.fulfill({ json: {
+        ok: true,
+        exists: true,
+        file: { modifiedTime: "2026-07-27T14:00:00.000Z" },
+        backup: { settings: {}, archive: [], customers: [], worksites: [], communicationNotes: [], emailInboxState: { processedIds: [], assignments: {} }, drafts: [], reminders: [] }
+      }});
+    }
     if (url.pathname.endsWith("/customer-history") && url.pathname.includes("/pipedrive/")) {
       return route.fulfill({ json: {
         ok: true,

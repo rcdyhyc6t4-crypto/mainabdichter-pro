@@ -15,7 +15,7 @@ assert.match(app, /const saved=saveCurrentToArchive\(false\)/);
 assert.match(app, /saveVisitExplicitSavepoint\(\)/);
 assert.match(app, /visitEndTime.*step:7/);
 assert.match(html, /data-guide-group="visitSummary"/);
-assert.match(html, />Protokoll prüfen</);
+assert.match(html, /aria-label="Besichtigungsprotokoll prüfen">✓ Prüfen</);
 assert.doesNotMatch(html, />7 · Zusammenfassung</);
 assert.doesNotMatch(html, />9 · Abschluss</);
 

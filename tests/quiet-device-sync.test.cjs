@@ -17,9 +17,9 @@ assert.match(app, /preserveUnsyncedLocalCopy\(localPayload/);
 assert.doesNotMatch(app, /createServerAuthoritativePayload\(response\.backup, localPayload\)/);
 assert.doesNotMatch(app, /synchronizeFromDrive\(\{\s*force:\s*true,\s*gate:\s*true/);
 
-assert.match(html, /Speichern & später fortsetzen/);
-assert.match(html, /Protokoll prüfen/);
-assert.match(html, /Abschließen & Angebot öffnen/);
+assert.match(html, /aria-label="Besichtigung speichern und später fortsetzen">▣ Speichern/);
+assert.match(html, /aria-label="Besichtigungsprotokoll prüfen">✓ Prüfen/);
+assert.match(html, /aria-label="Besichtigung abschließen und Angebot öffnen">→ Angebot/);
 assert.match(html, /Weitere Möglichkeiten/);
 assert.match(css, /\.remote-update-notice/);
 assert.match(css, /\.visit-more-actions/);
