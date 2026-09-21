@@ -57,15 +57,14 @@ export function hasConnectionConfig() {
 export async function api(path, options = {}) {
   const { url, secret } = config();
   if (!url || !secret) throw new Error("Zugangsdaten fehlen.");
-  const { timeoutMs = 15000, ...fetchOptions } = options;
 
   const response = await fetchWithTimeout(url + path, {
-    ...fetchOptions,
+    ...options,
     headers: {
-      ...(fetchOptions.headers || {}),
+      ...(options.headers || {}),
       "X-App-Secret": secret
     }
-  }, timeoutMs);
+  });
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -73,18 +72,10 @@ export async function api(path, options = {}) {
     const readableDetail = value => {
       if (!value) return "";
       if (typeof value === "string") return value;
-      if (Array.isArray(value)) return value.map(readableDetail).filter(Boolean).join("; ");
       if (typeof value.message === "string") return value.message;
       if (typeof value.error_description === "string") return value.error_description;
       if (typeof value.error === "string") return value.error;
       if (value.error && typeof value.error.message === "string") return value.error.message;
-      if (Array.isArray(value.violations)) return value.violations.map(readableDetail).filter(Boolean).join("; ");
-      if (Array.isArray(value.errors)) return value.errors.map(readableDetail).filter(Boolean).join("; ");
-      if (Array.isArray(value.attempts)) return value.attempts.join(" | ");
-      for (const nested of Object.values(value)) {
-        const readable = readableDetail(nested);
-        if (readable) return readable;
-      }
       return "";
     };
 
@@ -139,7 +130,7 @@ export async function loadLexwareArticles() {
 }
 
 export async function testConnections() {
-  const result = { cloudflare: false, lexware: false, pipedrive: false, drive: false, errors: {} };
+  const result = { cloudflare: false, lexware: false, pipedrive: false, hubspot: false, drive: false, errors: {} };
   const { url } = config();
 
   try {
@@ -174,6 +165,13 @@ export async function testConnections() {
     result.pipedrive = true;
   } catch (error) {
     result.errors.pipedrive = error.message;
+  }
+
+  try {
+    await api("/hubspot/test");
+    result.hubspot = true;
+  } catch (error) {
+    result.errors.hubspot = error.message;
   }
 
   return result;
@@ -372,3 +370,11 @@ export async function loadDriveBackup() {
 
 export async function loadPipedriveDealContext(dealId){return api(`/pipedrive/deals/${encodeURIComponent(dealId)}/context`);}
 export async function loadLexwareCustomerHistory(params={}){const q=new URLSearchParams();if(params.contactId)q.set("contactId",params.contactId);if(params.email)q.set("email",params.email);if(params.name)q.set("name",params.name);return api(`/lexware/customer-history?${q.toString()}`);}
+
+export async function migratePipedriveToHubSpot({ personId = "", dealId = "" } = {}) {
+  return api("/hubspot/migrate-pipedrive", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ personId, dealId })
+  });
+}

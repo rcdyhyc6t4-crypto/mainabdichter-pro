@@ -1,19 +1,19 @@
 import { state, saveState, resetVisit, resetSettings, loadArchive, saveArchive, archiveCurrentOffer, deleteArchiveRecord, replaceArchive, createFullBackupPayload, restoreFullBackupPayload, mergeFullBackupPayload, backupHasBusinessData, loadCustomers, loadCommunicationNotes, saveCommunicationNote, loadEmailInboxState, saveEmailInboxState } from "./storage-v227.js";
 import { DEFAULTS, createArea } from "./defaults-v227.js";
-import { calculateOffer, calculateMeasure, calculatePriceStrategies, expandMeasuresForArea, calculateSurfaceBarrierPlan } from "./calculator-v227.js?v=32.23.0";
+import { calculateOffer, calculateMeasure, calculatePriceStrategies } from "./calculator-v227.js";
 import { $, eur, num, esc, showStatus, bindSpeechButtons, parseDecimal, formatDecimalInput } from "./utils-v227.js";
-import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js";
+import { hasConnectionConfig, normalizeWorkerUrl, searchPipedrive, loadPipedrivePerson, searchLexwareCustomers, loadLexwareCustomer, loadLexwareArticles, testConnections, createLexwareQuotation, createLexwareInvoiceDraft, createPipedrivePerson, loadPipedriveActivities, createPipedriveActivity, completePipedriveActivity, loadGmailInbox, lookupGermanLocalities, lookupGermanStreets, loadAcceptedLexwareQuotation, loadLexwareQuotations,loadPipedriveDealContext,loadLexwareCustomerHistory, loadPipedriveDealFields, loadPipedrivePersonFields, loadPipedriveStages, syncPipedriveDeal, addPipedriveDealNote, addPipedrivePersonNote, uploadPipedriveDealFile, uploadDriveVisitDocument, saveDriveBackup, loadDriveBackup } from "./api-v227.js?v=32.20.0";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { compressImage, recognizeScreenshot, parseInquiryText } from "./importer-v227.js";
-import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical, surfaceInjectionPlan, injectionHoleInfo } from "./construction.js?v=32.23.0";
+import { loadWorksites, saveWorksite as persistWorksite, getWorksite, deleteWorksite, createWorksiteFromVisit, createWorksiteFromLexwareQuotation, workDurationMinutes, worksiteMaterialTotals, recalculateWorksiteTask, taskUsesHz, taskUsesHs, taskUsesResin, taskIsTechnical } from "./construction.js?v=32.19.9";
 import { FIELD_DEFINITIONS, STAGE_DEFINITIONS, autoMapFields, autoMapStages, addSyncLog, visitSyncValues, worksiteSyncValues, stageId } from "./pipedrive-sync-v227.js";
-import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.22.2";
+import { createWorksitePdf, createVisitPdf, createLexofficeLetterheadPdf, downloadBlob } from "./pdf.js?v=32.7.8";
 import { getDocumentProfile } from "./document-profile.js?v=32.7.8";
 import { addWorksiteAttachment, listWorksiteAttachments, updateWorksiteAttachment, deleteWorksiteAttachment, safeAttachmentFilename } from "./attachments-v227.js";
-import { stageVisitPhoto, localPhotoUrl, resolveVisitPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.22.6";
+import { stageVisitPhoto, localPhotoUrl, syncPendingVisitPhotos, hydrateDrivePhotoImages, migrateEmbeddedVisitPhotos } from "./drive-photos.js?v=32.7.8";
 import { stageVisitDocument, syncPendingVisitDocuments, deleteQueuedVisitDocument } from "./drive-documents.js";
 import { stageWorksitePhoto, deleteWorksitePhoto, hydrateWorksitePhotoImages, syncWorksitePhotos, migrateEmbeddedWorksitePhotos } from "./worksite-photos.js?v=32.7.8";
-import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.22.2";
+import { createWallMeasurementGrid, measurementPointState, wallSurveyProgress } from "./wall-survey.js?v=32.19.9";
 
 function configuredEmployees() {
   const stored = Array.isArray(state.settings.employees) ? state.settings.employees : [];
@@ -38,7 +38,7 @@ function renderEmployeeSelect(id, selected = "") {
 }
 
 
-const MAINABDICHTER_APP_VERSION = "32.23.0";
+const MAINABDICHTER_APP_VERSION = "32.19.9";
 window.MAINABDICHTER_APP_VERSION = MAINABDICHTER_APP_VERSION;
 const MAINABDICHTER_WORKER_URL = "https://mainabdichter-api.cmww7htry5.workers.dev";
 
@@ -332,18 +332,13 @@ function customerName(customer) {
     .filter(Boolean).join(" ") || customer?.company || "Kunde";
 }
 
-async function ensurePipedrivePerson(customer, knownPersonId = "") {
-  const pipedriveId = String(knownPersonId || customer?.pipedriveId || "").trim();
-  if (pipedriveId) {
-    customer.pipedriveId = pipedriveId;
-    return pipedriveId;
-  }
+async function ensurePipedrivePerson(customer) {
+  if (customer?.pipedriveId) return String(customer.pipedriveId);
   const postalAddress = [
     customer?.street || "",
     [customer?.zip || "", customer?.city || ""].filter(Boolean).join(" ")
   ].filter(Boolean).join(", ");
   const response = await createPipedrivePerson({
-    pipedriveId,
     name: customerName(customer),
     email: customer?.email || "",
     phone: customer?.phone || "",
@@ -475,7 +470,7 @@ async function uploadWorksiteAttachments(worksite) {
 }
 
 async function syncWorksiteDeal(worksite, stageKey = null, pdf = null, uploadAttachments = true) {
-  const personId = await ensurePipedrivePerson(worksite.customer, worksite.pipedrivePersonId);
+  const personId = worksite.pipedrivePersonId || await ensurePipedrivePerson(worksite.customer);
   worksite.pipedrivePersonId = personId;
   const completeNotes = (worksite.tasks || [])
     .map(task => `<strong>${esc(task.areaName || "Bereich")} – ${esc(task.type || "Leistung")}</strong><br>${esc(task.actualNote || task.note || "ausgeführt").replace(/\n/g, "<br>")}`)
@@ -1132,72 +1127,6 @@ async function openPipedriveAppointment(item) {
   } catch(error) { alert(error.message); }
 }
 
-function appointmentCategory(item) {
-  const text=`${item?.subject||""} ${item?.type||""} ${item?.note||""}`.toLowerCase();
-  if(/ausführung|ausfuehrung|baustelle|montage|abdichtungsarbeiten|arbeitsbeginn/.test(text)) return "worksite";
-  if(/nachkontrolle|kontrolle|überprüf/.test(text)) return "followup";
-  if(/reklamation|mangel|nachbesser|wieder feucht/.test(text)) return "complaint";
-  if(/abhol|flasche|material/.test(text)) return "pickup";
-  return "visit";
-}
-
-function normalizedAppointmentText(value) {
-  return String(value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-}
-
-function findAppointmentWorksite(item) {
-  const dealId=String(item?.dealId||"");
-  const personId=String(item?.personId||"");
-  const person=normalizedAppointmentText(item?.personName);
-  const location=normalizedAppointmentText(item?.location);
-  return loadWorksites()
-    .filter(worksite=>worksite.status!=="completed")
-    .map(worksite=>{
-      let score=0;
-      if(dealId && dealId===String(worksite.pipedriveDealId||worksite.customer?.pipedriveDealId||"")) score+=100;
-      if(personId && personId===String(worksite.pipedrivePersonId||worksite.customer?.pipedriveId||"")) score+=60;
-      const worksiteName=normalizedAppointmentText(worksiteCustomerName(worksite));
-      const worksiteAddress=normalizedAppointmentText(worksite.objectAddress);
-      if(person && worksiteName && (person.includes(worksiteName)||worksiteName.includes(person))) score+=35;
-      if(location && worksiteAddress && (location.includes(worksiteAddress)||worksiteAddress.includes(location))) score+=45;
-      if(item?.dueDate && worksite.date===item.dueDate) score+=15;
-      return {worksite,score};
-    })
-    .filter(match=>match.score>=35)
-    .sort((a,b)=>b.score-a.score)[0]?.worksite||null;
-}
-
-async function openAppointmentTarget(item) {
-  if(!item) return;
-  const category=appointmentCategory(item);
-  if(category==="worksite" || category==="pickup"){
-    const worksite=findAppointmentWorksite(item);
-    v287SetModal("v287AppointmentsModal",false);
-    v287SetModal("appointmentCompleteModal",false);
-    worksiteViewFilter="all";
-    if(worksite){
-      activeWorksiteId=worksite.id;
-      sessionStorage.setItem("mainabdichter_active_worksite_section",WORKSITE_SECTION_ORDER[0]);
-      show("worksites");
-      renderWorksites();
-      return;
-    }
-    activeWorksiteId=null;
-    show("worksites");
-    renderWorksites();
-    alert(`Der Termin „${item.subject||"Ausführung"}“ ist als ${category==="pickup"?"Abholung":"Ausführung"} erkannt, konnte aber keiner vorhandenen Baustelle eindeutig zugeordnet werden. Die Baustellenübersicht wurde geöffnet.`);
-    return;
-  }
-  await openPipedriveAppointment(item);
-  if(category==="followup"||category==="complaint"){
-    state.visit.recordContext||={};
-    state.visit.recordContext.caseType=category==="followup"?"Nachkontrolle":"Reklamation";
-    state.visit.inquiry.source=state.visit.recordContext.caseType;
-    saveState();
-    renderVisit();
-  }
-}
-
 function renderUpcomingAppointments() {
   const items=cachedUpcomingPipedriveActivities;
   const next=items[0];
@@ -1213,15 +1142,11 @@ function renderUpcomingAppointments() {
   }
   const list=$("v287AppointmentsList");
   if (!list) return;
-  list.innerHTML=items.length?items.map(item=>`<article class="v287-appointment-item">
-    <button type="button" class="v287-appointment-row" data-v287-appointment="${esc(String(item.id||""))}">
-      <span class="v287-appointment-date"><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(formatPipedriveAppointmentDate(item.dueDate))}</small></span>
-      <span><strong>${esc(item.personName||item.subject||"Termin")}</strong><small>${esc(item.subject||item.type||"Pipedrive-Termin")}${item.location?` · ${esc(item.location)}`:""}</small></span><em>›</em>
-    </button>
-    <button type="button" class="secondary v287-appointment-complete" data-complete-appointment="${esc(String(item.id||""))}">Termin erledigen</button>
-  </article>`).join(""):'<div class="empty-mini">Keine kommenden offenen Pipedrive-Termine vorhanden.</div>';
-  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openAppointmentTarget(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
-  list.querySelectorAll("[data-complete-appointment]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.completeAppointment)));
+  list.innerHTML=items.length?items.map(item=>`<button type="button" class="v287-appointment-row" data-v287-appointment="${esc(String(item.id||""))}">
+    <span class="v287-appointment-date"><strong>${esc(item.dueTime||"ganztägig")}</strong><small>${esc(formatPipedriveAppointmentDate(item.dueDate))}</small></span>
+    <span><strong>${esc(item.personName||item.subject||"Termin")}</strong><small>${esc(item.subject||item.type||"Pipedrive-Termin")}${item.location?` · ${esc(item.location)}`:""}</small></span><em>›</em>
+  </button>`).join(""):'<div class="empty-mini">Keine kommenden offenen Pipedrive-Termine vorhanden.</div>';
+  list.querySelectorAll("[data-v287-appointment]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.v287Appointment)));
   const todayBox=$("pipedriveTodayList");
   if (todayBox) todayBox.querySelectorAll("[data-activity-id]").forEach(button=>button.onclick=()=>openAppointmentCompletion(items.find(item=>String(item.id||"")===button.dataset.activityId)));
 }
@@ -1268,7 +1193,7 @@ async function syncAcceptedQuotationDashboard() {
       try {
         const data=await loadAcceptedLexwareQuotation(button.dataset.createLexwareWorksite);
         const ws=createWorksiteFromLexwareQuotation(state.settings,data.quotation);
-        const personId=await ensurePipedrivePerson(ws.customer, ws.pipedrivePersonId);
+        const personId=await ensurePipedrivePerson(ws.customer);
         ws.pipedrivePersonId=personId;
         const deal=await syncPipedriveDeal({
           personId,
@@ -1318,43 +1243,12 @@ function openBottleCount(task) {
   return Math.max(0, Number(task?.bottlesHanging || 0) - Number(task?.bottlesRetrieved || 0));
 }
 
-function ensureCentralWorksiteMaterialData(worksite) {
-  if (!worksite) return worksite;
-  const tasks = worksite.tasks || [];
-  const firstValue = field => tasks.map(task => String(task?.[field] || "").trim()).find(Boolean) || "";
-  if (worksite.chargeHz === undefined) worksite.chargeHz = firstValue("chargeHz");
-  if (worksite.chargeHz2 === undefined) worksite.chargeHz2 = "";
-  if (worksite.chargeHs === undefined) worksite.chargeHs = firstValue("chargeHs");
-  if (worksite.chargeHs2 === undefined) worksite.chargeHs2 = "";
-  if (worksite.chargeResin === undefined) worksite.chargeResin = firstValue("chargeResin");
-  if (worksite.chargeResin2 === undefined) worksite.chargeResin2 = "";
-  if (worksite.bottlesHanging === undefined) {
-    worksite.bottlesHanging = tasks.reduce((sum, task) => sum + Number(task.bottlesHanging || 0), 0);
-  }
-  if (worksite.bottlesRetrieved === undefined) {
-    worksite.bottlesRetrieved = tasks.reduce((sum, task) => sum + Number(task.bottlesRetrieved || 0), 0);
-  }
-  if (worksite.bottlesArea === undefined) {
-    worksite.bottlesArea = tasks.map(task => String(task.bottlesArea || "").trim()).filter(Boolean).join(", ");
-  }
-  if (worksite.bottlesPickupDue === undefined) {
-    worksite.bottlesPickupDue = tasks.map(task => task.bottlesPickupDue).filter(Boolean).sort()[0] || "";
-  }
-  if (worksite.bottlesRetrievedAt === undefined) worksite.bottlesRetrievedAt = "";
-  if (worksite.bottlesPickupNote === undefined) worksite.bottlesPickupNote = "";
-  return worksite;
-}
-
-function worksiteOpenBottleCount(worksite) {
-  ensureCentralWorksiteMaterialData(worksite);
-  return Math.max(0, Number(worksite?.bottlesHanging || 0) - Number(worksite?.bottlesRetrieved || 0));
-}
-
 function bottleWorksites() {
   return loadWorksites().map(worksite => {
-    ensureCentralWorksiteMaterialData(worksite);
-    const count = worksiteOpenBottleCount(worksite);
-    return { worksite, tasks:worksite.tasks || [], count, dueDate:worksite.bottlesPickupDue || "" };
+    const tasks = (worksite.tasks || []).filter(task => openBottleCount(task) > 0);
+    const count = tasks.reduce((sum, task) => sum + openBottleCount(task), 0);
+    const dueDates = tasks.map(task => task.bottlesPickupDue).filter(Boolean).sort();
+    return { worksite, tasks, count, dueDate: dueDates[0] || "" };
   }).filter(item => item.count > 0);
 }
 
@@ -1461,14 +1355,7 @@ function renderV28Dashboard() {
   const first = active[0];
   const photo = first?.tasks?.flatMap(task => task.photos || [])[0]?.src;
   $("v28WorksitePreview").innerHTML = photo ? `<img src="${photo}" alt="Baustelle">` : "";
-  const bottles = worksites.reduce((result, worksite) => {
-    const count = worksiteOpenBottleCount(worksite);
-    if (count) {
-      result.count += count;
-      result.sites++;
-    }
-    return result;
-  }, {count:0, sites:0});
+  const bottles = worksites.reduce((r,w)=>{const c=(w.tasks||[]).reduce((s,t)=>s+Math.max(0,Number(t.bottlesHanging||0)-Number(t.bottlesRetrieved||0)),0);if(c){r.count+=c;r.sites++}return r},{count:0,sites:0});
   $("v28BottleCount").textContent = bottles.count;
   $("v28BottleSites").textContent = `Auf ${bottles.sites} Baustellen`;
   const products = v28InventoryProducts().slice(0, 3);
@@ -1554,13 +1441,17 @@ function v287RenderBottleList() {
     button.onclick = () => {
       const ws = getWorksite(button.dataset.v287Collected);
       if (!ws) return;
-      ensureCentralWorksiteMaterialData(ws);
-      const total = worksiteOpenBottleCount(ws);
+      const total = (ws.tasks || []).reduce((sum, task) => sum + openBottleCount(task), 0);
       if (!total) return;
       if (!confirm(`${total} Flaschen bei ${worksiteCustomerName(ws)} als abgeholt bestätigen?`)) return;
 
-      ws.bottlesRetrieved = Number(ws.bottlesHanging || 0);
-      ws.bottlesRetrievedAt = new Date().toISOString();
+      (ws.tasks || []).forEach(task => {
+        const open = openBottleCount(task);
+        if (open > 0) {
+          task.bottlesRetrieved = Number(task.bottlesHanging || 0);
+          task.bottlesRetrievedAt = new Date().toISOString();
+        }
+      });
       persistWorksite(ws);
       renderV28Dashboard();
       v287RenderBottleList();
@@ -1673,7 +1564,7 @@ function initializeV28Dashboard() {
   if ($("openAppointmentRecord")) $("openAppointmentRecord").onclick = () => {
     const item = selectedAppointmentItem;
     v287SetModal("appointmentCompleteModal", false);
-    openAppointmentTarget(item);
+    openPipedriveAppointment(item);
   };
   if ($("closeAppointmentComplete")) $("closeAppointmentComplete").onclick = () => v287SetModal("appointmentCompleteModal", false);
   if ($("appointmentCompleteModal")) $("appointmentCompleteModal").onclick = event => {
@@ -1717,7 +1608,7 @@ function initializeV28Dashboard() {
     document.body.classList.toggle("resource-modal-open", open);
   };
   if ($("v28FloatingAdd")) $("v28FloatingAdd").onclick=()=>setNewInquiryModal(true);
-  const openSmartAppointment = () => {
+  if ($("v28SmartAppointment")) $("v28SmartAppointment").onclick=()=>{
     smartAppointmentDraft=null;
     smartAppointmentPerson=null;
     $("smartAppointmentText").value="";
@@ -1729,7 +1620,6 @@ function initializeV28Dashboard() {
     v287SetModal("smartAppointmentModal",true);
     window.setTimeout(()=>$("smartAppointmentText")?.focus(),50);
   };
-  if ($("v28SmartAppointment")) $("v28SmartAppointment").onclick=openSmartAppointment;
   if ($("closeSmartAppointment")) $("closeSmartAppointment").onclick=()=>v287SetModal("smartAppointmentModal",false);
   if ($("analyzeSmartAppointment")) $("analyzeSmartAppointment").onclick=analyzeSmartAppointment;
   if ($("smartSearchCustomer")) $("smartSearchCustomer").onclick=searchSmartAppointmentCustomer;
@@ -1743,15 +1633,6 @@ function initializeV28Dashboard() {
     setNewInquiryModal(false);
     openInquiryImport();
   };
-  if ($("newCustomerFromPlus")) $("newCustomerFromPlus").onclick=()=>{
-    setNewInquiryModal(false);
-    show("customers");
-    window.setTimeout(()=>$("customerCreateNew")?.click(),50);
-  };
-  if ($("newAppointmentFromPlus")) $("newAppointmentFromPlus").onclick=()=>{
-    setNewInquiryModal(false);
-    openSmartAppointment();
-  };
   if ($("newInquiryExisting")) $("newInquiryExisting").onclick=()=>{
     setNewInquiryModal(false);
     show("customers");
@@ -1763,10 +1644,6 @@ function initializeV28Dashboard() {
   if ($("newInquiryManual")) $("newInquiryManual").onclick=()=>{
     setNewInquiryModal(false);
     startNewVisit();
-  };
-  if ($("newWorksiteFromPlus")) $("newWorksiteFromPlus").onclick=()=>{
-    setNewInquiryModal(false);
-    openAcceptedOffers();
   };
   if ($("newWorkReportDirect")) $("newWorkReportDirect").onclick=()=>{
     setNewInquiryModal(false);
@@ -2001,24 +1878,12 @@ function openDirectWorkReportStart(){
 const VISIT_EXPLICIT_SAVEPOINT_KEY = "mainabdichter_visit_explicit_savepoint_v1";
 
 function saveVisitExplicitSavepoint() {
-  const compactVisit = JSON.parse(JSON.stringify(state.visit));
-  for (const area of compactVisit.areas || []) {
-    if (area.wallSurvey?.sourcePhotoId) delete area.wallSurvey.photoData;
-    if (area.wallSurvey?.documentPhotoId) delete area.wallSurvey.annotatedImageData;
-  }
-  try {
-    localStorage.setItem(VISIT_EXPLICIT_SAVEPOINT_KEY, JSON.stringify({
-    visit: compactVisit,
+  localStorage.setItem(VISIT_EXPLICIT_SAVEPOINT_KEY, JSON.stringify({
+    visit: state.visit,
     discount: state.discount,
     activeArchiveId,
     savedAt: new Date().toISOString()
-    }));
-  } catch (error) {
-    if (error?.name !== "QuotaExceededError") throw error;
-    // Der normale Vorgang ist bereits gespeichert; diese zusätzliche
-    // Wiederherstellungskopie darf die App nicht blockieren.
-    localStorage.removeItem(VISIT_EXPLICIT_SAVEPOINT_KEY);
-  }
+  }));
 }
 
 function restoreVisitExplicitSavepoint() {
@@ -2452,12 +2317,6 @@ window.addEventListener("mainabdichter:use-customer", event => {
   show("visit");
   showStatus("visitStatus", "Kunde wurde in die Besichtigung übernommen.", true);
 });
-window.addEventListener("mainabdichter:open-visit-record", event => {
-  const archiveId = String(event.detail?.archiveId || "");
-  if (!archiveId || !loadArchive().some(record => String(record.id) === archiveId)) return;
-  loadArchiveRecord(archiveId, false, "visit");
-  showStatus("visitStatus", "Gespeicherte Besichtigung geöffnet. Änderungen werden wieder in diesem Vorgang gespeichert.", true);
-});
 function updateBackupTime(){ const raw=localStorage.getItem("mainabdichter_v14_last_backup"); if(!$("lastBackupTime")) return; $("lastBackupTime").textContent=raw?new Date(raw).toLocaleString("de-DE"):"Noch keine Sicherung"; }
 if ($("archiveSearch")) $("archiveSearch").oninput = renderArchive;
 if ($("archiveFilter")) $("archiveFilter").onchange = renderArchive;
@@ -2870,9 +2729,6 @@ const VISIT_REQUIREMENT_DEFINITIONS = [
   {group:"Schadensbereiche",key:"wallThickness",label:"Wandstärke",legacy:"wall"},
   {group:"Schadensbereiche",key:"wallType",label:"Wandart",defaultRequired:false},
   {group:"Schadensbereiche",key:"earthContact",label:"Erdkontakt",defaultRequired:false},
-  {group:"Flächensperre",key:"earthContactHeight",label:"Höhe des außen anliegenden Erdreichs",defaultRequired:false},
-  {group:"Flächensperre",key:"drillableHeight",label:"Raumhöhe oder maximal ausführbare Bohrhöhe",defaultRequired:false},
-  {group:"Flächensperre",key:"surfaceHeightLimit",label:"Baulich begrenzte Bohrhöhe bestätigen",defaultRequired:false},
   {group:"Schadensbereiche",key:"wallCover",label:"Wandbelag",defaultRequired:false},
   {group:"Feuchtemessung",key:"dryReference",label:"Referenzwert trocken",defaultRequired:false},
   {group:"Feuchtemessung",key:"measurement",label:"Mindestens ein Messpunkt",legacy:"measurement"},
@@ -2889,96 +2745,30 @@ function visitRequirementEnabled(key){
   if(definition?.legacy&&Object.prototype.hasOwnProperty.call(stored,definition.legacy))return stored[definition.legacy]!==false;
   return definition?.defaultRequired!==false;
 }
-function visitRequirementSkipped(key){
-  return Boolean(state.visit.notRelevantRequirements?.[key]);
-}
-function setVisitRequirementSkipped(key,skipped=true){
-  state.visit.notRelevantRequirements||={};
-  if(skipped)state.visit.notRelevantRequirements[key]={at:new Date().toISOString()};
-  else delete state.visit.notRelevantRequirements[key];
-  saveState();
-  updateVisitGuide();
-}
 function customerIsSelected(){const c=state.visit.customer||{};return Boolean(c.pipedriveId||c.lexwareContactId||c.firstName||c.lastName||c.company);}
 function measureCompletion(measure={}){
   const type=String(measure.type||"");
-  if(!type)return{details:false,confirmed:false,missing:"Maßnahme auswählen",missingField:"type"};
+  if(!type)return{details:false,confirmed:false,missing:"Maßnahme auswählen"};
   const wall=parseDecimal(measure.wall);
   const length=parseDecimal(measure.length);
   const width=parseDecimal(measure.width);
   const height=parseDecimal(measure.height);
   if(type==="Flächensperre"){
-    if(width<=0)return{details:false,confirmed:false,missing:"Laufmeter der Wand eingeben",missingField:"width"};
-    if(height<=0)return{details:false,confirmed:false,missing:"Höhe der Fläche eingeben",missingField:"height"};
+    if(width<=0)return{details:false,confirmed:false,missing:"Laufmeter der Wand eingeben"};
+    if(height<=0)return{details:false,confirmed:false,missing:"Höhe der Fläche eingeben"};
   }else if(length<=0){
-    return{details:false,confirmed:false,missing:"Laufmeter eingeben",missingField:"length"};
+    return{details:false,confirmed:false,missing:"Laufmeter eingeben"};
   }
-  if(type!=="Harzverpressung"&&wall<=0)return{details:false,confirmed:false,missing:"Wandstärke eingeben",missingField:"wall"};
-  const needsHorizontalBarrier=type!=="Wand-Sohlen-Anschluss"||!measure.wallSoleHorizontalNotRequired;
-  if(["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(type)&&needsHorizontalBarrier&&![.125,.25].includes(parseDecimal(measure.spacing))){
-    return{details:false,confirmed:false,missing:"Bohrlochabstand auswählen",missingField:"spacing"};
+  if(type!=="Harzverpressung"&&wall<=0)return{details:false,confirmed:false,missing:"Wandstärke eingeben"};
+  if(["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(type)&&![.125,.25].includes(parseDecimal(measure.spacing))){
+    return{details:false,confirmed:false,missing:"Bohrlochabstand auswählen"};
   }
   if(type==="Harzverpressung"&&(parseDecimal(measure.resinHolesPerMeter)<10||parseDecimal(measure.resinHolesPerMeter)>20)){
-    return{details:false,confirmed:false,missing:"Bohrlöcher je Laufmeter prüfen",missingField:"resinHolesPerMeter"};
+    return{details:false,confirmed:false,missing:"Bohrlöcher je Laufmeter prüfen"};
   }
-  return{details:true,confirmed:Boolean(measure.confirmed),missing:measure.confirmed?"":"Maßnahme bestätigen",missingField:measure.confirmed?"":"confirmed"};
+  return{details:true,confirmed:Boolean(measure.confirmed),missing:measure.confirmed?"":"Maßnahme bestätigen"};
 }
-
-function measureFieldClass(completion, field, measure){
-  const groupKey=completion.details?'measureConfirmed':'measureDetails';
-  if(measure&&visitRequirementSkipped(`${groupKey}:${measure.id}`))return'';
-  return completion.missingField===field?' measure-field-missing':'';
-}
-
-function focusMissingMeasure(measureId, missingField){
-  const escapedId=CSS.escape(String(measureId||""));
-  const selector=missingField==="confirmed"
-    ? `[data-confirm-measure="${escapedId}"]`
-    : `[data-measure="${escapedId}"][data-mfield="${CSS.escape(String(missingField||"type"))}"]`;
-  const field=document.querySelector(selector)||document.querySelector(`[data-measure-missing="${escapedId}"]`);
-  if(!field)return;
-  field.scrollIntoView({behavior:"smooth",block:"center"});
-  field.classList.add("field-jump-highlight");
-  if(typeof field.focus==="function")field.focus({preventScroll:true});
-  window.setTimeout(()=>field.classList.remove("field-jump-highlight"),2200);
-}
-
-function renderMeasureMissingOverview(){
-  const box=$("measureMissingOverview");
-  if(!box)return;
-  const missing=[];
-  const skipped=[];
-  guideChecks().filter(check=>check.step===4&&check.required&&!check.valid&&!check.skipped&&!['measureDetails','measureConfirmed'].includes(check.key)).forEach(check=>missing.push({
-    area:"Prüfpunkt Maßnahmen",measure:check.label,key:check.key,selector:check.selector,text:"Angabe fehlt"
-  }));
-  (state.visit.areas||[]).forEach((area,areaIndex)=>(area.measures||[]).forEach((measure,measureIndex)=>{
-    const completion=measureCompletion(measure);
-    if(completion.confirmed)return;
-    const groupKey=completion.details?'measureConfirmed':'measureDetails';
-    const key=`${groupKey}:${measure.id}`;
-    const item={
-      area:area.name||`Schadensbereich ${areaIndex+1}`,
-      measure:`Maßnahme ${measureIndex+1}${measure.type?` – ${measure.type}`:""}`,
-      id:measure.id,
-      field:completion.missingField,
-      key,
-      text:completion.missing
-    };
-    if(visitRequirementSkipped(key))skipped.push(item);else missing.push(item);
-  }));
-  box.classList.toggle("hidden",missing.length===0&&skipped.length===0);
-  box.innerHTML=`${missing.length?`<strong>⛔ Hier fehlt noch etwas:</strong>${missing.map(item=>`<div class="measure-missing-row"><button type="button" data-open-missing-measure="${esc(item.id||"")}" data-missing-field="${esc(item.field||"")}" data-missing-selector="${esc(item.selector||"")}"><span>${esc(item.area)} · ${esc(item.measure)}</span><b>${esc(item.text)} →</b></button><button type="button" class="measure-skip-button" data-skip-visit-check="${esc(item.key)}">Nicht relevant / überspringen</button></div>`).join("")}`:""}${skipped.length?`<strong class="measure-skipped-title">Bewusst übersprungen:</strong>${skipped.map(item=>`<button type="button" class="measure-restore-button" data-restore-visit-check="${esc(item.key)}"><span>${esc(item.area)} · ${esc(item.measure)}</span><b>↩ wieder prüfen</b></button>`).join("")}`:""}`;
-  box.querySelectorAll("[data-open-missing-measure]").forEach(button=>button.onclick=()=>{
-    if(button.dataset.openMissingMeasure)focusMissingMeasure(button.dataset.openMissingMeasure,button.dataset.missingField);
-    else{const field=document.querySelector(button.dataset.missingSelector);if(field){field.scrollIntoView({behavior:"smooth",block:"center"});field.classList.add("field-jump-highlight");window.setTimeout(()=>field.classList.remove("field-jump-highlight"),2200);}}
-  });
-  box.querySelectorAll("[data-skip-visit-check]").forEach(button=>button.onclick=()=>{
-    setVisitRequirementSkipped(button.dataset.skipVisitCheck,true);
-    showStatus('visitStatus','Prüfpunkt wurde für diese Besichtigung als nicht relevant markiert.',true);
-  });
-  box.querySelectorAll("[data-restore-visit-check]").forEach(button=>button.onclick=()=>setVisitRequirementSkipped(button.dataset.restoreVisitCheck,false));
-}
-function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]),surfaceAreas=areas.filter(x=>x.earthContact==="erdberührt"&&!areaHasWuConcrete(x)&&(x.measures||[]).some(m=>m.type==="Flächensperre")),limitedSurfaceAreas=surfaceAreas.filter(x=>surfacePlanForArea(x)?.heightLimited),measures=areas.flatMap(x=>areaHasWuConcrete(x)?(x.measures||[]).filter(m=>!["Horizontalsperre","Flächensperre"].includes(m.type)):(x.measures||[]));return[
+function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||{},areas=state.visit.areas||[],measurements=areas.flatMap(x=>x.measurements||[]),measures=areas.flatMap(x=>x.measures||[]);return[
  {key:"visitEmployee",label:"Mitarbeiter auswählen",valid:Boolean(String(state.visit.visitEmployee||"").trim()),step:0,selector:"#visitEmployee"},
  {key:"visitStartTime",label:"Besichtigung beginnen",valid:Boolean(state.visit.visitStartTime),step:0,selector:"#startVisitWork"},
  {key:"visitEndTime",label:"Besichtigung beenden",valid:Boolean(state.visit.visitEndTime),step:7,selector:"#endVisitWork"},
@@ -3004,9 +2794,6 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"wallThickness",label:"Wandstärke",valid:areas.length>0&&areas.every(x=>x.wallThickness),step:4,selector:'[data-field="wallThickness"]'},
  {key:"wallType",label:"Wandart",valid:areas.length>0&&areas.every(x=>x.wallType),step:4,selector:'[data-field="wallType"]'},
  {key:"earthContact",label:"Erdkontakt",valid:areas.length>0&&areas.every(x=>x.earthContact),step:4,selector:'[data-field="earthContact"]'},
- {key:"earthContactHeight",label:"Außen anliegendes Erdreich über OK Fußboden eingeben",valid:surfaceAreas.every(x=>parseDecimal(x.earthContactHeightCm)>0),step:4,selector:'[data-field="earthContactHeightCm"]',requiredOverride:surfaceAreas.length>0},
- {key:"drillableHeight",label:"Raumhöhe oder maximal ausführbare Bohrhöhe eingeben",valid:surfaceAreas.every(x=>parseDecimal(x.maxDrillHeightCm)>0||parseDecimal(x.roomHeightCm)>0||parseDecimal(x.wallSurvey?.height)>0),step:4,selector:'[data-field="roomHeightCm"], [data-field="maxDrillHeightCm"]',requiredOverride:surfaceAreas.length>0},
- {key:"surfaceHeightLimit",label:"Ausführung der nicht erreichbaren Reihen auswählen",valid:limitedSurfaceAreas.every(x=>surfacePlanForArea(x)?.confirmed),step:4,selector:'[data-area-resolution]',requiredOverride:limitedSurfaceAreas.length>0},
  {key:"wallCover",label:"Wandbelag",valid:areas.length>0&&areas.every(x=>x.wallCover),step:4,selector:'[data-field="wallCover"]'},
  {key:"dryReference",label:"Referenzwert trocken",valid:areas.length>0&&areas.every(x=>String(x.dryReference||"").trim()),step:4,selector:'[data-field="dryReference"]'},
  {key:"measurement",label:"Mindestens ein Messpunkt",valid:areas.length>0&&areas.every(x=>(x.measurements||[]).length>0),step:4,selector:'[data-add-measurement]'},
@@ -3015,9 +2802,9 @@ function guideChecks(){const c=state.visit.customer||{},b=state.visit.building||
  {key:"measurementHeight",label:"Messhöhe je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.height||"").trim()),step:4,selector:'[data-mf="height"]'},
  {key:"measurementLocation",label:"Messposition je Messpunkt",valid:measurements.length>0&&measurements.every(m=>String(m.location||"").trim()),step:4,selector:'[data-mf="location"]'},
  {key:"measure",label:"Mindestens eine Maßnahme",valid:measures.some(m=>m.type),step:4,selector:'[data-add-measure], [data-mfield="type"]'},
- {key:"measureDetails",label:"Menge und Ausführung je Maßnahme",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).details||visitRequirementSkipped(`measureDetails:${m.id}`)),step:4,selector:'[data-measure-missing]'},
- {key:"measureConfirmed",label:"Alle Maßnahmen geprüft",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).confirmed||visitRequirementSkipped(`measureConfirmed:${m.id}`)),step:4,selector:'[data-confirm-measure]'}
-].map(check=>{const required=check.requiredOverride??visitRequirementEnabled(check.key),skipped=visitRequirementSkipped(check.key);return{...check,required,skipped,ok:!required||check.valid||skipped};});}
+ {key:"measureDetails",label:"Menge und Ausführung je Maßnahme",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).details),step:4,selector:'[data-measure-missing]'},
+ {key:"measureConfirmed",label:"Alle Maßnahmen geprüft",valid:measures.some(m=>m.type)&&measures.filter(m=>m.type).every(m=>measureCompletion(m).confirmed),step:4,selector:'[data-confirm-measure]'}
+].map(check=>({...check,required:visitRequirementEnabled(check.key),ok:!visitRequirementEnabled(check.key)||check.valid}));}
 function offerBasisApproved(){return Boolean(state.visit.offerBasis?.approved);}
 function visitReviewFingerprint(){
   const visit=state.visit||{};
@@ -3080,14 +2867,10 @@ function renderVisitChecklist(){
   const box=$('visitChecklist');if(!box)return;
   const checks=guideChecks(),requiredChecks=checks.filter(x=>x.required);
   const complete=checks.every(x=>x.ok),reviewed=complete&&visitProtocolReviewed(),approved=reviewed&&offerBasisApproved();
-  box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>x.skipped
-    ? `<button type="button" class="checklist-row skipped" data-restore-check="${esc(x.key)}"><span>${esc(x.label)}</span><strong>↩ nicht relevant · wieder aktivieren</strong></button>`
-    : `<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';
+  box.innerHTML=requiredChecks.length?requiredChecks.map((x,i)=>`<button type="button" class="checklist-row ${x.ok?'ok':'missing'}" ${x.ok?'disabled':`data-missing-check="${i}"`}><span>${esc(x.label)}</span><strong>${x.ok?'✓ vollständig':'Antippen und ergänzen →'}</strong></button>`).join(''):'<div class="status ok">Für diese Besichtigung sind keine Pflichtangaben festgelegt.</div>';
   box.querySelectorAll("[data-missing-check]").forEach(button=>button.onclick=()=>jumpToVisitCheck(requiredChecks[Number(button.dataset.missingCheck)]));
-  box.querySelectorAll("[data-restore-check]").forEach(button=>button.onclick=()=>setVisitRequirementSkipped(button.dataset.restoreCheck,false));
-  $('finishVisitGuide').disabled=false;
-  $('finishVisitGuide').classList.toggle("needs-action",!approved);
-  if($("finishVisitReason"))$("finishVisitReason").textContent=!complete?"Noch Angaben offen – tippe auf „→ Angebot“.":!reviewed?"Tippe zuerst auf „✓ Prüfen“.":!approved?"Setze noch den grünen Haken bei der Freigabe.":"Fertig – Angebot kann geöffnet werden.";
+  $('finishVisitGuide').disabled=!approved;
+  if($("finishVisitReason"))$("finishVisitReason").textContent=!complete?"Noch nicht möglich: Pflichtangaben fehlen.":!reviewed?"Noch nicht möglich: Bitte zuerst „Protokoll prüfen“.":!approved?"Noch nicht möglich: Bitte die Angebotsgrundlage bestätigen.":"Alles vollständig – das Angebot kann geöffnet werden.";
   if($("offerBasisApproved"))$("offerBasisApproved").disabled=!reviewed;
   const basis=$("visitOfferBasis");
   if(basis){basis.classList.toggle("is-locked",!reviewed);if(!reviewed)basis.removeAttribute("open");}
@@ -3102,13 +2885,19 @@ function updateVisitGuide(){
     el.classList.toggle('is-incomplete',!stepComplete(i));
   });
   renderVisitChecklist();
-  renderMeasureMissingOverview();
 }
 
+let visitAutoAdvanceTimer = null;
 function scheduleVisitAutoAdvance() {
-  // Eingaben aktualisieren nur den aktuellen Abschnitt. Ein Wechsel erfolgt
-  // ausschließlich bewusst über „Speichern und weiter“ bzw. die Navigation.
-  updateVisitGuide();
+  clearTimeout(visitAutoAdvanceTimer);
+  visitAutoAdvanceTimer = setTimeout(() => {
+    if (!$("visit")?.classList.contains("active")) return;
+    const current = currentGuideStep();
+    if (current === 7) return;
+    const routePosition = MAIN_GUIDE_ROUTE.indexOf(current);
+    if (routePosition < 0 || routePosition >= MAIN_GUIDE_ROUTE.length - 1 || !stepComplete(current)) return;
+    openGuideStep(MAIN_GUIDE_ROUTE[routePosition + 1]);
+  }, 850);
 }
 $("visit")?.addEventListener("input", scheduleVisitAutoAdvance);
 $("visit")?.addEventListener("change", scheduleVisitAutoAdvance);
@@ -3791,7 +3580,6 @@ function toggleClimateFields() {
 }
 
 function generateRecommendationText() {
-  const wallSoleMeasures=state.visit.areas.flatMap(area=>area.measures||[]).filter(measure=>measure.type==="Wand-Sohlen-Anschluss");
   const selected = new Set(
     state.visit.areas.flatMap(area => area.measures.map(measure => measure.type))
   );
@@ -3811,10 +3599,8 @@ function generateRecommendationText() {
   }
 
   if (selected.has("Wand-Sohlen-Anschluss")) {
-    const requiresHorizontal=wallSoleMeasures.some(measure=>!measure.wallSoleHorizontalNotRequired);
-    const hasWuException=wallSoleMeasures.some(measure=>measure.wallSoleHorizontalNotRequired);
     parts.push(
-      `Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht.${requiresHorizontal?" Die technisch notwendige Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro wird als separate Leistungsposition angeboten.":""}${hasWuException?" Im ausdrücklich als WU-Beton gekennzeichneten Bereich ist keine zusätzliche Horizontalsperre erforderlich.":""} Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet.`
+      "Im Bereich des Wand-Sohlen-Anschlusses wird der vorhandene Estrich auf einer Breite von mindestens ca. 15–20 cm von der Wand bis zur Bodenplatte geöffnet. Anschließend wird der Anschlussbereich gereinigt, eine Dichtkehle hergestellt und ein Dichtmörtel bis mindestens 15 cm über eine vorhandene Sperrbahn aufgebracht. Im Anschluss wird zusätzlich eine Horizontalsperre im Injektionsverfahren mit BKM HZ 250 Pro eingebracht. Diese Maßnahme erfolgt grundsätzlich im Ausschlussverfahren. Nach einer angemessenen Standzeit wird geprüft, ob die ausgeführten Maßnahmen ausreichend waren. Sollte weiterhin Feuchtigkeit über einzelne Bereiche eindringen, wird eine Harzverpressung ausschließlich in den technisch erforderlichen Bereichen ausgeführt und nach dem tatsächlich notwendigen Umfang abgerechnet."
     );
   }
 
@@ -3928,10 +3714,6 @@ async function drawWallSurveyCornerCanvas() {
     context.textBaseline = "middle";
     context.fillText(String(index + 1), x, y);
   });
-  updateWallSurveyCornerControls();
-}
-
-function updateWallSurveyCornerControls() {
   const next = wallSurveyCornerDraft.length;
   $("wallSurveyCornerHint").textContent = next < 4
     ? `${next + 1}. Ecke ${WALL_CORNER_NAMES[next]} antippen${wallSurveyNextCornerEstimated ? " · verdeckt/geschätzt" : ""}`
@@ -3967,7 +3749,6 @@ function startWallSurveyCornerPointer(event) {
   } else return;
   wallSurveyNextCornerEstimated = false;
   event.currentTarget.setPointerCapture?.(event.pointerId);
-  updateWallSurveyCornerControls();
   drawWallSurveyCornerCanvas();
 }
 
@@ -4141,10 +3922,6 @@ async function useWallSurveyPhoto(file) {
   if (!file) return;
   const area = activeWallSurveyArea();
   area.wallSurvey ||= { points:[] };
-  const sourcePhoto = await stageVisitPhoto(file, area);
-  sourcePhoto.caption = "Originalfoto der geführten Wandmessung";
-  sourcePhoto.show = false;
-  area.wallSurvey.sourcePhotoId = sourcePhoto.id;
   area.wallSurvey.photoData = await compressImage(file, 1200);
   area.wallSurvey.corners = [];
   area.wallSurvey.points = [];
@@ -4156,15 +3933,11 @@ async function useWallSurveyPhoto(file) {
   saveState();
 }
 
-async function openWallSurvey(areaId) {
+function openWallSurvey(areaId) {
   activeWallSurveyAreaId = areaId;
   activeWallSurveyPointId = "";
   const area = activeWallSurveyArea();
   area.wallSurvey ||= { photoData:"", width:"", height:"", points:[], createdAt:new Date().toISOString() };
-  if (!area.wallSurvey.photoData && area.wallSurvey.sourcePhotoId) {
-    const sourcePhoto = (area.photos || []).find(photo => photo.id === area.wallSurvey.sourcePhotoId);
-    area.wallSurvey.photoData = await resolveVisitPhotoUrl(sourcePhoto);
-  }
   wallSurveyCornerDraft = [...(area.wallSurvey.corners || [])].map(point => ({...point}));
   $("wallSurveyDialog").classList.remove("hidden");
   $("wallSurveyWidth").value = area.wallSurvey.width || "";
@@ -4209,31 +3982,9 @@ if ($("wallSurveyCornerEstimated")) $("wallSurveyCornerEstimated").onclick = () 
   wallSurveyNextCornerEstimated = !wallSurveyNextCornerEstimated;
   drawWallSurveyCornerCanvas();
 };
-function editWallSurveyCorners() {
-  const area = activeWallSurveyArea();
-  if (!area?.wallSurvey?.photoData) {
-    alert("Das Wandfoto konnte noch nicht geladen werden. Bitte die Wandmessung erneut öffnen.");
-    return;
-  }
-  closeWallSurveyPoint();
-  wallSurveyCornerDraft = [...(area.wallSurvey.corners || [])].map(point => ({...point}));
-  setWallSurveyStep(2);
-  updateWallSurveyCornerControls();
-}
-if ($("wallSurveyEditCorners")) $("wallSurveyEditCorners").onclick = editWallSurveyCorners;
-if ($("wallSurveyResultEditCorners")) $("wallSurveyResultEditCorners").onclick = editWallSurveyCorners;
 if ($("wallSurveyCornersNext")) $("wallSurveyCornersNext").onclick = () => {
   const area = activeWallSurveyArea();
-  if (!area) {
-    alert("Der Schadensbereich konnte nicht geladen werden. Bitte die Wandmessung erneut öffnen.");
-    return;
-  }
-  if (wallSurveyCornerDraft.length !== 4) {
-    alert(`Bitte alle vier Wandecken markieren. Aktuell sind ${wallSurveyCornerDraft.length} von 4 Ecken gesetzt.`);
-    updateWallSurveyCornerControls();
-    return;
-  }
-  area.wallSurvey ||= { photoData:"", width:"", height:"", corners:[], points:[], createdAt:new Date().toISOString() };
+  if (!area || wallSurveyCornerDraft.length !== 4) return;
   area.wallSurvey.corners = wallSurveyCornerDraft.map(point => ({...point}));
   area.wallSurvey.cornersEstimated = wallSurveyCornerDraft.some(point => point.estimated);
   saveState();
@@ -4250,22 +4001,10 @@ if ($("wallSurveyCreateGrid")) $("wallSurveyCreateGrid").onclick = async () => {
     alert("Bitte Wandlänge und Wandhöhe eingeben.");
     return;
   }
-  const previousPoints = [...(area.wallSurvey.points || [])];
-  const previousDevice = previousPoints.find(item => item.device)?.device || area.measurements?.find(item => item.device)?.device || "";
+  const previousDevice = area.measurements?.find(item => item.device)?.device || "";
   area.wallSurvey.width = width;
   area.wallSurvey.height = height;
-  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice, area.wallSurvey.corners).map((point, index) => {
-    const previous = previousPoints[index];
-    if (!previous) return point;
-    return {
-      ...point,
-      id: previous.id || point.id,
-      device: previous.device || point.device,
-      value: previous.value ?? point.value,
-      status: previous.status || point.status
-    };
-  });
-  delete area.wallSurvey.annotatedImageData;
+  area.wallSurvey.points = createWallMeasurementGrid(width, height, previousDevice, area.wallSurvey.corners);
   area.wallSurvey.updatedAt = new Date().toISOString();
   area.measurements = area.wallSurvey.points;
   saveState();
@@ -4329,83 +4068,11 @@ if ($("wallSurveyFinish")) $("wallSurveyFinish").onclick = async () => {
   }
 };
 
-function areaHasWuConcrete(area) {
-  return (area.measures || []).some(measure => measure.type === "Wand-Sohlen-Anschluss" && measure.wallSoleHorizontalNotRequired);
-}
-
-function surfacePlanForArea(area) {
-  const surveyedHeightCm = parseDecimal(area.wallSurvey?.height) * 100;
-  const roomHeightCm = parseDecimal(area.roomHeightCm) || surveyedHeightCm;
-  const enteredMaxDrillHeightCm = parseDecimal(area.maxDrillHeightCm);
-  const maxDrillHeightCm = enteredMaxDrillHeightCm
-    ? (roomHeightCm ? Math.min(enteredMaxDrillHeightCm, Math.max(0, roomHeightCm - 25)) : enteredMaxDrillHeightCm)
-    : Math.max(0, roomHeightCm - 35);
-  const resolution = area.surfaceHeightResolution || (area.surfaceHeightLimitedAccepted ? "inside-limited" : "");
-  const plan = calculateSurfaceBarrierPlan(area.earthContactHeightCm, maxDrillHeightCm, ["inside-limited","customer-declined"].includes(resolution));
-  if (!plan || !plan.heightLimited) return plan;
-  if (["outside","upper-floor"].includes(resolution)) return {
-    ...plan,
-    confirmed:true,
-    useLimitedHeight:false,
-    rowCount:plan.requiredRowCount,
-    topRowHeight:plan.requiredTopRowHeight,
-    calculationHeight:plan.requiredRowCount*.25,
-    shortfall:0,
-    supplementalAccess:resolution
-  };
-  return {...plan,resolution};
-}
-
-function syncAutomaticSurfaceHeight(area) {
-  if (area.earthContact !== "erdberührt" || areaHasWuConcrete(area)) return false;
-  const plan = surfacePlanForArea(area);
-  if (!plan || !plan.confirmed) return false;
-  let changed = false;
-  for (const measure of area.measures || []) {
-    if (measure.type !== "Flächensperre") continue;
-    const values = {
-      height:String(plan.calculationHeight),
-      autoSurfaceHeight:true,
-      surfaceRowCount:plan.rowCount,
-      surfaceTopRowHeight:plan.topRowHeight,
-      surfaceTargetHeight:plan.targetHeight,
-      surfaceHeightLimited:plan.useLimitedHeight,
-      surfaceShortfall:plan.shortfall,
-      maxDrillHeight:plan.availableHeight,
-      surfaceHeightResolution:area.surfaceHeightResolution||"",
-      surfaceSupplementalAccess:plan.supplementalAccess||""
-    };
-    for (const [key,value] of Object.entries(values)) {
-      if (measure[key] !== value) { measure[key] = value; changed = true; }
-    }
-    if (changed) measure.confirmed = false;
-  }
-  return changed;
-}
-
 function renderAreas() {
   const scrollY = captureVisitScroll();
   const box = $("areas");
   box.innerHTML = "";
-  let automaticHeightChanged = false;
-  state.visit.areas.forEach(area => { if (syncAutomaticSurfaceHeight(area)) automaticHeightChanged = true; });
-  if (automaticHeightChanged) saveState();
   state.visit.areas.forEach((area, ai) => {
-    const surfacePlan = surfacePlanForArea(area);
-    const wuConcrete = areaHasWuConcrete(area);
-    const hasSurfaceBarrier = (area.measures || []).some(measure => measure.type === "Flächensperre");
-    const surveyedHeightCm = parseDecimal(area.wallSurvey?.height) * 100;
-    const roomHeightCm = parseDecimal(area.roomHeightCm) || surveyedHeightCm;
-    const effectiveMaxDrillHeightCm = parseDecimal(area.maxDrillHeightCm) || Math.max(0, roomHeightCm - 35);
-    const ceilingClearanceCm = roomHeightCm > 0 && effectiveMaxDrillHeightCm > 0 ? roomHeightCm - effectiveMaxDrillHeightCm : 0;
-    const limitSource = parseDecimal(area.maxDrillHeightCm) > 0 ? "vor Ort manuell festgelegt" : roomHeightCm > 0 ? "automatisch: Raumhöhe minus 35 cm" : "";
-    const surfacePlanBox = area.earthContact === "erdberührt" ? `
-      <div class="wide"><label>Außen anliegendes Erdreich über OK Fußboden (cm)</label><input type="number" inputmode="decimal" min="0" step="1" data-area="${area.id}" data-field="earthContactHeightCm" value="${esc(area.earthContactHeightCm || "")}" placeholder="z. B. 80"></div>
-      <div><label>Raum-/Wandhöhe über OK Fußboden (cm)</label><input type="number" inputmode="decimal" min="0" step="1" data-area="${area.id}" data-field="roomHeightCm" value="${esc(area.roomHeightCm || "")}" placeholder="${surveyedHeightCm ? `Wandaufmaß: ${Math.round(surveyedHeightCm)} cm` : "z. B. 240"}"></div>
-      <div><label>Abweichende maximal ausführbare Bohrhöhe (cm)</label><input type="number" inputmode="decimal" min="0" step="1" data-area="${area.id}" data-field="maxDrillHeightCm" value="${esc(area.maxDrillHeightCm || "")}" placeholder="automatisch: Raumhöhe minus 35 cm"><small>Nur eintragen, wenn der vor Ort mögliche Bohrwinkel eine andere Grenze ergibt.${limitSource ? ` Aktuell ${limitSource}.` : ""}</small></div>
-      ${ceilingClearanceCm > 0 && ceilingClearanceCm < 35 ? `<div class="wide status ${ceilingClearanceCm < 25 ? "error" : "warning"}"><strong>${ceilingClearanceCm < 25 ? "Nicht automatisch ansetzen" : "Vorsicht beim Bohrwinkel"}:</strong> Die oberste mögliche Bohrhöhe liegt nur ${Math.round(ceilingClearanceCm)} cm unter der Decke. ${ceilingClearanceCm < 25 ? "Bitte eine niedrigere maximal ausführbare Bohrhöhe festlegen." : "Der Bereich von 25–35 cm ist vor Ort besonders zu prüfen."}</div>` : ""}
-      ${wuConcrete ? `<div class="wide status error"><strong>WU-Beton:</strong> Für diesen Bereich werden weder Horizontal- noch Flächensperre kalkuliert; es bleibt nur der Wand-Sohlen-Anschluss.</div>` : surfacePlan ? `<div class="wide status ${surfacePlan.heightLimited ? "error" : "success"}"><strong>${surfacePlan.heightLimited ? "Sollhöhe von innen nicht vollständig erreichbar" : "Bohrlochschema automatisch berechnet"}</strong><br>Außenerdreich ${Math.round(surfacePlan.earthHeight*100)} cm · Soll mindestens ${Math.round(surfacePlan.targetHeight*100)} cm · ${surfacePlan.requiredRowCount} Reihen · oberste Sollreihe ${Math.round(surfacePlan.requiredTopRowHeight*1000)/10} cm.${surfacePlan.useLimitedHeight ? `<br><strong>Begrenzte Ausführung:</strong> ${surfacePlan.rowCount} Reihen, oberste Reihe ${Math.round(surfacePlan.topRowHeight*1000)/10} cm; Unterschreitung ${Math.round(surfacePlan.shortfall*1000)/10} cm.` : surfacePlan.supplementalAccess ? `<br><strong>Vollständige Ausführung:</strong> fehlende Reihen ${surfacePlan.supplementalAccess==="outside"?"von außen":"aus dem darüberliegenden Geschoss"}.` : ""}</div>${surfacePlan.heightLimited ? `<div class="wide"><label>Ausführung der von innen nicht erreichbaren Reihen</label><select data-area-resolution="${area.id}"><option value="">Bitte auswählen</option><option value="outside" ${area.surfaceHeightResolution==="outside"?"selected":""}>Fehlende Reihen von außen herstellen</option><option value="upper-floor" ${area.surfaceHeightResolution==="upper-floor"?"selected":""}>Fehlende Reihen aus darüberliegendem Geschoss herstellen</option><option value="inside-limited" ${area.surfaceHeightResolution==="inside-limited"?"selected":""}>Nur höchstmögliche Innenreihe ausführen</option><option value="customer-declined" ${area.surfaceHeightResolution==="customer-declined"?"selected":""}>Kunde lehnt zusätzliche Erschließung ab</option></select>${surfacePlan.availableRowCount ? "" : "<small>Von innen ist keine vollständige Bohrlochreihe möglich; Außen- oder Geschosszugang auswählen.</small>"}</div>` : ""}` : hasSurfaceBarrier ? `<div class="wide status error">Für die automatische Flächensperre fehlt die Höhe des außen anliegenden Erdreichs.</div>` : ""}
-    ` : "";
     const card = document.createElement("div");
     card.className = "area-card";
     card.dataset.areaCard = area.id;
@@ -4419,7 +4086,6 @@ function renderAreas() {
         <div><label>Wandart</label><select data-area="${area.id}" data-field="wallType"><option value="">– bitte auswählen –</option><option ${area.wallType==="Außenwand"?"selected":""}>Außenwand</option><option ${area.wallType==="Innenwand"?"selected":""}>Innenwand</option></select></div>
         <div><label>Erdkontakt</label><select data-area="${area.id}" data-field="earthContact"><option value="">– bitte auswählen –</option><option ${area.earthContact==="erdberührt"?"selected":""}>erdberührt</option><option ${area.earthContact==="nicht erdberührt"?"selected":""}>nicht erdberührt</option></select></div>
         <div><label>Wandbelag</label><select data-area="${area.id}" data-field="wallCover">${["","Putz","Farbe","Tapete","Fliesen","Unbekannt","Sonstiges"].map(v => `<option ${area.wallCover===v?"selected":""}>${v}</option>`).join("")}</select></div>
-        ${surfacePlanBox}
       </div>
       <label>Notizen</label><div class="speech-row"><textarea id="area-note-${area.id}" data-area="${area.id}" data-field="notes">${esc(area.notes)}</textarea><button class="speech" data-speech-target="area-note-${area.id}">🎤</button></div>
       <h3>Feuchtemessung</h3>
@@ -4453,23 +4119,6 @@ function renderAreas() {
     area[input.dataset.field] = input.value;
     if (input.dataset.field === "wallThickness") area.measures.forEach(measure => measure.wall = Number(input.value));
     saveState();
-  });
-  box.querySelectorAll('[data-field="earthContact"], [data-field="earthContactHeightCm"], [data-field="roomHeightCm"], [data-field="maxDrillHeightCm"]').forEach(input => input.onchange = () => {
-    const area = state.visit.areas.find(item => item.id === input.dataset.area);
-    area[input.dataset.field] = input.value;
-    if (input.dataset.field !== "earthContactHeightCm") {
-      area.surfaceHeightLimitedAccepted = false;
-      area.surfaceHeightResolution = "";
-    }
-    syncAutomaticSurfaceHeight(area);
-    saveState(); updateGeneratedRecommendation(); renderAreas();
-  });
-  box.querySelectorAll("[data-area-resolution]").forEach(input => input.onchange = () => {
-    const area = state.visit.areas.find(item => item.id === input.dataset.areaResolution);
-    area.surfaceHeightResolution = input.value;
-    area.surfaceHeightLimitedAccepted = input.value === "inside-limited";
-    syncAutomaticSurfaceHeight(area);
-    saveState(); updateGeneratedRecommendation(); renderAreas();
   });
 
   box.querySelectorAll("[data-delete-area]").forEach(button => button.onclick = () => {
@@ -4574,29 +4223,25 @@ function renderMeasurements(area) {
 
 function renderMeasures(area) {
   const box = $(`measures-${area.id}`);
-  const areaSurfacePlan = surfacePlanForArea(area);
   box.innerHTML = area.measures.map((m,index) => {
     const completion=measureCompletion(m);
-    const skipKey=`${completion.details?'measureConfirmed':'measureDetails'}:${m.id}`;
-    const pointSkipped=visitRequirementSkipped(skipKey);
-    const pairedSurface=m.type==="Wand-Sohlen-Anschluss"&&(area.measures||[]).some(item=>item.type==="Flächensperre");
     return `
-    <div class="sub-card item-grid measure-guided-card ${completion.confirmed?"measure-confirmed":pointSkipped?"measure-skipped":"measure-open"}">
-      <div class="wide measure-step-head"><span>Maßnahme ${index+1}</span><strong>${completion.confirmed?"✓ vollständig geprüft":pointSkipped?"↷ Punkt bewusst übersprungen":`FEHLT: ${esc(completion.missing)}`}</strong></div>
-      <div class="wide${measureFieldClass(completion,"type",m)}"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
-      ${m.type&&m.type!=="Harzverpressung"?`<div class="${measureFieldClass(completion,"wall",m).trim()}"><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>`:""}
+    <div class="sub-card item-grid measure-guided-card ${completion.confirmed?"measure-confirmed":"measure-open"}">
+      <div class="wide measure-step-head"><span>Maßnahme ${index+1}</span><strong>${completion.confirmed?"✓ vollständig geprüft":completion.details?"Noch bestätigen":completion.missing}</strong></div>
+      <div class="wide"><label>Maßnahme</label><select data-measure="${m.id}" data-mfield="type">${["","Horizontalsperre","Flächensperre","Harzverpressung","Wand-Sohlen-Anschluss"].map(v=>`<option ${m.type===v?"selected":""}>${v}</option>`).join("")}</select></div>
+      ${m.type&&m.type!=="Harzverpressung"?`<div><label>Wandstärke cm</label><input type="number" inputmode="decimal" min="1" step="0.5" data-measure="${m.id}" data-mfield="wall" value="${esc(m.wall || "")}"></div>`:""}
       ${m.type==="Flächensperre"
-        ? `<div class="${measureFieldClass(completion,"width",m).trim()}"><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div class="${measureFieldClass(completion,"height",m).trim()}"><label>${m.autoSurfaceHeight?"Automatisch berechnete Sperrhöhe":"Höhe der Fläche"} m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}" ${m.autoSurfaceHeight?"readonly":""}></div>${m.autoSurfaceHeight&&areaSurfacePlan?`<div class="wide status ${areaSurfacePlan.useLimitedHeight?"error":"success"}">${areaSurfacePlan.rowCount} Bohrlochreihen; oberste Reihe ${Math.round(areaSurfacePlan.topRowHeight*1000)/10} cm über OK Fußboden.${pairedSurface?` Die unterste Reihe wird als separate Horizontalsperre geführt; die Flächensperre enthält nur die ${Math.max(0,areaSurfacePlan.rowCount-1)} darüberliegenden Reihen.`:""}${areaSurfacePlan.useLimitedHeight?` <strong>Baulich begrenzt:</strong> Sollhöhe wird um ${Math.round(areaSurfacePlan.shortfall*1000)/10} cm unterschritten.`:""}</div>`:""}`
-        : m.type?`<div class="${measureFieldClass(completion,"length",m).trim()}"><label>Laufmeter</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="length" value="${esc(m.length||"")}"></div>`:""}
-      ${["Horizontalsperre","Flächensperre"].includes(m.type)||(m.type==="Wand-Sohlen-Anschluss"&&!m.wallSoleHorizontalNotRequired)?`<div class="${measureFieldClass(completion,"spacing",m).trim()}"><label>Bohrlochabstand der Horizontalsperre</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
+        ? `<div><label>Laufmeter der Wand</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="width" value="${esc(m.width||"")}"></div><div><label>Höhe der Fläche m</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="height" value="${esc(m.height||"")}"></div>`
+        : m.type?`<div><label>Laufmeter</label><input type="number" inputmode="decimal" min="0" step=".1" data-measure="${m.id}" data-mfield="length" value="${esc(m.length||"")}"></div>`:""}
+      ${["Horizontalsperre","Flächensperre","Wand-Sohlen-Anschluss"].includes(m.type)?`<div><label>Bohrlochabstand</label><select data-measure="${m.id}" data-mfield="spacing"><option value="">Bitte auswählen</option><option value=".25" ${parseDecimal(m.spacing)===.25?"selected":""}>25 cm</option><option value=".125" ${parseDecimal(m.spacing)===.125?"selected":""}>12,5 cm</option></select></div>`:""}
       ${m.type==="Harzverpressung" ? `
-        <div class="${measureFieldClass(completion,"resinHolesPerMeter",m).trim()}"><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
+        <div><label>Bohrlöcher je lfm (10–20)</label><input type="number" min="10" max="20" step="1" data-measure="${m.id}" data-mfield="resinHolesPerMeter" value="${m.resinHolesPerMeter||15}"></div>
         <div><label>Enthaltenes Harz je lfm (3–5 kg)</label><select data-measure="${m.id}" data-mfield="resinIncludedKgPerMeter"><option value="3" ${Number(m.resinIncludedKgPerMeter||4)===3?"selected":""}>3 kg</option><option value="4" ${Number(m.resinIncludedKgPerMeter||4)===4?"selected":""}>4 kg</option><option value="5" ${Number(m.resinIncludedKgPerMeter||4)===5?"selected":""}>5 kg</option></select></div>
         <div><label>Tatsächlicher Harzverbrauch gesamt kg</label><input type="number" min="0" step=".1" data-measure="${m.id}" data-mfield="resinTotalKg" value="${m.resinTotalKg||""}"></div>` : ""}
-      ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide wall-sole-required-note"><strong>${m.wallSoleHorizontalNotRequired?"WU-Beton – nur Wand-Sohlen-Anschluss":pairedSurface?"Drei getrennte Positionen ohne Doppelberechnung":"Es werden zwei getrennte Positionen erstellt"}</strong><span>${m.wallSoleHorizontalNotRequired?"Horizontal- und Flächensperre werden in diesem Bereich nicht kalkuliert.":pairedSurface?"Wand-Sohlen-Anschluss · Horizontalsperre · Flächensperre erst oberhalb der unteren Reihe":"Wand-Sohlen-Anschluss · notwendige Horizontalsperre mit denselben Laufmetern"}</span></div><div class="wide switch-row wall-sole-wu-option"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="wallSoleHorizontalNotRequired" ${m.wallSoleHorizontalNotRequired?"checked":""}> WU-Beton – Horizontal- und Flächensperre nicht erforderlich</label></div><div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
+      ${m.type==="Wand-Sohlen-Anschluss" ? `<div class="wide switch-row"><label><input type="checkbox" data-measure="${m.id}" data-mcheck="disposeDebris" ${m.disposeDebris?"checked":""}> Anfallenden Bauschutt aufnehmen, abfahren und fachgerecht entsorgen</label></div>` : ""}
       <div class="wide"><label>Notiz</label><input data-measure="${m.id}" data-mfield="note" value="${esc(m.note)}"></div>
-      <div class="wide measure-confirm-area${measureFieldClass(completion,"confirmed",m)}" data-measure-missing="${m.id}">
-        <small>${pointSkipped?"Dieser Punkt wurde bewusst als nicht relevant markiert.":completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${esc(completion.missing)}`}</small>
+      <div class="wide measure-confirm-area" data-measure-missing="${m.id}">
+        <small>${completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${esc(completion.missing)}`}</small>
         <button type="button" class="${completion.confirmed?"secondary":"primary"}" data-confirm-measure="${m.id}" ${completion.details?"":"disabled"}>${completion.confirmed?"✓ Maßnahme geprüft":"Maßnahme prüfen und übernehmen"}</button>
       </div>
       <button class="danger" data-delete-measure="${m.id}">Löschen</button>
@@ -4608,10 +4253,6 @@ function renderMeasures(area) {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mfield] = input.value;
     measure.confirmed=false;
-    if(state.visit.notRelevantRequirements){
-      delete state.visit.notRelevantRequirements[`measureDetails:${measure.id}`];
-      delete state.visit.notRelevantRequirements[`measureConfirmed:${measure.id}`];
-    }
     saveState();
     updateGeneratedRecommendation();
     if (input.dataset.mfield === "type") renderAreas();
@@ -4621,7 +4262,7 @@ function renderMeasures(area) {
       const status=card?.querySelector(".measure-step-head strong");
       const hint=card?.querySelector(".measure-confirm-area small");
       const confirmButton=card?.querySelector("[data-confirm-measure]");
-      if(status)status.textContent=`FEHLT: ${completion.missing}`;
+      if(status)status.textContent=completion.details?"Noch bestätigen":completion.missing;
       if(hint)hint.textContent=completion.details?"Kontrolliere die Angaben und bestätige diese Maßnahme.":`Noch erforderlich: ${completion.missing}`;
       if(confirmButton)confirmButton.disabled=!completion.details;
       updateVisitGuide();
@@ -4631,23 +4272,15 @@ function renderMeasures(area) {
     const measure = area.measures.find(item => item.id === input.dataset.measure);
     measure[input.dataset.mcheck] = input.checked;
     measure.confirmed=false;
-    if(state.visit.notRelevantRequirements){
-      delete state.visit.notRelevantRequirements[`measureDetails:${measure.id}`];
-      delete state.visit.notRelevantRequirements[`measureConfirmed:${measure.id}`];
-    }
     saveState();
     updateGeneratedRecommendation();
-    if(input.dataset.mcheck==="wallSoleHorizontalNotRequired")renderAreas();else updateVisitGuide();
+    updateVisitGuide();
   });
   box.querySelectorAll("[data-confirm-measure]").forEach(button=>button.onclick=()=>{
     const measure=area.measures.find(item=>item.id===button.dataset.confirmMeasure);
     if(!measure)return;
     const completion=measureCompletion(measure);
     if(!completion.details)return;
-    if(state.visit.notRelevantRequirements){
-      delete state.visit.notRelevantRequirements[`measureDetails:${measure.id}`];
-      delete state.visit.notRelevantRequirements[`measureConfirmed:${measure.id}`];
-    }
     measure.confirmed=true;
     saveState();
     renderMeasures(area);
@@ -4858,10 +4491,7 @@ function renderOfferPositionReview(result) {
     saveState(); setTimeout(renderOffer,0);
   });
   if ($("offerPositionsApproved")) $("offerPositionsApproved").checked=Boolean(state.visit.offerDraft.approved);
-  if ($("sendLexware")) {
-    $("sendLexware").disabled=false;
-    $("sendLexware").classList.toggle("needs-action",!state.visit.offerDraft.approved || !review.items.some(item=>item.included));
-  }
+  if ($("sendLexware")) $("sendLexware").disabled=!state.visit.offerDraft.approved || !review.items.some(item=>item.included);
   if ($("lexofficeRequirementHint")) {
     $("lexofficeRequirementHint").textContent = state.visit.lexwareQuotationId
       ? "Der Entwurf wurde bereits an Lexoffice übertragen."
@@ -4929,10 +4559,7 @@ function renderOffer() {
   renderOfferPositionReview(result);
   const archiveStatus = $("offerArchiveStatus")?.value || currentRecord?.status || "draft";
   const accepted = ["accepted","completed"].includes(archiveStatus);
-  if ($("createWorksite")) {
-    $("createWorksite").disabled = false;
-    $("createWorksite").classList.toggle("needs-action",!accepted);
-  }
+  if ($("createWorksite")) $("createWorksite").disabled = !accepted;
   if ($("worksiteCreateHint")) {
     $("worksiteCreateHint").textContent = accepted
       ? "Das Angebot ist angenommen. Die Baustelle kann jetzt angelegt werden."
@@ -5176,10 +4803,6 @@ function buildQuotationPayload() {
 }
 $("sendLexware").onclick = async () => {
   try {
-    if (!state.visit.offerDraft?.approved) {
-      revealActionTarget("offer", "#offerPositionsApproved", "Bitte erst den Haken bei „Angebot geprüft“ setzen.");
-      return;
-    }
     const payload = buildQuotationPayload();
 
     const preview = payload.quotation.lineItems.map((item, index) =>
@@ -5227,7 +4850,7 @@ function buildReport() {
   updateGeneratedRecommendation();
   html += `<div class="report-section"><h2>Schadensbild</h2><p>${esc(damageDescriptionText())}</p><h2>Empfehlung</h2><p>${esc(state.visit.customerRecommendation)}</p></div>`;
   for (const area of state.visit.areas) {
-    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${expandMeasuresForArea(area).map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
+    html += `<div class="report-section"><h2>${esc(area.name)}</h2><table class="report-table"><tr><th>Wandmaterial</th><td>${esc(area.wallMaterialOther||area.wallMaterial)}</td></tr><tr><th>Wandstärke</th><td>${esc(area.wallThickness)} cm</td></tr><tr><th>Erdkontakt</th><td>${esc(area.earthContact)}</td></tr></table><h3>Feuchtemessung</h3><table class="report-table"><tr><th>Referenzwert trocken</th><td>${esc(area.dryReference || "")} Digits</td></tr></table><h3>Messpunkte</h3><table class="report-table"><tr><th>Gerät</th><th>Messwert</th><th>Höhe</th><th>Position</th></tr>${area.measurements.map(m=>`<tr><td>${esc(m.device)}</td><td>${esc(m.value)} ${esc(m.unit)}</td><td>${esc(m.height)}</td><td>${esc(m.location)}</td></tr>`).join("")}</table>${wallSurveyReportHtml(area)}<h3>Maßnahmen</h3><table class="report-table">${area.measures.map(m=>{const r=calculateMeasure(state.settings,m);return `<tr><th>${esc(m.type)}</th><td>${esc(r.scope)}</td></tr>`}).join("")}</table><div class="photo-grid">${area.photos.filter(p=>p.show).map(p=>`<div class="photo-card"><img src="${localPhotoUrl(p)}"><p>${esc(p.caption)}</p></div>`).join("")}</div></div>`;
   }
   const executionNotices = buildExecutionNotices(
     state.settings,
@@ -5725,12 +5348,6 @@ function collectWorksite() {
   worksite.siteClean = Boolean($("wsSiteClean")?.checked);
   worksite.customerSignatureData = signaturePadData("wsCustomerSignatureCanvas") || worksite.customerSignatureData || "";
   worksite.workerSignatureData = signaturePadData("wsWorkerSignatureCanvas") || worksite.workerSignatureData || "";
-  document.querySelectorAll("[data-ws-site-field]").forEach(input => {
-    const field = input.dataset.wsSiteField;
-    if (input.type === "checkbox") worksite[field] = input.checked;
-    else if (["bottlesHanging","bottlesRetrieved"].includes(field)) worksite[field] = parseDecimal(input.value);
-    else worksite[field] = input.value.trim();
-  });
   document.querySelectorAll("[data-ws-task]").forEach(input => {
     const task = worksite.tasks.find(item => item.id === input.dataset.wsTask);
     if (!task) return;
@@ -6017,7 +5634,10 @@ function renderWorksiteOverview(ws) {
   if (summary) {
     const tasks = reportableWorksiteTasks(ws);
     const completed = tasks.filter(task => task.completed).length;
-    const openBottles = worksiteOpenBottleCount(ws);
+    const openBottles = tasks.reduce(
+      (sum, task) => sum + Math.max(0, Number(task.bottlesHanging || 0) - Number(task.bottlesRetrieved || 0)),
+      0
+    );
     summary.innerHTML = `
       <div><span>Status</span><strong>${esc(ws.status === "completed" ? "Abgeschlossen" : ws.status === "active" ? "In Ausführung" : "Geplant")}</strong></div>
       <div><span>Maßnahmen</span><strong>${completed} von ${tasks.length} erledigt</strong></div>
@@ -6336,7 +5956,6 @@ function initializeWorksiteSignatures(ws) {
 function renderWorksiteEditor() {
   const ws = getWorksite(activeWorksiteId);
   if (!ws) { activeWorksiteId=null; renderWorksites(); return; }
-  ensureCentralWorksiteMaterialData(ws);
   if ($("wsAddExtraWork")) {
     $("wsAddExtraWork").textContent = ws.quickCreated && reportableWorksiteTasks(ws).length === 0
       ? "＋ Erste Maßnahme erfassen"
@@ -6464,45 +6083,41 @@ function renderWorksiteEditor() {
     const surfaceFields = task.type === "Flächensperre" ? `
         <div><label>Tatsächliche Laufmeter</label><input type="number" inputmode="decimal" min="0" step="0.1" data-ws-task="${task.id}" data-ws-field="actualWidth" value="${formatDecimalInput(task.actualWidth)}"></div>
         <div><label>Tatsächliche Höhe m</label><input type="number" inputmode="decimal" min="0" step="0.1" data-ws-task="${task.id}" data-ws-field="actualHeight" value="${formatDecimalInput(task.actualHeight)}"></div>
-        <div><label>Ist-Bohrlöcher unten · Faktor 14</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="surfaceFirstRowHoles" value="${formatDecimalInput(task.surfaceFirstRowHoles)}"></div>
-        <div><label>Ist-Bohrlöcher obere Reihen · Faktor 10</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="surfaceFollowingRowHoles" value="${formatDecimalInput(task.surfaceFollowingRowHoles)}"></div>` : "";
-    const calculationInfo = usesHz ? `
-      <div class="full worksite-calculation-card">
-        <div class="worksite-calculation-title"><span>✓</span><strong>Berechnung</strong></div>
-        ${task.type === "Flächensperre" ? `
-          <div><span>Fläche</span><strong>${num(task.actualQuantity)} m²</strong></div>
-          <div><span>Reihen</span><strong>${num(task.surfaceRowCount)}</strong></div>
-          <div><span>Bohrlöcher</span><strong>${num(task.actualHoles)}</strong></div>
-          <div><span>Unten</span><strong>${num(task.surfaceFirstRowHoles)} × ${Math.round(Number(task.surfaceFirstRowMlPerHole || 0))} ml</strong></div>
-          <div><span>Oben</span><strong>${num(task.surfaceFollowingRowHoles)} × ${Math.round(Number(task.surfaceFollowingRowMlPerHole || 0))} ml</strong></div>
-          <div class="total"><span>HZ gesamt</span><strong>${num(task.actualLiters)} l</strong></div>` : `
-          <div><span>Soll-Bohrlöcher</span><strong>${num(task.plannedHoles)}</strong></div>
-          <div><span>Ist-Bohrlöcher</span><strong>${num(task.actualHoles)}</strong></div>
-          <div><span>je Bohrloch</span><strong>${Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)} ml</strong></div>
-          <div class="total"><span>HZ gesamt</span><strong>${num(task.actualLiters)} l</strong></div>`}
-      </div>` : "";
+        <div><label>Bohrlöcher erste Reihe · Faktor 14</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="surfaceFirstRowHoles" value="${formatDecimalInput(task.surfaceFirstRowHoles)}"></div>
+        <div><label>Bohrlöcher darüberliegende Reihen · Faktor 10</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-task="${task.id}" data-ws-field="surfaceFollowingRowHoles" value="${formatDecimalInput(task.surfaceFollowingRowHoles)}"></div>
+        <div><label>Bohrreihen rechnerisch</label><input value="${num(task.surfaceRowCount)}" readonly></div>
+        <div><label>Erste Reihe · Faktor 14 · je Bohrloch</label><input value="${Math.round(Number(task.surfaceFirstRowMlPerHole || 0))} ml" readonly></div>
+        <div><label>Erste Reihe · Injektionsmenge gesamt</label><input value="${num(task.surfaceFirstRowLiters)} l" readonly></div>
+        <div><label>Darüberliegende Reihen · Faktor 10 · je Bohrloch</label><input value="${Math.round(Number(task.surfaceFollowingRowMlPerHole || 0))} ml" readonly></div>
+        <div><label>Darüberliegende Reihen · Injektionsmenge gesamt</label><input value="${num(task.surfaceFollowingRowsLiters)} l" readonly></div>
+        <div><label>Fläche gesamt</label><input value="${num(task.actualQuantity)} m²" readonly></div>` : "";
     const hzFields = usesHz ? `
         ${task.type === "Flächensperre" ? surfaceFields : `<div><label>${quantityLabel}</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>`}
         <div><label>Bohrlochabstand</label><select data-ws-task="${task.id}" data-ws-field="spacing"><option value="0.125" ${Number(task.spacing)===.125?"selected":""}>12,5 cm</option><option value="0.25" ${Number(task.spacing)===.25?"selected":""}>25 cm</option></select></div>
-        ${task.type === "Flächensperre"
-          ? ""
-          : `<div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>
+        <div><label>Soll-Bohrlöcher</label><input value="${task.plannedHoles}" readonly></div>
+        ${task.type === "Flächensperre" ? `<div><label>Ist-Bohrlöcher gesamt</label><input value="${num(task.actualHoles)}" readonly></div>` : `<div><label>Ist-Bohrlöcher</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHoles" value="${formatDecimalInput(task.actualHoles)}"></div>`}
+        ${task.type === "Flächensperre" ? "" : `<div><label>Sollmenge je Bohrloch</label><input value="${Math.round(Number(task.targetLitersPerHole || 0) * 1000)} ml" readonly></div>
         <div><label>Istmenge je Bohrloch</label><input type="number" inputmode="numeric" min="0" step="10" data-ws-task="${task.id}" data-ws-field="actualMlPerHole" value="${Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)}"></div>`}
+        <div><label>Sollverbrauch ohne Reserve</label><input value="${num(task.plannedLiters)} l" readonly></div>
+        <div><label>Istverbrauch HZ 250 PRO</label><input value="${num(task.actualLiters)} l" readonly></div>
         <div class="full injection-choice"><label>Injektionsart</label>
           <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="injectionPressureless" ${task.injectionPressureless?"checked":""}> Drucklos</label>
           <label><input type="checkbox" data-ws-task="${task.id}" data-ws-field="injectionLowPressure" ${task.injectionLowPressure?"checked":""}> Niederdruck</label>
         </div>
         ${task.injectionLowPressure ? `<div class="full"><button type="button" class="primary" data-start-injection="${task.id}">Injektion starten / fortsetzen</button><p class="hint">Nur bei Niederdruck: Die Gesamtmenge wird automatisch mitgeführt.</p></div>` : ""}
-        ${calculationInfo}` : "";
+        ${chargeFieldHtml(task, "bkm-hz-250-pro", "chargeHz", "Charge BKM HZ 250 PRO")}
+        <div><label>Noch hängende Injektionsflaschen</label><input inputmode="numeric" data-ws-task="${task.id}" data-ws-field="bottlesHanging" value="${formatDecimalInput(task.bottlesHanging)}"></div>
+        <div><label>Bereich / Wand der Flaschen</label><input data-ws-task="${task.id}" data-ws-field="bottlesArea" value="${esc(task.bottlesArea || "")}"></div>
+        <div><label>Geplante Abholung</label><input type="date" data-ws-task="${task.id}" data-ws-field="bottlesPickupDue" value="${esc(task.bottlesPickupDue || "")}"></div>` : "";
     const hsFields = usesHs ? `
         <div><label>Tatsächliche Laufmeter</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>
         <div><label>Soll BKM HS Sperrmörtel</label><input value="${num(task.plannedHsKg)} kg" readonly></div>
         <div><label>Ist BKM HS Sperrmörtel kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualHsKg" value="${formatDecimalInput(task.actualHsKg)}"></div>
-        ` : "";
+        ${chargeFieldHtml(task, "bkm-hs-sperrmoertel", "chargeHs", "Charge BKM HS Sperrmörtel")}` : "";
     const resinFields = usesResin ? `
         <div><label>Ist Packer Stück</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="packers" value="${formatDecimalInput(task.packers)}"></div>
         <div><label>Ist Harz kg</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="resinKg" value="${formatDecimalInput(task.resinKg)}"></div>
-        ` : "";
+        ${chargeFieldHtml(task, "bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K")}` : "";
     const linkableTasks = reportableWorksiteTasks(ws).filter(item => !item.additionalWork);
     const additionalFields = task.additionalWork ? `
         <div><label>Tatsächliche Menge</label><input inputmode="decimal" data-ws-task="${task.id}" data-ws-field="actualQuantity" value="${formatDecimalInput(task.actualQuantity)}"></div>
@@ -6533,35 +6148,8 @@ function renderWorksiteEditor() {
   if (totals.hsKg > 0) materialRows.push(`<div class="worksite-material-row"><span>BKM HS Sperrmörtel</span><strong>${num(totals.hsKg)} kg</strong></div>`);
   if (totals.resinKg > 0) materialRows.push(`<div class="worksite-material-row"><span>Harz / SEF-2K</span><strong>${num(totals.resinKg)} kg</strong></div>`);
   if (totals.packers > 0) materialRows.push(`<div class="worksite-material-row"><span>Packer für Harzverpressung</span><strong>${num(totals.packers)} Stück</strong></div>`);
-  const centralChargeHtml = (productId, field, label) => {
-    if (!inventoryTrackingEnabled(productId, "chargeTracking")) return "";
-    const secondField = `${field}2`;
-    const showSecond = Boolean(ws[secondField] || ws[`showSecond${field}`]);
-    return `<div class="central-charge-group">
-      <label>${esc(label)}</label>
-      <input data-ws-site-field="${field}" value="${esc(ws[field] || "")}" placeholder="Charge 1">
-      ${showSecond
-        ? `<input data-ws-site-field="${secondField}" value="${esc(ws[secondField] || "")}" placeholder="Charge 2">`
-        : `<button type="button" class="secondary compact-button" data-add-second-charge="${field}">＋ zweite Charge</button>`}
-    </div>`;
-  };
-  const hasHz = totals.hzLiters > 0;
-  const centralDocumentation = `
-    <div class="worksite-central-material-card">
-      <div class="worksite-calculation-title"><span>🏷️</span><strong>Baustelle</strong></div>
-      <div class="grid">
-        ${hasHz ? centralChargeHtml("bkm-hz-250-pro", "chargeHz", "Charge BKM HZ 250 PRO") : ""}
-        ${totals.hsKg > 0 ? centralChargeHtml("bkm-hs-sperrmoertel", "chargeHs", "Charge BKM HS Sperrmörtel") : ""}
-        ${totals.resinKg > 0 ? centralChargeHtml("bkm-sef-2k-harz", "chargeResin", "Charge Harz / SEF-2K") : ""}
-        ${hasHz ? `
-          <div><label>Hängende Flaschen gesamt</label><input type="number" inputmode="numeric" min="0" step="1" data-ws-site-field="bottlesHanging" value="${formatDecimalInput(ws.bottlesHanging)}"></div>
-          <div><label>Bereich</label><input data-ws-site-field="bottlesArea" value="${esc(ws.bottlesArea || "")}" placeholder="z. B. Nähraum"></div>
-          <div><label>Abholung</label><input type="date" data-ws-site-field="bottlesPickupDue" value="${esc(ws.bottlesPickupDue || "")}"></div>
-          ${worksiteOpenBottleCount(ws) > 0 ? `<div class="full"><button type="button" class="secondary" data-confirm-site-bottle-pickup>✓ Flaschen abgeholt</button></div>` : ""}` : ""}
-      </div>
-    </div>`;
   $("wsMaterialSummary").innerHTML = materialRows.length
-    ? materialRows.join("") + centralDocumentation + (ws.materialBooked ? `<p class="booked-badge">Material bereits abgebucht</p>` : "")
+    ? materialRows.join("") + (ws.materialBooked ? `<p class="booked-badge">Material bereits abgebucht</p>` : "")
     : `<p class="hint">Noch kein tatsächlich verwendetes Material eingetragen.</p>`;
   hydrateWorksitePhotoImages($("worksiteEditor"));
   document.querySelectorAll("[data-ws-photo-task]").forEach(input => input.onchange = async event => {
@@ -6614,31 +6202,6 @@ function renderWorksiteEditor() {
   });
   document.querySelectorAll("[data-start-injection]").forEach(button => {
     button.onclick = () => openInjectionAssistant(ws, button.dataset.startInjection);
-  });
-  document.querySelectorAll("[data-add-second-charge]").forEach(button => {
-    button.onclick = () => {
-      ws[`showSecond${button.dataset.addSecondCharge}`] = true;
-      persistWorksite(ws);
-      renderWorksiteEditor();
-    };
-  });
-  document.querySelectorAll("[data-ws-site-field]").forEach(input => {
-    input.onchange = () => {
-      const field = input.dataset.wsSiteField;
-      ws[field] = ["bottlesHanging","bottlesRetrieved"].includes(field) ? parseDecimal(input.value) : input.value.trim();
-      persistWorksite(ws);
-    };
-  });
-  document.querySelectorAll("[data-confirm-site-bottle-pickup]").forEach(button => {
-    button.onclick = () => {
-      const open = worksiteOpenBottleCount(ws);
-      if (!open || !confirm(`${open} Flaschen als abgeholt bestätigen?`)) return;
-      ws.bottlesRetrieved = Number(ws.bottlesHanging || 0);
-      ws.bottlesRetrievedAt = new Date().toISOString();
-      persistWorksite(ws);
-      renderWorksiteEditor();
-      updateDashboardOverview();
-    };
   });
   document.querySelectorAll('[data-ws-field="injectionPressureless"], [data-ws-field="injectionLowPressure"]').forEach(input => {
     input.onchange = () => {
@@ -6785,21 +6348,6 @@ function openAdditionalWorkPicker(ws, options={}) {
   };
 }
 
-function injectionPlanHtml(task, currentHole) {
-  if (task.type !== "Flächensperre") return "";
-  const records = new Map((task.holeRecords || []).map(record => [Number(record.hole),record]));
-  return `<div class="injection-pattern" aria-label="Schachbrettartig versetzte Bohrreihen">
-    ${surfaceInjectionPlan(task).map(row => `<div class="injection-pattern-row ${row.offset?"offset":""}">
-      <b>${row.row}</b>
-      <div>${row.holes.map(item => {
-        const record = records.get(item.hole);
-        const stateClass = item.hole === currentHole ? "current" : record ? (record.status === "completed" ? "done" : "exception") : "";
-        return `<i class="${stateClass}" title="${row.label}, Loch ${item.column}"></i>`;
-      }).join("")}</div>
-    </div>`).join("")}
-  </div>`;
-}
-
 function openInjectionAssistant(ws, taskId) {
   const task = ws.tasks.find(item => item.id === taskId);
   if (!task || !task.injectionLowPressure) return;
@@ -6807,10 +6355,7 @@ function openInjectionAssistant(ws, taskId) {
   const derivedHoles = task.type === "Horizontalsperre"
     ? Math.ceil(Number(task.actualQuantity || 0) / Number(task.spacing || .25))
     : Math.ceil(Number(task.actualQuantity || 0) / (Number(task.spacing || .25) * .25));
-  const surfaceHoles = surfaceInjectionPlan(task).reduce((sum,row) => sum + row.holes.length, 0);
-  const totalHoles = task.type === "Flächensperre"
-    ? Math.max(1, surfaceHoles || Number(task.actualHoles || 0) || derivedHoles)
-    : Math.max(1, Number(task.actualHoles || 0) || derivedHoles || Number(task.plannedHoles || 0));
+  const totalHoles = Math.max(1, Number(task.actualHoles || 0), Number(task.plannedHoles || 0), derivedHoles);
   task.actualHoles = totalHoles;
   let current = Math.min(task.holeRecords.length + 1, totalHoles);
   const overlay = document.createElement("div");
@@ -6820,27 +6365,26 @@ function openInjectionAssistant(ws, taskId) {
       .filter(row => row.hole < current)
       .reduce((sum,row) => sum + Number(row.actualLiters || 0), 0);
     const record = task.holeRecords.find(row => row.hole === current);
-    const holeInfo = injectionHoleInfo(task,current);
-    const defaultMl = holeInfo.targetMl;
+    const defaultMl = Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000);
     const currentMl = Math.round(Number(record?.actualLiters ?? defaultMl / 1000) * 1000);
     const stopAt = completedTotal + currentMl / 1000;
     const finished = current >= totalHoles &&
       task.holeRecords.filter(row => row.hole <= totalHoles).length >= totalHoles;
     overlay.innerHTML = `<section class="adhs-modal injection-assistant">
-      <div class="injection-head"><span>💧</span><div><small>${finished?"FERTIG":esc(holeInfo.label)}</small><h2>${finished ? `${totalHoles} Löcher` : `${current} / ${totalHoles}`}</h2></div></div>
-      ${injectionPlanHtml(task,current)}
-      ${finished ? `<div class="injection-stop-target"><span>Σ</span><strong>${num(task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0))} l</strong></div>`
-      : `<div class="injection-stop-target"><span>⏱ STOPP</span><strong id="counterStopValue">${num(stopAt)} l</strong><small>${currentMl} ml</small></div>
-      <div class="injection-total"><span>Σ vorher</span><strong>${num(completedTotal)} l</strong></div>
-      <label class="visual-input-label">ml</label>
+      <span class="dashboard-eyebrow">NIEDERDRUCKINJEKTION</span>
+      <h2>${finished ? "Injektion vollständig erfasst" : `Bohrloch ${current} von ${totalHoles}`}</h2>
+      ${finished ? `<div class="injection-stop-target"><span>Gesamtmenge</span><strong>${num(task.holeRecords.reduce((sum,row) => sum + Number(row.actualLiters || 0), 0))} l</strong></div>`
+      : `<div class="injection-stop-target"><span>Durchlaufzähler stoppen bei</span><strong id="counterStopValue">${num(stopAt)} l</strong></div>
+      <div class="injection-total"><span>Stand vor diesem Bohrloch</span><strong>${num(completedTotal)} Liter</strong></div>
+      <label>Istmenge dieses Bohrlochs (ml)</label>
       <input id="holeMl" type="number" inputmode="numeric" step="10" min="0" value="${currentMl}">`}
       <div class="hole-status-grid">
-        ${finished ? "" : `<button type="button" data-hole-status="completed" class="primary" aria-label="Fertig und nächstes Bohrloch">✓ Weiter</button>
-          <button type="button" data-hole-status="not-absorbing" class="secondary" aria-label="Bohrloch nicht aufnahmefähig">⊘ Dicht</button>
-          <button type="button" data-hole-status="skipped" class="secondary" aria-label="Bohrloch überspringen">↷ Überspringen</button>
-          <button type="button" data-hole-status="pressureless" class="secondary" aria-label="Dieses Bohrloch drucklos injizieren">▽ Drucklos</button>`}
+        ${finished ? "" : `<button type="button" data-hole-status="completed" class="primary">Fertig + nächstes</button>
+          <button type="button" data-hole-status="not-absorbing" class="secondary">Nicht aufnahmefähig</button>
+          <button type="button" data-hole-status="skipped" class="secondary">Übersprungen</button>
+          <button type="button" data-hole-status="pressureless" class="secondary">Dieses Loch drucklos</button>`}
       </div>
-      <div class="modal-actions"><button type="button" id="holeBack" class="secondary" aria-label="Vorheriges Bohrloch">←</button><button type="button" data-close-modal class="secondary" aria-label="Injektionsassistent schließen">×</button></div>
+      <div class="modal-actions"><button type="button" id="holeBack" class="secondary">← Zurück</button><button type="button" data-close-modal class="secondary">Schließen</button></div>
     </section>`;
     const mlInput = overlay.querySelector("#holeMl");
     if (mlInput) mlInput.oninput = () => {
@@ -6853,15 +6397,7 @@ function openInjectionAssistant(ws, taskId) {
     overlay.querySelectorAll("[data-hole-status]").forEach(button => button.onclick = () => {
       const status = button.dataset.holeStatus;
       const ml = ["skipped","not-absorbing"].includes(status) ? 0 : parseDecimal(overlay.querySelector("#holeMl").value);
-      const next = {
-        hole:current,
-        row:holeInfo.row,
-        column:holeInfo.column,
-        rowLabel:holeInfo.label,
-        status,
-        method:status === "pressureless" ? "Drucklos" : "Niederdruck",
-        actualLiters:ml / 1000
-      };
+      const next = {hole:current,status,method:status === "pressureless" ? "Drucklos" : "Niederdruck",actualLiters:ml / 1000};
       const index = task.holeRecords.findIndex(row => row.hole === current);
       if (index >= 0) task.holeRecords[index] = next; else task.holeRecords.push(next);
       task.holeRecords.sort((a,b) => a.hole - b.hole);
@@ -6869,7 +6405,7 @@ function openInjectionAssistant(ws, taskId) {
       const exceptions = task.holeRecords.filter(row => row.status !== "completed").map(row => {
         const label = row.status === "not-absorbing" ? "nicht aufnahmefähig"
           : row.status === "skipped" ? "übersprungen" : "drucklos injiziert";
-        return `${row.rowLabel || `Bohrloch ${row.hole}`} · Loch ${row.column || row.hole} ${label} (${Math.round(Number(row.actualLiters || 0) * 1000)} ml)`;
+        return `Bohrloch ${row.hole} ${label} (${Math.round(Number(row.actualLiters || 0) * 1000)} ml)`;
       });
       if (exceptions.length) task.note = `Bohrlochdokumentation: ${exceptions.join("; ")}.`;
       persistWorksite(ws);
@@ -6913,14 +6449,8 @@ function injectionExceptionsHtml(task) {
 }
 
 function buildWorksitePrint(ws) {
-  ensureCentralWorksiteMaterialData(ws);
   const totals=worksiteMaterialTotals(ws);
-  const charges = [ws.chargeHz, ws.chargeHz2].filter(Boolean).join(", ") || "–";
-  const openBottles = worksiteOpenBottleCount(ws);
-  const injectionNotice = ws.tasks.some(task => ["Horizontalsperre","Flächensperre"].includes(task.type))
-    ? `<p><strong>Technischer Hinweis:</strong><br>Das Injektionsmaterial kann sich im Mauerwerk verteilen und dabei auch in angrenzende Baustoffe oder Bauteile eindringen. Hierdurch können Verfärbungen oder Flecken entstehen. Soweit diese trotz fachgerechter Ausführung technisch unvermeidbar sind, stellen sie keinen Mangel dar und begründen keine Haftung des Auftragnehmers.</p>`
-    : "";
-  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div>${task.type==="Flächensperre"?`<div><strong>Ausgeführte Fläche:</strong> ${num(task.actualWidth)} lfm × ${num(task.actualHeight)} m = ${num(task.actualQuantity)} m²</div><div><strong>Bohrreihen:</strong> ${num(task.surfaceRowCount)}</div><div><strong>Unterste Reihe · Faktor 14:</strong> ${num(task.surfaceFirstRowHoles)} × ${Math.round(Number(task.surfaceFirstRowMlPerHole || 0))} ml = ${num(task.surfaceFirstRowLiters)} l</div><div><strong>Obere Reihen · Faktor 10:</strong> ${num(task.surfaceFollowingRowHoles)} × ${Math.round(Number(task.surfaceFollowingRowMlPerHole || 0))} ml = ${num(task.surfaceFollowingRowsLiters)} l</div>`:""}<div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div><div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div></div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.actualNote||task.note||"–")}</div>${injectionExceptionsHtml(task)}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter${totals.hsKg?`<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg`:""}${totals.resinKg?`<br>Harz / SEF-2K: ${num(totals.resinKg)} kg`:""}${totals.packers?`<br>Packer: ${num(totals.packers)} Stück`:""}<br>Charge HZ: ${esc(charges)}</p>${openBottles?`<p><strong>Hängende Flaschen:</strong> ${num(openBottles)} Stück · ${esc(ws.bottlesArea || "Bereich nicht angegeben")} · Abholung ${esc(ws.bottlesPickupDue || "noch offen")}</p>`:""}<p><strong>Absprachen und Besonderheiten:</strong><br>${esc(ws.generalNotes||"–")}</p>${injectionNotice}<p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
+  $("worksitePrintContent").innerHTML = `<div class="report-section"><h1>${esc(worksiteCustomerName(ws))}</h1><p>${esc(ws.objectAddress)}</p><div class="worksite-print-grid"><div><strong>Datum:</strong> ${esc(ws.date)}</div><div><strong>Mitarbeiter:</strong> ${esc(ws.employees)}</div><div><strong>Arbeitsbeginn:</strong> ${esc(ws.startTime)}</div><div><strong>Arbeitsende:</strong> ${esc(ws.endTime)}</div><div><strong>Pause:</strong> ${num(ws.pauseMinutes)} Min.</div><div><strong>Arbeitszeit:</strong> ${num(workDurationMinutes(ws)/60)} Std.</div><div><strong>Wetter:</strong> ${esc(ws.weather)}</div><div><strong>Außentemperatur:</strong> ${esc(ws.outdoorTemp)} °C</div></div></div>${ws.tasks.map(task=>`<div class="worksite-print-task"><h3>${esc(task.areaName)} – ${esc(task.type)}</h3><div class="worksite-print-grid"><div><strong>Umfang:</strong> ${esc(task.scope)}</div><div><strong>Wandstärke:</strong> ${num(task.wall)} cm</div><div><strong>Bohrlochabstand:</strong> ${num(task.spacing)} m</div>${task.type==="Flächensperre"?`<div><strong>Ausgeführte Fläche:</strong> ${num(task.actualWidth)} lfm × ${num(task.actualHeight)} m = ${num(task.actualQuantity)} m²</div><div><strong>Bohrreihen:</strong> ${num(task.surfaceRowCount)}</div><div><strong>Unterste Reihe · 12,5 cm über Boden · Faktor 14:</strong> ${num(task.surfaceFirstRowHoles)} Bohrlöcher × ${Math.round(Number(task.surfaceFirstRowMlPerHole || 0))} ml = ${num(task.surfaceFirstRowLiters)} l</div><div><strong>Weitere Reihen · vertikal alle 25 cm · Faktor 10:</strong> ${num(task.surfaceFollowingRowHoles)} Bohrlöcher × ${Math.round(Number(task.surfaceFollowingRowMlPerHole || 0))} ml = ${num(task.surfaceFollowingRowsLiters)} l</div>`:""}<div><strong>Bohrlöcher Soll/Ist:</strong> ${num(task.plannedHoles)} / ${num(task.actualHoles)}</div>${task.type==="Flächensperre"?"":`<div><strong>Menge je Bohrloch:</strong> ${num(task.targetLitersPerHole)} l (mind. 0,200 l)</div>`}<div><strong>HZ Soll/Ist:</strong> ${num(task.plannedLiters)} / ${num(task.actualLiters)} l</div>${task.plannedHsKg?`<div><strong>HS Soll/Ist:</strong> ${num(task.plannedHsKg)} / ${num(task.actualHsKg)} kg</div>`:""}<div><strong>Injektionsart:</strong> ${esc(task.injectionType)}</div><div><strong>Charge HZ 250 Pro:</strong> ${esc(task.chargeHz||"–")}</div><div><strong>Ausgeführt:</strong> ${task.completed?"Ja":"Nein"}</div>${Number(task.bottlesHanging||0)>0?`<div><strong>Injektionsflaschen eingesetzt:</strong> ${num(task.bottlesHanging)} Stück</div><div><strong>Davon noch in der Wand:</strong> ${num(openBottleCount(task))} Stück</div><div><strong>Geplante Abholung:</strong> ${esc(task.bottlesPickupDue||"noch offen")}</div>`:""}</div><div class="worksite-print-note"><strong>Ausführung/Besonderheiten:</strong><br>${esc(task.actualNote||task.note||"–")}</div>${injectionExceptionsHtml(task)}${openBottleCount(task)>0?`<div class="worksite-print-note bottle-legal-note"><strong>Hinweis zu den Injektionsflaschen:</strong><br>Die Injektionsflaschen verbleiben bis zur endgültigen Leerung in der Wand und werden zu einem späteren Zeitpunkt abgeholt. Die ausgeführten Abdichtungsarbeiten sind hiervon unabhängig fertiggestellt und abrechenbar.</div>`:""}</div>`).join("")}<div class="report-section"><h2>Verbrauchtes Material</h2><p>BKM HZ 250 Pro: ${num(totals.hzLiters)} Liter<br>BKM HS Sperrmörtel: ${num(totals.hsKg)} kg<br>Harz: ${num(totals.resinKg)} kg<br>Packer: ${num(totals.packers)} Stück</p><p><strong>Allgemeine Bemerkungen:</strong><br>${esc(ws.generalNotes||"–")}</p><p><strong>Kunde:</strong> ${esc(ws.customerSignature||"–")} &nbsp;&nbsp; <strong>Ausführender:</strong> ${esc(ws.workerSignature||"–")}</p></div>`;
 }
 
 $("backToVisitInput").onclick = () => {
@@ -6954,7 +6484,7 @@ $("createWorksite").onclick = async () => {
 
     // Auch Lexoffice-Kunden, die noch nicht in Pipedrive vorhanden sind,
     // werden vor dem Anlegen der Baustelle automatisch erstellt.
-    const personId = await ensurePipedrivePerson(ws.customer, ws.pipedrivePersonId);
+    const personId = await ensurePipedrivePerson(ws.customer);
     if (!personId) throw new Error("Der Kunde konnte in Pipedrive nicht angelegt werden.");
 
     ws.pipedrivePersonId = String(personId);
@@ -7412,11 +6942,13 @@ $("testConnection").onclick = async () => {
     );
     setState("stateLexware","Lexoffice",result.lexware,result.errors.lexware);
     setState("statePipedrive","Pipedrive",result.pipedrive,result.errors.pipedrive);
+    setState("stateHubSpot","HubSpot",result.hubspot,result.errors.hubspot);
     setState("stateDrive","Google Drive",result.drive,result.errors.drive);
   } catch (error) {
     setState("stateCloudflare","Cloudflare",false,error.message);
     setState("stateLexware","Lexoffice",false,"Worker-Verbindung fehlt");
     setState("statePipedrive","Pipedrive",false,"Worker-Verbindung fehlt");
+    setState("stateHubSpot","HubSpot",false,"Worker-Verbindung fehlt");
     setState("stateDrive","Google Drive",false,"Worker-Verbindung fehlt");
   }
 };
@@ -7474,34 +7006,16 @@ function isUserActivelyWorking() {
 }
 
 function showRemoteUpdateNotice({
-  title = "Neue Daten verfügbar",
-  hint = "Deine Eingabe bleibt erhalten.",
-  actionLabel = "Neu laden"
+  title = "Neuer Stand auf einem anderen Gerät",
+  hint = "Deine aktuelle Eingabe bleibt unverändert."
 } = {}) {
   if ($("remoteUpdateTitle")) $("remoteUpdateTitle").textContent = title;
   if ($("remoteUpdateHint")) $("remoteUpdateHint").textContent = hint;
-  if ($("applyRemoteUpdate")) $("applyRemoteUpdate").textContent = actionLabel;
   $("remoteUpdateNotice")?.classList.remove("hidden");
 }
 
 function hideRemoteUpdateNotice() {
   $("remoteUpdateNotice")?.classList.add("hidden");
-}
-
-function revealActionTarget(pageId, selector, message = "") {
-  hideRemoteUpdateNotice();
-  if (pageId === "visit") renderVisit();
-  if (pageId === "offer") renderOffer();
-  show(pageId);
-  window.setTimeout(() => {
-    const target = document.querySelector(selector);
-    if (!target) return;
-    target.scrollIntoView({ behavior:"smooth", block:"center" });
-    target.classList.add("action-target-highlight");
-    if (typeof target.focus === "function") target.focus({ preventScroll:true });
-    window.setTimeout(() => target.classList.remove("action-target-highlight"), 2400);
-  }, 180);
-  if (message) showStatus(pageId === "visit" ? "visitStatus" : "offerStatus", message, false);
 }
 
 function addDeviceMetadata(payload) {
@@ -7945,22 +7459,6 @@ function scheduleAutomaticSave() {
 
 document.addEventListener("input", scheduleAutomaticSave, true);
 document.addEventListener("change", scheduleAutomaticSave, true);
-document.addEventListener("focusin", event => {
-  const input = event.target;
-  if (!(input instanceof HTMLInputElement)) return;
-  const numeric = input.type === "number" || ["numeric","decimal"].includes(input.inputMode);
-  if (!numeric || input.readOnly || input.disabled) return;
-  if (String(input.value).trim() === "0" || String(input.value).trim() === "0,0" || String(input.value).trim() === "0.0") {
-    input.dataset.zeroClearedOnFocus = "1";
-    input.value = "";
-  }
-});
-document.addEventListener("focusout", event => {
-  const input = event.target;
-  if (!(input instanceof HTMLInputElement) || input.dataset.zeroClearedOnFocus !== "1") return;
-  delete input.dataset.zeroClearedOnFocus;
-  if (String(input.value).trim() === "") input.value = "0";
-});
 ["pointerdown", "touchstart", "keydown"].forEach(eventName => {
   document.addEventListener(eventName, markUserActivity, { capture: true, passive: true });
 });
@@ -8045,11 +7543,10 @@ $("centralSyncSetup")?.addEventListener("click", () => {
 $("centralSyncRecovery")?.addEventListener("click", restoreUnsyncedLocalCopy);
 $("applyRemoteUpdate")?.addEventListener("click", async () => {
   if (localStorage.getItem(LOCAL_DIRTY_KEY) === "1") {
-    revealActionTarget(
-      "visit",
-      "#saveVisit",
-      "Diese Besichtigung zuerst speichern. Die passende Schaltfläche ist markiert."
-    );
+    showRemoteUpdateNotice({
+      title: "Aktuelle Eingabe zuerst speichern",
+      hint: "Tippe in der Besichtigung auf „Speichern & später fortsetzen“. Danach kann der andere Gerätestand geladen werden."
+    });
     return;
   }
   await synchronizeFromDrive({ force: true, userRequested: true });

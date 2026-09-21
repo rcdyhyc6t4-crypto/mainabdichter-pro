@@ -7,9 +7,10 @@ import {
   loadPipedriveCustomerHistory,
   loadLexwareCustomerHistory,
   createPipedrivePerson,
+  migratePipedriveToHubSpot,
   lookupGermanLocalities,
   lookupGermanStreets
-} from "./api-v227.js";
+} from "./api-v227.js?v=32.20.0";
 
 const $ = id => document.getElementById(id);
 let activeRecordCustomer = null;
@@ -510,20 +511,15 @@ function renderCustomerRecord(customer) {
   $("customerRecordOfferCount").textContent = String(offers.length);
   $("customerRecordOffers").innerHTML = offers.length
     ? offers.sort((a, b) => String(b.visitDate || "").localeCompare(String(a.visitDate || ""))).map(record => `
-      <button type="button" class="customer-record-row customer-visit-record" data-customer-visit-record="${esc(record.id)}">
+      <article class="customer-record-row">
         <div>
           <strong>${esc(record.visitNumber || "Besichtigung / Angebot")}</strong>
           <span>${esc(formatDate(record.visitDate))} · ${esc((record.measures || []).join(", ") || "Noch keine Maßnahme")}</span>
           <small>${esc(record.objectAddress || item.objectAddress || "")}${record.offerGross ? ` · ${esc(money(record.offerGross))}` : ""}</small>
         </div>
-        <em>Öffnen und weiterbearbeiten ›</em>
-      </button>`).join("")
+        <em>${esc(recordStatus(record.status))}</em>
+      </article>`).join("")
     : `<div class="customer-record-empty">Für diesen Kunden sind noch keine gespeicherten Besichtigungen oder Angebote vorhanden.</div>`;
-  $("customerRecordOffers").querySelectorAll("[data-customer-visit-record]").forEach(button => {
-    button.onclick = () => window.dispatchEvent(new CustomEvent("mainabdichter:open-visit-record", {
-      detail: { archiveId:button.dataset.customerVisitRecord }
-    }));
-  });
 
   $("customerRecordWorksiteCount").textContent = String(worksites.length);
   $("customerRecordWorksites").innerHTML = worksites.length
@@ -544,7 +540,7 @@ function renderCustomerRecord(customer) {
   });
 
   $("customerRecordPipedrive").innerHTML = item.pipedriveId
-    ? `<strong>Mit Pipedrive verbunden</strong><span>Personen-ID ${esc(item.pipedriveId)}${item.lastPipedriveSync?.at ? ` · zuletzt ${esc(new Date(item.lastPipedriveSync.at).toLocaleString("de-DE"))}` : ""}</span>`
+    ? `<strong>Mit Pipedrive verbunden</strong><span>Personen-ID ${esc(item.pipedriveId)}${item.lastPipedriveSync?.at ? ` · zuletzt ${esc(new Date(item.lastPipedriveSync.at).toLocaleString("de-DE"))}` : ""}</span>${item.hubspotContactId ? `<a href="${esc(item.hubspotContactUrl || "#")}" target="_blank" rel="noopener">In HubSpot öffnen</a>` : ""}`
     : `<strong>Noch nicht mit Pipedrive verbunden</strong><span>Beim nächsten Speichern wird die Synchronisation versucht.</span>`;
 
   const pipedrive = item.externalHistory?.pipedrive;
@@ -563,6 +559,7 @@ function renderCustomerRecord(customer) {
     ...(pipedrive
     ? [
         ...(pipedrive.deals || []).map(deal => ({
+          id: deal.id,
           title: deal.title || "Pipedrive-Deal",
           meta: `${formatDate(deal.updateTime || deal.addTime)}${deal.value ? ` · ${money(deal.value)}` : ""}`,
           status: recordStatus(deal.status)
@@ -584,9 +581,12 @@ function renderCustomerRecord(customer) {
     ? pipedriveEntries.map(entry => `
       <article class="customer-record-row">
         <div><strong>${esc(entry.title)}</strong><span>${esc(entry.meta)}</span></div>
-        <em>${esc(entry.status)}</em>
+        ${entry.id ? `<button type="button" class="secondary hubspot-migrate-deal" data-hubspot-deal="${esc(entry.id)}">${item.hubspotDealIds?.[entry.id] ? "In HubSpot öffnen" : "Nach HubSpot"}</button>` : `<em>${esc(entry.status)}</em>`}
       </article>`).join("")
     : `<div class="customer-record-empty">${item.pipedriveId ? "Noch keine Pipedrive-Daten geladen. Bitte Kundenakte aktualisieren." : "Ohne Pipedrive-Verbindung können keine Einträge geladen werden."}</div>`;
+  $("customerRecordPipedriveHistory").querySelectorAll("[data-hubspot-deal]").forEach(button => {
+    button.onclick = () => migrateActiveCustomerToHubSpot(button.dataset.hubspotDeal);
+  });
 
   const lexwareDocuments = item.externalHistory?.lexware?.documents || [];
   $("customerRecordLexwareCount").textContent = String(lexwareDocuments.length);
@@ -600,6 +600,65 @@ function renderCustomerRecord(customer) {
         <em>${esc(recordStatus(document.voucherStatus))}</em>
       </article>`).join("")
     : `<div class="customer-record-empty">${item.externalHistory?.lexware ? "Keine Lexware-Angebote oder Rechnungen für diesen Kontakt gefunden." : "Noch keine Lexware-Daten geladen. Bitte Kundenakte aktualisieren."}</div>`;
+}
+
+async function migrateActiveCustomerToHubSpot(dealId = "") {
+  if (!activeRecordCustomer?.pipedriveId) {
+    setStatus("customerRecordSyncStatus", "Für die Übernahme fehlt die Pipedrive Personen-ID.", "error");
+    return;
+  }
+  if (!hasConnectionConfig()) {
+    setStatus("customerRecordSyncStatus", "Für die HubSpot-Übernahme fehlen die Verbindungsdaten in den Einstellungen.", "error");
+    return;
+  }
+  const existingDealUrl = dealId && activeRecordCustomer.hubspotDealUrls?.[dealId];
+  if (existingDealUrl) {
+    window.open(existingDealUrl, "_blank", "noopener");
+    return;
+  }
+  const button = dealId
+    ? document.querySelector(`[data-hubspot-deal="${CSS.escape(String(dealId))}"]`)
+    : $("customerRecordMigrateHubSpot");
+  const originalLabel = button?.textContent || "Nach HubSpot übernehmen";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Wird übertragen …";
+  }
+  setStatus("customerRecordSyncStatus", dealId
+    ? "Kontakt und ausgewählter Pipedrive-Deal werden sicher nach HubSpot übernommen …"
+    : "Kontakt wird sicher nach HubSpot übernommen …");
+  try {
+    const result = await migratePipedriveToHubSpot({
+      personId: activeRecordCustomer.pipedriveId,
+      dealId
+    });
+    const updated = saveCustomer({
+      ...activeRecordCustomer,
+      hubspotContactId: result.contactId || activeRecordCustomer.hubspotContactId || "",
+      hubspotContactUrl: result.contactUrl || activeRecordCustomer.hubspotContactUrl || "",
+      hubspotDealIds: dealId ? {
+        ...(activeRecordCustomer.hubspotDealIds || {}),
+        [dealId]: result.dealId
+      } : (activeRecordCustomer.hubspotDealIds || {}),
+      hubspotDealUrls: dealId ? {
+        ...(activeRecordCustomer.hubspotDealUrls || {}),
+        [dealId]: result.dealUrl
+      } : (activeRecordCustomer.hubspotDealUrls || {}),
+      lastHubspotMigration: { at: new Date().toISOString(), dealId: dealId || "", ok: true }
+    });
+    activeRecordCustomer = normalizeCustomer(updated);
+    renderCustomerRecord(updated);
+    setStatus("customerRecordSyncStatus", dealId
+      ? `Kunde und Deal wurden ${result.dealCreated ? "neu angelegt" : "aktualisiert"}. HubSpot ist jetzt das führende System.`
+      : `Kunde wurde ${result.contactCreated ? "neu angelegt" : "aktualisiert"}. HubSpot ist jetzt das führende System.`, "success");
+  } catch (error) {
+    setStatus("customerRecordSyncStatus", `HubSpot-Übernahme fehlgeschlagen: ${error.message}`, "error");
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
 }
 
 function openCustomerRecord(customer) {
@@ -897,6 +956,7 @@ function init() {
   $("customerRefreshPipedrive").onclick = refreshFromPipedrive;
   $("customerRecordClose").onclick = closeCustomerRecord;
   $("customerRecordRefresh").onclick = refreshCustomerRecord;
+  $("customerRecordMigrateHubSpot").onclick = () => migrateActiveCustomerToHubSpot();
   $("customerRecordEdit").onclick = () => {
     if (!activeRecordCustomer) return;
     $("customerRecord").classList.add("hidden");

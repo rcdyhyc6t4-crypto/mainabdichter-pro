@@ -1,4 +1,4 @@
-import { calculateMeasure, expandMeasuresForArea } from "./calculator-v227.js?v=32.23.0";
+import { calculateMeasure } from "./calculator-v227.js";
 import { parseDecimal } from "./utils-v227.js";
 
 const KEY = "mainabdichter_v18_worksites";
@@ -59,81 +59,6 @@ export function taskUsesResin(task) {
 
 export function taskIsTechnical(task) {
   return ["Horizontalsperre", "Flächensperre", "Wand-Sohlen-Anschluss", "Harzverpressung"].includes(task?.type);
-}
-
-export function bottleInventoryTarget(worksite = {}, source = "hanging") {
-  const taken = Math.max(0, Math.round(Number(worksite.bottlesTaken || 0)));
-  const hanging = Math.max(0, Math.round(Number(worksite.bottlesHanging || 0)));
-  const retrieved = Math.max(0, Math.round(Number(worksite.bottlesRetrieved || 0)));
-  return source === "taken"
-    ? Math.max(0, taken - retrieved)
-    : Math.max(0, hanging - retrieved);
-}
-
-export function surfaceInjectionPlan(task = {}) {
-  const firstCount = Math.max(0, Math.round(Number(task.surfaceFirstRowHoles || 0)));
-  const followingCount = Math.max(0, Math.round(Number(task.surfaceFollowingRowHoles || 0)));
-  const rowsBottomToTop = [];
-  if (firstCount > 0) {
-    rowsBottomToTop.push({
-      row: 1,
-      kind: "first",
-      label: "Reihe 1",
-      factor: 14,
-      offset: false,
-      count:firstCount
-    });
-  }
-  let remaining = followingCount;
-  let upperRow = 2;
-  const holesPerUpperRow = Math.max(1, firstCount || Math.ceil(Math.sqrt(followingCount || 1)));
-  while (remaining > 0) {
-    const count = Math.min(holesPerUpperRow, remaining);
-    rowsBottomToTop.push({
-      row: upperRow,
-      kind: "upper",
-      label: `Reihe ${upperRow}`,
-      factor: 10,
-      offset: upperRow % 2 === 0,
-      count
-    });
-    remaining -= count;
-    upperRow++;
-  }
-  let nextHole = 1;
-  return rowsBottomToTop.reverse().map(row => ({
-    ...row,
-    holes:Array.from({ length:row.count }, (_, column) => ({ hole:nextHole++, column:column + 1 }))
-  }));
-}
-
-export function injectionHoleInfo(task = {}, holeNumber = 1) {
-  if (task.type !== "Flächensperre") {
-    return {
-      hole:holeNumber,
-      row:1,
-      column:holeNumber,
-      label:"Bohrreihe",
-      kind:"standard",
-      offset:false,
-      targetMl:Math.round(Number(task.actualLitersPerHole || task.targetLitersPerHole || 0) * 1000)
-    };
-  }
-  const rows = surfaceInjectionPlan(task);
-  const row = rows.find(item => item.holes.some(hole => hole.hole === holeNumber)) || rows.at(-1);
-  const position = row?.holes.find(hole => hole.hole === holeNumber);
-  const targetMl = row?.kind === "first"
-    ? Number(task.surfaceFirstRowMlPerHole || 0)
-    : Number(task.surfaceFollowingRowMlPerHole || 0);
-  return {
-    hole:holeNumber,
-    row:row?.row || 1,
-    column:position?.column || holeNumber,
-    label:row?.kind === "first" ? "Reihe 1 · unten" : `${row?.label || "Obere Reihe"} · oben`,
-    kind:row?.kind || "first",
-    offset:Boolean(row?.offset),
-    targetMl:Math.round(targetMl)
-  };
 }
 
 function baseTask(data = {}) {
@@ -199,7 +124,7 @@ function baseTask(data = {}) {
 export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
   const tasks = [];
   for (const area of visit.areas || []) {
-    for (const measure of expandMeasuresForArea(area)) {
+    for (const measure of area.measures || []) {
       const result = calculateMeasure(settings, measure);
       if (result.quantity <= 0) continue;
       tasks.push(baseTask({
@@ -265,21 +190,6 @@ export function createWorksiteFromVisit(settings, visit, offerRecordId = "") {
     latitude: visit.visitLatitude || "",
     longitude: visit.visitLongitude || "",
     generalNotes: "",
-    chargeHz: "",
-    chargeHz2: "",
-    chargeHs: "",
-    chargeHs2: "",
-    chargeResin: "",
-    chargeResin2: "",
-    bottlesTaken: 0,
-    bottlesHanging: 0,
-    bottlesArea: "",
-    bottlesPickupDue: "",
-    bottlesRetrieved: 0,
-    bottlesRetrievedAt: "",
-    bottlesPickupNote: "",
-    bottlesHangingConfirmed: false,
-    bottleInventoryOutstanding: 0,
     customerSignature: "",
     workerSignature: "",
     materialBooked: false,
@@ -372,7 +282,6 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
       const hasHoleCounts = Number(task.surfaceFirstRowHoles || 0) > 0
         || Number(task.surfaceFollowingRowHoles || 0) > 0;
       const geometryChanged = ["actualWidth", "actualHeight", "spacing"].includes(changedField);
-      const holeCountsChanged = ["actualHoles", "surfaceFirstRowHoles", "surfaceFollowingRowHoles"].includes(changedField);
       if (!hasHoleCounts || geometryChanged) {
         const rowCount = Number(measure.height || 0) < 0.125
           ? 0
@@ -380,28 +289,15 @@ export function recalculateWorksiteTask(settings, task, changedField = "") {
         const holesPerRow = Math.ceil(Number(measure.width || 0) / spacing);
         task.surfaceFirstRowHoles = rowCount > 0 ? holesPerRow : 0;
         task.surfaceFollowingRowHoles = Math.max(0, rowCount - 1) * holesPerRow;
-      } else if (changedField === "actualHoles") {
-        const totalHoles = Math.max(0, Math.round(Number(task.actualHoles || 0)));
-        const previousRows = Math.max(1, Math.round(Number(task.surfaceRowCount || 0)));
-        const holesPerRow = Math.max(1, Math.ceil(totalHoles / previousRows));
-        task.surfaceFirstRowHoles = Math.min(totalHoles, holesPerRow);
-        task.surfaceFollowingRowHoles = Math.max(0, totalHoles - task.surfaceFirstRowHoles);
       }
 
       const firstHoles = Math.max(0, Number(task.surfaceFirstRowHoles || 0));
       const followingHoles = Math.max(0, Number(task.surfaceFollowingRowHoles || 0));
       task.actualHoles = firstHoles + followingHoles;
-      if (holeCountsChanged && firstHoles > 0) {
-        task.surfaceRowCount = Math.max(1, Math.ceil(task.actualHoles / firstHoles));
-        task.actualWidth = firstHoles * spacing;
-        task.actualQuantity = task.actualHoles * spacing * 0.25;
-        task.actualHeight = task.actualWidth > 0 ? task.actualQuantity / task.actualWidth : 0;
-      } else {
-        task.surfaceRowCount = Number(measure.height || 0) < 0.125
-          ? 0
-          : Math.floor((Number(measure.height || 0) - 0.125) / 0.25) + 1;
-        task.actualQuantity = Number(task.actualWidth || 0) * Number(task.actualHeight || 0);
-      }
+      task.surfaceRowCount = Number(measure.height || 0) < 0.125
+        ? 0
+        : Math.floor((Number(measure.height || 0) - 0.125) / 0.25) + 1;
+      task.actualQuantity = Number(task.actualWidth || 0) * Number(task.actualHeight || 0);
       task.surfaceFirstRowHeight = 0.125;
       task.surfaceVerticalSpacing = 0.25;
 

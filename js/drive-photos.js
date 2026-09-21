@@ -78,28 +78,6 @@ export function localPhotoUrl(photo) {
   return previewUrls.get(photo.id) || photo.src || "";
 }
 
-export async function resolveVisitPhotoUrl(photo) {
-  if (!photo) return "";
-  const current = localPhotoUrl(photo);
-  if (current) return current;
-  try {
-    const queued = await transact("readonly", store => store.get(photo.id));
-    if (queued?.blob) {
-      const url = URL.createObjectURL(queued.blob);
-      previewUrls.set(photo.id, url);
-      return url;
-    }
-  } catch {}
-  if (photo.driveFileId) {
-    try {
-      const url = URL.createObjectURL(await loadDrivePhoto(photo.driveFileId));
-      previewUrls.set(photo.id, url);
-      return url;
-    } catch {}
-  }
-  return "";
-}
-
 export async function syncPendingVisitPhotos() {
   if (!navigator.onLine) return;
   const queued = await transact("readonly", store => store.getAll());
