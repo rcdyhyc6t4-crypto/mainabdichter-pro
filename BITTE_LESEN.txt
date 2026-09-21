@@ -1,21 +1,7 @@
-mainabdichter PRO V32.20.0 – Pipedrive-Altbestand sicher nach HubSpot übernehmen
+mainabdichter PRO V32.23.1 – vollständiger Stand mit HubSpot-Übernahme
 
 DIESES ZIP VOLLSTÄNDIG BEI GITHUB AUF BRANCH main HOCHLADEN.
 Vorhandene Dateien und Ordner ersetzen; die Ordnerstruktur erhalten.
-
-HUBSPOT – EINMALIGE CLOUDFLARE-EINRICHTUNG:
-- Secret HUBSPOT_ACCESS_TOKEN mit einem HubSpot Private-App-Token hinterlegen.
-- Erforderliche Rechte: Kontakte und Deals lesen/schreiben sowie Kontakt- und Deal-Eigenschaften lesen/schreiben.
-- Optional HUBSPOT_PORTAL_ID=148928809 hinterlegen; ohne Angabe wird dieser Account verwendet.
-- Danach in den App-Einstellungen „Verbindungen prüfen“ ausführen. HubSpot muss „verbunden“ anzeigen.
-
-ÜBERNAHME ALTER PIPEDRIVE-DATEN:
-- Kundenakte öffnen und zuerst „Kundenakte aktualisieren“ wählen.
-- Nur den Kontakt über „Kunde nach HubSpot übernehmen“ übertragen oder beim gewünschten alten Deal „Nach HubSpot“ wählen.
-- Die Übernahme ist wiederholungssicher: Pipedrive Personen-ID und Deal-ID verhindern Dubletten.
-- Pipedrive bleibt unverändert und wird bei dieser Übernahme ausschließlich gelesen.
-- Alle Notizen, Aktivitäten, Dateinamen/-links und alten Deal-Felder werden im HubSpot-Deal archiviert.
-- Neue Deals landen in „Mainabdichter – Aufträge“ in der Phase „Neue Anfrage“.
 
 DATENSCHUTZ:
 - Server- und Gerätedaten werden beim Start zusammengeführt, nicht blind ersetzt.
@@ -27,6 +13,9 @@ DATENSCHUTZ:
 - Während einer Eingabe oder eines Foto-Uploads gibt es keinen störenden Neuaufbau.
 
 BESICHTIGUNG:
+- Messungen sind fachlich empfohlen, aber niemals Voraussetzung für den Abschluss.
+- Eine Besichtigung und das geführte Wandaufmaß lassen sich auch mit 0, 1 oder 2 Messwerten abschließen.
+- Drei Messwerte werden nur als Empfehlung angezeigt; leere Rasterpunkte erscheinen nicht als Messwerte im Bericht.
 - Neue Anfrage öffnet sofort die Anfrage- und Terminangaben.
 - Geführter Ablauf über Kunde, Gebäude, Beschreibung, Maßnahmen und Prüfung.
 - Zwischenspeichern legt eine wieder aufrufbare Version unter „Vorgänge“ an.
@@ -35,6 +24,11 @@ BESICHTIGUNG:
 - Aufmaß und Wandmessung bleiben separat lösch- und speicherbar.
 
 BAUSTELLE UND ARBEITSNACHWEIS:
+- Injektionsflaschen werden beim Mitnehmen automatisch aus dem Lager gebucht.
+- Nicht hängende Flaschen werden bei der Baustellendokumentation zurückgebucht.
+- Abgeholte Flaschen erhöhen den Bestand; Teilabholungen bleiben möglich.
+- Jede Baustelle speichert ihren verbuchten Außenbestand, damit erneutes
+  Speichern keine Flasche doppelt bewegt.
 - Vier klare Bereiche: Übersicht, Ausführung, Fotos & Unterlagen, Abschluss.
 - Jeder Arbeitsnachweis ist nach Baustellen-ID getrennt; alte Kundendaten werden nicht übernommen.
 - Ist-Verbrauch wird aus den tatsächlich eingetragenen Bohrlöchern und ml je Bohrloch berechnet.
@@ -44,10 +38,25 @@ BAUSTELLE UND ARBEITSNACHWEIS:
 - Offene Rechnungen bleiben als Erinnerung auf dem Dashboard sichtbar.
 
 WEITERHIN ENTHALTEN:
+- Das Plus sitzt fest im Kopfbereich und verdeckt keine Dashboard-Inhalte.
+- Die Neuanlage zeigt sechs kurze, bildhafte Aktionen in einem 3-mal-2-Raster.
 - Automatische PLZ-/Ort-Hilfe und Straßenprüfung bei manueller Korrekturmöglichkeit.
 - Vorbereitungsunterlagen wie Aufmaß und Grundriss direkt in der Ausführung.
 - BKM-MANNESMANN-Erklärvideo in der Kundenansicht.
 - Pipedrive-Postanschrift `postal_adress`, IDs und Dublettenschutz.
+- Kontakte werden zuerst getrennt über E-Mail und Telefon sowie danach über
+  Name und Anschrift geprüft. Bei unklaren Treffern wird nichts neu angelegt.
+- Bereits vorhandene Pipedrive-Dubletten werden nicht automatisch verändert.
+
+HUBSPOT – EINMALIGE EINRICHTUNG IM CLOUDFLARE WORKER:
+- Secret `HUBSPOT_ACCESS_TOKEN` mit einer HubSpot Private-App hinterlegen.
+- Benötigte Rechte: Kontakte und Deals lesen/schreiben sowie Kontakt- und
+  Deal-Eigenschaften lesen/schreiben.
+- Optional `HUBSPOT_PORTAL_ID=148928809` als Variable hinterlegen.
+- Alte Pipedrive-Kunden und -Deals lassen sich danach in der Kundenakte über
+  „Nach HubSpot“ übernehmen. Pipedrive wird dabei ausschließlich gelesen.
+- Wiederholtes Antippen aktualisiert denselben HubSpot-Datensatz und erzeugt
+  keine Dublette. Neue Vorgänge werden anschließend in HubSpot geführt.
 
 PRÜFUNGEN:
 - JavaScript- und Worker-Syntax bestanden.
@@ -55,3 +64,4 @@ PRÜFUNGEN:
 - Besichtigungsablauf, Zwischenspeichern und sicherer Abschluss bestanden.
 - Baustellenführung, getrennte Arbeitsnachweise, Verbrauch und Abschluss bestanden.
 - Mobile Navigation, Safe Areas und Wandmessung bestanden.
+- HubSpot-Pipeline, Dublettenschutz, Kundenübernahme und Pipedrive-Leseprinzip bestanden.

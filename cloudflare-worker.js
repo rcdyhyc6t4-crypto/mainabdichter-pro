@@ -1,4 +1,4 @@
-// mainabdichter PRO Cloudflare Worker V32.20.0
+// mainabdichter PRO Cloudflare Worker V32.23.1
 // Pipedrive-Personen-, Adress- und Baustellen-Synchronisation.
 // postal_address wird nicht mehr unzulässig an API v2 gesendet.
 
@@ -15,6 +15,257 @@ let pipedrivePersonAddressFieldCache = null;
 let pipedriveDealFieldSchemaCache = null;
 let pipedrivePersonFieldSchemaCache = null;
 let hubspotMigrationSchemaReady = false;
+
+const FLOOR_PLAN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["canvas_width", "canvas_height", "rotation_degrees", "source_coordinate_system", "quality", "walls", "openings", "uncertain_items"],
+  properties: {
+    canvas_width: { type: "number" },
+    canvas_height: { type: "number" },
+    rotation_degrees: { type: "number" },
+    source_coordinate_system: { type: "boolean" },
+    quality: {
+      type: "object",
+      additionalProperties: false,
+      required: ["score", "alignment_score", "perspective_corrected", "folds_detected", "dimensions_cross_checked"],
+      properties: {
+        score: { type: "number" },
+        alignment_score: { type: "number" },
+        perspective_corrected: { type: "boolean" },
+        folds_detected: { type: "boolean" },
+        dimensions_cross_checked: { type: "boolean" }
+      }
+    },
+    walls: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "source_line_id", "label", "x1", "y1", "x2", "y2", "length_m", "thickness_cm", "confidence"],
+        properties: {
+          id: { type: "string" },
+          source_line_id: { type: "string" },
+          label: { type: "string" },
+          x1: { type: "number" },
+          y1: { type: "number" },
+          x2: { type: "number" },
+          y2: { type: "number" },
+          length_m: { type: "number" },
+          thickness_cm: { type: "number" },
+          confidence: { type: "number" }
+        }
+      }
+    },
+    openings: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "wall_id", "position", "width_m", "confidence"],
+        properties: {
+          type: { type: "string", enum: ["door", "window", "unknown"] },
+          wall_id: { type: "string" },
+          position: { type: "number" },
+          width_m: { type: "number" },
+          confidence: { type: "number" }
+        }
+      }
+    },
+    uncertain_items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["wall_id", "question", "suggested_value"],
+        properties: {
+          wall_id: { type: "string" },
+          question: { type: "string" },
+          suggested_value: { type: "number" }
+        }
+      }
+    }
+  }
+};
+
+function responseOutputText(data) {
+  if (typeof data?.output_text === "string") return data.output_text;
+  for (const item of data?.output || []) {
+    for (const content of item?.content || []) {
+      if (typeof content?.text === "string") return content.text;
+    }
+  }
+  return "";
+}
+
+function parseFloorPlanOutput(data) {
+  const raw = responseOutputText(data).trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace < 0 || lastBrace <= firstBrace) {
+    throw new Error("Die KI-Antwort enthält keine lesbare Plangeometrie.");
+  }
+  return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+}
+
+async function requestFloorPlanAnalysis(env, image, model, strict, prompt) {
+  const body = {
+    model,
+    reasoning: { effort: "low" },
+    max_output_tokens: 12000,
+    input: [{
+      role: "user",
+      content: [
+        {
+          type: "input_text",
+          text: strict
+            ? prompt
+            : `${prompt} Antworte ausschließlich mit einem gültigen JSON-Objekt entsprechend der beschriebenen Felder, ohne Markdown und ohne zusätzlichen Text.`
+        },
+        { type: "input_image", image_url: image, detail: "high" }
+      ]
+    }]
+  };
+  if (strict) {
+    body.text = {
+      format: {
+        type: "json_schema",
+        name: "mainabdichter_floor_plan",
+        strict: true,
+        schema: FLOOR_PLAN_SCHEMA
+      }
+    };
+  }
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || `OpenAI-Analyse mit ${model} fehlgeschlagen.`);
+    error.status = response.status || 502;
+    error.details = { model, strict, openai: data?.error || data };
+    throw error;
+  }
+  return parseFloorPlanOutput(data);
+}
+
+async function analyzeFloorPlan(env, image, imageWidth, imageHeight, lineCandidates) {
+  if (!env.OPENAI_API_KEY) {
+    const error = new Error("Die KI-Grundrisserkennung ist im Worker noch nicht freigeschaltet. OPENAI_API_KEY fehlt.");
+    error.status = 503;
+    throw error;
+  }
+  if (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(String(image || ""))) {
+    const error = new Error("Es wurde kein gültiges Grundrissfoto übertragen.");
+    error.status = 400;
+    throw error;
+  }
+  if (String(image).length > 14 * 1024 * 1024) {
+    const error = new Error("Das Grundrissfoto ist zu groß.");
+    error.status = 413;
+    throw error;
+  }
+  imageWidth = Math.round(Number(imageWidth));
+  imageHeight = Math.round(Number(imageHeight));
+  if (!(imageWidth > 0 && imageHeight > 0 && imageWidth <= 5000 && imageHeight <= 5000)) {
+    const error = new Error("Die Bildabmessungen des Grundrissfotos fehlen oder sind ungültig.");
+    error.status = 400;
+    throw error;
+  }
+  lineCandidates = Array.isArray(lineCandidates) ? lineCandidates.filter(candidate =>
+    typeof candidate?.id === "string" &&
+    [candidate.x1,candidate.y1,candidate.x2,candidate.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
+  ).slice(0,180) : [];
+  if (lineCandidates.length < 4) {
+    const error = new Error("Die technische Linienerkennung hat zu wenige Kandidaten geliefert.");
+    error.status = 422;
+    throw error;
+  }
+  const candidateText = JSON.stringify(lineCandidates);
+  const prompt = [
+    "Analysiere ausschließlich den hochgeladenen Gebäudegrundriss.",
+    `Das übertragene Originalbild ist exakt ${imageWidth} Pixel breit und ${imageHeight} Pixel hoch.`,
+    "Erfinde keine Raumaufteilung, ergänze keine nicht sichtbaren Wände und vereinfache den Plan nicht zu einem allgemeinen Rechteck.",
+    "WICHTIG: Die App hat aus den Bildpixeln bereits echte dunkle Linien ermittelt. Du darfst ausschließlich Einträge aus dieser Kandidatenliste als Wände auswählen.",
+    `Linienkandidaten: ${candidateText}`,
+    "source_line_id muss exakt die id eines Kandidaten enthalten. Übernimm dessen x1,y1,x2,y2 unverändert. Erfinde, verschiebe, verlängere oder begradige keine Linie.",
+    "Wähle aus den Kandidaten nur tatsächliche massive Wände aus, keine Maßlinien, Schriftlinien, Blattränder, Möbel oder Treppenstufen.",
+    "Nutze Wandstärken, Türen und Fenster zur Erkennung, aber rekonstruiere keine idealisierte Ersatzgeometrie.",
+    "Gedruckte oder handschriftlich eingetragene Maße sind verbindlicher als Pixellängen.",
+    "Gib jede gerade sichtbare Wandstrecke als eigenes Segment zurück. Koordinaten x1,y1,x2,y2 liegen normiert zwischen 0 und 1 bezogen auf das unveränderte Originalbild: links=0, rechts=1, oben=0, unten=1.",
+    `Setze canvas_width exakt auf ${imageWidth}, canvas_height exakt auf ${imageHeight} und source_coordinate_system zwingend auf true.`,
+    "length_m ist die maßstäbliche Wandlänge. thickness_cm ist die erkennbare Wandstärke.",
+    "Wenn ein zwingendes Maß nicht zuverlässig lesbar ist, nicht raten: confidence reduzieren und uncertain_items ergänzen.",
+    "quality.alignment_score beschreibt ausschließlich, wie sicher sämtliche zurückgegebenen Segmente pixelgenau über den sichtbaren Originalwänden liegen. Bei auch nur einer erfundenen oder deutlich versetzten Wand muss der Wert unter 0.82 liegen.",
+    "quality.score beschreibt die geometrische Gesamtzuverlässigkeit von 0 bis 1. perspective_corrected muss false sein, weil die Koordinaten ausdrücklich im Originalbild bleiben."
+  ].join(" ");
+  const configuredModel = String(env.OPENAI_VISION_MODEL || "gpt-5.6-luna").trim();
+  const attempts = [
+    { model: configuredModel, strict: true },
+    { model: configuredModel, strict: false }
+  ];
+  if (configuredModel !== "gpt-5.6-terra") {
+    attempts.push({ model: "gpt-5.6-terra", strict: true });
+  }
+  let plan = null;
+  const failures = [];
+  for (const attempt of attempts) {
+    try {
+      plan = await requestFloorPlanAnalysis(env, image, attempt.model, attempt.strict, prompt);
+      if (plan && Array.isArray(plan.walls) && plan.walls.length) break;
+      failures.push(`${attempt.model}: keine Wände`);
+      plan = null;
+    } catch (error) {
+      failures.push(`${attempt.model}${attempt.strict ? " strukturiert" : " tolerant"}: ${error.message}`);
+    }
+  }
+  if (!plan) {
+    const error = new Error("Die KI konnte aus diesem Foto noch keinen zeichnungsfähigen Grundriss erzeugen.");
+    error.status = 422;
+    error.details = { code: "FLOOR_PLAN_ANALYSIS_FAILED", attempts: failures };
+    throw error;
+  }
+  plan.canvas_width = imageWidth;
+  plan.canvas_height = imageHeight;
+  plan.quality ||= {
+    score: 0.5,
+    alignment_score: 0,
+    perspective_corrected: false,
+    folds_detected: false,
+    dimensions_cross_checked: false
+  };
+  plan.walls = (plan.walls || []).filter(wall =>
+    [wall.x1, wall.y1, wall.x2, wall.y2].every(value => Number.isFinite(value) && value >= 0 && value <= 1)
+  );
+  const candidateMap = new Map(lineCandidates.map(candidate => [candidate.id,candidate]));
+  let invalidCandidate=false;
+  plan.walls = plan.walls.map(wall => {
+    const candidate=candidateMap.get(wall.source_line_id);
+    if(!candidate){ invalidCandidate=true; return null; }
+    return {...wall,x1:candidate.x1,y1:candidate.y1,x2:candidate.x2,y2:candidate.y2};
+  }).filter(Boolean);
+  if (plan.source_coordinate_system !== true || invalidCandidate) {
+    const error = new Error("Die erkannten Linien sind nicht ausreichend deckungsgleich mit dem Originalfoto. Das Ergebnis wurde aus Sicherheitsgründen verworfen.");
+    error.status = 422;
+    error.details = { code: "FLOOR_PLAN_ALIGNMENT_REJECTED" };
+    throw error;
+  }
+  plan.quality.alignment_score = 1;
+  if (!plan.walls.length) {
+    const error = new Error("Auf dem Foto konnten keine ausreichend sicheren Wände erkannt werden.");
+    error.status = 422;
+    throw error;
+  }
+  return plan;
+}
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "*";
@@ -1502,14 +1753,88 @@ function idFromValue(value) {
   return Number(value || 0);
 }
 
-async function findExistingPipedrivePerson(env, email, phone) {
-  const term = String(email || phone || "").trim();
-  if (term.length < 2) return null;
-  const fields = email ? "email" : "phone";
+function normalizeIdentityText(value) {
+  return cleanText(value).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function normalizeIdentityPhone(value) {
+  const digits = cleanText(value).replace(/\D+/g, "").replace(/^00/, "");
+  // Landesvorwahl und lokale Schreibweise dürfen sich unterscheiden.
+  return digits.length > 9 ? digits.slice(-9) : digits;
+}
+
+function personConflict(message, candidates = []) {
+  const error = new Error(message);
+  error.status = 409;
+  error.details = {
+    candidatePersonIds: [...new Set(candidates.map(person => Number(person?.id || 0)).filter(Boolean))]
+  };
+  return error;
+}
+
+async function searchPipedrivePersonsExact(env, term, fields) {
+  const value = cleanText(term);
+  if (value.length < 2) return [];
   const result = await pipedriveRequest(env,
-    `/api/v2/persons/search?term=${encodeURIComponent(term)}&fields=${fields}&exact_match=true&limit=5`);
-  const items = result?.data?.items || [];
-  return items.length ? normalizePipedrivePerson(items[0].item || items[0]) : null;
+    `/api/v2/persons/search?term=${encodeURIComponent(value)}&fields=${fields}&exact_match=true&limit=20`);
+  const people = (result?.data?.items || [])
+    .map(item => normalizePipedrivePerson(item?.item || item))
+    .filter(person => person?.id);
+  return [...new Map(people.map(person => [String(person.id), person])).values()];
+}
+
+async function findExistingPipedrivePerson(env, input = {}) {
+  const email = cleanText(input.email).toLowerCase();
+  const phone = cleanText(input.phone || input.mobile);
+  const name = cleanText(input.name);
+  const address = cleanText(input.postalAddress) || formatAddress(input);
+  const identifierMatches = [];
+
+  // E-Mail und Telefon werden immer getrennt geprüft. Eine vorhandene E-Mail
+  // darf die Suche nach einer bereits bekannten Telefonnummer nicht verhindern.
+  if (email) {
+    const matches = (await searchPipedrivePersonsExact(env, email, "email"))
+      .filter(person => (person.emails || [{ value: person.email }]).some(entry =>
+        cleanText(entry?.value || entry).toLowerCase() === email));
+    if (matches.length > 1) throw personConflict(
+      "Mehrere Pipedrive-Kontakte verwenden diese E-Mail-Adresse. Es wurde kein neuer Kontakt angelegt.", matches);
+    identifierMatches.push(...matches);
+  }
+  if (phone) {
+    const wantedPhone = normalizeIdentityPhone(phone);
+    const matches = (await searchPipedrivePersonsExact(env, phone, "phone"))
+      .filter(person => (person.phones || [{ value: person.mobile || person.phone }]).some(entry =>
+        normalizeIdentityPhone(entry?.value || entry) === wantedPhone));
+    if (matches.length > 1) throw personConflict(
+      "Mehrere Pipedrive-Kontakte verwenden diese Telefonnummer. Es wurde kein neuer Kontakt angelegt.", matches);
+    identifierMatches.push(...matches);
+  }
+
+  const uniqueIdentifierMatches = [...new Map(identifierMatches.map(person => [String(person.id), person])).values()];
+  if (uniqueIdentifierMatches.length > 1) throw personConflict(
+    "E-Mail und Telefonnummer gehören in Pipedrive zu verschiedenen Kontakten. Bitte zuerst den richtigen Kontakt auswählen.",
+    uniqueIdentifierMatches);
+  if (uniqueIdentifierMatches.length === 1) return uniqueIdentifierMatches[0];
+
+  // Auch ohne verwertbare Kontaktdaten darf ein gleichnamiger Kunde nicht
+  // stillschweigend ein zweites Mal entstehen. Name + Anschrift ist eindeutig;
+  // bei unklaren Namensfunden wird sicher abgebrochen.
+  if (name) {
+    const wantedName = normalizeIdentityText(name);
+    const nameMatches = (await searchPipedrivePersonsExact(env, name, "name"))
+      .filter(person => normalizeIdentityText(person.name) === wantedName);
+    const wantedAddress = normalizeIdentityText(address);
+    const addressMatches = wantedAddress
+      ? nameMatches.filter(person => normalizeIdentityText(person.postalAddress) === wantedAddress)
+      : [];
+    if (addressMatches.length === 1) return addressMatches[0];
+    if (nameMatches.length) throw personConflict(
+      `Der Kontakt „${name}“ existiert bereits in Pipedrive. Bitte den vorhandenen Kontakt auswählen; es wurde keine Dublette angelegt.`,
+      addressMatches.length ? addressMatches : nameMatches);
+  }
+  return null;
 }
 
 
@@ -1882,7 +2207,7 @@ export default {
         return jsonResponse(request, {
           ok: true,
           service: "Mainabdichter Bridge",
-          workerVersion: "32.20.0",
+          workerVersion: "32.23.1",
           time: new Date().toISOString()
         });
       }
@@ -2273,7 +2598,7 @@ export default {
 
         return jsonResponse(request, {
           ok: true,
-          workerVersion: "32.20.0",
+          workerVersion: "32.23.1",
           addressSync: true,
           postalAddressPayloadFixed: true,
           dealFieldSchemaValidation: true,
@@ -2294,7 +2619,12 @@ export default {
         const requestedPersonId = Number(input.pipedriveId || 0) || null;
         let person = requestedPersonId
           ? { id: requestedPersonId }
-          : await findExistingPipedrivePerson(env,email,phone);
+          : await findExistingPipedrivePerson(env, {
+              ...input,
+              name,
+              email,
+              phone
+            });
         let created = false;
         if (!person) {
           const payload = await createPipedrivePersonPayload(env, { ...input, name, email, phone });
@@ -3341,14 +3671,43 @@ export default {
             `\n\nObjektanschrift: ${quotation.objectAddress}`;
         }
 
-        const createdQuotation = await lexwareRequest(
-          env,
-          "/quotations?finalize=false",
-          {
-            method: "POST",
-            body: JSON.stringify(quotationPayload),
+        let createdQuotation;
+        try {
+          createdQuotation = await lexwareRequest(
+            env,
+            "/quotations?finalize=false",
+            {
+              method: "POST",
+              body: JSON.stringify(quotationPayload),
+            }
+          );
+        } catch (error) {
+          // Lexware rejects a complete quotation with HTTP 406 if one of the
+          // referenced articles was archived, changed or no longer belongs to
+          // the account.  The visible offer data is still valid, so retry the
+          // draft once with independent custom positions.  Names, texts,
+          // quantities, prices and taxes remain unchanged.
+          if (error.status !== 406 || !quotationPayload.lineItems.some(item => item.id)) {
+            throw error;
           }
-        );
+
+          const retryPayload = {
+            ...quotationPayload,
+            lineItems: quotationPayload.lineItems.map(item => {
+              const { id, ...position } = item;
+              return { ...position, type: "custom" };
+            }),
+          };
+
+          createdQuotation = await lexwareRequest(
+            env,
+            "/quotations?finalize=false",
+            {
+              method: "POST",
+              body: JSON.stringify(retryPayload),
+            }
+          );
+        }
 
         return jsonResponse(
           request,

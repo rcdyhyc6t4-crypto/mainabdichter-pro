@@ -1,0 +1,11 @@
+mainabdichter PRO V32.23.1 – HubSpot-Übernahme auf vollständigem V32.23.0-Stand
+
+- Der komplette Funktionsstand V32.23.0 bleibt erhalten.
+- Alte Pipedrive-Kontakte und -Deals können aus der Kundenakte nach HubSpot übernommen werden.
+- Pipedrive bleibt dabei schreibgeschützter Altbestand-Fallback.
+- HubSpot verwendet die Mainabdichter-Pipeline 4129198267 und die Eingangsstufe 6073476334.
+- Wiederholte Übernahmen aktualisieren vorhandene Datensätze statt Dubletten zu erzeugen.
+- Pipedrive-Notizen, Aktivitäten, Dateien und benutzerdefinierte Felder werden als Archivtext erhalten.
+- Lexware und die übrigen App-Funktionen bleiben unverändert bestehen.
+
+Einmalig im Cloudflare Worker erforderlich: Secret HUBSPOT_ACCESS_TOKEN.
