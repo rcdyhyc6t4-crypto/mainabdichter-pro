@@ -1,5 +1,5 @@
 import { state } from "./storage-v227.js";
-import { calculateOffer } from "./calculator-v227.js";
+import { calculateOffer } from "./calculator-v227.js?v=32.23.0";
 import { $, eur, num, esc } from "./utils-v227.js";
 import { buildExecutionNotices } from "./texts-v227.js";
 import { localPhotoUrl } from "./drive-photos.js?v=32.7.8";
