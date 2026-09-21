@@ -1,0 +1,11 @@
+mainabdichter PRO V32.20.0 – HubSpot-Übernahme
+
+- Button in der Kundenakte zur einmaligen Übernahme alter Pipedrive-Kontakte.
+- Eigener Button je altem Pipedrive-Deal.
+- Automatische HubSpot-Dublettenprüfung über Pipedrive-ID, E-Mail und Telefonnummer.
+- Wiederholungsschutz über Pipedrive Personen-ID und Deal-ID in HubSpot.
+- Zuordnung zur Pipeline „Mainabdichter – Aufträge“, Phase „Neue Anfrage“.
+- Pipedrive bleibt während der Übernahme unverändert und wird ausschließlich gelesen.
+- Notizen, Aktivitäten, Dateinamen/-links und alte Deal-Felder werden im Deal archiviert.
+- HubSpot-Verbindungsprüfung in den Einstellungen ergänzt.
+- Automatisierte Syntax-, Datenfluss-, UI- und Wiederholungsschutztests ergänzt.
